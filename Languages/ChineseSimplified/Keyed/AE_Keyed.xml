@@ -13,6 +13,7 @@
   <AE_Role_Hunter>猎人</AE_Role_Hunter>
   <AE_Role_Worker>工人</AE_Role_Worker>
   <AE_Role_Pacifist>和平主义者</AE_Role_Pacifist>
+  <AE_Role_Leader>意识形态领袖</AE_Role_Leader>
 
   <!-- 情境 -->
   <AE_Context_Normal>日常</AE_Context_Normal>
@@ -67,4 +68,33 @@
   <AE_DebugReload_Role>选择角色筛选</AE_DebugReload_Role>
   <AE_DebugReload_Role_All>全部殖民者</AE_DebugReload_Role_All>
   <AE_DebugReloadResult>已对 {2} 个「{1}」殖民者执行「{0}」换装</AE_DebugReloadResult>
+
+  <!-- 预设方案 -->
+  <AE_Preset>预设方案</AE_Preset>
+  <AE_Preset_Standard>标准</AE_Preset_Standard>
+  <AE_Preset_Aggressive>激进</AE_Preset_Aggressive>
+  <AE_Preset_Economic>经济</AE_Preset_Economic>
+  <AE_Preset_Hunting>狩猎</AE_Preset_Hunting>
+  <AE_Preset_Cycle>循环切换</AE_Preset_Cycle>
+  <AE_Preset_Details>方案详情</AE_Preset_Details>
+  <AE_Preset_DefaultWeights>默认权重</AE_Preset_DefaultWeights>
+
+  <!-- 权重名称 -->
+  <AE_Weight_Skill>技能</AE_Weight_Skill>
+  <AE_Weight_DPS>伤害</AE_Weight_DPS>
+  <AE_Weight_Range>射程</AE_Weight_Range>
+  <AE_Weight_Quality>品质</AE_Weight_Quality>
+  <AE_Weight_Armor>护甲</AE_Weight_Armor>
+  <AE_Weight_Insulation>保温</AE_Weight_Insulation>
+  <AE_Weight_MoveSpeed>移速</AE_Weight_MoveSpeed>
+  <AE_Weight_WorkSpeed>工作速度</AE_Weight_WorkSpeed>
+
+  <!-- 监测系统 -->
+  <AE_Monitor>监测系统</AE_Monitor>
+  <AE_Monitor_Enabled>启用监测</AE_Monitor_Enabled>
+  <AE_Monitor_SwapEvents>换装事件</AE_Monitor_SwapEvents>
+  <AE_Monitor_WeaponScore>武器评分</AE_Monitor_WeaponScore>
+  <AE_Monitor_ApparelScore>防具评分</AE_Monitor_ApparelScore>
+  <AE_Monitor_Breakdown>评分明细</AE_Monitor_Breakdown>
+  <AE_Monitor_Comparison>评分对比</AE_Monitor_Comparison>
 </LanguageData>

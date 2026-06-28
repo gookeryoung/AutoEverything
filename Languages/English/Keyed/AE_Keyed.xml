@@ -13,6 +13,7 @@
   <AE_Role_Hunter>Hunter</AE_Role_Hunter>
   <AE_Role_Worker>Worker</AE_Role_Worker>
   <AE_Role_Pacifist>Pacifist</AE_Role_Pacifist>
+  <AE_Role_Leader>Ideo Leader</AE_Role_Leader>
 
   <!-- Contexts -->
   <AE_Context_Normal>Normal</AE_Context_Normal>
@@ -67,4 +68,33 @@
   <AE_DebugReload_Role>Select role filter</AE_DebugReload_Role>
   <AE_DebugReload_Role_All>All colonists</AE_DebugReload_Role_All>
   <AE_DebugReloadResult>Triggered '{0}' reload for {2} '{1}' colonists</AE_DebugReloadResult>
+
+  <!-- Presets -->
+  <AE_Preset>Preset</AE_Preset>
+  <AE_Preset_Standard>Standard</AE_Preset_Standard>
+  <AE_Preset_Aggressive>Aggressive</AE_Preset_Aggressive>
+  <AE_Preset_Economic>Economic</AE_Preset_Economic>
+  <AE_Preset_Hunting>Hunting</AE_Preset_Hunting>
+  <AE_Preset_Cycle>Cycle</AE_Preset_Cycle>
+  <AE_Preset_Details>Preset Details</AE_Preset_Details>
+  <AE_Preset_DefaultWeights>Default Weights</AE_Preset_DefaultWeights>
+
+  <!-- Weight names -->
+  <AE_Weight_Skill>Skill</AE_Weight_Skill>
+  <AE_Weight_DPS>DPS</AE_Weight_DPS>
+  <AE_Weight_Range>Range</AE_Weight_Range>
+  <AE_Weight_Quality>Quality</AE_Weight_Quality>
+  <AE_Weight_Armor>Armor</AE_Weight_Armor>
+  <AE_Weight_Insulation>Insulation</AE_Weight_Insulation>
+  <AE_Weight_MoveSpeed>Move Speed</AE_Weight_MoveSpeed>
+  <AE_Weight_WorkSpeed>Work Speed</AE_Weight_WorkSpeed>
+
+  <!-- Monitor -->
+  <AE_Monitor>Monitor</AE_Monitor>
+  <AE_Monitor_Enabled>Enable monitor</AE_Monitor_Enabled>
+  <AE_Monitor_SwapEvents>Swap events</AE_Monitor_SwapEvents>
+  <AE_Monitor_WeaponScore>Weapon score</AE_Monitor_WeaponScore>
+  <AE_Monitor_ApparelScore>Apparel score</AE_Monitor_ApparelScore>
+  <AE_Monitor_Breakdown>Score breakdown</AE_Monitor_Breakdown>
+  <AE_Monitor_Comparison>Score comparison</AE_Monitor_Comparison>
 </LanguageData>

@@ -4,6 +4,7 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using AutoEquipment.Scoring;
 
 namespace AutoEquipment
 {
@@ -427,10 +428,28 @@ namespace AutoEquipment
         private void EvaluateWeapon(Role role, GearContext context, bool contextChanged)
         {
             Thing currentWeapon = Pawn.equipment?.Primary;
-            float currentScore = currentWeapon != null
-                ? GearScorer.ScoreWeapon(Pawn, currentWeapon, role, context) : -500f;
+            // 监测路径：用 WithBreakdown 版本，否则用快速版本
+            bool monitorWeapon = DebugMonitor.monitorEnabled && DebugMonitor.monitorWeaponScore;
+            float currentScore;
+            ScoreBreakdown currentBreakdown = null;
+            if (monitorWeapon && currentWeapon != null)
+            {
+                currentBreakdown = GearScorer.ScoreWeaponWithBreakdown(Pawn, currentWeapon, role, context);
+                currentScore = currentBreakdown.Vetoed ? currentBreakdown.VetoScore : currentBreakdown.Total;
+            }
+            else
+            {
+                currentScore = currentWeapon != null
+                    ? GearScorer.ScoreWeapon(Pawn, currentWeapon, role, context) : -500f;
+            }
 
             Log.Message($"[AutoEquipment] {Pawn.LabelShort} EvaluateWeapon: current={currentWeapon?.LabelShort ?? "none"} score={currentScore:F1}, role={role}, context={context}, contextChanged={contextChanged}");
+
+            // 监测：当前武器评分
+            if (monitorWeapon && currentWeapon != null && currentBreakdown != null)
+            {
+                DebugMonitor.ReportWeaponScore(Pawn, currentWeapon, currentBreakdown, null, 0f);
+            }
 
             // 寻找地图上最佳武器
             Thing bestWeapon = null;
@@ -452,12 +471,30 @@ namespace AutoEquipment
                 if (thing.def.IsMeleeWeapon && Pawn.WorkTagIsDisabled(WorkTags.Violent)) { candidatesSkipped++; continue; }
 
                 candidatesChecked++;
-                float score = GearScorer.ScoreWeapon(Pawn, thing, role, context);
+                // 监测路径：用 WithBreakdown 版本
+                float score;
+                ScoreBreakdown breakdown = null;
+                if (monitorWeapon)
+                {
+                    breakdown = GearScorer.ScoreWeaponWithBreakdown(Pawn, thing, role, context);
+                    score = breakdown.Vetoed ? breakdown.VetoScore : breakdown.Total;
+                }
+                else
+                {
+                    score = GearScorer.ScoreWeapon(Pawn, thing, role, context);
+                }
+
                 float minDelta = Math.Max(bestScore * threshold, 10f);
                 if (score > bestScore + minDelta)
                 {
                     bestScore = score;
                     bestWeapon = thing;
+
+                    // 监测：候选武器评分（仅记录成为最佳候选的）
+                    if (monitorWeapon && breakdown != null)
+                    {
+                        DebugMonitor.ReportWeaponScore(Pawn, thing, breakdown, currentWeapon, currentScore);
+                    }
                 }
             }
 
@@ -466,6 +503,9 @@ namespace AutoEquipment
                 Log.Message($"[AutoEquipment] {Pawn.LabelShort} EvaluateWeapon 决策: 切换到 '{bestWeapon.LabelShort}' (score={bestScore:F1}) 从 '{currentWeapon?.LabelShort ?? "none"}' (score={currentScore:F1}). 检查 {candidatesChecked} 件武器, 跳过 {candidatesSkipped}");
                 var job = JobMaker.MakeJob(JobDefOf.Equip, bestWeapon);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
+
+                // 监测：上报换装事件
+                DebugMonitor.ReportSwap(Pawn, "武器", currentWeapon, bestWeapon, currentScore, bestScore);
             }
             else
             {
@@ -529,19 +569,37 @@ namespace AutoEquipment
                     continue;
 
                 candidatesChecked++;
-                float newScore = GearScorer.ScoreApparel(Pawn, apparel, role, context);
+                // 监测路径：用 WithBreakdown 版本
+                bool monitorApparel = DebugMonitor.monitorEnabled && DebugMonitor.monitorApparelScore;
+                float newScore;
+                ScoreBreakdown newBreakdown = null;
+                if (monitorApparel)
+                {
+                    newBreakdown = GearScorer.ScoreApparelWithBreakdown(Pawn, apparel, role, context);
+                    newScore = newBreakdown.Vetoed ? newBreakdown.VetoScore : newBreakdown.Total;
+                }
+                else
+                {
+                    newScore = GearScorer.ScoreApparel(Pawn, apparel, role, context);
+                }
+
                 if (newScore <= 0f || newScore <= bestScore) continue;
 
                 // 与同槽位已穿戴防具比较
                 bool blocked = false;
                 float conflictWornScore = 0f;
+                Apparel conflictWorn = null;
                 foreach (Apparel worn in Pawn.apparel.WornApparel)
                 {
                     if (!ApparelUtility.CanWearTogether(worn.def, apparel.def, Pawn.RaceProps.body))
                     {
                         if (Pawn.apparel.IsLocked(worn)) { blocked = true; break; }
                         float ws = GearScorer.ScoreApparel(Pawn, worn, role, context);
-                        if (ws > conflictWornScore) conflictWornScore = ws;
+                        if (ws > conflictWornScore)
+                        {
+                            conflictWornScore = ws;
+                            conflictWorn = worn;
+                        }
                     }
                 }
                 if (blocked) continue;
@@ -552,6 +610,12 @@ namespace AutoEquipment
                 bestApparel = apparel;
                 bestScore = newScore;
                 bestWornScore = conflictWornScore;
+
+                // 监测：候选防具评分
+                if (monitorApparel && newBreakdown != null)
+                {
+                    DebugMonitor.ReportApparelScore(Pawn, apparel, newBreakdown, conflictWorn, conflictWornScore);
+                }
             }
 
             if (bestApparel != null)
@@ -561,6 +625,9 @@ namespace AutoEquipment
                 Log.Message($"[AutoEquipment] {Pawn.LabelShort} EvaluateApparel 决策: 切换到 {bestApparel.LabelShort} (score={bestScore:F1}) 替换穿戴 (score={bestWornScore:F1}, threshold={AESettings.upgradeThreshold:F2}). 检查 {candidatesChecked} 候选. 冲突防具: {conflictInfo}");
                 var job = JobMaker.MakeJob(JobDefOf.Wear, bestApparel);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
+
+                // 监测：上报换装事件
+                DebugMonitor.ReportSwap(Pawn, "防具", null, bestApparel, bestWornScore, bestScore);
             }
             else
             {

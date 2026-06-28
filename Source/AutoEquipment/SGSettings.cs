@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using UnityEngine;
 using Verse;
+using AutoEquipment.Scoring;
 
 namespace AutoEquipment
 {
@@ -35,6 +36,10 @@ namespace AutoEquipment
         // 调试
         public static bool debugLogging = false;       // 详细日志开关
 
+        // 预设方案（重构后新增）
+        // 由 GearPolicyEngine 维护，此处仅作存档载体
+        // 实际值通过 GearPolicyEngine.SwitchPreset 设置
+
         // 设置窗口滚动位置：内容超出窗口高度时使用
         private static Vector2 settingsScrollPos = Vector2.zero;
 
@@ -56,14 +61,20 @@ namespace AutoEquipment
             Scribe_Values.Look(ref upgradeThreshold, "upgradeThreshold", 0.15f);
             Scribe_Values.Look(ref tempDangerMargin, "tempDangerMargin", 5f);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
+
+            // 预设方案与监测开关由 GearPolicyEngine/DebugMonitor 持久化
+            // 此处委托其存档
+            GearPolicyEngine.ExposeData();
+            DebugMonitor.ExposeData();
+
             base.ExposeData();
         }
 
         public static void DrawSettings(Rect inRect)
         {
-            // 双列布局：内容压缩到约 380f 高，多数窗口无需滚动即可完整显示
+            // 双列布局：内容压缩到约 460f 高
             // 保留 ScrollView 作为极小窗口的安全兜底
-            float contentHeight = 400f;
+            float contentHeight = 460f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -95,6 +106,22 @@ namespace AutoEquipment
             l.CheckboxLabeled("AE_TemperatureAware".Translate(), ref temperatureAware);
             l.CheckboxLabeled("AE_JobAwareApparel".Translate(), ref jobAwareApparel);
 
+            // 预设方案选择（重构新增）
+            l.GapLine();
+            l.Label("AE_Preset".Translate() + ": " + ("AE_Preset_" + GearPolicyEngine.ActivePreset).Translate());
+            Rect presetRect = l.GetRect(30f);
+            float presetBtnWidth = (presetRect.width - 8f) * 0.5f;
+            if (Widgets.ButtonText(new Rect(presetRect.x, presetRect.y, presetBtnWidth, 30f), "AE_Preset_Cycle".Translate()))
+            {
+                // 循环切换预设：Standard → Aggressive → Economic → Hunting → Standard
+                int next = ((int)GearPolicyEngine.ActivePreset + 1) % 4;
+                GearPolicyEngine.SwitchPreset((GearPreset)next);
+            }
+            if (Widgets.ButtonText(new Rect(presetRect.x + presetBtnWidth + 8f, presetRect.y, presetBtnWidth, 30f), "AE_Preset_Details".Translate()))
+            {
+                Find.WindowStack.Add(new PresetDetailsWindow());
+            }
+
             l.End();
 
             // ===================== 右列 =====================
@@ -116,6 +143,19 @@ namespace AutoEquipment
 
             r.GapLine();
             r.CheckboxLabeled("AE_DebugLogging".Translate(), ref debugLogging, "AE_DebugLogging_Desc".Translate());
+
+            // 监测开关（重构新增）
+            r.GapLine();
+            r.Label("AE_Monitor".Translate());
+            r.CheckboxLabeled("AE_Monitor_Enabled".Translate(), ref DebugMonitor.monitorEnabled);
+            if (DebugMonitor.monitorEnabled)
+            {
+                r.CheckboxLabeled("AE_Monitor_SwapEvents".Translate(), ref DebugMonitor.monitorSwapEvents);
+                r.CheckboxLabeled("AE_Monitor_WeaponScore".Translate(), ref DebugMonitor.monitorWeaponScore);
+                r.CheckboxLabeled("AE_Monitor_ApparelScore".Translate(), ref DebugMonitor.monitorApparelScore);
+                r.CheckboxLabeled("AE_Monitor_Breakdown".Translate(), ref DebugMonitor.monitorBreakdown);
+                r.CheckboxLabeled("AE_Monitor_Comparison".Translate(), ref DebugMonitor.monitorComparison);
+            }
 
             // 调试工具：标签 + 两个按钮并排
             r.GapLine();
@@ -155,6 +195,53 @@ namespace AutoEquipment
         }
 
         public override string SettingsCategory() => "AE_SettingsCategory".Translate();
+    }
+
+    /// <summary>
+    /// 预设方案详情窗口：显示当前预设权重并允许微调。
+    /// </summary>
+    public class PresetDetailsWindow : Window
+    {
+        private Vector2 scrollPos = Vector2.zero;
+
+        public override Vector2 InitialSize => new Vector2(420f, 480f);
+
+        public PresetDetailsWindow()
+        {
+            doCloseX = true;
+            closeOnClickedOutside = true;
+            absorbInputAroundWindow = true;
+            forcePause = false;
+        }
+
+        public override void DoWindowContents(Rect inRect)
+        {
+            Listing_Standard l = new Listing_Standard();
+            l.Begin(inRect);
+
+            Text.Font = GameFont.Medium;
+            l.Label("AE_Preset_Details".Translate());
+            Text.Font = GameFont.Small;
+            l.Gap();
+
+            // 显示当前预设
+            l.Label("AE_Preset".Translate() + ": " + ("AE_Preset_" + GearPolicyEngine.ActivePreset).Translate());
+            l.GapLine();
+
+            // 显示该预设的默认权重
+            GearWeights defaultW = GearPolicyEngine.ActivePreset.GetDefaultWeights();
+            l.Label("AE_Preset_DefaultWeights".Translate());
+            l.Label($"  {("AE_Weight_Skill".Translate())}: {defaultW.w_skill:F1}");
+            l.Label($"  {("AE_Weight_DPS".Translate())}: {defaultW.w_dps:F1}");
+            l.Label($"  {("AE_Weight_Range".Translate())}: {defaultW.w_range:F1}");
+            l.Label($"  {("AE_Weight_Quality".Translate())}: {defaultW.w_quality:F1}");
+            l.Label($"  {("AE_Weight_Armor".Translate())}: {defaultW.w_armor:F1}");
+            l.Label($"  {("AE_Weight_Insulation".Translate())}: {defaultW.w_insulation:F1}");
+            l.Label($"  {("AE_Weight_MoveSpeed".Translate())}: {defaultW.w_movespeed:F1}");
+            l.Label($"  {("AE_Weight_WorkSpeed".Translate())}: {defaultW.w_workspeed:F1}");
+
+            l.End();
+        }
     }
 
     /// <summary>
@@ -258,7 +345,8 @@ namespace AutoEquipment
                 Role.Doctor,
                 Role.Hunter,
                 Role.Worker,
-                Role.Pacifist
+                Role.Pacifist,
+                Role.Leader
             };
 
             for (int i = 0; i < roles.Length; i++)

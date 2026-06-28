@@ -17,7 +17,8 @@ namespace AutoEquipment
         Doctor,     // 高医疗技能，携带药品、穿戴医疗装备
         Hunter,     // 被指派狩猎，需要狩猎武器
         Worker,     // 通用工人，偏好工作属性服装
-        Pacifist    // 无法进行暴力工作
+        Pacifist,   // 无法进行暴力工作
+        Leader      // 拥有意识形态角色（仅作标签，不直接驱动评分）
     }
 
     public static class RoleDetector
@@ -41,6 +42,37 @@ namespace AutoEquipment
             {
                 result = Role.Pacifist;
                 reason = "无法暴力";
+            }
+            // 意识形态角色（如祭司、领袖）：仅作标签，不直接驱动评分
+            // 由 GearPolicyEngine 调度时保留其原有装备偏好
+            else if (pawn.Ideo != null && pawn.Ideo.GetRole(pawn) != null)
+            {
+                var ideoRole = pawn.Ideo.GetRole(pawn);
+                // 意识形态角色按其原有技能倾向二次分类
+                int shooting = pawn.skills.GetSkill(SkillDefOf.Shooting)?.Level ?? 0;
+                int melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
+                int medicine = pawn.skills.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
+
+                if (medicine >= 8 && medicine >= shooting && medicine >= melee)
+                {
+                    result = Role.Doctor;
+                    reason = $"意识形态角色({ideoRole.def.label})+医疗={medicine}";
+                }
+                else if (shooting >= 8 && shooting > melee)
+                {
+                    result = Role.Shooter;
+                    reason = $"意识形态角色({ideoRole.def.label})+射击={shooting}";
+                }
+                else if (melee >= 8 && melee > shooting)
+                {
+                    result = Role.Brawler;
+                    reason = $"意识形态角色({ideoRole.def.label})+近战={melee}";
+                }
+                else
+                {
+                    result = Role.Leader;
+                    reason = $"意识形态角色={ideoRole.def.label}";
+                }
             }
             // 格斗者特质：直接判定为格斗者角色
             else if (pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true)
