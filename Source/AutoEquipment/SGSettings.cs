@@ -40,6 +40,20 @@ namespace AutoEquipment
         public static bool reallocateRespectLocked = true;  // 跳过已锁定的殖民者
         public static bool reallocateRespectBiocoded = true; // 跳过生物编码武器（个人绑定，无法转交）
 
+        // 战斗价值公式可调权重（用于"高价值殖民者"判定）
+        // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
+        // 兴趣乘数：无火 1.0，单火 1.5，双火 2.0
+        public static float cvSkillWeight = 1.0f;            // 技能等级整体权重
+        public static float cvPassionNoneMult = 1.0f;        // 无火兴趣乘数
+        public static float cvPassionMinorMult = 1.5f;       // 单火兴趣乘数
+        public static float cvPassionMajorMult = 2.0f;       // 双火兴趣乘数
+
+        // 特质加分（可调）：原生特质对战斗价值的额外修正
+        // 设计意图：玩家可按自己理解调整特质价值
+        public static float cvToughBonus = 30f;              // 坚韧 Tough：减伤 50%
+        public static float cvTriggerHappyPenalty = -15f;    // 乱开枪 ShootingAccuracy degree=-1：精度大幅下降
+        public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
+
         // 调试
         public static bool debugLogging = false;       // 详细日志开关
 
@@ -71,6 +85,13 @@ namespace AutoEquipment
             Scribe_Values.Look(ref reallocateRespectDrafted, "reallocateRespectDrafted", true);
             Scribe_Values.Look(ref reallocateRespectLocked, "reallocateRespectLocked", true);
             Scribe_Values.Look(ref reallocateRespectBiocoded, "reallocateRespectBiocoded", true);
+            Scribe_Values.Look(ref cvSkillWeight, "cvSkillWeight", 1.0f);
+            Scribe_Values.Look(ref cvPassionNoneMult, "cvPassionNoneMult", 1.0f);
+            Scribe_Values.Look(ref cvPassionMinorMult, "cvPassionMinorMult", 1.5f);
+            Scribe_Values.Look(ref cvPassionMajorMult, "cvPassionMajorMult", 2.0f);
+            Scribe_Values.Look(ref cvToughBonus, "cvToughBonus", 30f);
+            Scribe_Values.Look(ref cvTriggerHappyPenalty, "cvTriggerHappyPenalty", -15f);
+            Scribe_Values.Look(ref cvCarefulShooterBonus, "cvCarefulShooterBonus", 15f);
             Scribe_Values.Look(ref debugLogging, "debugLogging", false);
 
             // 预设方案与监测开关由 GearPolicyEngine/DebugMonitor 持久化

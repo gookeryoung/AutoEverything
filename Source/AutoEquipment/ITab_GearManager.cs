@@ -17,7 +17,8 @@ namespace AutoEquipment
         public ITab_GearManager()
         {
             labelKey = "AE_Tab";
-            size = new Vector2(300f, 450f);
+            // 扩大面板：容纳全局重配规则的可调项
+            size = new Vector2(340f, 620f);
         }
 
         public override bool IsVisible
@@ -48,6 +49,7 @@ namespace AutoEquipment
             Rect scrollRect = rect;
             scrollRect.height -= (buttonHeight + buttonGap);
 
+            // 内容高度按需扩展，ScrollView 会滚动
             Rect contentRect = new Rect(0f, 0f, scrollRect.width - 16f, lastHeight);
 
             Widgets.BeginScrollView(scrollRect, ref scrollPos, contentRect);
@@ -55,15 +57,18 @@ namespace AutoEquipment
             Listing_Standard l = new Listing_Standard();
             l.Begin(contentRect);
 
-            // 标题
+            // ===================== 顶部：当前 Pawn 状态 =====================
             Text.Font = GameFont.Medium;
             l.Label("AE_TabTitle".Translate());
             Text.Font = GameFont.Small;
             l.Gap();
 
-            // 当前角色
+            // 当前角色（DEBUG 模式下附加战斗价值档次，如 王五[S]）
             Role role = comp.CurrentRole;
-            l.Label("AE_CurrentRole".Translate() + ": " + ("AE_Role_" + role).Translate());
+            string tierSuffix = AEDebug.IsActive
+                ? " [" + SidearmAllocator.GetCombatTier(pawn) + "]"
+                : "";
+            l.Label("AE_CurrentRole".Translate() + ": " + ("AE_Role_" + role).Translate() + tierSuffix);
 
             // 当前情境
             GearContext context = ContextDetector.GetContext(pawn);
@@ -101,7 +106,7 @@ namespace AutoEquipment
 
             l.GapLine();
 
-            // 当前装备
+            // ===================== 中部：当前装备摘要 =====================
             l.Label("AE_PrimaryWeapon".Translate() + ": "
                 + (pawn.equipment?.Primary?.LabelShort ?? "AE_None".Translate()));
 
@@ -123,37 +128,86 @@ namespace AutoEquipment
                 }
             }
 
+            // ===================== 底部：全局重配规则（直接列出，无需打开新窗口） =====================
+            l.GapLine();
+            Text.Font = GameFont.Medium;
+            l.Label("AE_ReallocRules_Title".Translate());
+            Text.Font = GameFont.Small;
+            l.Gap();
+
+            // ---- 战斗价值公式 ----
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            l.Label("AE_ReallocRules_CombatValue".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.75f, 0.75f, 0.75f);
+            l.Label("AE_ReallocRules_CombatValue_Formula".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            l.Gap(4f);
+
+            // 兴趣乘数（3 个 Slider）
+            l.Label("AE_ReallocRules_PassionMult".Translate());
+            l.Label("  " + "AE_ReallocRules_PassionNone".Translate() + ": " + AESettings.cvPassionNoneMult.ToString("F1"));
+            AESettings.cvPassionNoneMult = l.Slider(AESettings.cvPassionNoneMult, 0.5f, 3.0f);
+            l.Label("  " + "AE_ReallocRules_PassionMinor".Translate() + ": " + AESettings.cvPassionMinorMult.ToString("F1"));
+            AESettings.cvPassionMinorMult = l.Slider(AESettings.cvPassionMinorMult, 0.5f, 3.0f);
+            l.Label("  " + "AE_ReallocRules_PassionMajor".Translate() + ": " + AESettings.cvPassionMajorMult.ToString("F1"));
+            AESettings.cvPassionMajorMult = l.Slider(AESettings.cvPassionMajorMult, 0.5f, 3.0f);
+            l.Gap(4f);
+
+            // 技能权重
+            l.Label("AE_ReallocRules_SkillWeight".Translate() + ": " + AESettings.cvSkillWeight.ToString("F2"));
+            AESettings.cvSkillWeight = l.Slider(AESettings.cvSkillWeight, 0.5f, 2.0f);
+            l.Gap(4f);
+
+            // ---- 特质加分 ----
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            l.Label("AE_ReallocRules_TraitBonus".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Tiny;
+            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            l.Label("AE_ReallocRules_TraitBonus_Desc".Translate());
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+
+            l.Label("  " + "AE_ReallocRules_Tough".Translate() + ": " + AESettings.cvToughBonus.ToString("F0"));
+            AESettings.cvToughBonus = l.Slider(AESettings.cvToughBonus, -50f, 100f);
+            l.Label("  " + "AE_ReallocRules_TriggerHappy".Translate() + ": " + AESettings.cvTriggerHappyPenalty.ToString("F0"));
+            AESettings.cvTriggerHappyPenalty = l.Slider(AESettings.cvTriggerHappyPenalty, -50f, 50f);
+            l.Label("  " + "AE_ReallocRules_CarefulShooter".Translate() + ": " + AESettings.cvCarefulShooterBonus.ToString("F0"));
+            AESettings.cvCarefulShooterBonus = l.Slider(AESettings.cvCarefulShooterBonus, -50f, 100f);
+            l.Gap(4f);
+
+            // ---- 保护规则 ----
+            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            l.Label("AE_ReallocRules_ProtectSection".Translate());
+            GUI.color = Color.white;
+            l.CheckboxLabeled("AE_ReallocRules_DropWeapons".Translate(), ref AESettings.reallocateDropWeapons);
+            l.CheckboxLabeled("AE_ReallocRules_RespectDrafted".Translate(), ref AESettings.reallocateRespectDrafted);
+            l.CheckboxLabeled("AE_ReallocRules_RespectLocked".Translate(), ref AESettings.reallocateRespectLocked);
+            l.CheckboxLabeled("AE_ReallocRules_RespectBiocoded".Translate(), ref AESettings.reallocateRespectBiocoded);
+
             l.End();
 
-            lastHeight = contentRect.height;
+            // 记录内容高度，供下次绘制使用
+            lastHeight = l.CurHeight + 20f;
 
             Widgets.EndScrollView();
 
-            // 全局重配按钮区：固定面板最下方，并排两个按钮（避免纵向堆叠挤压可见区）
-            // 左：全局重配（执行分配）
-            // 右：重配规则（显示规则说明与可调开关）
-            float btnGap = 8f;
-            float btnWidth = (scrollRect.width - btnGap) * 0.5f;
-            Rect buttonRow = new Rect(
+            // 全局重配按钮：固定面板最下方，占满宽度
+            Rect buttonRect = new Rect(
                 scrollRect.x,
                 scrollRect.yMax + buttonGap,
                 scrollRect.width,
                 buttonHeight);
 
-            Rect leftBtnRect = new Rect(buttonRow.x, buttonRow.y, btnWidth, buttonHeight);
-            Rect rightBtnRect = new Rect(buttonRow.x + btnWidth + btnGap, buttonRow.y, btnWidth, buttonHeight);
-
-            if (Widgets.ButtonText(leftBtnRect, "AE_GlobalReallocate".Translate()))
+            if (Widgets.ButtonText(buttonRect, "AE_GlobalReallocate".Translate()))
             {
                 int triggered = GlobalAllocator.ReallocateAll();
                 Messages.Message(
                     "AE_GlobalReallocateResult".Translate(triggered),
                     MessageTypeDefOf.PositiveEvent);
-            }
-
-            if (Widgets.ButtonText(rightBtnRect, "AE_ReallocRules".Translate()))
-            {
-                Find.WindowStack.Add(new ReallocateRulesWindow());
             }
         }
     }

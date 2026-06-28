@@ -90,27 +90,24 @@
   <!-- 全局重配 -->
   <AE_GlobalReallocate>全局重配</AE_GlobalReallocate>
   <AE_GlobalReallocateResult>已按战斗价值降序触发 {0} 个殖民者的全局重配</AE_GlobalReallocateResult>
-  <AE_ReallocRules>重配规则</AE_ReallocRules>
 
-  <!-- 全局重配规则窗口 -->
+  <!-- 全局重配规则（直接显示在面板内） -->
   <AE_ReallocRules_Title>全局重配规则</AE_ReallocRules_Title>
-  <AE_ReallocRules_FixedSection>固定规则（评分模型）</AE_ReallocRules_FixedSection>
-  <AE_ReallocRules_Fixed_Desc1>1. 按战斗价值降序分配：高价值殖民者优先评估</AE_ReallocRules_Fixed_Desc1>
-  <AE_ReallocRules_Fixed_Desc2>2. 战斗价值 = 射击等级×兴趣乘数 + 近战等级×兴趣乘数</AE_ReallocRules_Fixed_Desc2>
-  <AE_ReallocRules_Fixed_Desc3>3. Brawler 特质坚决拒绝远程武器；双修（远程+近战均有火）角色主武器优先远程</AE_ReallocRules_Fixed_Desc3>
-  <AE_ReallocRules_Fixed_Desc4>4. 纯近战（射击无火）副武器优先 EMP；带护盾腰带者不分配远程副武器</AE_ReallocRules_Fixed_Desc4>
-  <AE_ReallocRules_CustomSection>可调规则（玩家偏好）</AE_ReallocRules_CustomSection>
+  <AE_ReallocRules_CombatValue>战斗价值公式（决定评估顺序）</AE_ReallocRules_CombatValue>
+  <AE_ReallocRules_CombatValue_Formula>公式 = (射击等级×兴趣乘数 + 近战等级×兴趣乘数) × 技能权重 + 特质加分</AE_ReallocRules_CombatValue_Formula>
+  <AE_ReallocRules_PassionMult>兴趣乘数</AE_ReallocRules_PassionMult>
+  <AE_ReallocRules_PassionNone>无火</AE_ReallocRules_PassionNone>
+  <AE_ReallocRules_PassionMinor>单火</AE_ReallocRules_PassionMinor>
+  <AE_ReallocRules_PassionMajor>双火</AE_ReallocRules_PassionMajor>
+  <AE_ReallocRules_SkillWeight>技能整体权重</AE_ReallocRules_SkillWeight>
+  <AE_ReallocRules_TraitBonus>特质加分</AE_ReallocRules_TraitBonus>
+  <AE_ReallocRules_TraitBonus_Desc>正值加分提高优先级，负值减分降低优先级</AE_ReallocRules_TraitBonus_Desc>
+  <AE_ReallocRules_Tough>坚韧（Tough，减伤 50%）</AE_ReallocRules_Tough>
+  <AE_ReallocRules_TriggerHappy>乱开枪（精度大幅下降）</AE_ReallocRules_TriggerHappy>
+  <AE_ReallocRules_CarefulShooter>冷枪手（精度提升但冷却慢）</AE_ReallocRules_CarefulShooter>
+  <AE_ReallocRules_ProtectSection>保护规则</AE_ReallocRules_ProtectSection>
   <AE_ReallocRules_DropWeapons>重配前先放下当前武器</AE_ReallocRules_DropWeapons>
-  <AE_ReallocRules_DropWeapons_Desc>释放无火小人手里的好武器，供双火小人拾取。关闭则仅评估地图上已有的武器。</AE_ReallocRules_DropWeapons_Desc>
   <AE_ReallocRules_RespectDrafted>跳过征召中的殖民者</AE_ReallocRules_RespectDrafted>
-  <AE_ReallocRules_RespectDrafted_Desc>不打断正在战斗的殖民者。关闭将强制重配征召中的殖民者。</AE_ReallocRules_RespectDrafted_Desc>
   <AE_ReallocRules_RespectLocked>跳过已锁定的殖民者</AE_ReallocRules_RespectLocked>
-  <AE_ReallocRules_RespectLocked_Desc>尊重玩家在面板上勾选的锁定开关。关闭将无视锁定强制重配。</AE_ReallocRules_RespectLocked_Desc>
   <AE_ReallocRules_RespectBiocoded>跳过生物编码武器</AE_ReallocRules_RespectBiocoded>
-  <AE_ReallocRules_RespectBiocoded_Desc>个人绑定的武器无法转交他人，跳过释放。关闭后仍会被游戏原生机制拒绝。</AE_ReallocRules_RespectBiocoded_Desc>
-  <AE_ReallocRules_CombatValue>战斗价值公式</AE_ReallocRules_CombatValue>
-  <AE_ReallocRules_CombatValue_Formula>战斗价值 = 射击等级×兴趣乘数 + 近战等级×兴趣乘数</AE_ReallocRules_CombatValue_Formula>
-  <AE_ReallocRules_CombatValue_PassionNone>无火兴趣乘数：1.0</AE_ReallocRules_CombatValue_PassionNone>
-  <AE_ReallocRules_CombatValue_PassionMinor>单火兴趣乘数：1.5</AE_ReallocRules_CombatValue_PassionMinor>
-  <AE_ReallocRules_CombatValue_PassionMajor>双火兴趣乘数：2.0</AE_ReallocRules_CombatValue_PassionMajor>
 </LanguageData>

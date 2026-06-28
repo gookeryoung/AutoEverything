@@ -90,27 +90,24 @@
   <!-- Global reallocate -->
   <AE_GlobalReallocate>Global Reallocate</AE_GlobalReallocate>
   <AE_GlobalReallocateResult>Triggered global reallocation for {0} colonists by combat value</AE_GlobalReallocateResult>
-  <AE_ReallocRules>Realloc Rules</AE_ReallocRules>
 
-  <!-- Global reallocate rules window -->
+  <!-- Global reallocate rules (inlined in panel) -->
   <AE_ReallocRules_Title>Global Reallocate Rules</AE_ReallocRules_Title>
-  <AE_ReallocRules_FixedSection>Fixed Rules (Scoring Model)</AE_ReallocRules_FixedSection>
-  <AE_ReallocRules_Fixed_Desc1>1. Allocate by combat value descending: high-value colonists evaluated first</AE_ReallocRules_Fixed_Desc1>
-  <AE_ReallocRules_Fixed_Desc2>2. Combat value = Shooting level × passion mult + Melee level × passion mult</AE_ReallocRules_Fixed_Desc2>
-  <AE_ReallocRules_Fixed_Desc3>3. Brawler trait strictly rejects ranged weapons; dual-passion (ranged+melee both passionate) prefers ranged primary</AE_ReallocRules_Fixed_Desc3>
-  <AE_ReallocRules_Fixed_Desc4>4. Pure melee (no shooting passion) sidearm prefers EMP; shield-belt wearers get no ranged sidearm</AE_ReallocRules_Fixed_Desc4>
-  <AE_ReallocRules_CustomSection>Customizable Rules (Player Preference)</AE_ReallocRules_CustomSection>
+  <AE_ReallocRules_CombatValue>Combat Value Formula (eval order)</AE_ReallocRules_CombatValue>
+  <AE_ReallocRules_CombatValue_Formula>Formula = (Shooting lv × passion mult + Melee lv × passion mult) × skill weight + trait bonus</AE_ReallocRules_CombatValue_Formula>
+  <AE_ReallocRules_PassionMult>Passion Multipliers</AE_ReallocRules_PassionMult>
+  <AE_ReallocRules_PassionNone>None</AE_ReallocRules_PassionNone>
+  <AE_ReallocRules_PassionMinor>Minor</AE_ReallocRules_PassionMinor>
+  <AE_ReallocRules_PassionMajor>Major</AE_ReallocRules_PassionMajor>
+  <AE_ReallocRules_SkillWeight>Skill weight</AE_ReallocRules_SkillWeight>
+  <AE_ReallocRules_TraitBonus>Trait Bonus</AE_ReallocRules_TraitBonus>
+  <AE_ReallocRules_TraitBonus_Desc>Positive raises priority, negative lowers it</AE_ReallocRules_TraitBonus_Desc>
+  <AE_ReallocRules_Tough>Tough (50% damage reduction)</AE_ReallocRules_Tough>
+  <AE_ReallocRules_TriggerHappy>Trigger-happy (accuracy drop)</AE_ReallocRules_TriggerHappy>
+  <AE_ReallocRules_CarefulShooter>Careful shooter (accuracy up, cooldown up)</AE_ReallocRules_CarefulShooter>
+  <AE_ReallocRules_ProtectSection>Protection Rules</AE_ReallocRules_ProtectSection>
   <AE_ReallocRules_DropWeapons>Drop current weapons before reallocating</AE_ReallocRules_DropWeapons>
-  <AE_ReallocRules_DropWeapons_Desc>Release good weapons from no-passion pawns so dual-passion pawns can pick them up. Disable to only evaluate existing map weapons.</AE_ReallocRules_DropWeapons_Desc>
   <AE_ReallocRules_RespectDrafted>Skip drafted colonists</AE_ReallocRules_RespectDrafted>
-  <AE_ReallocRules_RespectDrafted_Desc>Do not interrupt fighting colonists. Disable to force reallocation of drafted colonists.</AE_ReallocRules_RespectDrafted_Desc>
   <AE_ReallocRules_RespectLocked>Skip locked colonists</AE_ReallocRules_RespectLocked>
-  <AE_ReallocRules_RespectLocked_Desc>Respect the lock checkbox on the panel. Disable to force reallocation regardless of lock.</AE_ReallocRules_RespectLocked_Desc>
   <AE_ReallocRules_RespectBiocoded>Skip biocoded weapons</AE_ReallocRules_RespectBiocoded>
-  <AE_ReallocRules_RespectBiocoded_Desc>Person-bound weapons cannot be transferred. Disable still rejected by the game engine.</AE_ReallocRules_RespectBiocoded_Desc>
-  <AE_ReallocRules_CombatValue>Combat Value Formula</AE_ReallocRules_CombatValue>
-  <AE_ReallocRules_CombatValue_Formula>Combat value = Shooting level × passion mult + Melee level × passion mult</AE_ReallocRules_CombatValue_Formula>
-  <AE_ReallocRules_CombatValue_PassionNone>No passion multiplier: 1.0</AE_ReallocRules_CombatValue_PassionNone>
-  <AE_ReallocRules_CombatValue_PassionMinor>Minor passion multiplier: 1.5</AE_ReallocRules_CombatValue_PassionMinor>
-  <AE_ReallocRules_CombatValue_PassionMajor>Major passion multiplier: 2.0</AE_ReallocRules_CombatValue_PassionMajor>
 </LanguageData>

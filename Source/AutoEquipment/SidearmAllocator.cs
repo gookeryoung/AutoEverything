@@ -6,6 +6,26 @@ using Verse.AI;
 namespace AutoEquipment
 {
     /// <summary>
+    /// 殖民者战斗价值档次（用于全局重配优先级与 DEBUG 显示）。
+    /// 设计：把"战斗价值"离散化为 6 档，便于玩家直观判断优先级。
+    ///   X：无法从事暴力活动（如医疗特质 DisableViolent）
+    ///   D：无火无战斗特质（基础农民）
+    ///   C：无火但有战斗特质（如 Tough 农民）
+    ///   B：单火/单 Major（任一射击或近战有兴趣，但非双 Major）
+    ///   A：双火（射击+近战均为 Major 兴趣）
+    ///   S：双火且带战斗特质（最高优先级）
+    /// </summary>
+    public enum CombatTier : byte
+    {
+        X = 0,
+        D = 1,
+        C = 2,
+        B = 3,
+        A = 4,
+        S = 5
+    }
+
+    /// <summary>
     /// 副武器全局分配器：按战斗价值优先级为殖民者分配副武器。
     ///
     /// 设计目的：
@@ -43,9 +63,19 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// 计算 Pawn 的战斗价值分（用于副武器分配优先级）。
-        /// 双火（Passion.Major）高技能角色得分最高。
+        /// 计算 Pawn 的战斗价值分（用于副武器分配优先级与全局重配顺序）。
+        /// 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
+        /// 兴趣乘数、技能权重、特质加分均可在面板上由玩家调整。
         /// </summary>
+
+        // 多 degree 特质：ShootingAccuracy 单一 defName，degree 区分乱开枪(-1)/冷枪手(+1)
+        // 禁止把 degree 的 label 当作 defName 查询；Tough 不在原生 DefOf 中，需安全查询
+        // Nimble/Bloodlust 同样不在原生 DefOf 中，与 WeaponTraitScorer 一致使用安全查询
+        private static readonly TraitDef shootingAccuracyDef = DefDatabase<TraitDef>.GetNamed("ShootingAccuracy", false);
+        private static readonly TraitDef toughDef = DefDatabase<TraitDef>.GetNamed("Tough", false);
+        private static readonly TraitDef nimbleDef = DefDatabase<TraitDef>.GetNamed("Nimble", false);
+        private static readonly TraitDef bloodlustDef = DefDatabase<TraitDef>.GetNamed("Bloodlust", false);
+
         public static float ComputeCombatValue(Pawn pawn)
         {
             if (pawn?.skills == null) return 0f;
@@ -60,6 +90,28 @@ namespace AutoEquipment
             if (melee != null)
                 total += melee.Level * GetPassionMult(melee.passion);
 
+            // 技能整体权重
+            total *= AESettings.cvSkillWeight;
+
+            // 特质加分
+            // Tough：减伤 50%，对所有战斗均有价值（不在原生 DefOf 中，需 null 检查）
+            // ShootingAccuracy degree=-1 是乱开枪（精度大幅下降）
+            // ShootingAccuracy degree=+1 是冷枪手（精度提升但冷却慢）
+            if (pawn.story?.traits != null)
+            {
+                if (toughDef != null && pawn.story.traits.HasTrait(toughDef))
+                    total += AESettings.cvToughBonus;
+
+                if (shootingAccuracyDef != null)
+                {
+                    int shootingAccDegree = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef);
+                    if (shootingAccDegree < 0)
+                        total += AESettings.cvTriggerHappyPenalty;
+                    else if (shootingAccDegree > 0)
+                        total += AESettings.cvCarefulShooterBonus;
+                }
+            }
+
             return total;
         }
 
@@ -67,10 +119,68 @@ namespace AutoEquipment
         {
             switch (passion)
             {
-                case Passion.Minor: return 1.5f;
-                case Passion.Major: return 2.0f;
-                default: return 1.0f;
+                case Passion.Minor: return AESettings.cvPassionMinorMult;
+                case Passion.Major: return AESettings.cvPassionMajorMult;
+                default: return AESettings.cvPassionNoneMult;
             }
+        }
+
+        /// <summary>
+        /// 计算 Pawn 的战斗价值档次（用于 DEBUG 显示与重配优先级离散判断）。
+        /// 档次与战斗价值公式协同工作：档次用于人眼可读的分级展示，
+        /// 战斗价值分数用于精确排序。
+        /// </summary>
+        public static CombatTier GetCombatTier(Pawn pawn)
+        {
+            if (pawn == null) return CombatTier.X;
+
+            // X：无法从事暴力活动（医疗特质 DisableViolent、未成年限制等）
+            if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return CombatTier.X;
+
+            if (pawn.skills == null) return CombatTier.X;
+
+            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
+            SkillRecord melee = pawn.skills.GetSkill(SkillDefOf.Melee);
+
+            bool shootingMajor = shooting != null && shooting.passion == Passion.Major;
+            bool meleeMajor = melee != null && melee.passion == Passion.Major;
+            bool shootingMinor = shooting != null && shooting.passion == Passion.Minor;
+            bool meleeMinor = melee != null && melee.passion == Passion.Minor;
+
+            bool bothMajor = shootingMajor && meleeMajor;
+            bool anyPassion = shootingMajor || meleeMajor || shootingMinor || meleeMinor;
+
+            bool hasCombatTrait = HasCombatTrait(pawn);
+
+            // S：双火带特质
+            if (bothMajor && hasCombatTrait) return CombatTier.S;
+            // A：双火
+            if (bothMajor) return CombatTier.A;
+            // B：单火/单 Major（任一射击或近战有兴趣，但非双 Major）
+            if (anyPassion) return CombatTier.B;
+            // C：无火但有战斗特质
+            if (hasCombatTrait) return CombatTier.C;
+            // D：无火无特质
+            return CombatTier.D;
+        }
+
+        /// <summary>
+        /// 是否携带战斗相关特质（Brawler/Tough/Nimble/Bloodlust/ShootingAccuracy 任意 degree）。
+        /// </summary>
+        private static bool HasCombatTrait(Pawn pawn)
+        {
+            if (pawn.story?.traits == null) return false;
+
+            // TraitDefOf.Brawler 始终存在
+            if (pawn.story.traits.HasTrait(TraitDefOf.Brawler)) return true;
+            if (toughDef != null && pawn.story.traits.HasTrait(toughDef)) return true;
+            if (nimbleDef != null && pawn.story.traits.HasTrait(nimbleDef)) return true;
+            if (bloodlustDef != null && pawn.story.traits.HasTrait(bloodlustDef)) return true;
+            // ShootingAccuracy 任意 degree（乱开枪/冷枪手）都算战斗特质
+            if (shootingAccuracyDef != null && pawn.story.traits.DegreeOfTrait(shootingAccuracyDef) != 0)
+                return true;
+
+            return false;
         }
 
         /// <summary>

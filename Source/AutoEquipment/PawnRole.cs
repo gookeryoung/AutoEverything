@@ -21,6 +21,18 @@ namespace AutoEquipment
         Leader      // 拥有意识形态角色（仅作标签，不直接驱动评分）
     }
 
+    /// <summary>
+    /// 护甲偏好（用于全局重配的护甲分配）。
+    /// 设计意图：不同角色对护甲的需求不同——前排战士需要重甲承担伤害，
+    /// 后排可选重甲（有盈余时），工人/猎人需要轻甲保持工作效率。
+    /// </summary>
+    public enum ArmorPreference : byte
+    {
+        Heavy,          // 前排：强制选重甲，仅在没有重甲时才退而求其次
+        Flexible,       // 后排：按原评分自由选择
+        Light           // 工人/猎人等：强制选轻甲以保持工作效率
+    }
+
     public static class RoleDetector
     {
         // 记录每个 Pawn 上一次检测到的角色，仅在变化时输出日志以减少噪音
@@ -172,6 +184,27 @@ namespace AutoEquipment
         public static bool PrefersMelee(Role role)
         {
             return role == Role.Brawler;
+        }
+
+        /// <summary>
+        /// 获取角色对应的护甲偏好（用于全局重配护甲分配）。
+        /// - Brawler：前排战士，优先重甲承担伤害
+        /// - Shooter/Hunter：后排，按原评分自由选择（有重甲盈余时使用）
+        /// - Worker/Doctor/Pacifist/Leader/Default：工人/医疗/领袖，轻甲提高工作效率
+        /// </summary>
+        public static ArmorPreference GetArmorPreference(Role role)
+        {
+            switch (role)
+            {
+                case Role.Brawler:
+                    return ArmorPreference.Heavy;
+                case Role.Shooter:
+                case Role.Hunter:
+                    return ArmorPreference.Flexible;
+                // Worker/Doctor/Pacifist/Leader/Default 均使用轻甲
+                default:
+                    return ArmorPreference.Light;
+            }
         }
     }
 }
