@@ -18,6 +18,9 @@ namespace AutoEquipment
     /// </summary>
     public class CompGearManager : ThingComp
     {
+        // 缓存 TraitDef 查找，避免 Tick 路径每次重复字典查询
+        private static readonly TraitDef nudistDef = DefDatabase<TraitDef>.GetNamed("Nudist", false);
+
         // 缓存角色（周期性重算）
         public Role cachedRole = Role.Default;
         private int roleCacheTick = -9999;
@@ -70,6 +73,17 @@ namespace AutoEquipment
         {
             if (!AESettings.enabled || locked) return;
             if (Pawn.Dead || Pawn.Downed || Pawn.Map == null) return;
+
+            // 兜底防御：旧存档可能已注入动物/机械族等不适用类别的 Comp，
+            // 在此一次性移除并返回，避免 Tick 路径持续空转
+            if (!PawnSuitabilityChecker.CanManageGear(Pawn))
+            {
+                // 静默移除：动物等不适用 Pawn 不应在装备管理中
+                if (parent.AllComps.Contains(this))
+                    parent.AllComps.Remove(this);
+                return;
+            }
+
             // 仅管理玩家阵营的装备，访客不处理
             if (Pawn.Faction != Faction.OfPlayer) return;
             if (Pawn.IsPrisoner) return;
@@ -355,6 +369,7 @@ namespace AutoEquipment
             int skippedGhoul = 0;
             int skippedComp = 0;
             int skippedRole = 0;
+            int skippedUnsuitable = 0;
 
             foreach (Map map in Find.Maps)
             {
@@ -366,6 +381,13 @@ namespace AutoEquipment
                     if (!pawn.IsColonist) continue;
                     if (pawn.Dead || pawn.Downed) continue;
                     scanned++;
+
+                    // 适配性过滤：动物/机械族/昆虫等不参与手动换装
+                    if (!PawnSuitabilityChecker.CanManageGear(pawn))
+                    {
+                        skippedUnsuitable++;
+                        continue;
+                    }
 
                     if (DLCCompat.IsGhoul(pawn)) { skippedGhoul++; continue; }
 
@@ -387,7 +409,7 @@ namespace AutoEquipment
 
             Log.Message($"[AutoEquipment] 手动换装统计: target={target}, roleFilter={roleFilter}, " +
                 $"扫描={scanned}, 触发={triggered}, " +
-                $"跳过(食尸鬼={skippedGhoul}, 无Comp={skippedComp}, 角色不匹配={skippedRole})");
+                $"跳过(食尸鬼={skippedGhoul}, 无Comp={skippedComp}, 角色不匹配={skippedRole}, 不适用类别={skippedUnsuitable})");
             return triggered;
         }
 
@@ -533,7 +555,7 @@ namespace AutoEquipment
                         prefersNudity = true;
                 }
             }
-            if (Pawn.story?.traits?.HasTrait(TraitDef.Named("Nudist")) == true)
+            if (nudistDef != null && Pawn.story?.traits?.HasTrait(nudistDef) == true)
                 prefersNudity = true;
 
             if (prefersNudity)

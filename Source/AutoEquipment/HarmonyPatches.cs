@@ -38,6 +38,10 @@ namespace AutoEquipment
                 // 食尸鬼不参与装备管理，跳过
                 if (DLCCompat.IsGhoul(__instance)) return;
 
+                // 仅人类like 种族适合装备管理
+                // 动物、机械族、昆虫、异常实体等不使用武器装备槽
+                if (!PawnSuitabilityChecker.CanManageGear(__instance)) return;
+
                 // 已有组件则跳过，避免重复注入
                 if (__instance.GetComp<CompGearManager>() != null) return;
 
@@ -67,9 +71,19 @@ namespace AutoEquipment
 
             int injected = 0;
             int skipped = 0;
+            int skippedUnsuitable = 0;
             foreach (ThingDef def in DefDatabase<ThingDef>.AllDefs)
             {
                 if (def.category != ThingCategory.Pawn) continue;
+
+                // 适配性过滤：仅给人类like 种族 ThingDef 注入 Comp
+                // 动物、机械族、昆虫、异常实体等不使用武器装备槽
+                if (!PawnSuitabilityChecker.CanManageGearDef(def))
+                {
+                    skippedUnsuitable++;
+                    continue;
+                }
+
                 // 关键修复：comps 为 null 时初始化空列表，而非跳过
                 // Human 等基础种族的 ThingDef.comps 可能是 null
                 if (def.comps == null) def.comps = new List<CompProperties>();
@@ -95,7 +109,7 @@ namespace AutoEquipment
                     skipped++;
                 }
             }
-            Log.Message($"[AutoEquipment] ThingComp 注入完成: 新增={injected}, 已存在跳过={skipped}");
+            Log.Message($"[AutoEquipment] ThingComp 注入完成: 新增={injected}, 已存在跳过={skipped}, 不适用类别跳过={skippedUnsuitable}");
         }
 
         /// <summary>

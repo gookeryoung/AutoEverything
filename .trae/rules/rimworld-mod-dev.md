@@ -61,6 +61,25 @@
 - ThingComp 注入: 运行时遍历 `DefDatabase` 添加，检查是否已存在
 - 依赖 MOD 必须在 `About.xml` 声明 `modDependencies` 与 `loadAfter`
 
+### Pawn 适配性过滤
+
+- ThingComp 注入前必须用 `PawnSuitabilityChecker.CanManageGearDef(def)` 过滤：
+  动物（`race.Animal`）、机械族（`race.IsMechanoid`）、昆虫（`race.Insect`）、异常实体等不适用类别禁止注入
+- Pawn 运行时入口（`SpawnSetup` Postfix、`CompTick`、`TriggerReload`）必须再加一层 `CanManageGear(pawn)` 检查，覆盖旧存档已注入异常 Comp 的情况
+- 兜底防御：`CompTick` 检测到不适用 Pawn 时静默 `parent.AllComps.Remove(this)` 自移除，避免 Tick 持续空转
+- 仅 `race.Humanlike` 适合装备管理（含外星人 mod 的类人种族）
+- 食尸鬼（`DLCCompat.IsGhoul`）即使种族是人类like 也必须排除
+
+### TraitDef 安全查询
+
+- 多 degree 特质（如 `ShootingAccuracy`、`Industriousness`、`Neurotic`、`Beauty`）的 defName 是单一的，degree 区分变体：
+  - `ShootingAccuracy` degree=-1 是乱开枪、degree=+1 是冷枪手
+  - `Industriousness` degree=2 是勤奋、1 是努力工作、-1 是懒惰
+- 禁止把 degree 的 label（如 `TriggerHappy`、`CarefulShooter`）当作 defName 查询
+- 自定义 TraitDef 查询用 `DefDatabase<TraitDef>.GetNamed(defName, false)` 安全版本，未找到返回 null 而非抛异常
+- Tick 路径必须用静态字段缓存 TraitDef 查询结果，避免每次重复字典查询
+- 原生 DefOf（如 `TraitDefOf.Brawler`）始终存在，无需 null 检查
+
 ## 存档安全
 
 - `PostExposeData` 中调用 `Scribe_*`，每个字段必须有默认值
