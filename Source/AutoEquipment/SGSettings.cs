@@ -5,33 +5,33 @@ namespace AutoEquipment
 {
     public class AESettings : ModSettings
     {
-        // Master toggles
+        // 主开关
         public static bool enabled = true;
         public static bool autoWeapons = true;
         public static bool autoApparel = true;
         public static bool autoInventory = true;
         public static bool sidearms = true;
 
-        // Context switching
-        public static bool combatSwitch = true;      // Swap gear on draft/undraft
-        public static bool huntingWeapon = true;      // Equip hunting weapon for hunting jobs
-        public static bool temperatureAware = true;   // Seasonal clothing swap
-        public static bool jobAwareApparel = true;    // Work-stat clothing per job
+        // 情境切换
+        public static bool combatSwitch = true;      // 征召/取消征召时切换装备
+        public static bool huntingWeapon = true;     // 狩猎工作时装备狩猎武器
+        public static bool temperatureAware = true;  // 季节性服装切换
+        public static bool jobAwareApparel = true;   // 按工作切换工作属性服装
 
-        // Sidearms
-        public static bool autoMeleeSidearm = true;   // Auto-draw melee when attacked in melee
-        public static bool carryMedicine = true;      // Doctors/fighters carry medicine
-        public static int medicineCount = 3;          // How many to carry
+        // 副武器
+        public static bool autoMeleeSidearm = true;  // 受近战攻击时自动切出近战武器
+        public static bool carryMedicine = true;     // 医生/战斗人员携带药品
+        public static int medicineCount = 3;          // 携带数量
 
-        // Performance
-        public static int evaluateInterval = 500;     // Ticks between gear evaluations
+        // 性能
+        public static int evaluateInterval = 500;    // 装备评估间隔（tick）
 
-        // Thresholds
-        public static float upgradeThreshold = 0.15f; // 15% better score to trigger swap
-        public static float tempDangerMargin = 5f;    // Degrees C before comfort range triggers swap
+        // 阈值
+        public static float upgradeThreshold = 0.15f; // 评分需提升 15% 才触发换装
+        public static float tempDangerMargin = 5f;    // 超出舒适温度范围多少度才触发换装
 
-        // Debug
-        public static bool debugLogging = false;       // Toggle verbose logging
+        // 调试
+        public static bool debugLogging = false;       // 详细日志开关
 
         public override void ExposeData()
         {

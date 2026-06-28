@@ -4,8 +4,8 @@ using RimWorld;
 namespace AutoEquipment
 {
     /// <summary>
-    /// Bootstrap class that initializes the mod when the game starts.
-    /// RimWorld calls the static constructor automatically on game load.
+    /// MOD 启动引导类：游戏加载时由 RimWorld 自动调用静态构造函数。
+    /// 在此应用 Harmony 补丁完成 MOD 初始化。
     /// </summary>
     [StaticConstructorOnStartup]
     public static class ModController
@@ -13,7 +13,7 @@ namespace AutoEquipment
         static ModController()
         {
             HarmonyPatches.Init();
-            Log.Message("[AutoEquipment] Mod initialized");
+            Log.Message("[AutoEquipment] MOD 已初始化");
         }
     }
 }

@@ -206,8 +206,7 @@ namespace AutoEquipment
                     + "). 立即丢弃. CurJob=" + (Pawn.CurJob?.def?.defName ?? "none")
                     + " LastJob=" + (Pawn.jobs?.curDriver?.GetType()?.Name ?? "none"));
 
-                ThingWithComps dropped;
-                Pawn.equipment.TryDropEquipment(equipped, out dropped, Pawn.Position, false);
+                Pawn.equipment.TryDropEquipment(equipped, out ThingWithComps dropped, Pawn.Position, false);
             }
         }
 
@@ -302,8 +301,7 @@ namespace AutoEquipment
 
             foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel))
             {
-                Apparel apparel = thing as Apparel;
-                if (apparel == null) continue;
+                if (!(thing is Apparel apparel)) continue;
                 if (apparel.IsForbidden(Pawn)) continue;
                 if (!Pawn.CanReserve(apparel) || !Pawn.CanReach(apparel, PathEndMode.ClosestTouch, Danger.Some)) continue;
 
@@ -601,8 +599,7 @@ namespace AutoEquipment
                 primaryWeapon = currentWeapon;
 
                 // 切换：卸下远程，装备库存近战
-                ThingWithComps droppedWep;
-                Pawn.equipment.TryDropEquipment(currentWeapon as ThingWithComps, out droppedWep, Pawn.Position);
+                Pawn.equipment.TryDropEquipment(currentWeapon as ThingWithComps, out ThingWithComps droppedWep, Pawn.Position);
                 if (droppedWep != null)
                 {
                     if (droppedWep.Spawned)
@@ -644,8 +641,7 @@ namespace AutoEquipment
             if (currentWeapon == sidearm)
             {
                 // 切换回来：卸下副武器，重新装备主武器
-                ThingWithComps droppedSidearm;
-                Pawn.equipment.TryDropEquipment(currentWeapon as ThingWithComps, out droppedSidearm, Pawn.Position);
+                Pawn.equipment.TryDropEquipment(currentWeapon as ThingWithComps, out ThingWithComps droppedSidearm, Pawn.Position);
                 if (droppedSidearm != null)
                 {
                     if (droppedSidearm.Spawned)

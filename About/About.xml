@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ModMetaData>
   <name>Auto Equipment</name>
-  <author>AutoEquipment</author>
+  <author>gookeryoung</author>
   <supportedVersions>
     <li>1.6</li>
   </supportedVersions>
-  <packageId>autoequipment.mod</packageId>
+  <packageId>gookeryoung.autoequipment</packageId>
   <description>Intelligent automatic equipment management based on Smart Gear design. Pawns equip the right weapon, wear the right clothes, and carry the right supplies based on their role, current job, weather, and combat status.
 
 Fixes two issues from the original design:

@@ -80,17 +80,17 @@ namespace AutoEquipment
             }
 
             // 品质加成
-            QualityCategory quality;
-            if (weapon.TryGetQuality(out quality))
+            if (weapon.TryGetQuality(out QualityCategory quality))
                 score += ((int)quality - 2) * 10f; // Normal=0, Good=+10, Excellent=+20
 
             // 技能匹配：射击技能提升远程评分，近战技能提升近战评分
+            // 注意：必须用括号包裹 ?? 0，否则 ?? 优先级低于 * 会导致乘数永远失效
             if (pawn.skills != null)
             {
                 if (isRanged)
-                    score += pawn.skills.GetSkill(SkillDefOf.Shooting)?.Level ?? 0 * 2f;
+                    score += (pawn.skills?.GetSkill(SkillDefOf.Shooting)?.Level ?? 0) * 2f;
                 if (isMelee)
-                    score += pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0 * 2f;
+                    score += (pawn.skills?.GetSkill(SkillDefOf.Melee)?.Level ?? 0) * 2f;
             }
 
             // 意识形态武器偏好
@@ -215,8 +215,7 @@ namespace AutoEquipment
             }
 
             // 品质加成
-            QualityCategory quality;
-            if (apparel.TryGetQuality(out quality))
+            if (apparel.TryGetQuality(out QualityCategory quality))
                 score += ((int)quality - 2) * 15f;
 
             // 美感（针对有美感偏好的 Pawn）
@@ -388,8 +387,7 @@ namespace AutoEquipment
             }
 
             // 品质
-            QualityCategory quality;
-            if (weapon.TryGetQuality(out quality))
+            if (weapon.TryGetQuality(out QualityCategory quality))
                 score += ((int)quality - 2) * 5f;
 
             return score;

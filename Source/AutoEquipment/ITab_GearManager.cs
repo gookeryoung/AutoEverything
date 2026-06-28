@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using RimWorld;
 using UnityEngine;
 using Verse;
@@ -7,8 +6,8 @@ using Verse;
 namespace AutoEquipment
 {
     /// <summary>
-    /// Custom inspector tab for pawns that shows role, context, and gear status.
-    /// Also provides lock/override controls.
+    /// Pawn 检视面板的自定义标签页：展示角色、情境与装备状态，
+    /// 并提供锁定/角色覆盖控制。食尸鬼不显示此面板。
     /// </summary>
     public class ITab_GearManager : ITab
     {
@@ -44,7 +43,7 @@ namespace AutoEquipment
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
             Rect scrollRect = rect;
-            scrollRect.height -= 20f; // Space for lock toggle
+            scrollRect.height -= 20f; // 为锁定开关预留空间
 
             Rect contentRect = new Rect(0f, 0f, scrollRect.width - 16f, lastHeight);
 
@@ -53,22 +52,22 @@ namespace AutoEquipment
             Listing_Standard l = new Listing_Standard();
             l.Begin(contentRect);
 
-            // Title
+            // 标题
             Text.Font = GameFont.Medium;
             l.Label("AE_TabTitle".Translate());
             Text.Font = GameFont.Small;
             l.Gap();
 
-            // Current role
+            // 当前角色
             Role role = comp.CurrentRole;
             l.Label("AE_CurrentRole".Translate() + ": " + ("AE_Role_" + role).Translate());
 
-            // Current context
+            // 当前情境
             GearContext context = ContextDetector.GetContext(pawn);
             l.Label("AE_CurrentContext".Translate() + ": " + ("AE_Context_" + context).Translate());
             l.Gap();
 
-            // Lock toggle
+            // 锁定开关
             l.CheckboxLabeled("AE_LockGear".Translate(), ref comp.locked);
             GUI.color = new Color(0.7f, 0.7f, 0.7f);
             Text.Font = GameFont.Tiny;
@@ -77,7 +76,7 @@ namespace AutoEquipment
             GUI.color = Color.white;
             l.Gap();
 
-            // Role override
+            // 角色覆盖
             l.CheckboxLabeled("AE_OverrideRole".Translate(), ref comp.overrideRole);
             if (comp.overrideRole)
             {
@@ -85,6 +84,7 @@ namespace AutoEquipment
                 List<FloatMenuOption> options = new List<FloatMenuOption>();
                 foreach (Role r in System.Enum.GetValues(typeof(Role)))
                 {
+                    // 闭包捕获：必须用局部变量，避免循环变量全部指向最后一个枚举值
                     Role localRole = r;
                     options.Add(new FloatMenuOption(
                         ("AE_Role_" + r).Translate(),
@@ -98,11 +98,11 @@ namespace AutoEquipment
 
             l.GapLine();
 
-            // Current equipment
+            // 当前装备
             l.Label("AE_PrimaryWeapon".Translate() + ": "
                 + (pawn.equipment?.Primary?.LabelShort ?? "AE_None".Translate()));
 
-            // Sidearm
+            // 副武器
             if (comp.sidearm != null)
             {
                 l.Label("AE_Sidearm".Translate() + ": " + comp.sidearm.LabelShort);
@@ -110,7 +110,7 @@ namespace AutoEquipment
 
             l.GapLine();
 
-            // Worn apparel summary
+            // 已穿戴防具摘要
             if (pawn.apparel?.WornApparel != null)
             {
                 l.Label("AE_WornApparel".Translate() + " (" + pawn.apparel.WornApparel.Count + "):");

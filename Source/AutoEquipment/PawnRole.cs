@@ -6,27 +6,27 @@ using Verse;
 namespace AutoEquipment
 {
     /// <summary>
-    /// Automatically detected role for a pawn based on their skills and traits.
-    /// Determines what kind of gear they should prefer.
+    /// 基于 Pawn 技能与特质自动判定的角色枚举。
+    /// 角色决定其应当偏好何种装备。
     /// </summary>
     public enum Role
     {
         Default,
-        Shooter,    // High shooting, prefers ranged
-        Brawler,    // High melee or Brawler trait, prefers melee
-        Doctor,     // High medicine, carries meds, wears medical gear
-        Hunter,     // Assigned to hunting, needs hunting weapon
-        Worker,     // General worker, prefers work-stat clothing
-        Pacifist    // Incapable of violence
+        Shooter,    // 高射击技能，偏好远程武器
+        Brawler,    // 高近战技能或格斗者特质，偏好近战武器
+        Doctor,     // 高医疗技能，携带药品、穿戴医疗装备
+        Hunter,     // 被指派狩猎，需要狩猎武器
+        Worker,     // 通用工人，偏好工作属性服装
+        Pacifist    // 无法进行暴力工作
     }
 
     public static class RoleDetector
     {
-        // Track last detected role per pawn for change-only logging
+        // 记录每个 Pawn 上一次检测到的角色，仅在变化时输出日志以减少噪音
         private static readonly Dictionary<int, Role> lastLoggedRole = new Dictionary<int, Role>();
 
         /// <summary>
-        /// Detect the best role for a pawn based on skills, traits, and work assignments.
+        /// 基于技能、特质与工作指派检测 Pawn 最合适的角色。
         /// </summary>
         public static Role DetectRole(Pawn pawn)
         {
@@ -36,24 +36,24 @@ namespace AutoEquipment
             Role result;
             string reason;
 
-            // Pacifist check
+            // 和平主义者：无法进行暴力工作
             if (pawn.WorkTagIsDisabled(WorkTags.Violent))
             {
                 result = Role.Pacifist;
-                reason = "incapable of violence";
+                reason = "无法暴力";
             }
-            // Brawler trait always = Brawler role
+            // 格斗者特质：直接判定为格斗者角色
             else if (pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true)
             {
                 result = Role.Brawler;
-                reason = "Brawler trait";
+                reason = "格斗者特质";
             }
-            // Hunter: assigned to hunting as priority 1
+            // 猎人：狩猎工作优先级为 1
             else if (pawn.workSettings != null && pawn.workSettings.EverWork
                 && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1)
             {
                 result = Role.Hunter;
-                reason = "hunting priority 1";
+                reason = "狩猎优先级 1";
             }
             else
             {
@@ -61,56 +61,55 @@ namespace AutoEquipment
                 int melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
                 int medicine = pawn.skills.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
 
-                // Doctor: medicine is their best combat-relevant skill AND >= 8
+                // 医生：医疗是其最佳战斗相关技能且 >= 8
                 if (medicine >= 8 && medicine >= shooting && medicine >= melee)
                 {
                     result = Role.Doctor;
-                    reason = $"medicine={medicine} >= shooting={shooting}, melee={melee}";
+                    reason = $"医疗={medicine} >= 射击={shooting}, 近战={melee}";
                 }
-                // Shooter vs Brawler: who's better?
+                // 射手 vs 格斗者：谁的技能更高
                 else if (shooting >= 8 && shooting > melee)
                 {
                     result = Role.Shooter;
-                    reason = $"shooting={shooting} > melee={melee}";
+                    reason = $"射击={shooting} > 近战={melee}";
                 }
                 else if (melee >= 8 && melee > shooting)
                 {
                     result = Role.Brawler;
-                    reason = $"melee={melee} > shooting={shooting}";
+                    reason = $"近战={melee} > 射击={shooting}";
                 }
-                // If both combat skills are low, check if they're primarily a worker
+                // 两项战斗技能都低：判断是否主要为工人
                 else if (shooting < 5 && melee < 5)
                 {
                     result = Role.Worker;
-                    reason = $"low combat skills (shooting={shooting}, melee={melee})";
+                    reason = $"战斗技能偏低 (射击={shooting}, 近战={melee})";
                 }
-                // Moderate combat skills: default to shooting (ranged is generally safer)
+                // 中等战斗技能：默认为射手（远程通常更安全）
                 else if (shooting >= melee)
                 {
                     result = Role.Shooter;
-                    reason = $"shooting={shooting} >= melee={melee} (moderate)";
+                    reason = $"射击={shooting} >= 近战={melee} (中等)";
                 }
                 else
                 {
                     result = Role.Brawler;
-                    reason = $"melee={melee} > shooting={shooting} (moderate)";
+                    reason = $"近战={melee} > 射击={shooting} (中等)";
                 }
             }
 
-            // Log only when role changes
+            // 仅在角色变化时记录日志，避免刷屏
             int pawnId = pawn.thingIDNumber;
-            Role prev;
-            if (lastLoggedRole.TryGetValue(pawnId, out prev))
+            if (lastLoggedRole.TryGetValue(pawnId, out Role prev))
             {
                 if (prev != result)
                 {
-                    Log.Message($"[AutoEquipment] {pawn.LabelShort} role changed: {prev} -> {result} ({reason})");
+                    Log.Message($"[AutoEquipment] {pawn.LabelShort} 角色变化: {prev} -> {result} ({reason})");
                     lastLoggedRole[pawnId] = result;
                 }
             }
             else
             {
-                Log.Message($"[AutoEquipment] {pawn.LabelShort} initial role: {result} ({reason})");
+                Log.Message($"[AutoEquipment] {pawn.LabelShort} 初始角色: {result} ({reason})");
                 lastLoggedRole[pawnId] = result;
             }
 
@@ -118,7 +117,7 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// Get the primary combat stat priority for a role.
+        /// 获取角色对应的主战斗属性。
         /// </summary>
         public static StatDef GetPrimaryWeaponStat(Role role)
         {
@@ -135,7 +134,8 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// Should this role prefer melee weapons?
+        /// 该角色是否应当偏好近战武器。
+        /// 仅格斗者返回 true，用于在武器评分中阻止格斗者装备远程武器。
         /// </summary>
         public static bool PrefersMelee(Role role)
         {

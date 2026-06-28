@@ -16,32 +16,32 @@ namespace AutoEquipment
 
     public static class ContextDetector
     {
-        // Track how long a pawn has been in extreme temperature (per pawn ID)
+        // 记录每个 Pawn 处于极端温度的起始 tick（按 Pawn ID 索引）
         private static readonly Dictionary<int, int> coldSinceTick = new Dictionary<int, int>();
         private static readonly Dictionary<int, int> hotSinceTick = new Dictionary<int, int>();
 
-        // Track last context per pawn for change-only logging
+        // 记录每个 Pawn 上一次的情境，仅在变化时输出日志以减少噪音
         private static readonly Dictionary<int, GearContext> lastLoggedContext = new Dictionary<int, GearContext>();
 
-        // Require sustained exposure before triggering Cold/Hot context (2500 ticks = ~42 seconds)
+        // 需持续暴露于极端温度一定时间后才触发 Cold/Hot 情境（2500 tick ≈ 42 秒）
         private const int TempSustainTicks = 2500;
 
         /// <summary>
-        /// Determine the current gear context for a pawn.
+        /// 判定 Pawn 当前的装备情境。
         /// </summary>
         public static GearContext GetContext(Pawn pawn)
         {
             if (pawn == null) return GearContext.Normal;
 
-            // Combat: drafted or fleeing
+            // 战斗：已征召或正在逃跑
             if (pawn.Drafted)
-                return LogContextIfChanged(pawn, GearContext.Combat, "drafted");
+                return LogContextIfChanged(pawn, GearContext.Combat, "已征召");
 
-            // Hunting job
+            // 狩猎工作
             if (AESettings.huntingWeapon && IsHunting(pawn))
-                return LogContextIfChanged(pawn, GearContext.Hunting, "hunting job active");
+                return LogContextIfChanged(pawn, GearContext.Hunting, "狩猎工作中");
 
-            // Temperature check -- only triggers after sustained exposure
+            // 温度检测：仅在持续暴露后才触发
             if (AESettings.temperatureAware && pawn.Map != null)
             {
                 float ambientTemp = pawn.AmbientTemperature;
@@ -58,7 +58,7 @@ namespace AutoEquipment
                         coldSinceTick[pawnId] = tick;
                     if (tick - coldSinceTick[pawnId] >= TempSustainTicks)
                         return LogContextIfChanged(pawn, GearContext.Cold,
-                            $"ambient={ambientTemp:F1}C, comfort min={comfortRange.min:F1}C");
+                            $"环境={ambientTemp:F1}C, 舒适下限={comfortRange.min:F1}C");
                 }
                 else
                 {
@@ -71,7 +71,7 @@ namespace AutoEquipment
                         hotSinceTick[pawnId] = tick;
                     if (tick - hotSinceTick[pawnId] >= TempSustainTicks)
                         return LogContextIfChanged(pawn, GearContext.Hot,
-                            $"ambient={ambientTemp:F1}C, comfort max={comfortRange.max:F1}C");
+                            $"环境={ambientTemp:F1}C, 舒适上限={comfortRange.max:F1}C");
                 }
                 else
                 {
@@ -79,9 +79,9 @@ namespace AutoEquipment
                 }
             }
 
-            // Working
+            // 工作中
             if (pawn.CurJob != null && !pawn.CurJob.def.alwaysShowWeapon)
-                return LogContextIfChanged(pawn, GearContext.Work, $"job={pawn.CurJob.def.defName}");
+                return LogContextIfChanged(pawn, GearContext.Work, $"工作={pawn.CurJob.def.defName}");
 
             return LogContextIfChanged(pawn, GearContext.Normal, null);
         }
@@ -89,20 +89,19 @@ namespace AutoEquipment
         private static GearContext LogContextIfChanged(Pawn pawn, GearContext newContext, string reason)
         {
             int pawnId = pawn.thingIDNumber;
-            GearContext prev;
-            if (lastLoggedContext.TryGetValue(pawnId, out prev))
+            if (lastLoggedContext.TryGetValue(pawnId, out GearContext prev))
             {
                 if (prev != newContext)
                 {
-                    Log.Message($"[AutoEquipment] {pawn.LabelShort} context changed: {prev} -> {newContext}"
+                    Log.Message($"[AutoEquipment] {pawn.LabelShort} 情境变化: {prev} -> {newContext}"
                         + (reason != null ? $" ({reason})" : ""));
                     lastLoggedContext[pawnId] = newContext;
                 }
             }
             else
             {
-                // First time seeing this pawn -- log the initial context
-                Log.Message($"[AutoEquipment] {pawn.LabelShort} initial context: {newContext}"
+                // 首次见到该 Pawn：记录初始情境
+                Log.Message($"[AutoEquipment] {pawn.LabelShort} 初始情境: {newContext}"
                     + (reason != null ? $" ({reason})" : ""));
                 lastLoggedContext[pawnId] = newContext;
             }
@@ -117,9 +116,9 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// Check if a pawn is under melee threat (for sidearm drawing).
-        /// Returns true if a hostile is adjacent and melee attacking, OR
-        /// if a melee-only hostile is closing within 3 tiles.
+        /// 检测 Pawn 是否受到近战威胁（用于副武器切出判断）。
+        /// 返回 true 的条件：敌方相邻且正在近战攻击，
+        /// 或仅有近战能力的敌方接近至 3 格以内。
         /// </summary>
         public static bool IsUnderMeleeAttack(Pawn pawn)
         {
@@ -127,17 +126,16 @@ namespace AutoEquipment
 
             foreach (var threat in pawn.Map.attackTargetsCache.GetPotentialTargetsFor(pawn))
             {
-                Pawn attacker = threat.Thing as Pawn;
-                if (attacker == null || attacker.Dead || attacker.Downed) continue;
+                if (!(threat.Thing is Pawn attacker) || attacker.Dead || attacker.Downed) continue;
                 if (!attacker.HostileTo(pawn)) continue;
 
                 float dist = attacker.Position.DistanceTo(pawn.Position);
 
-                // Adjacent and melee attacking -- immediate threat
+                // 相邻且正在近战攻击：立即威胁
                 if (dist <= 1.5f && attacker.CurrentEffectiveVerb?.IsMeleeAttack == true)
                     return true;
 
-                // Closing within 3 tiles and has no ranged weapon -- about to melee
+                // 接近至 3 格内且无远程武器：即将近战
                 if (dist <= 3f)
                 {
                     bool attackerHasRanged = attacker.equipment?.Primary?.def.IsRangedWeapon == true;
