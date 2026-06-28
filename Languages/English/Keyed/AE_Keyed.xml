@@ -55,19 +55,8 @@
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
   <AE_DebugTools>Debug Tools</AE_DebugTools>
-  <AE_DebugCleanGhouls>Strip all ghouls' equipment</AE_DebugCleanGhouls>
-  <AE_DebugCleanGhoulsResult>Stripped equipment from {0} ghouls</AE_DebugCleanGhoulsResult>
-  <AE_DebugReload>Reload Now</AE_DebugReload>
-  <AE_DebugReload_Target>Select reload target</AE_DebugReload_Target>
-  <AE_DebugReload_Target_All>All gear</AE_DebugReload_Target_All>
-  <AE_DebugReload_Target_Weapon>Primary weapon only</AE_DebugReload_Target_Weapon>
-  <AE_DebugReload_Target_Apparel>Apparel only</AE_DebugReload_Target_Apparel>
-  <AE_DebugReload_Target_Sidearm>Sidearm only</AE_DebugReload_Target_Sidearm>
-  <AE_DebugReload_Target_Inventory>Inventory (medicine) only</AE_DebugReload_Target_Inventory>
-  <AE_DebugReload_CurrentTarget>Current target: {0}</AE_DebugReload_CurrentTarget>
-  <AE_DebugReload_Role>Select role filter</AE_DebugReload_Role>
-  <AE_DebugReload_Role_All>All colonists</AE_DebugReload_Role_All>
-  <AE_DebugReloadResult>Triggered '{0}' reload for {2} '{1}' colonists</AE_DebugReloadResult>
+  <AE_DebugReload>Reload all colonists now</AE_DebugReload>
+  <AE_DebugReloadResultSimple>Triggered gear evaluation for {0} colonists</AE_DebugReloadResultSimple>
 
   <!-- Presets -->
   <AE_Preset>Preset</AE_Preset>

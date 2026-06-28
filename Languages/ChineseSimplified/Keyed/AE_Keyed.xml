@@ -55,19 +55,8 @@
   <AE_DebugLogging>调试日志</AE_DebugLogging>
   <AE_DebugLogging_Desc>启用详细日志记录以便排查问题。</AE_DebugLogging_Desc>
   <AE_DebugTools>调试工具</AE_DebugTools>
-  <AE_DebugCleanGhouls>食尸鬼卸下装备</AE_DebugCleanGhouls>
-  <AE_DebugCleanGhoulsResult>已清理 {0} 个食尸鬼身上的装备</AE_DebugCleanGhoulsResult>
-  <AE_DebugReload>立即换装</AE_DebugReload>
-  <AE_DebugReload_Target>选择换装目标类型</AE_DebugReload_Target>
-  <AE_DebugReload_Target_All>全部装备</AE_DebugReload_Target_All>
-  <AE_DebugReload_Target_Weapon>仅主武器</AE_DebugReload_Target_Weapon>
-  <AE_DebugReload_Target_Apparel>仅防具</AE_DebugReload_Target_Apparel>
-  <AE_DebugReload_Target_Sidearm>仅副武器</AE_DebugReload_Target_Sidearm>
-  <AE_DebugReload_Target_Inventory>仅库存（药品）</AE_DebugReload_Target_Inventory>
-  <AE_DebugReload_CurrentTarget>当前目标：{0}</AE_DebugReload_CurrentTarget>
-  <AE_DebugReload_Role>选择角色筛选</AE_DebugReload_Role>
-  <AE_DebugReload_Role_All>全部殖民者</AE_DebugReload_Role_All>
-  <AE_DebugReloadResult>已对 {2} 个「{1}」殖民者执行「{0}」换装</AE_DebugReloadResult>
+  <AE_DebugReload>立即换装全部殖民者</AE_DebugReload>
+  <AE_DebugReloadResultSimple>已触发 {0} 个殖民者的装备评估</AE_DebugReloadResultSimple>
 
   <!-- 预设方案 -->
   <AE_Preset>预设方案</AE_Preset>

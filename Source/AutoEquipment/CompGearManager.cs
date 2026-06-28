@@ -160,9 +160,17 @@ namespace AutoEquipment
                 // 未征召：正常自动管理装备
                 // 未成年：仅防具（无武器、副武器、药品）
                 // 奴隶：武器+防具+药品，但无副武器（殖民地级分配优先级较低）
-                if (AESettings.autoWeapons && contextChanged && !isChild)
+                // 关键修复：Pawn 无武器时也必须评估，否则格斗家永远拿不到近战武器
+                // （情境变化 contextChanged 仅在 Combat/Work 切换时为 true，普通 colonist 默认 Work 不会变化）
+                Thing currentWeapon = Pawn.equipment?.Primary;
+                bool needWeaponEval = AESettings.autoWeapons && !isChild
+                    && (contextChanged || currentWeapon == null);
+                if (needWeaponEval)
                 {
-                    Log.Message($"[AutoEquipment] {Pawn.LabelShort} 执行 EvaluateWeapon (情境变化 {prevContext}->{context})");
+                    if (contextChanged)
+                        Log.Message($"[AutoEquipment] {Pawn.LabelShort} 执行 EvaluateWeapon (情境变化 {prevContext}->{context})");
+                    else
+                        Log.Message($"[AutoEquipment] {Pawn.LabelShort} 执行 EvaluateWeapon (无武器，强制评估)");
                     EvaluateWeapon(role, context, contextChanged);
                 }
 
@@ -245,60 +253,6 @@ namespace AutoEquipment
             }
         }
 
-        /// <summary>
-        /// 手动触发的全局食尸鬼装备清理：遍历所有地图上的玩家阵营食尸鬼，
-        /// 卸下其身上的武器与防具。用于调试按钮即时验证清理逻辑。
-        /// 返回被清理的食尸鬼数量。
-        /// </summary>
-        public static int CleanAllGhouls()
-        {
-            int cleaned = 0;
-            foreach (Map map in Find.Maps)
-            {
-                // 使用临时列表避免在遍历过程中修改集合
-                List<Pawn> ghouls = new List<Pawn>();
-                foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
-                {
-                    if (pawn.Faction != Faction.OfPlayer) continue;
-                    if (!DLCCompat.IsGhoul(pawn)) continue;
-                    if (pawn.Dead || pawn.Downed) continue;
-                    ghouls.Add(pawn);
-                }
-
-                for (int i = 0; i < ghouls.Count; i++)
-                {
-                    Pawn pawn = ghouls[i];
-                    int removed = 0;
-
-                    // 卸下主武器
-                    ThingWithComps primary = pawn.equipment?.Primary;
-                    if (primary != null)
-                    {
-                        pawn.equipment.TryDropEquipment(primary, out ThingWithComps dropped, pawn.Position, false);
-                        removed++;
-                    }
-
-                    // 脱下所有防具
-                    if (pawn.apparel != null && pawn.apparel.WornApparel.Count > 0)
-                    {
-                        for (int j = pawn.apparel.WornApparel.Count - 1; j >= 0; j--)
-                        {
-                            Apparel a = pawn.apparel.WornApparel[j];
-                            if (pawn.apparel.TryDrop(a)) removed++;
-                        }
-                    }
-
-                    if (removed > 0)
-                    {
-                        Log.Message("[AutoEquipment] 手动清理：食尸鬼 " + pawn.LabelShort + " 卸下 " + removed + " 件装备");
-                        cleaned++;
-                    }
-                }
-            }
-            Log.Message("[AutoEquipment] 手动清理完成，共清理 " + cleaned + " 个食尸鬼");
-            return cleaned;
-        }
-
         // ===================== 手动触发换装 =====================
 
         /// <summary>
@@ -359,22 +313,19 @@ namespace AutoEquipment
 
         /// <summary>
         /// 全局手动触发换装：遍历所有地图的玩家阵营殖民者，
-        /// 按角色筛选后强制评估指定类型的装备。
+        /// 强制评估全部装备（武器+防具+副武器+库存）。
         /// 返回被触发的 Pawn 数量。
         /// </summary>
-        public static int TriggerReload(ReloadTarget target, Role roleFilter)
+        public static int ReloadAllColonists()
         {
             int triggered = 0;
             int scanned = 0;
             int skippedGhoul = 0;
             int skippedComp = 0;
-            int skippedRole = 0;
             int skippedUnsuitable = 0;
 
             foreach (Map map in Find.Maps)
             {
-                // 用 AllPawnsSpawned + 手动筛选，与 CleanAllGhouls 保持一致
-                // 避免使用 FreeColonistsAndPrisonersSpawned 在某些情况下的边界问题
                 foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
                 {
                     if (pawn.Faction != Faction.OfPlayer) continue;
@@ -394,22 +345,13 @@ namespace AutoEquipment
                     var comp = pawn.GetComp<CompGearManager>();
                     if (comp == null) { skippedComp++; continue; }
 
-                    // 角色筛选：Default 表示不筛选
-                    if (roleFilter != Role.Default
-                        && comp.CurrentRole != roleFilter)
-                    {
-                        skippedRole++;
-                        continue;
-                    }
-
-                    comp.ForceEvaluate(target);
+                    comp.ForceEvaluate(ReloadTarget.All);
                     triggered++;
                 }
             }
 
-            Log.Message($"[AutoEquipment] 手动换装统计: target={target}, roleFilter={roleFilter}, " +
-                $"扫描={scanned}, 触发={triggered}, " +
-                $"跳过(食尸鬼={skippedGhoul}, 无Comp={skippedComp}, 角色不匹配={skippedRole}, 不适用类别={skippedUnsuitable})");
+            Log.Message($"[AutoEquipment] 手动换装统计: 扫描={scanned}, 触发={triggered}, " +
+                $"跳过(食尸鬼={skippedGhoul}, 无Comp={skippedComp}, 不适用类别={skippedUnsuitable})");
             return triggered;
         }
 

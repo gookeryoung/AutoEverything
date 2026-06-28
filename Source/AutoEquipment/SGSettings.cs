@@ -157,21 +157,18 @@ namespace AutoEquipment
                 r.CheckboxLabeled("AE_Monitor_Comparison".Translate(), ref DebugMonitor.monitorComparison);
             }
 
-            // 调试工具：标签 + 两个按钮并排
+            // 调试工具：仅保留一键换装，食尸鬼清理已由 CompTick 自动处理
             r.GapLine();
             r.Label("AE_DebugTools".Translate());
 
-            // 两个按钮放在同一行，节省垂直空间
             Rect btnRect = r.GetRect(30f);
-            float btnWidth = (btnRect.width - 8f) * 0.5f;
-            if (Widgets.ButtonText(new Rect(btnRect.x, btnRect.y, btnWidth, 30f), "AE_DebugCleanGhouls".Translate()))
+            if (Widgets.ButtonText(btnRect, "AE_DebugReload".Translate()))
             {
-                int cleaned = CompGearManager.CleanAllGhouls();
-                Messages.Message("AE_DebugCleanGhoulsResult".Translate(cleaned), MessageTypeDefOf.TaskCompletion);
-            }
-            if (Widgets.ButtonText(new Rect(btnRect.x + btnWidth + 8f, btnRect.y, btnWidth, 30f), "AE_DebugReload".Translate()))
-            {
-                Find.WindowStack.Add(new ReloadTargetMenu());
+                // 立即触发所有玩家阵营 Pawn 的全装备评估
+                int triggered = CompGearManager.ReloadAllColonists();
+                Messages.Message(
+                    "AE_DebugReloadResultSimple".Translate(triggered),
+                    MessageTypeDefOf.TaskCompletion);
             }
 
             r.End();
@@ -239,135 +236,6 @@ namespace AutoEquipment
             l.Label($"  {("AE_Weight_Insulation".Translate())}: {defaultW.w_insulation:F1}");
             l.Label($"  {("AE_Weight_MoveSpeed".Translate())}: {defaultW.w_movespeed:F1}");
             l.Label($"  {("AE_Weight_WorkSpeed".Translate())}: {defaultW.w_workspeed:F1}");
-
-            l.End();
-        }
-    }
-
-    /// <summary>
-    /// 立即换装第一步菜单：选择换装目标类型。
-    /// 选择后再弹出角色筛选菜单。
-    /// </summary>
-    public class ReloadTargetMenu : Window
-    {
-        public override Vector2 InitialSize => new Vector2(280f, 320f);
-
-        public ReloadTargetMenu()
-        {
-            doCloseX = true;
-            closeOnClickedOutside = true;
-            absorbInputAroundWindow = true;
-            forcePause = false;
-        }
-
-        public override void DoWindowContents(Rect inRect)
-        {
-            Listing_Standard l = new Listing_Standard();
-            l.Begin(inRect);
-
-            Text.Font = GameFont.Medium;
-            l.Label("AE_DebugReload".Translate());
-            Text.Font = GameFont.Small;
-            l.Gap();
-
-            l.Label("AE_DebugReload_Target".Translate());
-            l.Gap(4f);
-
-            // 目标类型列表
-            var targets = new[]
-            {
-                CompGearManager.ReloadTarget.All,
-                CompGearManager.ReloadTarget.Weapon,
-                CompGearManager.ReloadTarget.Apparel,
-                CompGearManager.ReloadTarget.Sidearm,
-                CompGearManager.ReloadTarget.Inventory
-            };
-
-            for (int i = 0; i < targets.Length; i++)
-            {
-                // 闭包捕获：必须用局部变量，避免循环变量全部指向最后一个枚举值
-                CompGearManager.ReloadTarget localTarget = targets[i];
-                string labelKey = "AE_DebugReload_Target_" + localTarget;
-                if (l.ButtonText(labelKey.Translate()))
-                {
-                    Close();
-                    Find.WindowStack.Add(new ReloadRoleMenu(localTarget));
-                }
-            }
-
-            l.End();
-        }
-    }
-
-    /// <summary>
-    /// 立即换装第二步菜单：选择角色筛选。
-    /// 选择后立即触发换装并显示结果消息。
-    /// </summary>
-    public class ReloadRoleMenu : Window
-    {
-        private readonly CompGearManager.ReloadTarget target;
-
-        public override Vector2 InitialSize => new Vector2(280f, 360f);
-
-        public ReloadRoleMenu(CompGearManager.ReloadTarget target)
-        {
-            this.target = target;
-            doCloseX = true;
-            closeOnClickedOutside = true;
-            absorbInputAroundWindow = true;
-            forcePause = false;
-        }
-
-        public override void DoWindowContents(Rect inRect)
-        {
-            Listing_Standard l = new Listing_Standard();
-            l.Begin(inRect);
-
-            Text.Font = GameFont.Medium;
-            l.Label("AE_DebugReload".Translate());
-            Text.Font = GameFont.Small;
-            l.Gap();
-
-            // 显示当前选择的目标类型
-            l.Label("AE_DebugReload_CurrentTarget".Translate(
-                ("AE_DebugReload_Target_" + target).Translate()));
-            l.Gap();
-
-            l.Label("AE_DebugReload_Role".Translate());
-            l.Gap(4f);
-
-            // 角色筛选列表（Default 表示"全部"，不筛选）
-            var roles = new[]
-            {
-                Role.Default,    // 全部
-                Role.Shooter,
-                Role.Brawler,
-                Role.Doctor,
-                Role.Hunter,
-                Role.Worker,
-                Role.Pacifist,
-                Role.Leader
-            };
-
-            for (int i = 0; i < roles.Length; i++)
-            {
-                // 闭包捕获
-                Role localRole = roles[i];
-                string labelKey = localRole == Role.Default
-                    ? "AE_DebugReload_Role_All"
-                    : ("AE_Role_" + localRole);
-                if (l.ButtonText(labelKey.Translate()))
-                {
-                    Close();
-                    int triggered = CompGearManager.TriggerReload(target, localRole);
-                    Messages.Message(
-                        "AE_DebugReloadResult".Translate(
-                            ("AE_DebugReload_Target_" + target).Translate(),
-                            labelKey.Translate(),
-                            triggered),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
 
             l.End();
         }
