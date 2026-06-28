@@ -6,15 +6,17 @@
     <li>1.6</li>
   </supportedVersions>
   <packageId>gookeryoung.autoequipment</packageId>
-  <description>Intelligent automatic equipment management based on Smart Gear design. Pawns equip the right weapon, wear the right clothes, and carry the right supplies based on their role, current job, weather, and combat status.
+  <description>基于 LXO - Smart Gear 设计的智能自动装备管理 MOD。殖民者会根据自身角色、当前工作、天气与战斗状态，自动装备合适的武器、穿戴合适的防具、携带合适的物资。
 
-Fixes two issues from the original design:
-- Ghouls (Anomaly DLC) no longer wander off looking for equipment.
-- Brawlers never auto-equip ranged weapons — they stick to melee.
+修复原设计的两个问题：
+- 食尸鬼（Anomaly DLC）不再四处乱跑寻找装备。
+- 格斗者永远不会主动装备远程武器 —— 始终坚持近战。
 
-Zero configuration needed. Works out of the box. Every pawn auto-detects their role from skills and traits.
+零配置开箱即用，每个殖民者根据技能与特质自动识别角色。
 
-Compatible with most mods. Safe to add mid-save.</description>
+兼容大多数 MOD，支持存档中途添加。
+
+English: Intelligent automatic equipment management based on Smart Gear design. Ghouls no longer seek gear; brawlers never auto-equip ranged weapons. Zero config, works out of the box. Safe to add mid-save.</description>
   <modDependencies>
     <li>
       <packageId>brrainz.harmony</packageId>

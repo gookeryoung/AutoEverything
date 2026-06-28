@@ -60,10 +60,12 @@
 - 必须同时提供 `ChineseSimplified` 与 `English` Keyed XML
 - 禁止硬编码显示字符串，必须 `"Key".Translate()`
 - 动态字符串用 `{0}` `{1}` 占位符
+- `About.xml` 的 `description` 必须用中文撰写，可附英文摘要
+- 面向玩家的字符串、README、Steam 创意工坊简介均以中文为第一语言
 
 ## 发布检查
 
 - `.csproj` 引用设 `<Private>false</Private>`，禁止打包 Assembly-CSharp.dll
-- `About.xml` 完整: `supportedVersions`、`packageId`、`modDependencies`、`description`
+- `About.xml` 完整: `supportedVersions`、`packageId`、`modDependencies`、`description`（中文）
 - `dotnet build -c Release` 零错误零警告
 - 无 DLC 环境测试启动，有 DLC 环境测试功能
