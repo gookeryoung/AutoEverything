@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEquipment.Scoring.Weapon;
@@ -14,7 +14,7 @@ namespace AutoEquipment.Scoring
     public static class ScoringPipelineFactory
     {
         // 静态缓存：管线实例在游戏生命周期内复用
-        // Scorer 内部无状态（除 WeaponRangeHelper），可安全共享
+        // 所有 Scorer 内部无状态，可安全共享
         private static ScoringPipeline<Thing> weaponPipeline;
         private static ScoringPipeline<Apparel> apparelPipeline;
 

@@ -1,4 +1,4 @@
-namespace AutoEquipment.Scoring
+﻿namespace AutoEquipment.Scoring
 {
     /// <summary>
     /// 评分权重数据结构：玩家可通过设置界面调整的部分权重。

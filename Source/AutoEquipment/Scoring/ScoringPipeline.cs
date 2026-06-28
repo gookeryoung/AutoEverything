@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using RimWorld;
 using Verse;
 
@@ -51,19 +51,6 @@ namespace AutoEquipment.Scoring
             }
 
             return breakdown;
-        }
-
-        /// <summary>
-        /// 快速评分：仅返回总分，不构造明细。
-        /// 性能路径下使用，避免明细列表分配。
-        /// </summary>
-        public float EvaluateScore(Pawn pawn, TThing gear, Role role,
-                                   GearContext context, GearWeights weights)
-        {
-            // 即使快速路径也用 ScoreBreakdown，因为 AddScore 是 O(1)
-            // 明细列表的分配在性能路径下可接受（每个装备约 5-10 项）
-            var breakdown = Evaluate(pawn, gear, role, context, weights);
-            return breakdown.Vetoed ? breakdown.VetoScore : breakdown.Total;
         }
     }
 }

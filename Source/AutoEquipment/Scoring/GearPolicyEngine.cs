@@ -1,9 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using AutoEquipment.Scoring;
 
-namespace AutoEquipment
+namespace AutoEquipment.Scoring
 {
     /// <summary>
     /// 装备策略调度层：根据全局预设方案与角色/情境返回对应权重。

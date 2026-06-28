@@ -1,4 +1,4 @@
-using Verse;
+﻿using Verse;
 
 namespace AutoEquipment.Scoring.Weapon
 {

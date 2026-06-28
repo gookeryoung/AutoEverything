@@ -1,4 +1,4 @@
-namespace AutoEquipment.Scoring
+﻿namespace AutoEquipment.Scoring
 {
     /// <summary>
     /// 全局装备预设方案枚举。

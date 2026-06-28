@@ -1,4 +1,4 @@
-using RimWorld;
+﻿using RimWorld;
 using Verse;
 
 namespace AutoEquipment.Scoring.Weapon
@@ -12,35 +12,25 @@ namespace AutoEquipment.Scoring.Weapon
     {
         public string Name => "特质";
 
-        // 缓存 TraitDef 查找，避免 Tick 路径每次重复字典查询
-        // 使用 GetNamed(defName, false) 安全查询：未找到返回 null 而非抛异常
+        // 多 degree 特质：ShootingAccuracy 单一 defName，degree 区分乱开枪(-1)/冷枪手(+1)
+        // 禁止把 degree 的 label（"Trigger-happy"/"Careful shooter"）当作 defName 查询
+        private static readonly TraitDef shootingAccuracyDef = DefDatabase<TraitDef>.GetNamed("ShootingAccuracy", false);
 
-        // 远程特质
-        // 特质： 乱开枪（TriggerHappy）
-        private static readonly TraitDef triggerHappyDef = DefDatabase<TraitDef>.GetNamed("Trigger-happy", false);
-        // 特质： 冷枪手（CarefulShooter）
-        private static readonly TraitDef carefulShooterDef = DefDatabase<TraitDef>.GetNamed("Careful shooter", false);
-
-        // 近战特质
-        // 特质： 格斗者（Brawler）
-        private static readonly TraitDef brawlerDef = DefDatabase<TraitDef>.GetNamed("Brawler", false);
-        // 特质： 敏捷（Nimble）
+        // 原生 DefOf（Brawler）始终存在，无需 null 检查
+        // Nimble/Bloodlust/Tough 是真实 defName，但不在原生 DefOf 中，需安全查询
         private static readonly TraitDef nimbleDef = DefDatabase<TraitDef>.GetNamed("Nimble", false);
-        // 特质： 嗜血（Bloodlust）
         private static readonly TraitDef bloodlustDef = DefDatabase<TraitDef>.GetNamed("Bloodlust", false);
-        // 特质： 坚韧（Tough）
         private static readonly TraitDef toughDef = DefDatabase<TraitDef>.GetNamed("Tough", false);
 
-        public void Score(Pawn pawn, Thing gear, Role role, GearContext context,
-                          GearWeights weights, ScoreBreakdown breakdown)
+        public void Score(Pawn pawn, Thing gear, Role role, GearContext context, GearWeights weights, ScoreBreakdown breakdown)
         {
             if (pawn.story?.traits == null) return;
 
             bool isMelee = gear.def.IsMeleeWeapon;
             bool isRanged = gear.def.IsRangedWeapon;
 
-            // 格斗者特质：绝对拒绝远程武器
-            if (brawlerDef != null && pawn.story.traits.HasTrait(brawlerDef))
+            // 格斗者特质（TraitDefOf.Brawler 始终存在）：绝对拒绝远程武器
+            if (pawn.story.traits.HasTrait(TraitDefOf.Brawler))
             {
                 if (isRanged)
                 {
@@ -73,30 +63,37 @@ namespace AutoEquipment.Scoring.Weapon
                 breakdown.AddScore(Name, "强健+近战", 20f);
             }
 
-            // 乱开枪：偏好高射速短冷却武器
-            if (pawn.story.traits.HasTrait(triggerHappyDef))
+            // ShootingAccuracy 多 degree 特质：
+            //   degree=-1 = 乱开枪（TriggerHappy）
+            //   degree=+1 = 冷枪手（CarefulShooter）
+            if (shootingAccuracyDef != null && isRanged)
             {
-                float cooldown = gear.GetStatValue(StatDefOf.RangedWeapon_Cooldown);
-                if (cooldown < 1.5f)
-                    breakdown.AddScore(Name, "乱开枪+短冷却", 30f);
+                int degree = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef);
 
-                float range = WeaponRangeHelper.GetRange(gear);
-                if (range < 15f)
-                    breakdown.AddScore(Name, "乱开枪+近距离", 20f);
-                if (range > 25f)
-                    breakdown.AddScore(Name, "乱开枪+长射程(厌恶)", -20f);
-            }
+                if (degree < 0)
+                {
+                    // 乱开枪：偏好高射速短冷却、近距离
+                    float cooldown = gear.GetStatValue(StatDefOf.RangedWeapon_Cooldown);
+                    if (cooldown < 1.5f)
+                        breakdown.AddScore(Name, "乱开枪+短冷却", 30f);
 
-            // 冷枪手：偏好高精度长射程武器
-            else if (pawn.story.traits.HasTrait(carefulShooterDef))
-            {
-                float range = WeaponRangeHelper.GetRange(gear);
-                if (range > 25f)
-                    breakdown.AddScore(Name, "冷枪手+长射程", 30f);
+                    float range = WeaponRangeHelper.GetRange(gear);
+                    if (range < 15f)
+                        breakdown.AddScore(Name, "乱开枪+近距离", 20f);
+                    else if (range > 25f)
+                        breakdown.AddScore(Name, "乱开枪+长射程(厌恶)", -20f);
+                }
+                else if (degree > 0)
+                {
+                    // 冷枪手：偏好高精度长射程武器
+                    float range = WeaponRangeHelper.GetRange(gear);
+                    if (range > 25f)
+                        breakdown.AddScore(Name, "冷枪手+长射程", 30f);
 
-                float cooldown = gear.GetStatValue(StatDefOf.RangedWeapon_Cooldown);
-                if (cooldown < 1.5f)
-                    breakdown.AddScore(Name, "冷枪手+短冷却(厌恶)", -20f);
+                    float cooldown = gear.GetStatValue(StatDefOf.RangedWeapon_Cooldown);
+                    if (cooldown < 1.5f)
+                        breakdown.AddScore(Name, "冷枪手+短冷却(厌恶)", -20f);
+                }
             }
         }
     }
