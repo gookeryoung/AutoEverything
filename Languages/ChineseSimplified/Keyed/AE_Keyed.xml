@@ -53,4 +53,7 @@
   <AE_UpgradeThreshold>升级阈值（优于当前多少时更换）</AE_UpgradeThreshold>
   <AE_DebugLogging>调试日志</AE_DebugLogging>
   <AE_DebugLogging_Desc>启用详细日志记录以便排查问题。</AE_DebugLogging_Desc>
+  <AE_DebugTools>调试工具</AE_DebugTools>
+  <AE_DebugCleanGhouls>卸下所有食尸鬼装备</AE_DebugCleanGhouls>
+  <AE_DebugCleanGhoulsResult>已清理 {0} 个食尸鬼身上的装备</AE_DebugCleanGhoulsResult>
 </LanguageData>

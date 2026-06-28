@@ -1,3 +1,4 @@
+using RimWorld;
 using UnityEngine;
 using Verse;
 
@@ -92,6 +93,15 @@ namespace AutoEquipment
 
             l.GapLine();
             l.CheckboxLabeled("AE_DebugLogging".Translate(), ref debugLogging, "AE_DebugLogging_Desc".Translate());
+
+            // 调试工具组：手动触发的运维操作
+            l.GapLine();
+            l.Label("AE_DebugTools".Translate());
+            if (l.ButtonText("AE_DebugCleanGhouls".Translate()))
+            {
+                int cleaned = CompGearManager.CleanAllGhouls();
+                Messages.Message("AE_DebugCleanGhoulsResult".Translate(cleaned), MessageTypeDefOf.TaskCompletion);
+            }
 
             l.End();
         }

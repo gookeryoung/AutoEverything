@@ -230,6 +230,60 @@ namespace AutoEquipment
             }
         }
 
+        /// <summary>
+        /// 手动触发的全局食尸鬼装备清理：遍历所有地图上的玩家阵营食尸鬼，
+        /// 卸下其身上的武器与防具。用于调试按钮即时验证清理逻辑。
+        /// 返回被清理的食尸鬼数量。
+        /// </summary>
+        public static int CleanAllGhouls()
+        {
+            int cleaned = 0;
+            foreach (Map map in Find.Maps)
+            {
+                // 使用临时列表避免在遍历过程中修改集合
+                List<Pawn> ghouls = new List<Pawn>();
+                foreach (Pawn pawn in map.mapPawns.AllPawnsSpawned)
+                {
+                    if (pawn.Faction != Faction.OfPlayer) continue;
+                    if (!DLCCompat.IsGhoul(pawn)) continue;
+                    if (pawn.Dead || pawn.Downed) continue;
+                    ghouls.Add(pawn);
+                }
+
+                for (int i = 0; i < ghouls.Count; i++)
+                {
+                    Pawn pawn = ghouls[i];
+                    int removed = 0;
+
+                    // 卸下主武器
+                    ThingWithComps primary = pawn.equipment?.Primary;
+                    if (primary != null)
+                    {
+                        pawn.equipment.TryDropEquipment(primary, out ThingWithComps dropped, pawn.Position, false);
+                        removed++;
+                    }
+
+                    // 脱下所有防具
+                    if (pawn.apparel != null && pawn.apparel.WornApparel.Count > 0)
+                    {
+                        for (int j = pawn.apparel.WornApparel.Count - 1; j >= 0; j--)
+                        {
+                            Apparel a = pawn.apparel.WornApparel[j];
+                            if (pawn.apparel.TryDrop(a)) removed++;
+                        }
+                    }
+
+                    if (removed > 0)
+                    {
+                        Log.Message("[AutoEquipment] 手动清理：食尸鬼 " + pawn.LabelShort + " 卸下 " + removed + " 件装备");
+                        cleaned++;
+                    }
+                }
+            }
+            Log.Message("[AutoEquipment] 手动清理完成，共清理 " + cleaned + " 个食尸鬼");
+            return cleaned;
+        }
+
         // ===================== 异常装备修复 =====================
 
         /// <summary>

@@ -53,4 +53,7 @@
   <AE_UpgradeThreshold>Upgrade threshold (swap if better by)</AE_UpgradeThreshold>
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
+  <AE_DebugTools>Debug Tools</AE_DebugTools>
+  <AE_DebugCleanGhouls>Strip all ghouls' equipment</AE_DebugCleanGhouls>
+  <AE_DebugCleanGhoulsResult>Stripped equipment from {0} ghouls</AE_DebugCleanGhoulsResult>
 </LanguageData>
