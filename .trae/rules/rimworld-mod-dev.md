@@ -162,8 +162,12 @@
    - 同步章节：`## 设计原则：逻辑杜绝而非事后清理`
 
 10. **主武器选择规则**（`WeaponSkillScorer.cs` / `WeaponTraitScorer.cs` / `SidearmAllocator.cs`）
-    - 修改 Brawler 特质 Veto、双修远程偏好、纯近战 EMP 副武器、贴身切换逻辑
+    - 修改 Brawler 特质 Veto、双修远程偏好、纯近战 EMP 副武器、贴身切换逻辑、护盾腰带约束
     - 同步章节：`## 主武器选择规则` 表格
+
+11. **腰带附件分配**（`BeltAllocator.cs`）
+    - 修改 belt 评分、全局保底消防背包规则、分配周期
+    - 同步章节：`## 腰带附件全局分配`
 
 ### 同步检查清单
 
@@ -177,6 +181,7 @@
 - [ ] 改了 `SidearmAllocator.cs`？→ README 副武器章节已更新
 - [ ] 改了 Tick 周期？→ README `评估周期` 表格已更新
 - [ ] 改了 Brawler Veto/双修偏好/EMP 副武器/贴身切换？→ README `主武器选择规则` 表格已更新
+- [ ] 改了 `BeltAllocator.cs`？→ README `腰带附件全局分配` 章节已更新
 - [ ] `make check` 通过
 
 ### 文档语言

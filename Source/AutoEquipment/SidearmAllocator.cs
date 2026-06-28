@@ -103,6 +103,12 @@ namespace AutoEquipment
                 bool needMelee = primary.def.IsRangedWeapon;
                 bool needRanged = primary.def.IsMeleeWeapon;
 
+                // 护盾腰带约束：护盾会阻挡所有远程武器射击
+                // 带护盾的 Pawn 拿远程/EMP 副武器毫无意义，跳过远程副武器分配
+                // 带消防背包的 Pawn 不受此限制，可正常配远程/EMP
+                bool hasShieldBelt = IsWearingShieldBelt(pawn);
+                if (needRanged && hasShieldBelt) continue;
+
                 Thing best = null;
                 float bestScore = 0f;
                 int bestIdx = -1;
@@ -122,6 +128,7 @@ namespace AutoEquipment
                     // 纯近战角色（射击无火）：副武器优先 EMP，应对机械族/护盾
                     // 设计意图：纯近战小人远程射击天赋不足，普通远程武器收益低
                     // EMP 武器能瘫痪机械族与护盾，贴身近战时提供战术价值
+                    // 注意：带护盾腰带的 Pawn 已在上方跳过，此处无需再判断
                     if (needRanged && IsPureMeleeShooter(pawn) && IsEmpWeapon(w))
                     {
                         score += 1000f;
@@ -141,6 +148,26 @@ namespace AutoEquipment
                     candidateWeapons[bestIdx] = null;
                 }
             }
+        }
+
+        /// <summary>
+        /// 检查 Pawn 是否穿戴护盾腰带。
+        /// 护盾腰带会阻挡远程武器射击，带护盾的 Pawn 不应配远程副武器。
+        /// </summary>
+        private static bool IsWearingShieldBelt(Pawn pawn)
+        {
+            if (pawn.apparel?.WornApparel == null) return false;
+            List<Apparel> worn = pawn.apparel.WornApparel;
+            for (int i = 0; i < worn.Count; i++)
+            {
+                if (worn[i].def.apparel?.layers != null
+                    && worn[i].def.apparel.layers.Contains(ApparelLayerDefOf.Belt)
+                    && worn[i].def.defName.ToUpperInvariant().Contains("SHIELD"))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static int ComparePawnByCombatValueDesc(Pawn a, Pawn b)

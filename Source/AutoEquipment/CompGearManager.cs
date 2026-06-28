@@ -464,6 +464,10 @@ namespace AutoEquipment
             int wornCount = Pawn.apparel.WornApparel.Count;
             AEDebug.Log($"[AutoEquipment] {Pawn.LabelShort} EvaluateApparel: role={role}, context={context}, contextChanged={contextChanged}, 穿戴 {wornCount} 件");
 
+            // 腰带附件全局分配：纯近战角色（射击无火）优先装备护盾/消防背包
+            // 受 3000 tick 全局周期控制，确保全局至少 1 人消防背包
+            BeltAllocator.AllocateForPawn(Pawn);
+
             // 寻找最佳可用防具（非首个满足阈值的）
             Apparel bestApparel = null;
             float bestScore = -999f;
