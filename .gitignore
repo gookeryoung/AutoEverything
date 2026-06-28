@@ -427,4 +427,5 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+*.dll
 REF
