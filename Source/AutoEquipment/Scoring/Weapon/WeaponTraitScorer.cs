@@ -30,18 +30,20 @@ namespace AutoEquipment.Scoring.Weapon
             bool isRanged = gear.def.IsRangedWeapon;
 
             // 格斗者特质（TraitDefOf.Brawler 始终存在）：绝对拒绝远程武器
+            // 仅真正的 Brawler 特质才拒绝远程，技能型 Brawler（基于技能判定，无特质）不拒绝
+            // 设计意图：技能型 Brawler 近战远程双修，应优先远程武器，贴身时切换近战副武器
             if (pawn.story.traits.HasTrait(TraitDefOf.Brawler))
             {
                 if (isRanged)
                 {
                     breakdown.Veto(-9000f);
-                    breakdown.AddScore(Name, "格斗者+远程=拒绝", -9000f);
-                    return; // 否决后无需继续
+                    breakdown.AddScore(Name, "格斗者特质+远程=拒绝", -9000f);
+                    return;
                 }
 
                 if (isMelee)
                 {
-                    breakdown.AddScore(Name, "格斗者+近战", 50f);
+                    breakdown.AddScore(Name, "格斗者特质+近战", 50f);
                 }
             }
 

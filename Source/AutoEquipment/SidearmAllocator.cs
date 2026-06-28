@@ -118,6 +118,15 @@ namespace AutoEquipment
                     if (comp == null) continue;
 
                     float score = GearScorer.ScoreSidearm(pawn, w, comp.CurrentRole);
+
+                    // 纯近战角色（射击无火）：副武器优先 EMP，应对机械族/护盾
+                    // 设计意图：纯近战小人远程射击天赋不足，普通远程武器收益低
+                    // EMP 武器能瘫痪机械族与护盾，贴身近战时提供战术价值
+                    if (needRanged && IsPureMeleeShooter(pawn) && IsEmpWeapon(w))
+                    {
+                        score += 1000f;
+                    }
+
                     if (score > bestScore)
                     {
                         bestScore = score;
@@ -194,6 +203,29 @@ namespace AutoEquipment
             if (!weapon.def.IsWeapon) return false;
             // 候选筛选留给分配阶段（needMelee/needRanged），此处仅排除非武器
             return true;
+        }
+
+        /// <summary>
+        /// 纯近战角色判定：射击技能无火（passion=None）。
+        /// 此类殖民者远程射击天赋不足，副武器应优先 EMP 而非普通远程武器。
+        /// </summary>
+        private static bool IsPureMeleeShooter(Pawn pawn)
+        {
+            if (pawn?.skills == null) return false;
+            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
+            if (shooting == null) return true;
+            return shooting.passion == Passion.None;
+        }
+
+        /// <summary>
+        /// EMP 武器判定：通过 defName/label 启发式识别。
+        /// 覆盖原生 EMP 手榴弹、EMP 炮及 MOD 扩展的 EMP 武器。
+        /// </summary>
+        private static bool IsEmpWeapon(Thing weapon)
+        {
+            if (weapon?.def == null) return false;
+            return weapon.def.defName.ToUpperInvariant().Contains("EMP")
+                || weapon.def.label.ToUpperInvariant().Contains("EMP");
         }
 
         private static void AssignSidearm(Pawn pawn, Thing weapon, float score)

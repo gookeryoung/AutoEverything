@@ -41,9 +41,13 @@ namespace AutoEquipment
             var comp = pawn.GetComp<CompGearManager>();
             if (comp == null) return;
 
+            // 按钮固定在面板最下方，独立于 ScrollView，避免滚动时被隐藏
+            float buttonHeight = 30f;
+            float buttonGap = 10f;
+
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
             Rect scrollRect = rect;
-            scrollRect.height -= 20f; // 为锁定开关预留空间
+            scrollRect.height -= (buttonHeight + buttonGap);
 
             Rect contentRect = new Rect(0f, 0f, scrollRect.width - 16f, lastHeight);
 
@@ -125,6 +129,21 @@ namespace AutoEquipment
             lastHeight = contentRect.height;
 
             Widgets.EndScrollView();
+
+            // 全局重配按钮：固定面板最下方
+            Rect buttonRect = new Rect(
+                scrollRect.x,
+                scrollRect.yMax + buttonGap,
+                scrollRect.width,
+                buttonHeight);
+
+            if (Widgets.ButtonText(buttonRect, "AE_GlobalReallocate".Translate()))
+            {
+                int triggered = GlobalAllocator.ReallocateAll();
+                Messages.Message(
+                    "AE_GlobalReallocateResult".Translate(triggered),
+                    MessageTypeDefOf.PositiveEvent);
+            }
         }
     }
 }

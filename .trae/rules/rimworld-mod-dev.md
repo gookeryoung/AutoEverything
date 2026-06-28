@@ -161,6 +161,10 @@
    - 修改入口防御策略、调整兜底处理方式
    - 同步章节：`## 设计原则：逻辑杜绝而非事后清理`
 
+10. **主武器选择规则**（`WeaponSkillScorer.cs` / `WeaponTraitScorer.cs` / `SidearmAllocator.cs`）
+    - 修改 Brawler 特质 Veto、双修远程偏好、纯近战 EMP 副武器、贴身切换逻辑
+    - 同步章节：`## 主武器选择规则` 表格
+
 ### 同步检查清单
 
 提交前自检：
@@ -172,6 +176,7 @@
 - [ ] 改了 `GearContext.cs`？→ README 情境表格已更新
 - [ ] 改了 `SidearmAllocator.cs`？→ README 副武器章节已更新
 - [ ] 改了 Tick 周期？→ README `评估周期` 表格已更新
+- [ ] 改了 Brawler Veto/双修偏好/EMP 副武器/贴身切换？→ README `主武器选择规则` 表格已更新
 - [ ] `make check` 通过
 
 ### 文档语言

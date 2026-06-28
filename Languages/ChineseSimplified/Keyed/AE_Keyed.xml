@@ -86,4 +86,8 @@
   <AE_Monitor_ApparelScore>防具评分</AE_Monitor_ApparelScore>
   <AE_Monitor_Breakdown>评分明细</AE_Monitor_Breakdown>
   <AE_Monitor_Comparison>评分对比</AE_Monitor_Comparison>
+
+  <!-- 全局重配 -->
+  <AE_GlobalReallocate>全局重配</AE_GlobalReallocate>
+  <AE_GlobalReallocateResult>已按战斗价值降序触发 {0} 个殖民者的全局重配</AE_GlobalReallocateResult>
 </LanguageData>

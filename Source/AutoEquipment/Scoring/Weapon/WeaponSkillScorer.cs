@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 
 namespace AutoEquipment.Scoring.Weapon
@@ -29,6 +29,14 @@ namespace AutoEquipment.Scoring.Weapon
                     float score = shooting.Level * weights.w_skill * passionMult;
                     string desc = $"射击{shooting.Level} × {weights.w_skill:F1} × {passionMult:F1}({GetPassionName(shooting.passion)})";
                     breakdown.AddScore(Name, desc, score);
+                }
+
+                // 双修角色（射击+近战均有火）：远程武器额外加分，确保主武器优先远程
+                // 设计意图：双修小人远程与近战天赋俱佳，远程武器容错率高，应作主武器
+                // 副武器系统会在贴身时自动切换近战
+                if (IsDualPassion(pawn))
+                {
+                    breakdown.AddScore(Name, "双修远程偏好", 50f);
                 }
             }
 
@@ -69,6 +77,19 @@ namespace AutoEquipment.Scoring.Weapon
                 case Passion.Major: return "双火";
                 default: return "无火";
             }
+        }
+
+        /// <summary>
+        /// 双修判定：射击与近战技能均有火（Minor 或 Major）。
+        /// 此类殖民者远程近战天赋俱佳，主武器应优先远程。
+        /// </summary>
+        private static bool IsDualPassion(Pawn pawn)
+        {
+            if (pawn?.skills == null) return false;
+            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
+            SkillRecord melee = pawn.skills.GetSkill(SkillDefOf.Melee);
+            if (shooting == null || melee == null) return false;
+            return shooting.passion != Passion.None && melee.passion != Passion.None;
         }
     }
 }

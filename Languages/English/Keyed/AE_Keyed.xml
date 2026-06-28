@@ -86,4 +86,8 @@
   <AE_Monitor_ApparelScore>Apparel score</AE_Monitor_ApparelScore>
   <AE_Monitor_Breakdown>Score breakdown</AE_Monitor_Breakdown>
   <AE_Monitor_Comparison>Score comparison</AE_Monitor_Comparison>
+
+  <!-- Global reallocate -->
+  <AE_GlobalReallocate>Global Reallocate</AE_GlobalReallocate>
+  <AE_GlobalReallocateResult>Triggered global reallocation for {0} colonists by combat value</AE_GlobalReallocateResult>
 </LanguageData>
