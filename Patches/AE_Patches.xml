@@ -1,5 +1,25 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Patch>
   <!-- Comp is added via C# in HarmonyInit for maximum compatibility -->
-  <!-- ITab is also added via C# -->
+
+  <!-- ITab 注入：通过 BasePawn 抽象 ThingDef 注入，所有 Pawn 子类（含外星人 mod）自动继承 -->
+  <!-- 使用 Conditional 检查避免 BasePawn 无 inspectorTabs 节点时报错 -->
+  <Operation Class="PatchOperationConditional">
+    <xpath>/Defs/ThingDef[@Name="BasePawn"]/inspectorTabs</xpath>
+    <success>Always</success>
+    <match Class="PatchOperationAdd">
+      <xpath>/Defs/ThingDef[@Name="BasePawn"]/inspectorTabs</xpath>
+      <value>
+        <li>AutoEquipment.ITab_GearManager</li>
+      </value>
+    </match>
+    <nomatch Class="PatchOperationAdd">
+      <xpath>/Defs/ThingDef[@Name="BasePawn"]</xpath>
+      <value>
+        <inspectorTabs>
+          <li>AutoEquipment.ITab_GearManager</li>
+        </inspectorTabs>
+      </value>
+    </nomatch>
+  </Operation>
 </Patch>

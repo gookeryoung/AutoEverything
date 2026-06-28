@@ -24,19 +24,18 @@ namespace AutoEquipment
         {
             get
             {
-                Pawn pawn = SelPawn as Pawn;
-
-                return pawn != null
+                // 通过 BasePawn 注入 ITab 时，动物/机械族等也会创建实例
+                // 此处过滤：仅玩家阵营人类like 且非食尸鬼才显示
+                return SelPawn is Pawn pawn
                     && pawn.Faction == Faction.OfPlayer
-                    && !DLCCompat.IsGhoul(pawn); // 食尸鬼不显示装备管理面板
+                    && PawnSuitabilityChecker.CanManageGear(pawn)
+                    && !DLCCompat.IsGhoul(pawn);
             }
         }
 
         protected override void FillTab()
         {
-            Pawn pawn = SelPawn as Pawn;
-
-            if (pawn == null) return;
+            if (!(SelPawn is Pawn pawn)) return;
 
             var comp = pawn.GetComp<CompGearManager>();
             if (comp == null) return;
