@@ -1,7 +1,7 @@
 using RimWorld;
 using Verse;
 
-namespace AutoEquipment.Scoring.Apparel
+namespace AutoEquipment.Scoring.Apparels
 {
     /// <summary>
     /// 防具沾染评分：沾染尸体的防具大幅扣分。
@@ -10,7 +10,7 @@ namespace AutoEquipment.Scoring.Apparel
     {
         public string Name => "沾染";
 
-        public void Score(Pawn pawn, global::Verse.Apparel gear, Role role, GearContext context,
+        public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
             if (gear.WornByCorpse)

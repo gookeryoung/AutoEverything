@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEquipment.Scoring.Weapon;
-using AutoEquipment.Scoring.Apparel;
+using AutoEquipment.Scoring.Apparels;
 
 namespace AutoEquipment.Scoring
 {
@@ -63,7 +63,7 @@ namespace AutoEquipment.Scoring
                     new ApparelMoveSpeedScorer(),   // 移速
                     new ApparelQualityScorer(),     // 品质
                     new ApparelRoyaltyScorer(),     // 皇家头衔
-                    new ApparelIdeologyScorer(),    // 意识形态
+                    new ApparelIdeologyScorer(),     // 意识形态
                     new ApparelCurrentWornScorer()  // 平局决胜
                 };
                 apparelPipeline = new ScoringPipeline<Apparel>(scorers);

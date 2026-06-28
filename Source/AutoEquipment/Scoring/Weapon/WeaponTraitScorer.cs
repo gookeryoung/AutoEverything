@@ -38,7 +38,7 @@ namespace AutoEquipment.Scoring.Weapon
 
             // 乱开枪：偏好高射速短冷却武器
             // 需要找到 ShootingAccuracy 特质并检查 degree（-1 = 乱开枪）
-            var triggerHappy = DefDatabase<TraitDef>.GetNamedSilent("TriggerHappy");
+            var triggerHappy = TraitDef.Named("TriggerHappy");
             if (triggerHappy != null && pawn.story.traits.HasTrait(triggerHappy, -1) && isRanged)
             {
                 float cooldown = gear.GetStatValue(StatDefOf.RangedWeapon_Cooldown);
@@ -54,7 +54,7 @@ namespace AutoEquipment.Scoring.Weapon
 
             // 冷枪手：偏好高精度长射程武器
             // degree = 1 表示冷枪手（ShootingAccuracy 的正向）
-            var carefulShooter = DefDatabase<TraitDef>.GetNamedSilent("CarefulShooter");
+            var carefulShooter = TraitDef.Named("CarefulShooter");
             if (carefulShooter == null)
                 carefulShooter = triggerHappy; // 1.6 中可能合并为同一特质 def
 

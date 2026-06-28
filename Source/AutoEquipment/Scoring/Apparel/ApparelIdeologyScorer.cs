@@ -2,7 +2,7 @@ using System;
 using RimWorld;
 using Verse;
 
-namespace AutoEquipment.Scoring.Apparel
+namespace AutoEquipment.Scoring.Apparels
 {
     /// <summary>
     /// 防具意识形态评分：角色配套防具与风格匹配。
@@ -11,7 +11,7 @@ namespace AutoEquipment.Scoring.Apparel
     {
         public string Name => "意识形态";
 
-        public void Score(Pawn pawn, global::Verse.Apparel gear, Role role, GearContext context,
+        public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
             if (pawn.Ideo == null) return;

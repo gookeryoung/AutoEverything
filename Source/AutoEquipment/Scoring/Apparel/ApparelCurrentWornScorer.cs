@@ -1,7 +1,7 @@
 using RimWorld;
 using Verse;
 
-namespace AutoEquipment.Scoring.Apparel
+namespace AutoEquipment.Scoring.Apparels
 {
     /// <summary>
     /// 防具当前穿戴加成：小幅加成作为平局决胜，防止近乎相同评分的反复切换。
@@ -10,7 +10,7 @@ namespace AutoEquipment.Scoring.Apparel
     {
         public string Name => "当前穿戴";
 
-        public void Score(Pawn pawn, global::Verse.Apparel gear, Role role, GearContext context,
+        public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
             if (pawn.apparel?.WornApparel?.Contains(gear) == true)

@@ -1,7 +1,7 @@
 using RimWorld;
 using Verse;
 
-namespace AutoEquipment.Scoring.Apparel
+namespace AutoEquipment.Scoring.Apparels
 {
     /// <summary>
     /// 防具皇家头衔评分：满足头衔要求的防具加分。
@@ -10,7 +10,7 @@ namespace AutoEquipment.Scoring.Apparel
     {
         public string Name => "皇家";
 
-        public void Score(Pawn pawn, global::Verse.Apparel gear, Role role, GearContext context,
+        public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
             if (pawn.royalty == null) return;
