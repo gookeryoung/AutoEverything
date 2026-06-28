@@ -54,12 +54,15 @@ namespace AutoEquipment
         /// <summary>
         /// 遍历 DefDatabase 中所有 Pawn 类别 ThingDef，
         /// 若未挂载 CompGearManager 则注入。已存在则跳过，避免重复。
+        /// 时机：[StaticConstructorOnStartup]（DefDatabase 已加载，Pawn 未生成）。
         /// </summary>
-        private static void AddCompToPawnDefs()
+        public static void AddCompToPawnDefs()
         {
             if (_compAdded) return;
             _compAdded = true;
 
+            int injected = 0;
+            int skipped = 0;
             foreach (ThingDef def in DefDatabase<ThingDef>.AllDefs)
             {
                 if (def.category != ThingCategory.Pawn) continue;
@@ -79,8 +82,14 @@ namespace AutoEquipment
                 if (!hasComp)
                 {
                     def.comps.Add(new CompProperties_GearManager());
+                    injected++;
+                }
+                else
+                {
+                    skipped++;
                 }
             }
+            Log.Message($"[AutoEquipment] ThingComp 注入完成: 新增={injected}, 已存在跳过={skipped}");
         }
 
         /// <summary>
