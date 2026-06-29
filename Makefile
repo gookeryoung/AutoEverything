@@ -26,9 +26,9 @@ build:
 # -nologo:抑制版权信息，便于日志阅读
 # -clp:Force:强制控制台输出，避免 Trae 终端缓冲卡死
 check:
-	echo "[check] 验证零警告零错误..."
+	echo "[check] Check errors..."
 	$(DOTNET) build -c $(CONFIG) -warnaserror -nologo $(DOTNET_FLAGS) $(PROJECT)
-	echo "[check] PASS: 零警告零错误"
+	echo "[check] PASS: No errors"
 
 # 仅还原依赖（无 NuGet 包时几乎无操作，留作扩展）
 restore:
@@ -48,8 +48,8 @@ rebuild-check: clean check
 # 查看可用目标
 help:
 	echo AutoEverything Makefile 目标:
-	echo   make build          构建项目 (默认)
-	echo   make check          验证零警告零错误 (规则强制)
+	echo   make build         构建项目 (默认)
+	echo   make check         验证零警告零错误 (规则强制)
 	echo   make clean         清理构建产物
 	echo   make rebuild       清理后重新构建
 	echo   make rebuild-check 清理后重新构建并验证
