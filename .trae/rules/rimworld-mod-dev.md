@@ -1,22 +1,22 @@
 # RimWorld MOD 开发通用规则
 
-> 强制约定，中文优先。适用于 RimWorld 1.6+，覆盖 C# DLL 与 XML Def 扩展。
-> 适用于任何 RimWorld MOD 项目；项目专属规则见同目录的项目规则文件。
+## 技术栈
 
-## 命名约定
+- C# 7.3, 禁用 C# 8.0+ 语法, `.csproj` 显式 `<LangVersion>7.3</LangVersion>`
+- .NET 5.0
+- RimWorld 1.6+, 覆盖 C# DLL 与 XML Def 扩展
 
+## 编码规范
+
+- 强制中文优先
+- 遵循Karpathy 四原则, 需求模糊时先问我，不猜测隐含意图
+- C# 注释用中文，解释「为什么」而非「做什么」
+- C# 命名空间: 与 MOD 名一致，PascalCase
+- C# 空值防御: 链式访问用 `?.`，禁止裸访问 `pawn.skills.X`
 - `packageId`: `作者.mod名` 小写，发布后不可改
-- 命名空间: 与 MOD 名一致，PascalCase
 - DefName: `Mod缩写_类别_名称`，禁止使用原生命名空间（`Gun_`/`Bullet_`）
 - 翻译 Key: `Mod缩写_类别_名称`，禁止使用原生 Key
 - Scribe Key: 带 MOD 缩写前缀，避免与其他 MOD 冲突
-
-## C# 代码
-
-- 锁定 C# 7.3，`.csproj` 显式 `<LangVersion>7.3</LangVersion>`
-- 禁用 C# 8.0+ 语法（using 声明、可空引用、范围运算符）
-- 注释用中文，解释「为什么」而非「做什么」
-- 空值防御: 链式访问用 `?.`，禁止裸访问 `pawn.skills.X`
 - 日志前缀 `[Mod缩写]`，异常用 `Log.ErrorOnce` 防重复，禁止静默吞异常
 
 ## UI 与窗口
