@@ -36,6 +36,23 @@ namespace AutoEquipment
         // ScrollView 滚动位置：static 保持位置，切换 Pawn 时不重置
         private static Vector2 scrollPos = Vector2.zero;
 
+        // ===================== 评级徽章图片缓存 =====================
+        // 静态加载一次，避免每帧 ContentFinder 查询
+        // 路径：Textures/UI/Icons/Tier/Tier_{S,A,B,C,D,X}.png
+        private static readonly Dictionary<CombatTier, Texture2D> tierBadgeTextures = LoadTierBadgeTextures();
+
+        static Dictionary<CombatTier, Texture2D> LoadTierBadgeTextures()
+        {
+            var dict = new Dictionary<CombatTier, Texture2D>();
+            foreach (CombatTier t in System.Enum.GetValues(typeof(CombatTier)))
+            {
+                string path = "UI/Icons/Tier/Tier_" + t;
+                Texture2D tex = ContentFinder<Texture2D>.Get(path, false);
+                if (tex != null) dict[t] = tex;
+            }
+            return dict;
+        }
+
         // ===================== 颜色常量 =====================
         // 集中定义避免散落的 new Color，便于统一调整与主题适配
         private static readonly Color ColorSectionBg = new Color(0.18f, 0.20f, 0.22f, 0.45f);
@@ -411,8 +428,16 @@ namespace AutoEquipment
             x += badgeWidth + gap;
 
             // 3. 评级徽章 + Tooltip（计算来源）
+            // 优先使用图片徽章（Text UI/Icons/Tier/Tier_X），无图时回退纯色块
             Rect tierRect = new Rect(x, y, badgeWidth, h);
-            DrawBadge(tierRect, tier.ToString(), GetTierColor(tier));
+            if (tierBadgeTextures.TryGetValue(tier, out Texture2D tierTex))
+            {
+                DrawTierBadgeWithIcon(tierRect, tierTex, GetTierColor(tier));
+            }
+            else
+            {
+                DrawBadge(tierRect, tier.ToString(), GetTierColor(tier));
+            }
             TooltipHandler.TipRegion(tierRect, "AE_TT_Tier".Translate());
             x += badgeWidth + gap;
 
@@ -457,6 +482,40 @@ namespace AutoEquipment
             Text.Anchor = TextAnchor.MiddleCenter;
             Text.Font = GameFont.Small;
             Widgets.Label(rect, text);
+            Text.Anchor = TextAnchor.UpperLeft;
+
+            GUI.color = prevColor;
+            GUI.backgroundColor = prevBg;
+        }
+
+        /// <summary>
+        /// 绘制带图标的评级徽章：左侧小圆图标 + 右侧评级字母。
+        /// 图标来自 Textures/UI/Icons/Tier/Tier_X.png，圆形带底色。
+        /// </summary>
+        private void DrawTierBadgeWithIcon(Rect rect, Texture2D icon, Color bgColor)
+        {
+            Color prevColor = GUI.color;
+            Color prevBg = GUI.backgroundColor;
+
+            // 半透明底色
+            Color bg = bgColor;
+            bg.a = 0.85f;
+            Widgets.DrawBoxSolid(rect, bg);
+
+            // 边框
+            GUI.color = Color.white * 0.5f;
+            Widgets.DrawBox(rect, 1);
+
+            // 左侧图标：正方形，边长 = 徽章高度 - 4
+            float iconSize = rect.height - 4f;
+            Rect iconRect = new Rect(rect.x + 3f, rect.y + 2f, iconSize, iconSize);
+            GUI.color = Color.white;
+            if (icon != null)
+            {
+                GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit);
+            }
+
+            // 右侧字母（图标内已含字母，此处留空避免重复，仅保持布局）
             Text.Anchor = TextAnchor.UpperLeft;
 
             GUI.color = prevColor;

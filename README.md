@@ -442,6 +442,17 @@ Source/AutoEquipment/
 
 中英文双语，面向玩家的字符串均通过 `"Key".Translate()` 获取，禁止硬编码。
 
+## 图片资源
+
+| 资源 | 路径 | 用途 |
+|------|------|------|
+| Preview | `About/Preview.png` | Steam Workshop 预览图 |
+| ModIcon | `Textures/UI/Icons/ModIcon.png` | Mod 列表图标（`About.xml` 的 `modIconPath`） |
+| 评级徽章 | `Textures/UI/Icons/Tier/Tier_{S,A,B,C,D,X}.png` | ITab 评级徽章，替代纯色块 |
+| 角色徽章 | `Textures/UI/Icons/Role/Role_{Brawler,Shooter,...}.png` | 角色图标（备用，未接入代码） |
+
+评级徽章在 ITab 中优先加载，无图时回退纯色块 + 字母。
+
 ## 构建
 
 ```bash

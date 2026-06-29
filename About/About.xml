@@ -17,6 +17,7 @@
 兼容大多数 MOD，支持存档中途添加。
 
 English: Intelligent automatic equipment management based on Smart Gear design. Ghouls no longer seek gear; brawlers never auto-equip ranged weapons. Zero config, works out of the box. Safe to add mid-save.</description>
+  <modIconPath>UI/Icons/ModIcon</modIconPath>
   <modDependencies>
     <li>
       <packageId>brrainz.harmony</packageId>
