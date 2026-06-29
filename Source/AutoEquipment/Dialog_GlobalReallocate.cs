@@ -14,7 +14,9 @@ namespace AutoEquipment
     {
         // 静态滚动位置：避免每次重开窗口回到顶部
         private static Vector2 scrollPos;
-        private float contentHeight = 1000f;
+        // 初始值与实际内容高度接近，避免首帧空白滚动区
+        // 实际内容在 DoWindowContents 末尾会重新计算并覆盖
+        private float contentHeight = 620f;
 
         public override Vector2 InitialSize
         {

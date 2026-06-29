@@ -166,4 +166,35 @@
   <AE_Badge_Ghoul>Ghoul</AE_Badge_Ghoul>
   <AE_Badge_NoAutoEquip>No Auto-Equip</AE_Badge_NoAutoEquip>
   <AE_GhoulHint>Ghouls cannot use gear. Tier shown for player reference only. "Global Gear Reallocate" will skip ghouls.</AE_GhoulHint>
+
+  <!-- Panel section titles -->
+  <AE_Section_PawnStatus>Pawn Status</AE_Section_PawnStatus>
+  <AE_Section_Equipment>Equipment Summary</AE_Section_Equipment>
+  <AE_Section_Controls>Controls</AE_Section_Controls>
+
+  <!-- Tooltip descriptions -->
+  <AE_TT_Role_Default>Default: no significant combat skill tendency</AE_TT_Role_Default>
+  <AE_TT_Role_Shooter>Shooter: Shooting>=8 and Shooting>Melee, prefers ranged weapons</AE_TT_Role_Shooter>
+  <AE_TT_Role_Brawler>Brawler: Melee>=8 or Brawler trait, prefers melee (Veto ranged)</AE_TT_Role_Brawler>
+  <AE_TT_Role_Doctor>Doctor: Medicine>=8 and is highest combat-related skill</AE_TT_Role_Doctor>
+  <AE_TT_Role_Hunter>Hunter: Hunting work priority=1</AE_TT_Role_Hunter>
+  <AE_TT_Role_Worker>Worker: Shooting and Melee both &lt;5, prefers work-stat apparel</AE_TT_Role_Worker>
+  <AE_TT_Role_Pacifist>Pacifist: incapable of violent work</AE_TT_Role_Pacifist>
+  <AE_TT_Role_Leader>Ideo Leader: has ideology role (label only)</AE_TT_Role_Leader>
+  <AE_TT_Context_Normal>Normal: no special context</AE_TT_Context_Normal>
+  <AE_TT_Context_Combat>Combat: drafted or fleeing</AE_TT_Context_Combat>
+  <AE_TT_Context_Work>Working: performing non-combat job</AE_TT_Context_Work>
+  <AE_TT_Context_Hunting>Hunting: performing hunting job</AE_TT_Context_Hunting>
+  <AE_TT_Context_Cold>Cold: ambient temp below comfort range for 2500 ticks</AE_TT_Context_Cold>
+  <AE_TT_Context_Hot>Hot: ambient temp above comfort range for 2500 ticks</AE_TT_Context_Hot>
+  <AE_TT_Tier>Tier S/A/B/C/D/X discretized from combat value, decides global realloc priority</AE_TT_Tier>
+  <AE_TT_CombatValue>Combat Value = (Shooting*passion + Melee*passion) * skill weight + trait bonus</AE_TT_CombatValue>
+  <AE_TT_PawnValue>Pawn Value: comprehensive evaluation of skills, traits, health</AE_TT_PawnValue>
+  <AE_TT_ArmorPref_Heavy>Heavy[front]: forced heavy armor, only downgrades when no heavy available</AE_TT_ArmorPref_Heavy>
+  <AE_TT_ArmorPref_Flexible>Flex[back]: free choice by score, considers heavy if surplus</AE_TT_ArmorPref_Flexible>
+  <AE_TT_ArmorPref_Light>Light[worker]: forced light armor for work efficiency</AE_TT_ArmorPref_Light>
+  <AE_TT_LockGear>When checked, this colonist's gear is not auto-managed</AE_TT_LockGear>
+  <AE_TT_OverrideRole>When checked, manually set role overrides auto detection</AE_TT_OverrideRole>
+  <AE_TT_GlobalTierTag>Add tier prefix to all colonist names (e.g. S#John) for quick identification</AE_TT_GlobalTierTag>
+  <AE_TT_GlobalReallocate>Drop all colonist weapons and apparel, reallocate by combat value desc. Ghouls are skipped.</AE_TT_GlobalReallocate>
 </LanguageData>

@@ -36,6 +36,17 @@ namespace AutoEquipment
         // ScrollView 滚动位置：static 保持位置，切换 Pawn 时不重置
         private static Vector2 scrollPos = Vector2.zero;
 
+        // ===================== 颜色常量 =====================
+        // 集中定义避免散落的 new Color，便于统一调整与主题适配
+        private static readonly Color ColorSectionBg = new Color(0.18f, 0.20f, 0.22f, 0.45f);
+        private static readonly Color ColorSectionTitle = new Color(0.88f, 0.88f, 0.92f);
+        private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
+        private static readonly Color ColorDescGray = new Color(0.62f, 0.62f, 0.62f);
+        private static readonly Color ColorWarningBg = new Color(0.55f, 0.18f, 0.15f, 0.55f);
+        private static readonly Color ColorWarningBorder = new Color(0.85f, 0.35f, 0.30f);
+        private static readonly Color ColorWarningText = new Color(1.0f, 0.65f, 0.55f);
+        private static readonly Color ColorPrimaryBtnBg = new Color(0.22f, 0.45f, 0.65f, 0.85f);
+
         public ITab_GearManager()
         {
             labelKey = "AE_Tab";
@@ -100,7 +111,7 @@ namespace AutoEquipment
 
             // ===================== ScrollView 包裹内容区 =====================
             // 内部 inner rect 从 (0,0) 开始，宽度比 outer 少 16f 预留滚动条
-            float contentHeight = 520f;  // 预估高度并留余量
+            float contentHeight = 540f;  // 预估高度并留余量
             Rect innerRect = new Rect(0f, 0f, contentRect.width - 16f, contentHeight);
             Widgets.BeginScrollView(contentRect, ref scrollPos, innerRect);
 
@@ -113,48 +124,50 @@ namespace AutoEquipment
             Text.Font = GameFont.Small;
             l.Gap(4f);
 
-            // ===================== 徽章区：角色 / 情境 / 评级 / 护甲偏好 =====================
+            // ===================== Section 1: 殖民者状态 =====================
+            BeginSection(l, "AE_Section_PawnStatus".Translate());
+
+            // 徽章区：角色 / 情境 / 评级 / 护甲偏好
             // 食尸鬼额外显示"食尸鬼"徽章，替代护甲偏好（食尸鬼不分配护甲）
             DrawBadgeRow(l, role, context, tier, armorPref, isGhoul);
 
             l.Gap(4f);
 
-            // ===================== 数值摘要：战斗价值 / 价值评分 =====================
+            // 数值摘要：战斗价值 / 价值评分
             DrawStatRow(l, combatValue, pawnValue);
 
-            // 食尸鬼提示：不参与自动装备
+            // 食尸鬼警告卡片：用带边框的警告块替代 Tiny 文字，更显眼
             if (isGhoul)
             {
                 l.Gap(4f);
-                GUI.color = new Color(0.95f, 0.4f, 0.3f);
-                Text.Font = GameFont.Tiny;
-                l.Label("AE_GhoulHint".Translate());
-                GUI.color = Color.white;
-                Text.Font = GameFont.Small;
+                DrawWarningCard(l.GetRect(44f), "AE_GhoulHint".Translate());
             }
 
-            l.GapLine();
+            EndSection(l);
 
-            // ===================== 装备摘要 =====================
+            // ===================== Section 2: 装备摘要 =====================
+            BeginSection(l, "AE_Section_Equipment".Translate());
             DrawEquipmentSummary(l, pawn, comp);
+            EndSection(l);
 
-            l.GapLine();
-
+            // ===================== Section 3: 操作（锁定/角色覆盖） =====================
             if (!isGhoul && comp != null)
             {
-                // ===================== 锁定 / 角色覆盖（食尸鬼不显示） =====================
-                l.CheckboxLabeled("AE_LockGear".Translate(), ref comp.locked);
-                GUI.color = new Color(0.7f, 0.7f, 0.7f);
-                Text.Font = GameFont.Tiny;
-                l.Label("AE_LockGear_Desc".Translate());
-                Text.Font = GameFont.Small;
-                GUI.color = Color.white;
-                l.Gap(2f);
+                BeginSection(l, "AE_Section_Controls".Translate());
 
-                l.CheckboxLabeled("AE_OverrideRole".Translate(), ref comp.overrideRole);
+                // 锁定 checkbox + Tooltip
+                Rect lockRect = l.GetRect(24f);
+                Widgets.CheckboxLabeled(lockRect, "AE_LockGear".Translate(), ref comp.locked);
+                TooltipHandler.TipRegion(lockRect, "AE_TT_LockGear".Translate());
+
+                // 角色覆盖 checkbox + Tooltip
+                Rect overrideRect = l.GetRect(24f);
+                Widgets.CheckboxLabeled(overrideRect, "AE_OverrideRole".Translate(), ref comp.overrideRole);
+                TooltipHandler.TipRegion(overrideRect, "AE_TT_OverrideRole".Translate());
+
                 if (comp.overrideRole)
                 {
-                    l.Gap(4f);
+                    l.Gap(2f);
                     List<FloatMenuOption> options = new List<FloatMenuOption>();
                     foreach (Role r in System.Enum.GetValues(typeof(Role)))
                     {
@@ -170,18 +183,14 @@ namespace AutoEquipment
                     }
                 }
 
-                l.GapLine();
+                EndSection(l);
             }
 
             // ===================== 自定义评级识别码（食尸鬼也显示，玩家可参考） =====================
-            GUI.color = new Color(0.85f, 0.85f, 0.85f);
+            // 描述过长，移到 Tooltip，节省垂直空间
+            GUI.color = ColorSectionTitle;
             l.Label("AE_ReallocRules_CustomTier".Translate());
             GUI.color = Color.white;
-            Text.Font = GameFont.Tiny;
-            GUI.color = new Color(0.7f, 0.7f, 0.7f);
-            l.Label("AE_ReallocRules_CustomTier_Desc".Translate());
-            GUI.color = Color.white;
-            Text.Font = GameFont.Small;
 
             // 显示当前 Pawn 的识别码：系统档固定，自定义档写入括号
             string pawnName = SidearmAllocator.GetPawnLookupName(pawn);
@@ -191,12 +200,19 @@ namespace AutoEquipment
             string tierCode = hasCustom
                 ? autoTier + "(" + customTier + ")#" + pawnName
                 : autoTier + "#" + pawnName;
-            l.Label("AE_ReallocRules_CurrentTier".Translate() + ": " + tierCode);
 
-            // 两按钮并排：设置自定义档次 / 清除自定义（食尸鬼也允许设置，供评级展示）
-            Rect tierBtnRect = l.GetRect(30f);
+            Rect tierCodeRect = l.GetRect(22f);
+            GUI.color = ColorLabelGray;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(tierCodeRect, "AE_ReallocRules_CurrentTier".Translate() + ": " + tierCode);
+            Text.Anchor = TextAnchor.UpperLeft;
+            GUI.color = Color.white;
+            TooltipHandler.TipRegion(tierCodeRect, "AE_ReallocRules_CustomTier_Desc".Translate());
+
+            // 两按钮并排：设置自定义档次 / 清除自定义
+            Rect tierBtnRect = l.GetRect(28f);
             float tierBtnWidth = (tierBtnRect.width - 8f) * 0.5f;
-            if (Widgets.ButtonText(new Rect(tierBtnRect.x, tierBtnRect.y, tierBtnWidth, 30f),
+            if (Widgets.ButtonText(new Rect(tierBtnRect.x, tierBtnRect.y, tierBtnWidth, 28f),
                                    "AE_ReallocRules_SetCustomTier".Translate()))
             {
                 // 弹出 FloatMenu 选择档次 S/A/B/C/D/X
@@ -214,7 +230,7 @@ namespace AutoEquipment
                 }
                 Find.WindowStack.Add(new FloatMenu(tierOptions));
             }
-            if (Widgets.ButtonText(new Rect(tierBtnRect.x + tierBtnWidth + 8f, tierBtnRect.y, tierBtnWidth, 30f),
+            if (Widgets.ButtonText(new Rect(tierBtnRect.x + tierBtnWidth + 8f, tierBtnRect.y, tierBtnWidth, 28f),
                                    "AE_ReallocRules_ClearCustomTier".Translate()))
             {
                 if (hasCustom)
@@ -261,8 +277,9 @@ namespace AutoEquipment
                 };
                 Find.WindowStack.Add(new FloatMenu(tierTagOptions));
             }
+            TooltipHandler.TipRegion(tierTagBtnRect, "AE_TT_GlobalTierTag".Translate());
 
-            // 下方按钮：全局装备重配，点击后弹出规则对话框，确认后才执行
+            // 下方按钮：全局装备重配（主操作按钮，加底色突出）
             // 食尸鬼面板也显示此按钮（统一入口），但 GlobalAllocator 内部会跳过食尸鬼
             Rect buttonRect = new Rect(
                 rect.x,
@@ -270,10 +287,73 @@ namespace AutoEquipment
                 rect.width,
                 buttonHeight);
 
+            // 主操作按钮：先绘制底色，再叠加 ButtonText
+            // ButtonText 默认会用 GUI.backgroundColor，这里临时改色突出主操作
+            Color prevBtnBg = GUI.backgroundColor;
+            GUI.backgroundColor = ColorPrimaryBtnBg;
             if (Widgets.ButtonText(buttonRect, "AE_GlobalReallocate".Translate()))
             {
                 Find.WindowStack.Add(new Dialog_GlobalReallocate());
             }
+            GUI.backgroundColor = prevBtnBg;
+            TooltipHandler.TipRegion(buttonRect, "AE_TT_GlobalReallocate".Translate());
+        }
+
+        // ===================== Section 卡片绘制 =====================
+
+        /// <summary>
+        /// 开始一个带标题与浅色背景的 Section 卡片。
+        /// 配合 EndSection 使用：BeginSection 绘制标题与背景起始，EndSection 绘制底部分隔。
+        /// 实现方式：在 Listing_Standard 流中插入一个标题行 + 留出内边距。
+        /// </summary>
+        private void BeginSection(Listing_Standard l, string titleKey)
+        {
+            l.Gap(6f);
+            // Section 标题行：浅色文字 + 半透明背景
+            Rect titleRect = l.GetRect(22f);
+            Widgets.DrawBoxSolid(titleRect, ColorSectionBg);
+            GUI.color = ColorSectionTitle;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Text.Font = GameFont.Small;
+            // 左侧缩进 6f 让标题不紧贴边框
+            Widgets.Label(new Rect(titleRect.x + 6f, titleRect.y, titleRect.width - 6f, titleRect.height),
+                "• " + titleKey.Translate());
+            Text.Anchor = TextAnchor.UpperLeft;
+            GUI.color = Color.white;
+            l.Gap(2f);
+        }
+
+        /// <summary>
+        /// 结束 Section 卡片：绘制底部分隔与底部内边距。
+        /// </summary>
+        private void EndSection(Listing_Standard l)
+        {
+            l.GapLine();
+        }
+
+        /// <summary>
+        /// 绘制警告卡片：带边框与警告色背景，用于食尸鬼等需要醒目提示的场景。
+        /// 比 Tiny 文字更易被玩家注意到。
+        /// </summary>
+        private void DrawWarningCard(Rect rect, string text)
+        {
+            // 警告色背景
+            Widgets.DrawBoxSolid(rect, ColorWarningBg);
+            // 警告色边框
+            GUI.color = ColorWarningBorder;
+            Widgets.DrawBox(rect, 1);
+            GUI.color = Color.white;
+
+            // 警告文字：Tiny 字体，左对齐，自动换行
+            Color prev = GUI.color;
+            GUI.color = ColorWarningText;
+            Text.Font = GameFont.Tiny;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            // 文字内缩进 6f 避免紧贴边框
+            Widgets.Label(rect.ContractedBy(6f), text);
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Font = GameFont.Small;
+            GUI.color = prev;
         }
 
         // ===================== 徽章绘制工具 =====================
@@ -281,6 +361,7 @@ namespace AutoEquipment
         /// <summary>
         /// 绘制徽章行：角色 / 情境 / 评级 / 护甲偏好（或食尸鬼徽章）。
         /// 徽章自适应宽度占满整行，每个徽章等宽分配剩余空间。
+        /// 每个徽章挂载 Tooltip，鼠标悬停显示判定规则。
         /// </summary>
         private void DrawBadgeRow(Listing_Standard l, Role role, GearContext context,
             CombatTier tier, ArmorPreference armorPref, bool isGhoul)
@@ -299,36 +380,36 @@ namespace AutoEquipment
 
             float x = badgeRow.x;
 
-            // 1. 角色徽章
-            DrawBadge(new Rect(x, y, badgeWidth, h),
-                ("AE_Role_" + role).Translate(),
-                GetRoleColor(role));
+            // 1. 角色徽章 + Tooltip（判定规则）
+            Rect roleRect = new Rect(x, y, badgeWidth, h);
+            DrawBadge(roleRect, ("AE_Role_" + role).Translate(), GetRoleColor(role));
+            TooltipHandler.TipRegion(roleRect, ("AE_TT_Role_" + role).Translate());
             x += badgeWidth + gap;
 
-            // 2. 情境徽章
-            DrawBadge(new Rect(x, y, badgeWidth, h),
-                ("AE_Context_" + context).Translate(),
-                GetContextColor(context));
+            // 2. 情境徽章 + Tooltip（触发条件）
+            Rect ctxRect = new Rect(x, y, badgeWidth, h);
+            DrawBadge(ctxRect, ("AE_Context_" + context).Translate(), GetContextColor(context));
+            TooltipHandler.TipRegion(ctxRect, ("AE_TT_Context_" + context).Translate());
             x += badgeWidth + gap;
 
-            // 3. 评级徽章
-            DrawBadge(new Rect(x, y, badgeWidth, h),
-                tier.ToString(),
-                GetTierColor(tier));
+            // 3. 评级徽章 + Tooltip（计算来源）
+            Rect tierRect = new Rect(x, y, badgeWidth, h);
+            DrawBadge(tierRect, tier.ToString(), GetTierColor(tier));
+            TooltipHandler.TipRegion(tierRect, "AE_TT_Tier".Translate());
             x += badgeWidth + gap;
 
-            // 4. 护甲偏好徽章 / 食尸鬼徽章
+            // 4. 护甲偏好徽章 + Tooltip / 食尸鬼徽章
             if (isGhoul)
             {
-                DrawBadge(new Rect(x, y, badgeWidth, h),
-                    "AE_Badge_Ghoul".Translate(),
-                    new Color(0.6f, 0.2f, 0.6f));  // 紫红，区别于常规护甲偏好
+                Rect ghoulRect = new Rect(x, y, badgeWidth, h);
+                DrawBadge(ghoulRect, "AE_Badge_Ghoul".Translate(), new Color(0.6f, 0.2f, 0.6f));
+                TooltipHandler.TipRegion(ghoulRect, "AE_GhoulHint".Translate());
             }
             else
             {
-                DrawBadge(new Rect(x, y, badgeWidth, h),
-                    ("AE_ArmorPref_" + armorPref).Translate(),
-                    GetArmorPrefColor(armorPref));
+                Rect apRect = new Rect(x, y, badgeWidth, h);
+                DrawBadge(apRect, ("AE_ArmorPref_" + armorPref).Translate(), GetArmorPrefColor(armorPref));
+                TooltipHandler.TipRegion(apRect, ("AE_TT_ArmorPref_" + armorPref).Translate());
             }
         }
 
@@ -366,7 +447,7 @@ namespace AutoEquipment
 
         /// <summary>
         /// 绘制数值摘要行：战斗价值 + 价值评分。
-        /// 两个徽章等宽占满整行。
+        /// 两个徽章等宽占满整行，均挂载 Tooltip 显示计算公式。
         /// </summary>
         private void DrawStatRow(Listing_Standard l, float combatValue, float pawnValue)
         {
@@ -374,15 +455,17 @@ namespace AutoEquipment
             float gap = 8f;
             float halfWidth = (statRow.width - gap) * 0.5f;
 
-            // 左：战斗价值
-            DrawStatBadge(new Rect(statRow.x, statRow.y, halfWidth, statRow.height),
-                "AE_Badge_CombatValue".Translate(), combatValue.ToString("F1"),
+            // 左：战斗价值 + Tooltip 公式
+            Rect cvRect = new Rect(statRow.x, statRow.y, halfWidth, statRow.height);
+            DrawStatBadge(cvRect, "AE_Badge_CombatValue".Translate(), combatValue.ToString("F1"),
                 new Color(0.2f, 0.4f, 0.6f));
+            TooltipHandler.TipRegion(cvRect, "AE_TT_CombatValue".Translate());
 
-            // 右：价值评分
-            DrawStatBadge(new Rect(statRow.x + halfWidth + gap, statRow.y, halfWidth, statRow.height),
-                "AE_Badge_PawnValue".Translate(), pawnValue.ToString("F1"),
+            // 右：价值评分 + Tooltip 说明
+            Rect pvRect = new Rect(statRow.x + halfWidth + gap, statRow.y, halfWidth, statRow.height);
+            DrawStatBadge(pvRect, "AE_Badge_PawnValue".Translate(), pawnValue.ToString("F1"),
                 new Color(0.3f, 0.3f, 0.5f));
+            TooltipHandler.TipRegion(pvRect, "AE_TT_PawnValue".Translate());
         }
 
         /// <summary>
@@ -411,23 +494,40 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// 绘制装备摘要：主武器 / 副武器 / 护甲数量。
+        /// 绘制装备摘要：紧凑布局，主武器/副武器合并一行，护甲数量徽章样式。
+        /// 原布局每项一行（3 行约 66f），紧凑后约 48f，节省 30% 垂直空间。
         /// </summary>
         private void DrawEquipmentSummary(Listing_Standard l, Pawn pawn, CompGearManager comp)
         {
-            // 主武器
+            // 主武器（占满整行，名字通常较长）
             string primaryWeapon = pawn.equipment?.Primary?.LabelShort ?? "AE_None".Translate();
             DrawLabeledRow(l, "AE_PrimaryWeapon".Translate(), primaryWeapon);
 
-            // 副武器（食尸鬼通常无 comp，跳过）
-            if (comp != null && comp.sidearm != null)
-            {
-                DrawLabeledRow(l, "AE_Sidearm".Translate(), comp.sidearm.LabelShort);
-            }
-
-            // 护甲数量
+            // 副武器 + 护甲数量合并一行：左 60% 副武器，右 40% 护甲数量
+            Rect secondRow = l.GetRect(22f);
+            // C# 7.3 不支持 string 与 TaggedString 之间的条件表达式，先转 string
+            string sidearmLabel = (comp != null && comp.sidearm != null)
+                ? comp.sidearm.LabelShort
+                : "AE_None".Translate().ToString();
             int wornCount = pawn.apparel?.WornApparel.Count ?? 0;
-            DrawLabeledRow(l, "AE_WornApparel".Translate(), wornCount.ToString());
+
+            // 左：副武器
+            GUI.color = ColorLabelGray;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Text.Font = GameFont.Small;
+            Widgets.Label(new Rect(secondRow.x, secondRow.y, secondRow.width * 0.18f, secondRow.height),
+                "AE_Sidearm".Translate() + ":");
+            GUI.color = Color.white;
+            Widgets.Label(new Rect(secondRow.x + secondRow.width * 0.18f, secondRow.y, secondRow.width * 0.42f, secondRow.height),
+                sidearmLabel);
+
+            // 右：护甲数量（带底色徽章）
+            Rect armorBadgeRect = new Rect(secondRow.x + secondRow.width * 0.62f, secondRow.y, secondRow.width * 0.38f, secondRow.height);
+            DrawStatBadge(armorBadgeRect, "AE_WornApparel".Translate(), wornCount.ToString(),
+                new Color(0.35f, 0.35f, 0.4f));
+
+            Text.Anchor = TextAnchor.UpperLeft;
+            GUI.color = Color.white;
         }
 
         /// <summary>
@@ -436,7 +536,7 @@ namespace AutoEquipment
         private void DrawLabeledRow(Listing_Standard l, string label, string value)
         {
             Rect row = l.GetRect(22f);
-            GUI.color = new Color(0.7f, 0.7f, 0.7f);
+            GUI.color = ColorLabelGray;
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.Font = GameFont.Small;
             Widgets.Label(new Rect(row.x, row.y, row.width * 0.4f, row.height), label + ":");

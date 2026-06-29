@@ -166,4 +166,35 @@
   <AE_Badge_Ghoul>食尸鬼</AE_Badge_Ghoul>
   <AE_Badge_NoAutoEquip>不参与自动装备</AE_Badge_NoAutoEquip>
   <AE_GhoulHint>食尸鬼无法使用装备，仅展示评级供玩家参考。点击下方"全局装备重配"按钮不会分配装备给食尸鬼。</AE_GhoulHint>
+
+  <!-- 面板分区标题 -->
+  <AE_Section_PawnStatus>殖民者状态</AE_Section_PawnStatus>
+  <AE_Section_Equipment>装备摘要</AE_Section_Equipment>
+  <AE_Section_Controls>操作</AE_Section_Controls>
+
+  <!-- Tooltip 说明 -->
+  <AE_TT_Role_Default>默认角色：无显著战斗技能倾向</AE_TT_Role_Default>
+  <AE_TT_Role_Shooter>射手：射击≥8 且 射击>近战，偏好远程武器</AE_TT_Role_Shooter>
+  <AE_TT_Role_Brawler>格斗者：近战≥8 或格斗者特质，偏好近战武器（Veto 远程）</AE_TT_Role_Brawler>
+  <AE_TT_Role_Doctor>医生：医疗≥8 且为最高战斗相关技能</AE_TT_Role_Doctor>
+  <AE_TT_Role_Hunter>猎人：狩猎工作优先级=1</AE_TT_Role_Hunter>
+  <AE_TT_Role_Worker>工人：射击与近战均&lt;5，偏好工作属性服装</AE_TT_Role_Worker>
+  <AE_TT_Role_Pacifist>和平主义者：无法进行暴力工作</AE_TT_Role_Pacifist>
+  <AE_TT_Role_Leader>意识形态领袖：拥有意识形态角色（仅标签）</AE_TT_Role_Leader>
+  <AE_TT_Context_Normal>日常：无特殊情境</AE_TT_Context_Normal>
+  <AE_TT_Context_Combat>战斗：已征召或正在逃跑</AE_TT_Context_Combat>
+  <AE_TT_Context_Work>工作中：当前正在执行非战斗工作</AE_TT_Context_Work>
+  <AE_TT_Context_Hunting>狩猎中：正在执行狩猎工作</AE_TT_Context_Hunting>
+  <AE_TT_Context_Cold>寒冷：环境温度低于舒适范围，持续 2500 tick</AE_TT_Context_Cold>
+  <AE_TT_Context_Hot>炎热：环境温度高于舒适范围，持续 2500 tick</AE_TT_Context_Hot>
+  <AE_TT_Tier>评级 S/A/B/C/D/X 由战斗价值离散化得出，决定全局重配优先级</AE_TT_Tier>
+  <AE_TT_CombatValue>战斗价值 = (射击×兴趣 + 近战×兴趣) × 技能权重 + 特质加分</AE_TT_CombatValue>
+  <AE_TT_PawnValue>价值评分：综合技能、特质、健康的综合价值评估</AE_TT_PawnValue>
+  <AE_TT_ArmorPref_Heavy>重甲[前排]：强制选重甲，无重甲时才退而求其次</AE_TT_ArmorPref_Heavy>
+  <AE_TT_ArmorPref_Flexible>自由[后排]：按原评分自由选择，有重甲盈余时考虑</AE_TT_ArmorPref_Flexible>
+  <AE_TT_ArmorPref_Light>轻甲[工人]：强制选轻甲以保持工作效率</AE_TT_ArmorPref_Light>
+  <AE_TT_LockGear>勾选后此殖民者的装备不被自动管理</AE_TT_LockGear>
+  <AE_TT_OverrideRole>勾选后手动指定角色，覆盖自动判定</AE_TT_OverrideRole>
+  <AE_TT_GlobalTierTag>给所有殖民者名字加评级前缀（如 S#王五），便于快速识别</AE_TT_GlobalTierTag>
+  <AE_TT_GlobalReallocate>放下所有殖民者武器与护甲，按战斗价值降序重新分配。食尸鬼会被自动跳过。</AE_TT_GlobalReallocate>
 </LanguageData>
