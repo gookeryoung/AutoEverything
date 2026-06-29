@@ -49,6 +49,14 @@
 
 **护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。带护盾腰带的纯近战角色**不分配远程/EMP 副武器**；带消防背包的纯近战角色**可正常分配远程/EMP 副武器**。
 
+**护甲偏好**：`RoleDetector.GetArmorPreference(role)` 根据角色返回护甲偏好，影响全局重配时的护甲分配：
+
+| 角色 | 护甲偏好 | 说明 |
+|------|---------|------|
+| `Brawler` | `Heavy`（重甲[前排]）| 强制重甲，承担伤害 |
+| `Shooter`/`Hunter`/`Leader` | `Flexible`（自由[后排]）| 按评分自由选择，有重甲盈余时考虑 |
+| `Worker`/`Doctor`/`Pacifist`/`Default` | `Light`（轻甲[工人]）| 强制轻甲以保持工作效率 |
+
 ## 腰带附件全局分配
 
 `BeltAllocator.cs` 为纯近战角色（射击无火）分配腰带附件（护盾腰带 / 消防背包）：
@@ -120,7 +128,7 @@
 
 ### 防具评分管线
 
-`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 11 个 Scorer：
+`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 12 个 Scorer：
 
 | 顺序 | Scorer | 说明 |
 |------|--------|------|
@@ -134,7 +142,8 @@
 | 8 | `ApparelQualityScorer` | 品质 |
 | 9 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
 | 10 | `ApparelIdeologyScorer` | 意识形态服装 |
-| 11 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
+| 11 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
+| 12 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
 
 ### 副武器评分
 

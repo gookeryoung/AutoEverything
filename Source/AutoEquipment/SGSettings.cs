@@ -79,8 +79,10 @@ namespace AutoEquipment
         //   格式："S#王五"（系统档 S + # + 原 Nick）
         //   自定义评级时仍按系统档计算前缀（与 AEDebug.Label 不同，此处只显示系统档）
         // 用 thingIDNumber → 原 Nick 映射保存原名，便于恢复
-        // 注：不存档——游戏退出后丢失，但 Nick 本身会持久化；清除时按前缀解析兜底
+        // 持久化：通过 tierTagOriginalEntries 存档，避免重启后丢失导致误剥离玩家手动改的 Nick
         private static readonly Dictionary<int, string> tierTagOriginals = new Dictionary<int, string>();
+        // 存档载体：List<string> 格式 "thingIDNumber|原Nick"，加载后重建字典
+        private static List<string> tierTagOriginalEntries;
         private const string TIER_TAG_PREFIX_SEPARATOR = "#";
 
         /// <summary>
@@ -200,7 +202,22 @@ namespace AutoEquipment
                 }
             }
             tierTagOriginals.Clear();
+            SyncTierTagOriginalEntries();
             return touched;
+        }
+
+        /// <summary>
+        /// 把 tierTagOriginals 字典同步到存档载体 tierTagOriginalEntries。
+        /// 在 Apply/Clear 后调用，确保下次存档时持久化最新状态。
+        /// </summary>
+        private static void SyncTierTagOriginalEntries()
+        {
+            tierTagOriginalEntries.Clear();
+            foreach (var kvp in tierTagOriginals)
+            {
+                // 格式 "thingIDNumber|原Nick"，原 Nick 不应含 | 字符（RimWorld Nick 通常不含）
+                tierTagOriginalEntries.Add(kvp.Key + "|" + kvp.Value);
+            }
         }
 
         /// <summary>
@@ -286,6 +303,24 @@ namespace AutoEquipment
             Scribe_Collections.Look(ref customTierEntries, "ae_customTierEntries", LookMode.Value);
             if (customTierEntries == null) customTierEntries = new List<string>();
             RebuildCustomTierMap();
+
+            // 全局评级标签原名映射持久化：避免重启后丢失导致误剥离玩家手动改的 Nick
+            Scribe_Collections.Look(ref tierTagOriginalEntries, "ae_tierTagOriginals", LookMode.Value);
+            if (tierTagOriginalEntries == null) tierTagOriginalEntries = new List<string>();
+            // 加载后重建运行时字典
+            if (Scribe.mode == LoadSaveMode.PostLoadInit)
+            {
+                tierTagOriginals.Clear();
+                foreach (string entry in tierTagOriginalEntries)
+                {
+                    if (string.IsNullOrEmpty(entry)) continue;
+                    int sep = entry.IndexOf('|');
+                    if (sep <= 0 || sep >= entry.Length - 1) continue;
+                    if (!int.TryParse(entry.Substring(0, sep), out int pid)) continue;
+                    string origNick = entry.Substring(sep + 1);
+                    tierTagOriginals[pid] = origNick;
+                }
+            }
 
             // 预设方案与监测开关由 GearPolicyEngine/DebugMonitor 持久化
             // 此处委托其存档

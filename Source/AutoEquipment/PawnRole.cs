@@ -42,9 +42,6 @@ namespace AutoEquipment
         // 避免字典无限增长导致内存泄漏与 thingIDNumber 复用导致的误判
         private const int CleanupInterval = 60000;
         private static int nextCleanupTick = 60000;
-        // 复用静态集合避免每次清理分配（非 Tick 热路径，但保持习惯）
-        private static readonly HashSet<int> alivePawnIds = new HashSet<int>();
-        private static readonly List<int> keysToRemove = new List<int>();
 
         /// <summary>
         /// 清理已死亡/离开地图的 Pawn 在字典中的残留条目。
@@ -56,30 +53,7 @@ namespace AutoEquipment
             if (tick < nextCleanupTick) return;
             nextCleanupTick = tick + CleanupInterval;
 
-            alivePawnIds.Clear();
-            foreach (Map map in Find.Maps)
-            {
-                foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
-                {
-                    alivePawnIds.Add(pawn.thingIDNumber);
-                }
-            }
-
-            RemoveDeadKeys(lastLoggedRole);
-        }
-
-        private static void RemoveDeadKeys<TValue>(Dictionary<int, TValue> dict)
-        {
-            keysToRemove.Clear();
-            foreach (var kvp in dict)
-            {
-                if (!alivePawnIds.Contains(kvp.Key))
-                    keysToRemove.Add(kvp.Key);
-            }
-            for (int i = 0; i < keysToRemove.Count; i++)
-            {
-                dict.Remove(keysToRemove[i]);
-            }
+            PawnStateCleaner.Cleanup(lastLoggedRole);
         }
 
         /// <summary>
@@ -200,7 +174,9 @@ namespace AutoEquipment
             }
             else
             {
-                Log.Message($"[AutoEquipment] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
+                // 首次见到该 Pawn：用 AEDebug.Log 避免游戏加载时刷屏（50 个殖民者 = 50 条日志）
+                // 仅角色变化时才用 Log.Message 输出，减少玩家控制台噪音
+                AEDebug.Log(() => $"[AutoEquipment] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
                 lastLoggedRole[pawnId] = result;
             }
 
@@ -247,8 +223,11 @@ namespace AutoEquipment
                     return ArmorPreference.Heavy;
                 case Role.Shooter:
                 case Role.Hunter:
+                case Role.Leader:
+                    // 领袖改用 Flexible：原 Light 偏好会让领袖被强制分配轻甲，
+                    // 与玩家期望（领袖穿重甲显眼）不符；Flexible 让领袖按评分自由选择
                     return ArmorPreference.Flexible;
-                // Worker/Doctor/Pacifist/Leader/Default 均使用轻甲
+                // Worker/Doctor/Pacifist/Default 均使用轻甲
                 default:
                     return ArmorPreference.Light;
             }

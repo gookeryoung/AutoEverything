@@ -28,8 +28,10 @@ namespace AutoEquipment.Scoring
 
         /// <summary>
         /// 获取预设方案对应的评分权重。
+        /// 注意：权重仅按预设方案返回，不随角色/情境变化。
+        /// 情境加成（如战斗 DPS×1.5）由各 Scorer 内部根据 context 参数处理。
         /// </summary>
-        public static GearWeights GetWeights(Role role, GearContext context)
+        public static GearWeights GetWeights()
         {
             return ActivePreset.GetDefaultWeights();
         }

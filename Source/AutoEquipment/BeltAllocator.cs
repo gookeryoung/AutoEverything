@@ -62,7 +62,14 @@ namespace AutoEquipment
             if (candidatePawns.Count == 0 || candidateBelts.Count == 0) return;
 
             // 按战斗价值降序排序（高价值优先）——List.Sort 非 LINQ，Tick 路径允许
-            candidatePawns.Sort(ComparePawnByCombatValueDesc);
+            // 预计算缓存：List.Sort 是 O(n log n) 次比较，避免每次比较重复调用
+            // ComputeCombatValue（涉及技能查询与特质查询），50 人约省 300 次重复计算
+            var combatValueCache = new Dictionary<Pawn, float>();
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                combatValueCache[candidatePawns[i]] = SidearmAllocator.ComputeCombatValue(candidatePawns[i]);
+            }
+            candidatePawns.Sort((a, b) => combatValueCache[b].CompareTo(combatValueCache[a]));
 
             // 全局保底：若无任何殖民者穿戴消防背包，强制最高价值纯近战角色拿消防背包
             bool forceFirefoam = !anyFirefoamWorn;
@@ -132,7 +139,7 @@ namespace AutoEquipment
                 if (IsWearingFirefoamPack(pawn)) anyFirefoamWorn = true;
 
                 // 仅纯近战角色（射击无火）参与 belt 分配
-                if (!IsPureMeleeShooter(pawn)) continue;
+                if (!PawnCombatProfile.IsPureMeleeShooter(pawn)) continue;
 
                 // 必须有 belt 空位
                 if (HasBelt(pawn)) continue;
@@ -160,13 +167,13 @@ namespace AutoEquipment
             float score = 0f;
 
             // 护盾腰带：提供远程免疫，近战角色最需
-            if (IsShieldBelt(belt))
+            if (GearDefClassifier.IsShieldBelt(belt))
             {
                 score += 100f;
             }
 
             // 消防背包：应对火灾/机械族，次选
-            if (IsFirefoamPack(belt))
+            if (GearDefClassifier.IsFirefoamPack(belt))
             {
                 score += 60f;
             }
@@ -192,17 +199,6 @@ namespace AutoEquipment
         // ===================== 判定辅助 =====================
 
         /// <summary>
-        /// 纯近战角色判定：射击技能无火（passion=None）。
-        /// </summary>
-        private static bool IsPureMeleeShooter(Pawn pawn)
-        {
-            if (pawn?.skills == null) return false;
-            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
-            if (shooting == null) return true;
-            return shooting.passion == Passion.None;
-        }
-
-        /// <summary>
         /// 判断 apparel 是否为 belt 层附件。
         /// </summary>
         private static bool IsBelt(Thing thing)
@@ -210,26 +206,6 @@ namespace AutoEquipment
             if (thing?.def?.apparel == null) return false;
             return thing.def.apparel.layers != null
                 && thing.def.apparel.layers.Contains(ApparelLayerDefOf.Belt);
-        }
-
-        /// <summary>
-        /// 护盾腰带判定：通过 defName 启发式识别。
-        /// 用 IndexOf(OrdinalIgnoreCase) 避免每帧 ToUpperInvariant 分配大写字符串。
-        /// </summary>
-        private static bool IsShieldBelt(Thing thing)
-        {
-            return thing?.def != null
-                && thing.def.defName.IndexOf("SHIELD", StringComparison.OrdinalIgnoreCase) >= 0;
-        }
-
-        /// <summary>
-        /// 消防背包判定：通过 defName 启发式识别。
-        /// 用 IndexOf(OrdinalIgnoreCase) 避免每帧 ToUpperInvariant 分配大写字符串。
-        /// </summary>
-        private static bool IsFirefoamPack(Thing thing)
-        {
-            return thing?.def != null
-                && thing.def.defName.IndexOf("FIREFOAM", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         /// <summary>
@@ -255,7 +231,7 @@ namespace AutoEquipment
             List<Apparel> worn = pawn.apparel.WornApparel;
             for (int i = 0; i < worn.Count; i++)
             {
-                if (IsFirefoamPack(worn[i])) return true;
+                if (GearDefClassifier.IsFirefoamPack(worn[i])) return true;
             }
             return false;
         }
@@ -265,14 +241,9 @@ namespace AutoEquipment
             for (int i = 0; i < candidateBelts.Count; i++)
             {
                 Thing b = candidateBelts[i];
-                if (b != null && IsFirefoamPack(b)) return i;
+                if (b != null && GearDefClassifier.IsFirefoamPack(b)) return i;
             }
             return -1;
-        }
-
-        private static int ComparePawnByCombatValueDesc(Pawn a, Pawn b)
-        {
-            return SidearmAllocator.ComputeCombatValue(b).CompareTo(SidearmAllocator.ComputeCombatValue(a));
         }
     }
 }

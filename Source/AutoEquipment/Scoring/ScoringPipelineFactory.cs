@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEquipment.Scoring.Weapon;
@@ -46,7 +46,8 @@ namespace AutoEquipment.Scoring
 
         /// <summary>
         /// 获取防具评分管线。
-        /// 顺序：沾染 → 特质 → 工作 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 当前穿戴
+        /// 顺序：沾染 → 特质 → 工作 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 耐久 → 当前穿戴
+        /// 耐久修正放在末尾，作为对最终分数的乘数修正（损坏防具按 HP 比例扣分）。
         /// </summary>
         public static ScoringPipeline<Apparel> GetApparelPipeline()
         {
@@ -64,6 +65,7 @@ namespace AutoEquipment.Scoring
                     new ApparelQualityScorer(),     // 品质
                     new ApparelRoyaltyScorer(),     // 皇家头衔
                     new ApparelIdeologyScorer(),     // 意识形态
+                    new ApparelDurabilityScorer(),   // 耐久修正（按 HP 比例乘数）
                     new ApparelCurrentWornScorer()  // 平局决胜
                 };
                 apparelPipeline = new ScoringPipeline<Apparel>(scorers);

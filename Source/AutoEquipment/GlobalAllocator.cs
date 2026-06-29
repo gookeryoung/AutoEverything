@@ -71,7 +71,14 @@ namespace AutoEquipment
             if (sortedPawns.Count == 0) return 0;
 
             // 按战斗价值降序排序：高价值殖民者优先分配
-            sortedPawns.Sort(ComparePawnByCombatValueDesc);
+            // 预计算缓存：List.Sort 是 O(n log n) 次比较，避免每次比较重复调用
+            // ComputeCombatValue（涉及技能查询与特质查询），50 人约省 300 次重复计算
+            var combatValueCache = new Dictionary<Pawn, float>();
+            for (int i = 0; i < sortedPawns.Count; i++)
+            {
+                combatValueCache[sortedPawns[i]] = SidearmAllocator.ComputeCombatValue(sortedPawns[i]);
+            }
+            sortedPawns.Sort((a, b) => combatValueCache[b].CompareTo(combatValueCache[a]));
 
             // ========== 武器重配 ==========
             ReallocateWeapons();
@@ -230,7 +237,23 @@ namespace AutoEquipment
         private static void ReallocateApparel()
         {
             // 护甲分配按"全局价值评级"（CombatTier）降序，与武器分配解耦
-            sortedPawns.Sort(ComparePawnByCombatTierDesc);
+            // 预计算缓存：避免 O(n log n) 次比较中重复调用 GetCombatTier 与 ComputePawnValueScore
+            // （两者均涉及技能/特质查询），50 人约省 300+ 次重复计算
+            var tierCache = new Dictionary<Pawn, int>();
+            var valueScoreCache = new Dictionary<Pawn, float>();
+            for (int i = 0; i < sortedPawns.Count; i++)
+            {
+                Pawn p = sortedPawns[i];
+                tierCache[p] = (int)SidearmAllocator.GetCombatTier(p);
+                valueScoreCache[p] = SidearmAllocator.ComputePawnValueScore(p);
+            }
+            sortedPawns.Sort((a, b) =>
+            {
+                int ta = tierCache[a];
+                int tb = tierCache[b];
+                if (ta != tb) return tb.CompareTo(ta);
+                return valueScoreCache[b].CompareTo(valueScoreCache[a]);
+            });
 
             // ========== 第一遍：放下所有殖民者的当前护甲 ==========
             // 复用"放下当前武器"开关语义：放下所有护甲进入地图候选池
@@ -396,24 +419,6 @@ namespace AutoEquipment
             float vb = b.GetStatValue(StatDefOf.ArmorRating_Sharp)
                      + b.GetStatValue(StatDefOf.ArmorRating_Blunt) * 0.5f;
             return vb.CompareTo(va);
-        }
-
-        private static int ComparePawnByCombatValueDesc(Pawn a, Pawn b)
-        {
-            return SidearmAllocator.ComputeCombatValue(b).CompareTo(SidearmAllocator.ComputeCombatValue(a));
-        }
-
-        /// <summary>
-        /// 按"全局价值评级"（CombatTier）降序比较：用于护甲分配优先级。
-        /// 同档内再用 ComputePawnValueScore（特质数 + 兴趣 + 技能等级）精排，
-        /// 让同档中培养更深的殖民者优先获得好装备。
-        /// </summary>
-        private static int ComparePawnByCombatTierDesc(Pawn a, Pawn b)
-        {
-            int tierA = (int)SidearmAllocator.GetCombatTier(a);
-            int tierB = (int)SidearmAllocator.GetCombatTier(b);
-            if (tierA != tierB) return tierB.CompareTo(tierA);
-            return SidearmAllocator.ComputePawnValueScore(b).CompareTo(SidearmAllocator.ComputePawnValueScore(a));
         }
     }
 }

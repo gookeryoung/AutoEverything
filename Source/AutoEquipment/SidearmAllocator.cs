@@ -500,7 +500,14 @@ namespace AutoEquipment
             if (candidatePawns.Count == 0 || candidateWeapons.Count == 0) return;
 
             // 按战斗价值降序排序（高价值优先）——List.Sort 非 LINQ，Tick 路径允许
-            candidatePawns.Sort(ComparePawnByCombatValueDesc);
+            // 预计算缓存：List.Sort 是 O(n log n) 次比较，避免每次比较重复调用
+            // ComputeCombatValue（涉及技能查询与特质查询），50 人约省 300 次重复计算
+            var combatValueCache = new Dictionary<Pawn, float>();
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                combatValueCache[candidatePawns[i]] = ComputeCombatValue(candidatePawns[i]);
+            }
+            candidatePawns.Sort((a, b) => combatValueCache[b].CompareTo(combatValueCache[a]));
 
             // 依次为高价值 Pawn 分配，分配后从候选池移除（设为 null）
             for (int i = 0; i < candidatePawns.Count; i++)
@@ -538,7 +545,7 @@ namespace AutoEquipment
                     // 设计意图：纯近战小人远程射击天赋不足，普通远程武器收益低
                     // EMP 武器能瘫痪机械族与护盾，贴身近战时提供战术价值
                     // 注意：带护盾腰带的 Pawn 已在上方跳过，此处无需再判断
-                    if (needRanged && IsPureMeleeShooter(pawn) && IsEmpWeapon(w))
+                    if (needRanged && PawnCombatProfile.IsPureMeleeShooter(pawn) && GearDefClassifier.IsEmpWeapon(w))
                     {
                         score += 1000f;
                     }
@@ -577,11 +584,6 @@ namespace AutoEquipment
                 }
             }
             return false;
-        }
-
-        private static int ComparePawnByCombatValueDesc(Pawn a, Pawn b)
-        {
-            return ComputeCombatValue(b).CompareTo(ComputeCombatValue(a));
         }
 
         private static void CollectCandidatePawns(Map map)
@@ -639,30 +641,6 @@ namespace AutoEquipment
             if (!weapon.def.IsWeapon) return false;
             // 候选筛选留给分配阶段（needMelee/needRanged），此处仅排除非武器
             return true;
-        }
-
-        /// <summary>
-        /// 纯近战角色判定：射击技能无火（passion=None）。
-        /// 此类殖民者远程射击天赋不足，副武器应优先 EMP 而非普通远程武器。
-        /// </summary>
-        private static bool IsPureMeleeShooter(Pawn pawn)
-        {
-            if (pawn?.skills == null) return false;
-            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
-            if (shooting == null) return true;
-            return shooting.passion == Passion.None;
-        }
-
-        /// <summary>
-        /// EMP 武器判定：通过 defName/label 启发式识别。
-        /// 覆盖原生 EMP 手榴弹、EMP 炮及 MOD 扩展的 EMP 武器。
-        /// 用 IndexOf(OrdinalIgnoreCase) 避免每次 ToUpperInvariant 分配字符串。
-        /// </summary>
-        private static bool IsEmpWeapon(Thing weapon)
-        {
-            if (weapon?.def == null) return false;
-            return weapon.def.defName.IndexOf("EMP", StringComparison.OrdinalIgnoreCase) >= 0
-                || weapon.def.label.IndexOf("EMP", StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         private static void AssignSidearm(Pawn pawn, Thing weapon, float score)

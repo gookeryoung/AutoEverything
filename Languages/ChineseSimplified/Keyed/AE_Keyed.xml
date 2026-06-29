@@ -149,7 +149,7 @@
   <AE_Tier_B>B：单火</AE_Tier_B>
   <AE_Tier_C>C：无火有特质</AE_Tier_C>
   <AE_Tier_D>D：无火无特质</AE_Tier_D>
-  <AE_Tier_X>X：无法从事暴力活动</AE_Tier_X>
+  <AE_Tier_X>X：禁用暴力工作（和平主义者等）</AE_Tier_X>
 
   <!-- 面板状态徽章 -->
   <AE_Badge_CombatValue>战斗价值</AE_Badge_CombatValue>

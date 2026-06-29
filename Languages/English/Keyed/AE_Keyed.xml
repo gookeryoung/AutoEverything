@@ -149,7 +149,7 @@
   <AE_Tier_B>B: single-passion</AE_Tier_B>
   <AE_Tier_C>C: no passion but has trait</AE_Tier_C>
   <AE_Tier_D>D: no passion no trait</AE_Tier_D>
-  <AE_Tier_X>X: incapable of violence</AE_Tier_X>
+  <AE_Tier_X>X: violent work disabled (pacifist etc.)</AE_Tier_X>
 
   <!-- Panel status badges -->
   <AE_Badge_CombatValue>Combat Value</AE_Badge_CombatValue>

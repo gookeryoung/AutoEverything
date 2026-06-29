@@ -22,7 +22,7 @@ namespace AutoEquipment
         {
             if (weapon?.def == null) return -1000f;
 
-            GearWeights weights = GearPolicyEngine.GetWeights(role, context);
+            GearWeights weights = GearPolicyEngine.GetWeights();
             var pipeline = ScoringPipelineFactory.GetWeaponPipeline();
             // 性能路径：跳过 items 累积
             var breakdown = pipeline.EvaluateFast(pawn, weapon, role, context, weights);
@@ -54,7 +54,7 @@ namespace AutoEquipment
         {
             if (weapon?.def == null) return new ScoreBreakdown();
 
-            GearWeights weights = GearPolicyEngine.GetWeights(role, context);
+            GearWeights weights = GearPolicyEngine.GetWeights();
             var pipeline = ScoringPipelineFactory.GetWeaponPipeline();
             return pipeline.Evaluate(pawn, weapon, role, context, weights);
         }
@@ -70,7 +70,7 @@ namespace AutoEquipment
         {
             if (apparel?.def == null) return -1000f;
 
-            GearWeights weights = GearPolicyEngine.GetWeights(role, context);
+            GearWeights weights = GearPolicyEngine.GetWeights();
             var pipeline = ScoringPipelineFactory.GetApparelPipeline();
             // 性能路径：跳过 items 累积
             var breakdown = pipeline.EvaluateFast(pawn, apparel, role, context, weights);
@@ -100,7 +100,7 @@ namespace AutoEquipment
         {
             if (apparel?.def == null) return new ScoreBreakdown();
 
-            GearWeights weights = GearPolicyEngine.GetWeights(role, context);
+            GearWeights weights = GearPolicyEngine.GetWeights();
             var pipeline = ScoringPipelineFactory.GetApparelPipeline();
             return pipeline.Evaluate(pawn, apparel, role, context, weights);
         }

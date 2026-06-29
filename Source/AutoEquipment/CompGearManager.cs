@@ -424,7 +424,8 @@ namespace AutoEquipment
 
             if (bestWeapon != null && bestWeapon != currentWeapon)
             {
-                Log.Message($"[AutoEquipment] {AEDebug.Label(Pawn)} EvaluateWeapon 决策: 切换到 '{bestWeapon.LabelShort}' (score={bestScore:F1}) 从 '{currentWeapon?.LabelShort ?? "none"}' (score={currentScore:F1}). 检查 {candidatesChecked} 件武器, 跳过 {candidatesSkipped}");
+                // 决策详细信息走 AEDebug.Log（受 debugLogging 开关控制），避免大量 Pawn 同时换装时刷屏
+                AEDebug.Log(() => $"[AutoEquipment] {AEDebug.Label(Pawn)} EvaluateWeapon 决策详情: 切换到 '{bestWeapon.LabelShort}' (score={bestScore:F1}) 从 '{currentWeapon?.LabelShort ?? "none"}' (score={currentScore:F1}). 检查 {candidatesChecked} 件武器, 跳过 {candidatesSkipped}");
                 var job = JobMaker.MakeJob(JobDefOf.Equip, bestWeapon);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
 
@@ -740,20 +741,28 @@ namespace AutoEquipment
                     return;
                 }
 
-                Log.Message($"[AutoEquipment] {AEDebug.Label(Pawn)} CheckMeleeSidearm 决策: 抽出近战副武器 '{bestMelee.LabelShort}' (score={bestScore:F1}), 收起远程 '{currentWeapon.LabelShort}'");
+                // 决策详细信息走 AEDebug.Log，避免战斗中频繁切武器刷屏
+                AEDebug.Log(() => $"[AutoEquipment] {AEDebug.Label(Pawn)} CheckMeleeSidearm 决策: 抽出近战副武器 '{bestMelee.LabelShort}' (score={bestScore:F1}), 收起远程 '{currentWeapon.LabelShort}'");
 
                 // 保存当前武器为主武器（稍后重新装备）
                 primaryWeapon = currentWeapon;
 
                 // 切换：卸下远程，装备库存近战
+                // 原子性修复：TryDropEquipment 失败时不应继续 Remove/AddEquipment，
+                // 否则 AddEquipment 会强制替换当前仍在装备槽的主武器，导致主武器被丢弃到地上无主
                 Pawn.equipment.TryDropEquipment(currentWeapon as ThingWithComps, out ThingWithComps droppedWep, Pawn.Position);
-                if (droppedWep != null)
+                if (droppedWep == null)
                 {
-                    if (droppedWep.Spawned)
-                        droppedWep.DeSpawn();
-                    if (!Pawn.inventory.innerContainer.TryAdd(droppedWep))
-                        GenPlace.TryPlaceThing(droppedWep, Pawn.Position, Pawn.Map, ThingPlaceMode.Near);
+                    // 卸下失败：回滚 primaryWeapon 引用，避免 OnUndraft 时引用失效
+                    Log.Warning($"[AutoEquipment] {AEDebug.Label(Pawn)} CheckMeleeSidearm: 卸下主武器失败，放弃切换");
+                    primaryWeapon = null;
+                    return;
                 }
+
+                if (droppedWep.Spawned)
+                    droppedWep.DeSpawn();
+                if (!Pawn.inventory.innerContainer.TryAdd(droppedWep))
+                    GenPlace.TryPlaceThing(droppedWep, Pawn.Position, Pawn.Map, ThingPlaceMode.Near);
 
                 Pawn.inventory.innerContainer.Remove(bestMelee);
                 Pawn.equipment.AddEquipment(bestMelee as ThingWithComps);
@@ -799,14 +808,29 @@ namespace AutoEquipment
             }
             else
             {
-                Log.Warning($"[AutoEquipment] {AEDebug.Label(Pawn)} OnUndraft: 当前武器 '{currentWeapon?.LabelShort ?? "none"}' 非副武器 '{sidearm.LabelShort}' —— 武器可能已丢失");
+                // 当前武器非副武器：Pawn 在征召中通过其他方式换了武器
+                // 仍尝试从库存恢复主武器（若主武器仍在库存中），避免主武器永久滞留库存
+                Log.Warning($"[AutoEquipment] {AEDebug.Label(Pawn)} OnUndraft: 当前武器 '{currentWeapon?.LabelShort ?? "none"}' 非副武器 '{sidearm.LabelShort}'，尝试恢复主武器");
             }
 
             // 从库存重新装备主武器（处理副武器被销毁/丢失情况）
+            // 当前武器非副武器时也走此路径：若主武器仍在库存中，强制恢复
             if (primaryWeapon as ThingWithComps != null
                 && Pawn.equipment?.Primary != primaryWeapon
                 && Pawn.inventory.innerContainer.Contains(primaryWeapon))
             {
+                // 若装备槽已有其他武器（玩家手动换的），先卸下再放入库存
+                ThingWithComps existing = Pawn.equipment?.Primary;
+                if (existing != null && existing != primaryWeapon)
+                {
+                    Pawn.equipment.TryDropEquipment(existing, out ThingWithComps droppedExisting, Pawn.Position);
+                    if (droppedExisting != null)
+                    {
+                        if (droppedExisting.Spawned) droppedExisting.DeSpawn();
+                        if (!Pawn.inventory.innerContainer.TryAdd(droppedExisting))
+                            GenPlace.TryPlaceThing(droppedExisting, Pawn.Position, Pawn.Map, ThingPlaceMode.Near);
+                    }
+                }
                 Log.Message($"[AutoEquipment] {AEDebug.Label(Pawn)} OnUndraft: 从库存重新装备主武器 '{primaryWeapon.LabelShort}'");
                 Pawn.inventory.innerContainer.Remove(primaryWeapon);
                 Pawn.equipment.AddEquipment(primaryWeapon as ThingWithComps);

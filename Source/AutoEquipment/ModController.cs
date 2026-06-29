@@ -1,3 +1,4 @@
+using System;
 using Verse;
 using RimWorld;
 
@@ -17,7 +18,36 @@ namespace AutoEquipment
         {
             HarmonyPatches.Init();
             HarmonyPatches.AddCompToPawnDefs();
+            ValidateTranslationKeys();
             Log.Message("[AutoEquipment] MOD 已初始化（Harmony + ThingComp 注入完成）");
+        }
+
+        /// <summary>
+        /// 校验枚举对应的翻译键是否完整。
+        /// 若新增枚举值忘记加翻译键，会显示 "AE_Role_NewRole" 原文，玩家不可读。
+        /// 启动时一次性校验，缺失则 Log.Warning 提示开发者补全。
+        /// </summary>
+        private static void ValidateTranslationKeys()
+        {
+            // Role 枚举翻译键校验
+            foreach (Role role in Enum.GetValues(typeof(Role)))
+            {
+                string key = "AE_Role_" + role;
+                if (!key.CanTranslate())
+                {
+                    Log.Warning($"[AutoEquipment] 缺少翻译键: {key}（Role 枚举 {role}）");
+                }
+            }
+
+            // GearContext 枚举翻译键校验
+            foreach (GearContext ctx in Enum.GetValues(typeof(GearContext)))
+            {
+                string key = "AE_Context_" + ctx;
+                if (!key.CanTranslate())
+                {
+                    Log.Warning($"[AutoEquipment] 缺少翻译键: {key}（GearContext 枚举 {ctx}）");
+                }
+            }
         }
     }
 }
