@@ -32,7 +32,7 @@ namespace AutoEverything
         public Thing sidearm;
         public Thing primaryWeapon;
 
-        // 锁定：玩家可锁定 Pawn 以禁用自动装备
+        // 锁定：玩家可锁定 Pawn 以禁用自动万物
         public bool locked;
 
         // 冷却：防止反复拾取药品

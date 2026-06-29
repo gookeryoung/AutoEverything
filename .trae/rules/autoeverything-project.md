@@ -10,7 +10,7 @@
 - Harmony ID: `gookeryoung.autoeverything`（与 packageId 一致，整个 MOD 单一实例）
 - 日志前缀: `[AutoEverything]`
 - Scribe Key 前缀: `ae_`（如 `ae_locked`、`ae_customTierEntries`）
-- 设置界面显示名: `自动装备`（中英文统一，禁止用全大写 `AUTOEVERYTHING`）
+- 设置界面显示名: `自动万物`（中英文统一，禁止用全大写 `AUTOEVERYTHING`）
 
 ## 命名空间与文件夹结构
 
@@ -30,7 +30,7 @@
 - 食尸鬼（`DLCCompat.IsGhoul`）即使种族是 Humanlike 也必须排除在所有装备管理外
 - `ContextDetector.GetContext` 中食尸鬼直接返回 `Normal`，避免 CurJob 误判为 Work
 - ITab 显示时食尸鬼情境徽章显示"闲置"（`AE_Context_Idle`）而非"日常"
-- 食尸鬼仍显示 ITab 与评级信息供玩家参考，但不参与自动装备分配
+- 食尸鬼仍显示 ITab 与评级信息供玩家参考，但不参与自动万物分配
 
 ### 不适用 Pawn 兜底
 

@@ -6,7 +6,7 @@
     <li>1.6</li>
   </supportedVersions>
   <packageId>gookeryoung.autoeverything</packageId>
-  <description>基于 LXO - Smart Gear 设计的智能自动装备管理 MOD。殖民者会根据自身角色、当前工作、天气与战斗状态，自动装备合适的武器、穿戴合适的防具、携带合适的物资。
+  <description>基于 LXO - Smart Gear 设计的智能自动万物管理 MOD。殖民者会根据自身角色、当前工作、天气与战斗状态，自动装备合适的武器、穿戴合适的防具、携带合适的物资。
 
 修复原设计的两个问题：
 - 食尸鬼（Anomaly DLC）不再四处乱跑寻找装备。

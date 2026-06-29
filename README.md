@@ -1,6 +1,6 @@
 # Auto Everything
 
-> 智能自动装备管理 MOD，适用于 RimWorld 1.6+
+> 智能自动万物管理 MOD，适用于 RimWorld 1.6+
 >
 > packageId: `gookeryoung.autoeverything`
 
