@@ -98,8 +98,11 @@
   <!-- Global tier tag on pawn names -->
   <AE_GlobalTierTag>Global Tier Tag</AE_GlobalTierTag>
   <AE_TierTag_Apply>Apply tier prefix to names (e.g. S#John)</AE_TierTag_Apply>
+  <AE_TierTag_ApplyAndSortByValue>Apply tier prefix and sort by value</AE_TierTag_ApplyAndSortByValue>
+  <AE_TierTag_ApplyAndSortByRole>Apply tier prefix and reorder by role</AE_TierTag_ApplyAndSortByRole>
   <AE_TierTag_Clear>Clear tier prefix, restore names</AE_TierTag_Clear>
   <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
+  <AE_TierTag_ApplyAndSortResult>Applied tier prefix and reordered colonist bar for {0} colonists</AE_TierTag_ApplyAndSortResult>
   <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
 
   <!-- Global reallocate rules (inlined in panel) -->
@@ -196,6 +199,9 @@
   <AE_TT_ArmorPref_Light>Light[worker]: forced light armor for work efficiency</AE_TT_ArmorPref_Light>
   <AE_TT_LockGear>When checked, this colonist's gear is not auto-managed</AE_TT_LockGear>
   <AE_TT_OverrideRole>When checked, manually set role overrides auto detection</AE_TT_OverrideRole>
-  <AE_TT_GlobalTierTag>Add tier prefix to all colonist names (e.g. S#John) for quick identification</AE_TT_GlobalTierTag>
+  <AE_TT_GlobalTierTag>Add tier prefix to colonist Nick for quick identification of value.
+"Apply tier prefix and sort by value" also reorders the colonist bar: high-value colonists on the left for quick selection.
+"Apply tier prefix and reorder by role" reorders by role group: Brawler -> Shooter -> Hunter -> Leader -> Doctor -> Worker -> Pacifist, within group by combat value desc.
+Clear restores original names and keeps the colonist bar order.</AE_TT_GlobalTierTag>
   <AE_TT_GlobalReallocate>Drop all colonist weapons and apparel, reallocate by combat value desc. Ghouls are skipped.</AE_TT_GlobalReallocate>
 </LanguageData>

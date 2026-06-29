@@ -253,9 +253,12 @@ namespace AutoEquipment
 
             if (Widgets.ButtonText(tierTagBtnRect, "AE_GlobalTierTag".Translate()))
             {
-                // 弹出 FloatMenu：应用评级 / 清除评级标签
+                // 弹出 FloatMenu：4 选项分 2 组
+                // 分组1：应用评级（3 选项，标签前加 ▸ 标识）
+                // 分组2：清除评级（1 选项，分隔后单独显示）
                 var tierTagOptions = new List<FloatMenuOption>
                 {
+                    // ========== 应用评级组 ==========
                     new FloatMenuOption(
                         "AE_TierTag_Apply".Translate(),
                         () =>
@@ -265,6 +268,28 @@ namespace AutoEquipment
                                 "AE_TierTag_ApplyResult".Translate(n),
                                 MessageTypeDefOf.TaskCompletion);
                         }),
+                    new FloatMenuOption(
+                        "AE_TierTag_ApplyAndSortByValue".Translate(),
+                        () =>
+                        {
+                            int n = AESettings.ApplyTierTagsAndSortByValue();
+                            Messages.Message(
+                                "AE_TierTag_ApplyAndSortResult".Translate(n),
+                                MessageTypeDefOf.TaskCompletion);
+                        }),
+                    new FloatMenuOption(
+                        "AE_TierTag_ApplyAndSortByRole".Translate(),
+                        () =>
+                        {
+                            int n = AESettings.ApplyTierTagsAndSortByRole();
+                            Messages.Message(
+                                "AE_TierTag_ApplyAndSortResult".Translate(n),
+                                MessageTypeDefOf.TaskCompletion);
+                        }),
+                    // ========== 清除评级组（用分隔标签区分）==========
+                    new FloatMenuOption(
+                        "───",
+                        null),
                     new FloatMenuOption(
                         "AE_TierTag_Clear".Translate(),
                         () =>
@@ -485,6 +510,7 @@ namespace AutoEquipment
 
         /// <summary>
         /// 绘制带标签+数值的小徽章。
+        /// 左对齐与武器标签保持视觉一致。
         /// </summary>
         private void DrawStatBadge(Rect rect, string label, string value, Color bgColor)
         {
@@ -497,11 +523,11 @@ namespace AutoEquipment
             GUI.color = Color.white * 0.5f;
             Widgets.DrawBox(rect, 1);
 
-            // 文字：标签:数值
+            // 文字：标签:数值（左对齐）
             GUI.color = Color.white;
-            Text.Anchor = TextAnchor.MiddleCenter;
+            Text.Anchor = TextAnchor.MiddleLeft;
             Text.Font = GameFont.Tiny;
-            Widgets.Label(rect, label + ": " + value);
+            Widgets.Label(rect.ContractedBy(6f), label + ": " + value);
             Text.Anchor = TextAnchor.UpperLeft;
             Text.Font = GameFont.Small;
 
@@ -509,40 +535,73 @@ namespace AutoEquipment
         }
 
         /// <summary>
-        /// 绘制装备摘要：紧凑布局，主武器/副武器合并一行，护甲数量徽章样式。
-        /// 原布局每项一行（3 行约 66f），紧凑后约 48f，节省 30% 垂直空间。
+        /// 绘制装备摘要：主武器/副武器统一用带半透明底色的标签，左对齐显示。
+        /// 护甲数量用徽章样式，与武器标签视觉协调。
         /// </summary>
         private void DrawEquipmentSummary(Listing_Standard l, Pawn pawn, CompGearManager comp)
         {
             // 主武器（占满整行，名字通常较长）
             string primaryWeapon = pawn.equipment?.Primary?.LabelShort ?? "AE_None".Translate();
-            DrawLabeledRow(l, "AE_PrimaryWeapon".Translate(), primaryWeapon);
+            DrawGearTag(l, "AE_PrimaryWeapon".Translate(), primaryWeapon, new Color(0.25f, 0.35f, 0.50f));
 
-            // 副武器 + 护甲数量合并一行：左 60% 副武器，右 40% 护甲数量
-            Rect secondRow = l.GetRect(22f);
+            // 副武器 + 护甲数量合并一行：左 62% 副武器，右 38% 护甲数量
+            Rect secondRow = l.GetRect(24f);
             // C# 7.3 不支持 string 与 TaggedString 之间的条件表达式，先转 string
             string sidearmLabel = (comp != null && comp.sidearm != null)
                 ? comp.sidearm.LabelShort
                 : "AE_None".Translate().ToString();
             int wornCount = pawn.apparel?.WornApparel.Count ?? 0;
 
-            // 左：副武器
-            GUI.color = ColorLabelGray;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Text.Font = GameFont.Small;
-            Widgets.Label(new Rect(secondRow.x, secondRow.y, secondRow.width * 0.18f, secondRow.height),
-                "AE_Sidearm".Translate() + ":");
-            GUI.color = Color.white;
-            Widgets.Label(new Rect(secondRow.x + secondRow.width * 0.18f, secondRow.y, secondRow.width * 0.42f, secondRow.height),
-                sidearmLabel);
+            // 左：副武器（带半透明底色，与主武器风格一致）
+            float sidearmWidth = secondRow.width * 0.62f;
+            DrawGearTagOnRect(new Rect(secondRow.x, secondRow.y, sidearmWidth, secondRow.height),
+                "AE_Sidearm".Translate(), sidearmLabel, new Color(0.30f, 0.30f, 0.40f));
 
-            // 右：护甲数量（带底色徽章）
+            // 右：护甲数量（带底色徽章，左对齐保持视觉一致）
             Rect armorBadgeRect = new Rect(secondRow.x + secondRow.width * 0.62f, secondRow.y, secondRow.width * 0.38f, secondRow.height);
             DrawStatBadge(armorBadgeRect, "AE_WornApparel".Translate(), wornCount.ToString(),
                 new Color(0.35f, 0.35f, 0.4f));
+        }
+
+        /// <summary>
+        /// 绘制带半透明底色的装备标签行（通过 Listing_Standard 取行）。
+        /// 标签与值都左对齐，避免居中/左对齐混用造成视觉混乱。
+        /// 底色让武器名称更显眼，便于玩家快速识别装备。
+        /// </summary>
+        private void DrawGearTag(Listing_Standard l, string label, string value, Color bgColor)
+        {
+            Rect rect = l.GetRect(24f);
+            DrawGearTagOnRect(rect, label, value, bgColor);
+        }
+
+        /// <summary>
+        /// 在指定 Rect 绘制带半透明底色的装备标签。
+        /// 布局：[标签:] [值]，全部左对齐，底色半透明。
+        /// </summary>
+        private void DrawGearTagOnRect(Rect rect, string label, string value, Color bgColor)
+        {
+            // 半透明底色
+            Color bg = bgColor;
+            bg.a = 0.55f;
+            Widgets.DrawBoxSolid(rect, bg);
+
+            // 左对齐绘制标签+值
+            Color prev = GUI.color;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Text.Font = GameFont.Small;
+
+            // 标签（灰色）
+            GUI.color = ColorLabelGray;
+            float labelWidth = 60f;
+            Widgets.Label(new Rect(rect.x + 6f, rect.y, labelWidth, rect.height), label + ":");
+
+            // 值（白色）
+            GUI.color = Color.white;
+            Widgets.Label(new Rect(rect.x + 6f + labelWidth, rect.y, rect.width - labelWidth - 12f, rect.height), value);
 
             Text.Anchor = TextAnchor.UpperLeft;
-            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            GUI.color = prev;
         }
 
         /// <summary>

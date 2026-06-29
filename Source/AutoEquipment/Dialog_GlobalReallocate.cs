@@ -8,22 +8,25 @@ namespace AutoEquipment
     /// 全局重配规则确认对话框。
     /// 设计意图：将可调规则从检视面板剥离，避免 ScrollView 过长；
     /// 玩家点击"全局重配"按钮后弹出此窗，调整规则后点"确认重配"才真正执行。
-    /// 窗口尺寸足够容纳所有 Slider，无 ScrollView。
+    /// 窗口尺寸自适应屏幕，内容用 ScrollView 包裹防止溢出。
     /// </summary>
     public class Dialog_GlobalReallocate : Window
     {
         // 静态滚动位置：避免每次重开窗口回到顶部
         private static Vector2 scrollPos;
-        // 初始值与实际内容高度接近，避免首帧空白滚动区
+        // 初始值给充足高度，避免首帧内容被截断
         // 实际内容在 DoWindowContents 末尾会重新计算并覆盖
-        private float contentHeight = 620f;
+        private float contentHeight = 900f;
 
         public override Vector2 InitialSize
         {
             get
             {
-                // 460x680：宽度容纳 Slider 标签，高度覆盖大多数分辨率
-                return new Vector2(460f, 680f);
+                // 自适应屏幕高度：取屏幕高度的 85%，最小 540f，最大 900f
+                // 宽度 480f 容纳 Slider 标签与数值
+                float screenHeight = UI.screenHeight;
+                float height = UnityEngine.Mathf.Clamp(screenHeight * 0.85f, 540f, 900f);
+                return new Vector2(480f, height);
             }
         }
 

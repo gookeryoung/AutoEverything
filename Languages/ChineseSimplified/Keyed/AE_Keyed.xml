@@ -98,9 +98,16 @@
   <!-- 全局人物评级标签 -->
   <AE_GlobalTierTag>全局人物评级</AE_GlobalTierTag>
   <AE_TierTag_Apply>应用评级到名字（S#王五）</AE_TierTag_Apply>
+  <AE_TierTag_ApplyAndSortByValue>应用评级到名字并按价值排序</AE_TierTag_ApplyAndSortByValue>
+  <AE_TierTag_ApplyAndSortByRole>应用评级到名字并按角色重排</AE_TierTag_ApplyAndSortByRole>
   <AE_TierTag_Clear>清除评级标签，恢复原名</AE_TierTag_Clear>
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
+  <AE_TierTag_ApplyAndSortResult>已为 {0} 个殖民者应用评级并重排殖民者栏</AE_TierTag_ApplyAndSortResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
+  <AE_TT_GlobalTierTag>应用评级前缀到殖民者 Nick，便于快速识别价值。
+点击"应用评级到名字并按价值排序"还会重排殖民者栏：高战斗价值殖民者排在左侧，便于快速选中。
+点击"应用评级到名字并按角色重排"会按角色分组重排：Brawler→Shooter→Hunter→领袖→Doctor→Worker→Pacifist，同角色内按战斗价值降序。
+清除评级会恢复原名并保留殖民者栏原顺序。</AE_TT_GlobalTierTag>
 
   <!-- 全局重配规则（直接显示在面板内） -->
   <AE_ReallocRules_Title>全局重配规则</AE_ReallocRules_Title>

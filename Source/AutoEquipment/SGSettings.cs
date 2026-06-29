@@ -207,6 +207,97 @@ namespace AutoEquipment
         }
 
         /// <summary>
+        /// 应用评级前缀并按战斗价值降序重排殖民者栏。
+        /// 战斗价值 = SidearmAllocator.ComputeCombatValue（射击×兴趣乘数 + 近战×兴趣乘数）。
+        /// 高价值殖民者排在殖民者栏左侧，便于快速选中。
+        /// </summary>
+        public static int ApplyTierTagsAndSortByValue()
+        {
+            int touched = ApplyTierTagsToAllPawns();
+            ReorderColonistBar(ComparePawnByCombatValueDesc);
+            return touched;
+        }
+
+        /// <summary>
+        /// 应用评级前缀并按角色分组重排殖民者栏。
+        /// 角色顺序：Brawler → Shooter → Hunter → Leader → Doctor → Worker → Pacifist → Default。
+        /// 同角色内按战斗价值降序，便于同角色殖民者聚集。
+        /// </summary>
+        public static int ApplyTierTagsAndSortByRole()
+        {
+            int touched = ApplyTierTagsToAllPawns();
+            ReorderColonistBar(ComparePawnByRoleThenValueDesc);
+            return touched;
+        }
+
+        /// <summary>
+        /// 重排殖民者栏：按比较器排序后写入 displayOrder，刷新殖民者栏。
+        /// RimWorld 殖民者栏顺序由 Pawn.playerSettings.displayOrder 决定，
+        /// 修改后调 Find.ColonistBar.MarkColonistsDirty() 刷新缓存。
+        /// 注意：displayOrder 仅在同一 map/caravan group 内有效，跨 group 顺序由地图/旅商顺序决定。
+        /// </summary>
+        private static void ReorderColonistBar(System.Comparison<Pawn> comparison)
+        {
+            var pawns = new List<Pawn>();
+            foreach (Pawn pawn in PawnsFinder.AllMaps_FreeColonists)
+            {
+                if (pawn != null && pawn.playerSettings != null)
+                    pawns.Add(pawn);
+            }
+
+            pawns.Sort(comparison);
+
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                pawns[i].playerSettings.displayOrder = i;
+            }
+
+            Find.ColonistBar.MarkColonistsDirty();
+        }
+
+        /// <summary>
+        /// 战斗价值降序比较器：高价值在前。
+        /// </summary>
+        private static int ComparePawnByCombatValueDesc(Pawn a, Pawn b)
+        {
+            float va = SidearmAllocator.ComputeCombatValue(a);
+            float vb = SidearmAllocator.ComputeCombatValue(b);
+            return vb.CompareTo(va);
+        }
+
+        /// <summary>
+        /// 角色优先级 + 战斗价值降序比较器。
+        /// 角色顺序：Brawler(0) → Shooter(1) → Hunter(2) → Leader(3) → Doctor(4) → Worker(5) → Pacifist(6) → Default(99)。
+        /// 同角色内按战斗价值降序。
+        /// </summary>
+        private static int ComparePawnByRoleThenValueDesc(Pawn a, Pawn b)
+        {
+            int ra = GetRoleOrder(RoleDetector.DetectRole(a));
+            int rb = GetRoleOrder(RoleDetector.DetectRole(b));
+            if (ra != rb) return ra.CompareTo(rb);
+            return ComparePawnByCombatValueDesc(a, b);
+        }
+
+        /// <summary>
+        /// 获取角色排序优先级：数字小的排前面。
+        /// 顺序设计：战斗角色（Brawler/Shooter/Hunter）→ 领袖 → 后勤（Doctor/Worker/Pacifist）→ 默认。
+        /// </summary>
+        private static int GetRoleOrder(Role role)
+        {
+            switch (role)
+            {
+                case Role.Brawler:  return 0;
+                case Role.Shooter:  return 1;
+                case Role.Hunter:   return 2;
+                case Role.Leader:   return 3;
+                case Role.Doctor:   return 4;
+                case Role.Worker:   return 5;
+                case Role.Pacifist: return 6;
+                default:            return 99;
+            }
+        }
+
+        /// <summary>
         /// 把 tierTagOriginals 字典同步到存档载体 tierTagOriginalEntries。
         /// 在 Apply/Clear 后调用，确保下次存档时持久化最新状态。
         /// </summary>
