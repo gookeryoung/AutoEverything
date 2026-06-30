@@ -450,6 +450,52 @@ namespace AutoEverything.AutoEquipment
             else
             {
                 AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateWeapon: 保留当前武器. 检查 {candidatesChecked} 候选, 跳过 {candidatesSkipped}, 无超越阈值");
+
+                // 过渡武器：空手且无匹配武器时，拾取任意可用武器过渡（格斗者特质+远程例外）
+                if (currentWeapon == null)
+                {
+                    TryFallbackWeapon(role, context);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 过渡武器兜底：空手且无匹配武器时，拾取最不差的可用武器作为过渡。
+        /// 例外：格斗者特质（Brawler trait）+ 远程武器 → 跳过（拿远程会不开心）。
+        /// 设计意图：空手比拿一把不理想的武器更糟；过渡武器在下次评估时会被更好的匹配替换。
+        /// 用 ScoreBreakdown.Total 比较（含 Veto 前的技能分），选技能最契合的过渡武器。
+        /// </summary>
+        private void TryFallbackWeapon(Role role, GearContext context)
+        {
+            Thing fallbackWeapon = null;
+            float fallbackScore = -99999f;
+
+            foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon))
+            {
+                if (!thing.def.IsWeapon) continue;
+                if (!thing.def.IsRangedWeapon && !thing.def.IsMeleeWeapon) continue;
+                if (thing.def.IsStuff) continue;
+                if (thing.IsForbidden(Pawn)) continue;
+                if (!Pawn.CanReserve(thing) || !Pawn.CanReach(thing, PathEndMode.ClosestTouch, Danger.Some)) continue;
+                if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) continue;
+
+                // 格斗者特质+远程=不开心，跳过（用户例外）
+                if (Pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) == true && thing.def.IsRangedWeapon) continue;
+
+                // 用 Total（含 Veto 前的技能分）比较，选技能最契合的过渡武器
+                ScoreBreakdown bd = GearScorer.ScoreWeaponWithBreakdown(Pawn, thing, role, context);
+                if (bd.Total > fallbackScore)
+                {
+                    fallbackScore = bd.Total;
+                    fallbackWeapon = thing;
+                }
+            }
+
+            if (fallbackWeapon != null)
+            {
+                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 过渡武器: 空手无匹配, 使用 '{fallbackWeapon.LabelShort}' (rawScore={fallbackScore:F1}, role={role})");
+                var job = JobMaker.MakeJob(JobDefOf.Equip, fallbackWeapon);
+                Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
             }
         }
 
@@ -488,6 +534,9 @@ namespace AutoEverything.AutoEquipment
             // 先纠错：卸下远程角色错误持有的护盾腰带（护盾阻挡远程射击）
             // 放在 BeltAllocator 前：先卸下再分配，避免刚卸下又被重新分配
             RemoveWrongShieldBelt(role);
+
+            // 纠错：非奴隶不应穿戴奴隶项圈（Ideology DLC 奴隶专用装备）
+            RemoveSlaveCollar();
 
             // 腰带附件全局分配：纯近战角色（射击无火）优先装备护盾/消防背包
             // 受 3000 tick 全局周期控制，确保全局至少 1 人消防背包
@@ -580,6 +629,54 @@ namespace AutoEverything.AutoEquipment
             else
             {
                 AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateApparel: 无升级. 检查 {candidatesChecked} 候选");
+
+                // 过渡防具：赤身且无匹配防具时，穿戴任意可用防具过渡
+                if (Pawn.apparel.WornApparel.Count == 0)
+                {
+                    TryFallbackApparel(role, context);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 过渡防具兜底：赤身且无匹配防具时，穿戴最不差的可用防具作为过渡。
+        /// 仍排除 Veto 的防具（如护盾腰带对非 Brawler——比赤身更糟，会阻挡远程射击）。
+        /// 设计意图：赤身受温度/美观惩罚，过渡防具在下次评估时会被更好的匹配替换。
+        /// 用 ScoreBreakdown.Total 比较，选评分最高的过渡防具（即使是沾染/低品质也胜过赤身）。
+        /// </summary>
+        private void TryFallbackApparel(Role role, GearContext context)
+        {
+            Apparel fallbackApparel = null;
+            float fallbackScore = -99999f;
+
+            foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel))
+            {
+                if (!(thing is Apparel apparel)) continue;
+                if (apparel.IsForbidden(Pawn)) continue;
+                if (!Pawn.CanReserve(apparel) || !Pawn.CanReach(apparel, PathEndMode.ClosestTouch, Danger.Some)) continue;
+                if (!ApparelUtility.HasPartsToWear(Pawn, apparel.def)) continue;
+                if (apparel.def.apparel?.gender != Gender.None && apparel.def.apparel.gender != Pawn.gender) continue;
+                var bioApp = apparel.TryGetComp<CompBiocodable>();
+                if (bioApp != null && bioApp.Biocoded && bioApp.CodedPawn != Pawn) continue;
+                // 遵守装备策略限制（尊重玩家 outfit 设置）
+                if (Pawn.outfits?.CurrentApparelPolicy?.filter != null
+                    && !Pawn.outfits.CurrentApparelPolicy.filter.Allows(apparel))
+                    continue;
+
+                ScoreBreakdown bd = GearScorer.ScoreApparelWithBreakdown(Pawn, apparel, role, context);
+                // Veto 的防具（如护盾腰带）仍排除——对远程角色比赤身更糟
+                if (bd.Vetoed) continue;
+                if (bd.Total <= fallbackScore) continue;
+
+                fallbackScore = bd.Total;
+                fallbackApparel = apparel;
+            }
+
+            if (fallbackApparel != null)
+            {
+                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 过渡防具: 赤身无匹配, 穿戴 '{fallbackApparel.LabelShort}' (score={fallbackScore:F1}, role={role})");
+                var job = JobMaker.MakeJob(JobDefOf.Wear, fallbackApparel);
+                Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
             }
         }
 
@@ -610,6 +707,34 @@ namespace AutoEverything.AutoEquipment
                     Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下错误护盾腰带 '{ap.LabelShort}' (role={role}，护盾阻挡远程射击)");
                 }
                 // belt 层最多一件护盾腰带，卸下后即返回
+                return;
+            }
+        }
+
+        /// <summary>
+        /// 检测并卸下非奴隶身上的奴隶项圈。
+        /// 奴隶项圈是 Ideology DLC 为奴隶设计的装备，非奴隶穿着无意义。
+        /// 评分阶段已由 ApparelForbiddenScorer Veto，本方法处理旧存档/玩家手动穿戴的残留。
+        /// 复用 RemoveWrongShieldBelt 的卸下模式：apparel.Remove + GenDrop.TryDropSpawn。
+        /// </summary>
+        private void RemoveSlaveCollar()
+        {
+            if (DLCCompat.IsSlave(Pawn)) return;  // 奴隶保留项圈
+            if (Pawn.apparel?.WornApparel == null) return;
+
+            List<Apparel> worn = Pawn.apparel.WornApparel;
+            for (int i = worn.Count - 1; i >= 0; i--)
+            {
+                Apparel ap = worn[i];
+                if (!GearDefClassifier.IsSlaveCollar(ap)) continue;
+                if (Pawn.apparel.IsLocked(ap)) continue;
+
+                Pawn.apparel.Remove(ap);
+                Thing dropped;
+                if (GenDrop.TryDropSpawn(ap, Pawn.Position, Pawn.Map, ThingPlaceMode.Near, out dropped))
+                {
+                    Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下奴隶项圈 '{ap.LabelShort}' (非奴隶不应穿戴)");
+                }
                 return;
             }
         }

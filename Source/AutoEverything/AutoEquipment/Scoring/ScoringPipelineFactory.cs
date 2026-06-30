@@ -21,8 +21,8 @@ namespace AutoEverything.AutoEquipment.Scoring
 
         /// <summary>
         /// 获取武器评分管线。
-        /// 顺序：生物编码 → 特质 → 技能 → 情境 → 伤害 → 射程 → 品质 → 意识形态 → 耐久
-        /// 生物编码在前以短路否决。
+        /// 顺序：生物编码 → 禁止类约束 → 特质 → 技能 → 情境 → 伤害 → 射程 → 品质 → 意识形态 → 耐久
+        /// 硬性约束在前以短路否决。
         /// </summary>
         public static ScoringPipeline<Thing> GetWeaponPipeline()
         {
@@ -31,6 +31,7 @@ namespace AutoEverything.AutoEquipment.Scoring
                 var scorers = new List<IScorer<Thing>>
                 {
                     new WeaponBiocodedScorer(),     // 硬性约束，先检查
+                    new WeaponForbiddenScorer(),    // 禁止类武器（手榴弹/火箭）Veto
                     new WeaponTraitScorer(),        // 特质（含格斗者否决）
                     new WeaponSkillScorer(),        // 技能+兴趣度
                     new WeaponContextScorer(),      // 情境
@@ -47,9 +48,8 @@ namespace AutoEverything.AutoEquipment.Scoring
 
         /// <summary>
         /// 获取防具评分管线。
-        /// 顺序：护盾腰带约束 → 沾染 → 特质 → 工作 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 耐久 → 当前穿戴
-        /// 护盾腰带约束放首位：非 Brawler 角色 + 护盾腰带直接 Veto 短路，省后续计算。
-        /// 耐久修正放在末尾，作为对最终分数的乘数修正（损坏防具按 HP 比例扣分）。
+        /// 顺序：护盾腰带约束 → 禁止类约束 → 沾染 → 特质 → 工作 → 实验服偏好 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 耐久 → 当前穿戴
+        /// 硬性约束在前以短路否决。耐久修正放末尾，作为对最终分数的乘数修正（损坏防具按 HP 比例扣分）。
         /// </summary>
         public static ScoringPipeline<Apparel> GetApparelPipeline()
         {
@@ -58,9 +58,11 @@ namespace AutoEverything.AutoEquipment.Scoring
                 var scorers = new List<IScorer<Apparel>>
                 {
                     new ApparelShieldBeltScorer(),   // 护盾腰带硬约束（非 Brawler 拒绝）
+                    new ApparelForbiddenScorer(),    // 禁止类防具（奴隶项圈/死气背包）Veto
                     new ApparelTaintedScorer(),     // 沾染惩罚
                     new ApparelTraitScorer(),        // 特质
                     new ApparelWorkScorer(),         // 工作加成
+                    new ApparelLabCoatScorer(),      // 实验服偏好（研究型殖民者+50）
                     new ApparelContextScorer(),      // 情境（温度）
                     new ApparelArmorScorer(),       // 护甲
                     new ApparelInsulationScorer(),  // 保温

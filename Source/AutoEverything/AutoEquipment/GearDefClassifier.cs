@@ -52,6 +52,48 @@ namespace AutoEverything.AutoEquipment
         }
 
         /// <summary>
+        /// 奴隶项圈判定：用 RimWorld 原生 apparel.slaveApparel 标志位。
+        /// 覆盖原生 Apparel_Collar 与所有 MOD 扩展的奴隶项圈，最准且无需字符串匹配。
+        /// </summary>
+        public static bool IsSlaveCollar(Thing thing)
+        {
+            return thing?.def?.apparel?.slaveApparel == true;
+        }
+
+        /// <summary>
+        /// 死气背包判定：defName 含 DEADLIFE（Anomaly DLC 死气背包，释放毒云伤友军）。
+        /// </summary>
+        public static bool IsDeadlifePack(Thing thing)
+        {
+            return thing?.def != null
+                && thing.def.defName.IndexOf("DEADLIFE", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// 危险武器判定：手榴弹（defName/label 含 GRENADE）+ 火箭发射器（label 含 rocket launcher）。
+        /// 这些武器是单次消耗品，不适合作为持续主武器。
+        /// 注：EMP 手雷作为库存携带特例由 SidearmAllocator 处理，不经过武器评分管线。
+        /// </summary>
+        public static bool IsDangerousWeapon(Thing thing)
+        {
+            if (thing?.def == null) return false;
+            if (thing.def.defName.IndexOf("GRENADE", StringComparison.OrdinalIgnoreCase) >= 0
+                || thing.def.label.IndexOf("grenade", StringComparison.OrdinalIgnoreCase) >= 0)
+                return true;
+            return thing.def.label.IndexOf("rocket launcher", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// 实验服判定：defName 含 LABCOAT（覆盖原生 Apparel_LabCoat 与 MOD 扩展）。
+        /// 实验服提供 ResearchSpeed/EntityStudyRate 加成，适合研究型殖民者。
+        /// </summary>
+        public static bool IsLabCoat(Thing thing)
+        {
+            return thing?.def != null
+                && thing.def.defName.IndexOf("LABCOAT", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
         /// 检查 Pawn 是否已穿戴 belt 层附件（护盾腰带/消防背包等）。
         /// 统一 BeltAllocator.HasBelt 的遍历逻辑，避免重复实现。
         /// </summary>

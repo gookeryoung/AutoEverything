@@ -62,6 +62,44 @@
 | `Shooter`/`Hunter`/`Leader` | `Flexible`（自由[后排]）| 按评分自由选择，有重甲盈余时考虑 |
 | `Worker`/`Doctor`/`Pacifist`/`Default` | `Light`（轻甲[工人]）| 强制轻甲以保持工作效率 |
 
+### 禁止类装备
+
+部分装备因机制或定位不适合自动穿戴，通过评分管线 Veto 拒绝（不主动拾取）：
+
+| 装备类别 | 识别方式 | 处理 | Scorer |
+|---------|---------|------|--------|
+| 奴隶项圈 | `apparel.slaveApparel == true`（RimWorld 原生标志位）| 非奴隶角色 Veto `-9999f` + 已穿纠错 `RemoveSlaveCollar` 自动卸下 | `ApparelForbiddenScorer` |
+| 死气背包 | defName 含 `DEADLIFE`（释放毒云伤友军）| Veto `-9999f`（不主动穿，玩家手动给的保留） | `ApparelForbiddenScorer` |
+| 手榴弹 | defName/label 含 `GRENADE`（破片/燃烧瓶/毒气手雷）| Veto `-9000f`（单次消耗品，不适合持续主武器） | `WeaponForbiddenScorer` |
+| 火箭发射器 | label 含 `rocket launcher`（末日/三连火箭）| Veto `-9000f`（单次消耗品） | `WeaponForbiddenScorer` |
+
+**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底仍排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）——这些比赤身更糟。
+
+### 研究型殖民者偏好
+
+非战斗型殖民者（近战远程均无火）若医疗或研究技能高，优先穿实验服（`Apparel_LabCoat`，提供 `ResearchSpeed +0.05`、`EntityStudyRate +0.1`）。
+
+**研究型判定**（`ApparelLabCoatScorer.IsResearchOriented`）：
+- 角色 ≠ `Brawler`（轻甲工人/自由后排/医生等）
+- 射击与近战 passion 均为 `None`（非战斗型）
+- 医疗 ≥ 8 **或** 研究 ≥ 8（有专长可发挥）
+
+**加分**：+50（参考 `WeaponSkillScorer` 双修远程偏好分，让实验服在同类防具评分中显著领先）。
+
+### 过渡装备兜底
+
+当殖民者空手或赤身、且评分管线找不到匹配装备时，`CompGearManager` 会兜底拾取"最不差"的过渡装备，避免空手/赤身状态持续。过渡装备在下次评估周期会被更匹配的装备替换。
+
+| 兜底场景 | 触发条件 | 候选选择规则 | 例外 |
+|---------|---------|-------------|------|
+| 武器兜底（`TryFallbackWeapon`）| `EvaluateWeapon` 末尾 + `currentWeapon == null` | 扫描地图所有武器，跳过 Forbidden/无法到达/非暴力禁用，用 `ScoreBreakdown.Total`（含 Veto 前的技能分）选技能最契合者 | 格斗者特质（`TraitDefOf.Brawler`）+ 远程武器 → 跳过（拿远程会不开心） |
+| 防具兜底（`TryFallbackApparel`）| `EvaluateApparel` 末尾 + `Pawn.apparel.WornApparel.Count == 0` | 扫描地图所有防具，跳过 Forbidden/无法到达/部位不匹配/性别不符/生物编码不匹配/玩家 outfit 策略不允许，用 `ScoreBreakdown.Total` 选评分最高者（沾染/低品质也胜过赤身） | Veto 的防具（如护盾腰带对非 Brawler）仍排除——比赤身更糟，会阻挡远程射击 |
+
+**设计意图**：
+- 空手比拿一把不理想的武器更糟；过渡武器在下次评估时会被更好的匹配替换
+- 赤身受温度/美观惩罚；过渡防具即使沾染/低品质也胜过赤身
+- `Total` 而非最终分比较：含 Veto 前的技能分，让过渡装备选技能最契合的（即使因角色/特质被 Veto，技能分仍可用于排序）
+
 ## 腰带附件全局分配
 
 `BeltAllocator.cs` 为重甲前排（Heavy=Brawler）分配腰带附件（护盾腰带 / 消防背包）：
@@ -128,39 +166,42 @@
 
 ### 武器评分管线
 
-`ScoringPipelineFactory.GetWeaponPipeline()` 按以下顺序执行 9 个 Scorer：
+`ScoringPipelineFactory.GetWeaponPipeline()` 按以下顺序执行 10 个 Scorer：
 
 | 顺序 | Scorer | 说明 |
 |------|--------|------|
 | 1 | `WeaponBiocodedScorer` | 生物编码检查，不匹配直接 Veto |
-| 2 | `WeaponTraitScorer` | 特质（仅 `Brawler` 特质否决远程武器，技能型 Brawler 不否决） |
-| 3 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0）；双修角色（射击+近战均有火）远程武器额外 +50 |
-| 4 | `WeaponContextScorer` | 情境加成（战斗 +DPS / 狩猎 +射程） |
-| 5 | `WeaponDpsScorer` | DPS 与伤害倍率 |
-| 6 | `WeaponRangeScorer` | 射程 |
-| 7 | `WeaponQualityScorer` | 品质 |
-| 8 | `WeaponIdeologyScorer` | 意识形态偏好 |
-| 9 | `WeaponDurabilityScorer` | 耐久修正（乘法） |
+| 2 | `WeaponForbiddenScorer` | 禁止类武器（手榴弹/火箭发射器）Veto `-9000f`，单次消耗品不适合持续主武器 |
+| 3 | `WeaponTraitScorer` | 特质（仅 `Brawler` 特质否决远程武器，技能型 Brawler 不否决） |
+| 4 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0）；双修角色（射击+近战均有火）远程武器额外 +50 |
+| 5 | `WeaponContextScorer` | 情境加成（战斗 +DPS / 狩猎 +射程） |
+| 6 | `WeaponDpsScorer` | DPS 与伤害倍率 |
+| 7 | `WeaponRangeScorer` | 射程 |
+| 8 | `WeaponQualityScorer` | 品质 |
+| 9 | `WeaponIdeologyScorer` | 意识形态偏好 |
+| 10 | `WeaponDurabilityScorer` | 耐久修正（乘法） |
 
 ### 防具评分管线
 
-`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 13 个 Scorer：
+`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 15 个 Scorer：
 
 | 顺序 | Scorer | 说明 |
 |------|--------|------|
 | 1 | `ApparelShieldBeltScorer` | 护盾腰带硬约束（非 Brawler 角色 + 护盾腰带 → Veto `-9999f`） |
-| 2 | `ApparelTaintedScorer` | 沾染惩罚 |
-| 3 | `ApparelTraitScorer` | 特质偏好 |
-| 4 | `ApparelWorkScorer` | 工作属性加成 |
-| 5 | `ApparelContextScorer` | 温度情境 |
-| 6 | `ApparelArmorScorer` | 护甲值 |
-| 7 | `ApparelInsulationScorer` | 保温 |
-| 8 | `ApparelMoveSpeedScorer` | 移速影响 |
-| 9 | `ApparelQualityScorer` | 品质 |
-| 10 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
-| 11 | `ApparelIdeologyScorer` | 意识形态服装 |
-| 12 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
-| 13 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
+| 2 | `ApparelForbiddenScorer` | 禁止类防具（奴隶项圈非奴隶 / 死气背包）Veto `-9999f` |
+| 3 | `ApparelTaintedScorer` | 沾染惩罚 |
+| 4 | `ApparelTraitScorer` | 特质偏好 |
+| 5 | `ApparelWorkScorer` | 工作属性加成 |
+| 6 | `ApparelLabCoatScorer` | 实验服偏好（研究型殖民者 +50，见下方研究型殖民者偏好） |
+| 7 | `ApparelContextScorer` | 温度情境 |
+| 8 | `ApparelArmorScorer` | 护甲值 |
+| 9 | `ApparelInsulationScorer` | 保温 |
+| 10 | `ApparelMoveSpeedScorer` | 移速影响 |
+| 11 | `ApparelQualityScorer` | 品质 |
+| 12 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
+| 13 | `ApparelIdeologyScorer` | 意识形态服装 |
+| 14 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
+| 15 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
 
 ### 副武器评分
 
