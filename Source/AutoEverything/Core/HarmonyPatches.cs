@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System;
 using HarmonyLib;
 using RimWorld;
+using UnityEngine;
 using Verse;
 using AutoEverything.AutoEquipment;
+using AutoEverything.AutoMarkPawn;
 
 namespace AutoEverything.Core
 {
@@ -23,14 +25,33 @@ namespace AutoEverything.Core
         {
             var harmony = new Harmony(HarmonyID);
             // 显式 Patch：避免 PatchAll 扫描整个程序集的开销
-            // 仅 2 个补丁，显式注册更清晰且启动更快
             harmony.Patch(
                 AccessTools.Method(typeof(Pawn), "SpawnSetup"),
                 postfix: new HarmonyMethod(typeof(Pawn_SpawnSetup_Patch), nameof(Pawn_SpawnSetup_Patch.Postfix)));
             harmony.Patch(
                 AccessTools.Method(typeof(Pawn_DraftController), "set_Drafted"),
                 postfix: new HarmonyMethod(typeof(DraftController_SetDrafted_Patch), nameof(DraftController_SetDrafted_Patch.Postfix)));
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (显式注册 2 个 Postfix)");
+            // ColonistBar.DrawColonist 补丁：在殖民者栏为 S+ 殖民者绘制红色星标覆盖
+            // 方法可能因 RimWorld 版本差异不存在，用 try-catch 降级（星标仍显示在名字中）
+            try
+            {
+                var drawMethod = AccessTools.Method("RimWorld.ColonistBar:DrawColonist");
+                if (drawMethod != null)
+                {
+                    harmony.Patch(drawMethod,
+                        postfix: new HarmonyMethod(typeof(ColonistBar_DrawColonist_Patch),
+                            nameof(ColonistBar_DrawColonist_Patch.Postfix)));
+                }
+                else
+                {
+                    Log.Warning("[AutoEverything] ColonistBar.DrawColonist 未找到，红色星标覆盖图降级为仅名字后缀");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[AutoEverything] ColonistBar.DrawColonist patch 失败: " + ex.Message);
+            }
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (显式注册 Postfix)");
         }
 
         /// <summary>
@@ -157,6 +178,51 @@ namespace AutoEverything.Core
                     {
                         Log.Warning("[AutoEverything] " + pawn.LabelShort + " 取消征召恢复失败: " + ex.Message);
                     }
+                }
+            }
+        }
+
+        /// <summary>
+        /// ColonistBar.DrawColonist 的 Postfix：在殖民者栏为 S+ 殖民者绘制鲜艳红色星标。
+        /// 仅在 autoMarkPawn 开启且 Pawn 为高价值（S+）时绘制。
+        /// 星标绘制在殖民者栏条目右上角，与名字后缀 "★" 形成双重视觉提示。
+        ///
+        /// 参数绑定：DrawColonist(Rect rect, Pawn colonist, ...) 的前两个参数。
+        /// 若 RimWorld 版本差异导致参数名不匹配，Postfix 不绘制（降级为仅名字后缀星标）。
+        /// </summary>
+        public static class ColonistBar_DrawColonist_Patch
+        {
+            private static readonly Color StarColor = new Color(1.0f, 0.15f, 0.15f);
+
+            public static void Postfix(Rect rect, Pawn colonist)
+            {
+                if (!AESettings.enabled || !AESettings.autoMarkPawn) return;
+                if (colonist == null) return;
+                if (rect.width <= 0f) return;
+
+                try
+                {
+                    if (!PawnMarker.IsHighValue(colonist)) return;
+
+                    // 在殖民者栏条目右上角绘制红色星标
+                    float starSize = 14f;
+                    Rect starRect = new Rect(rect.xMax - starSize - 2f, rect.y + 2f, starSize, starSize);
+
+                    Color prevColor = GUI.color;
+                    GUI.color = StarColor;
+                    Text.Font = GameFont.Small;
+                    Text.Anchor = TextAnchor.MiddleCenter;
+                    bool prevWrap = Text.WordWrap;
+                    Text.WordWrap = false;
+                    Widgets.Label(starRect, TierTagHelper.StarMarker);
+                    Text.WordWrap = prevWrap;
+                    Text.Anchor = TextAnchor.UpperLeft;
+                    GUI.color = prevColor;
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorOnce("[AutoEverything] 殖民者栏星标绘制失败: " + ex.Message,
+                        (colonist?.thingIDNumber ?? 0) ^ 0xA600);
                 }
             }
         }

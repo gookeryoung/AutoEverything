@@ -7,6 +7,7 @@ using AutoEverything.RoleEvaluation;
 using AutoEverything.AutoEquipment;
 using AutoEverything.AutoEquipment.Scoring;
 using AutoEverything.Allocation;
+using AutoEverything.AutoMarkPawn;
 
 namespace AutoEverything.UI
 {
@@ -111,8 +112,8 @@ namespace AutoEverything.UI
         {
             labelKey = "AE_Tab";
 
-            // 高度增加以容纳徽章区与状态摘要
-            size = new Vector2(360f, 600f);
+            // 高度增加以容纳徽章区与状态摘要 + 底部 4 勾选框
+            size = new Vector2(360f, 632f);
         }
 
         public override bool IsVisible
@@ -136,15 +137,15 @@ namespace AutoEverything.UI
             // 食尸鬼可能没有 comp（被排除注入），仍允许显示评级信息
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：3 勾选框 + 1 按钮 + 4 间隔
+            // 底部区预留高度：4 勾选框 + 1 按钮 + 5 间隔
             float buttonHeight = 30f;
             float buttonGap = 8f;
             float checkboxHeight = 24f;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（3 勾选框 + 1 按钮 + 4 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 3 + buttonHeight + buttonGap * 4));
+            // 内容区高度 = 总高 - 底部区（4 勾选框 + 1 按钮 + 5 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 4 + buttonHeight + buttonGap * 5));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -386,11 +387,40 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerGearNow();
             }
 
-            // 4. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
+            // 4. 高价值星标勾选框：勾选立即执行 + 启用周期自动；取消勾选清除所有星标
+            Rect markCheckRect = new Rect(
+                rect.x,
+                gearCheckRect.yMax + buttonGap,
+                rect.width,
+                checkboxHeight);
+
+            bool prevWrap4 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevMark = AESettings.autoMarkPawn;
+            Widgets.CheckboxLabeled(markCheckRect, "AE_AutoMarkPawn".Translate(), ref AESettings.autoMarkPawn);
+            Text.WordWrap = prevWrap4;
+            TooltipHandler.TipRegion(markCheckRect, "AE_TT_AutoMarkPawn".Translate());
+            // 状态变化检测：勾选时立即执行；取消勾选时清除所有星标
+            if (AESettings.autoMarkPawn != prevMark)
+            {
+                if (AESettings.autoMarkPawn)
+                {
+                    AutoExecutor.TriggerMarkNow();
+                }
+                else
+                {
+                    int cleared = PawnMarker.ClearMarkers();
+                    Messages.Message(
+                        "AE_AutoMarkPawnCleared".Translate(cleared),
+                        MessageTypeDefOf.TaskCompletion);
+                }
+            }
+
+            // 5. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
             // 食尸鬼面板也显示此按钮（统一入口），但 GlobalAllocator 内部会跳过食尸鬼
             Rect buttonRect = new Rect(
                 rect.x,
-                gearCheckRect.yMax + buttonGap,
+                markCheckRect.yMax + buttonGap,
                 rect.width,
                 buttonHeight);
 

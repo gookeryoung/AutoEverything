@@ -227,6 +227,7 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_AutoTierTag>Auto Tier Rating</AE_AutoTierTag>
   <AE_AutoWorkConfig>Auto Work Config</AE_AutoWorkConfig>
   <AE_AutoGearReallocate>Auto Gear Reallocate</AE_AutoGearReallocate>
+  <AE_AutoMarkPawn>High-Value Marker</AE_AutoMarkPawn>
   <AE_TT_AutoTierTag>When enabled, automatically applies tier rating: every 3000 ticks and immediately when new colonists arrive.
 Checking it triggers one immediate execution; unchecking clears all tier tags and restores original names.</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>When enabled, automatically reallocates work priorities: every 3000 ticks and immediately when new colonists arrive.
@@ -234,5 +235,10 @@ Checking it triggers one immediate execution; unchecking only stops auto executi
   <AE_TT_AutoGearReallocate>When enabled, automatically evaluates gear upgrades (lightweight check): every 3000 ticks and immediately when new colonists arrive.
 Does not interrupt drafted pawns; slaves and locked pawns are excluded; does not drop current gear, only swaps when better gear is available.
 Checking it triggers one immediate execution; unchecking only stops auto execution, current gear is retained.</AE_TT_AutoGearReallocate>
+  <AE_TT_AutoMarkPawn>When enabled, automatically appends a bright red star marker to the name of S+ tier (S/SS/SSS) colonists: every 3000 ticks and immediately when new colonists arrive.
+The star is shown both as a red overlay on the colonist bar (top-right corner) and in message notifications, making high-value colonists easy to spot at a glance.
+Checking it triggers one immediate execution; unchecking clears all star markers.</AE_TT_AutoMarkPawn>
   <AE_AutoGearReallocateResult>Auto gear evaluation triggered for {0} colonists</AE_AutoGearReallocateResult>
+  <AE_AutoMarkPawnResult>Marked {0} high-value colonists with red star</AE_AutoMarkPawnResult>
+  <AE_AutoMarkPawnCleared>Cleared star markers from {0} colonists</AE_AutoMarkPawnCleared>
 </LanguageData>

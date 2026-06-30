@@ -228,6 +228,7 @@
   <AE_AutoTierTag>人员自动评级</AE_AutoTierTag>
   <AE_AutoWorkConfig>工作自动配置</AE_AutoWorkConfig>
   <AE_AutoGearReallocate>装备自动重配</AE_AutoGearReallocate>
+  <AE_AutoMarkPawn>高价值星标</AE_AutoMarkPawn>
   <AE_TT_AutoTierTag>勾选后自动执行人员评级：每 3000 tick 一次，新增殖民者时立即触发。
 勾选时立即执行一次；取消勾选时清除所有评级标签并恢复原名。</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>勾选后自动执行工作重配：每 3000 tick 一次，新增殖民者时立即触发。
@@ -235,5 +236,10 @@
   <AE_TT_AutoGearReallocate>勾选后自动执行装备重配（轻量升级检查）：每 3000 tick 一次，新增殖民者时立即触发。
 不打断征召状态；奴隶与锁定者除外；不放下当前装备，仅评估是否有更优装备可换。
 勾选时立即执行一次；取消勾选仅停止自动执行，保留当前装备。</AE_TT_AutoGearReallocate>
+  <AE_TT_AutoMarkPawn>勾选后自动为 S+ 档次（S/SS/SSS）殖民者名字追加鲜艳红色星标 ★：每 3000 tick 一次，新增殖民者时立即触发。
+星标同时显示在殖民者栏右上角（红色覆盖图）与消息提示中，便于一眼识别高价值殖民者。
+勾选时立即执行一次；取消勾选时清除所有星标。</AE_TT_AutoMarkPawn>
   <AE_AutoGearReallocateResult>已自动重配 {0} 个殖民者的装备</AE_AutoGearReallocateResult>
+  <AE_AutoMarkPawnResult>已为 {0} 个高价值殖民者标记红色星标 ★</AE_AutoMarkPawnResult>
+  <AE_AutoMarkPawnCleared>已清除 {0} 个殖民者的星标</AE_AutoMarkPawnCleared>
 </LanguageData>

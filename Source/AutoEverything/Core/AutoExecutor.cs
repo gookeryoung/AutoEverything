@@ -3,6 +3,7 @@ using RimWorld;
 using Verse;
 using AutoEverything.AutoEquipment;
 using AutoEverything.AutoWork;
+using AutoEverything.AutoMarkPawn;
 
 namespace AutoEverything.Core
 {
@@ -37,6 +38,7 @@ namespace AutoEverything.Core
         private static int lastWorkTick = -9999;
         private static int lastTierTick = -9999;
         private static int lastGearTick = -9999;
+        private static int lastMarkTick = -9999;
 
         // 殖民者数量缓存：-1 = 首次只记录不触发，避免存档加载误触发
         private static int lastColonistCount = -1;
@@ -45,6 +47,7 @@ namespace AutoEverything.Core
         private const int WorkErrorSalt = 0xA200;
         private const int TierErrorSalt = 0xA300;
         private const int GearErrorSalt = 0xA400;
+        private const int MarkErrorSalt = 0xA500;
 
         /// <summary>
         /// 由 CompGearManager.CompTick 每 tick 调用。
@@ -66,11 +69,12 @@ namespace AutoEverything.Core
                 lastWorkTick = tick;
                 lastTierTick = tick;
                 lastGearTick = tick;
+                lastMarkTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 return;
             }
 
-            // 新增殖民者检测：数量增加时立即触发工作+评级+装备重配（不弹消息）
+            // 新增殖民者检测：数量增加时立即触发工作+评级+装备重配+星标（不弹消息）
             int currentCount = PawnsFinder.AllMaps_FreeColonists.Count;
             if (currentCount > lastColonistCount)
             {
@@ -78,6 +82,7 @@ namespace AutoEverything.Core
                 ExecuteWork(tick, showMessage: false);
                 ExecuteTier(tick, showMessage: false);
                 ExecuteGear(tick, showMessage: false);
+                ExecuteMark(tick, showMessage: false);
                 return;
             }
             lastColonistCount = currentCount;
@@ -94,6 +99,10 @@ namespace AutoEverything.Core
             if (tick - lastGearTick >= ExecuteInterval)
             {
                 ExecuteGear(tick, showMessage: false);
+            }
+            if (tick - lastMarkTick >= ExecuteInterval)
+            {
+                ExecuteMark(tick, showMessage: false);
             }
         }
 
@@ -119,6 +128,14 @@ namespace AutoEverything.Core
         public static void TriggerGearNow()
         {
             ExecuteGear(Find.TickManager.TicksGame, showMessage: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行高价值星标标记并弹消息框反馈。
+        /// </summary>
+        public static void TriggerMarkNow()
+        {
+            ExecuteMark(Find.TickManager.TicksGame, showMessage: true);
         }
 
         /// <summary>
@@ -223,6 +240,33 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 自动装备重配失败: " + ex.Message, GearErrorSalt);
+            }
+        }
+
+        /// <summary>
+        /// 执行高价值星标标记：调用 PawnMarker.ApplyMarkers()。
+        /// 受 AESettings.autoMarkPawn 开关控制，关闭时不执行（清除由 ITab 勾选变化处理）。
+        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
+        /// </summary>
+        private static void ExecuteMark(int tick, bool showMessage)
+        {
+            lastMarkTick = tick;
+            if (!AESettings.autoMarkPawn) return;
+
+            try
+            {
+                int n = PawnMarker.ApplyMarkers();
+                AEDebug.Log(() => $"[AutoExecutor] 高价值星标: {n} 个殖民者 (tick={tick})");
+                if (showMessage)
+                {
+                    Messages.Message(
+                        "AE_AutoMarkPawnResult".Translate(n),
+                        MessageTypeDefOf.TaskCompletion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 高价值星标失败: " + ex.Message, MarkErrorSalt);
             }
         }
     }

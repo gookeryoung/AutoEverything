@@ -24,6 +24,7 @@
 - `Source/AutoEverything/AutoEquipment/Scoring/Apparels/*` → `namespace AutoEverything.AutoEquipment.Scoring.Apparels`
 - `Source/AutoEverything/Allocation/*` → `namespace AutoEverything.Allocation`
 - `Source/AutoEverything/AutoWork/*` → `namespace AutoEverything.AutoWork`
+- `Source/AutoEverything/AutoMarkPawn/*` → `namespace AutoEverything.AutoMarkPawn`
 - `Source/AutoEverything/UI/*` → `namespace AutoEverything.UI`
 
 ### 模块职责
@@ -33,6 +34,7 @@
 - **AutoEquipment**：装备评分系统（`CompGearManager` Tick 入口、`GearScorer` 门面、`GearDefClassifier` 装备分类、`Scoring/` 评分管线与各 Scorer）
 - **Allocation**：全局分配策略（`GlobalAllocator`、`SidearmAllocator`、`BeltAllocator`、`PawnCombatProfile`）
 - **AutoWork**：自动工作优先级分配（`WorkAllocator`）
+- **AutoMarkPawn**：高价值殖民者标记（S+ 档次星标追加到 Nick、殖民者栏红色星标覆盖图）
 - **UI**：玩家界面（`ITab_GearManager`、`Dialog_GlobalReallocate`、`PresetDetailsWindow`）
 
 未来扩展（自动药物/自动食物等）应在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
@@ -128,7 +130,8 @@
 - [ ] 改了 `BeltAllocator.cs`？→ README `腰带附件全局分配` 章节已更新
 - [ ] 改了 `GetArmorPreference`？→ README `护甲偏好` 表格已更新
 - [ ] 改了 `AutoExecutor.cs`？→ README `自动执行` 章节 + `评估周期` 表格已更新
-- [ ] 改了 ITab 底部勾选框（人员自动评级/工作自动配置）？→ README `全局人物评级标签` + `自动工作分配` 入口章节已更新
+- [ ] 改了 ITab 底部勾选框（人员自动评级/工作自动配置/装备自动重配/高价值星标）？→ README `全局人物评级标签` + `自动工作分配` + `装备自动重配` + `高价值殖民者星标` 入口章节已更新
+- [ ] 改了 `PawnMarker.cs` / `AutoMarkPawn` 模块？→ README `高价值殖民者星标` 章节已更新
 - [ ] `make check` 通过
 - [ ] 调用 `uvx --from pyflowx gitt a`, `uvx --from pyflowx pymake p` 提交代码
 
@@ -150,10 +153,15 @@
 
 ## ITab 面板布局
 
-- 面板尺寸 `360f × 600f`（高度增加以容纳第三个按钮：全局工作重配），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
+- 面板尺寸 `360f × 632f`（高度容纳底部 4 勾选框 + 1 按钮），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
 - 缓存周期 60 tick：角色/情境/评级/数值摘要避免每帧重算
 - 徽章行 4 列等宽：角色 / 情境 / 评级 / 护甲偏好（食尸鬼用"食尸鬼"徽章替代护甲偏好）
 - **文字防换行强制**：所有 `Widgets.Label` 绘制前 `Text.WordWrap = false`，绘制后恢复
 - **标签宽度动态计算**：用 `Text.CalcSize(labelText).x + 留白`，禁止固定宽度（如 `60f`）
 - 完整信息放 Tooltip，徽章/标签本身只做概览
-- 底部双按钮：全局人物评级 + 全局装备重配，固定位置不随滚动
+- 底部 4 勾选框 + 1 按钮，固定位置不随滚动：
+  - 人员自动评级（`autoTierTag`）
+  - 工作自动配置（`autoWorkEnabled`）
+  - 装备自动重配（`autoGearEnabled`）
+  - 高价值星标（`autoMarkPawn`）
+  - 全局装备重配按钮（占满宽度）

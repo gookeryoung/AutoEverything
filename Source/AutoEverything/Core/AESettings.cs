@@ -20,6 +20,7 @@ namespace AutoEverything.Core
         public static bool autoWorkEnabled = true;  // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;       // 人员自动评级（周期触发 + 新增人员触发）
         public static bool autoGearReallocate = true;  // 自动装备重配主开关（轻量升级检查，周期触发）
+        public static bool autoMarkPawn = true;       // 高价值殖民者星标标记（S+ 追加 ★，周期触发 + 新增人员触发）
 
         // 情境切换
         public static bool combatSwitch = true;      // 征召/取消征召时切换装备
@@ -135,7 +136,9 @@ namespace AutoEverything.Core
                 if (nt == null) continue;
 
                 string currentNick = nt.Nick ?? string.Empty;
-                // 剥离已有评级前缀，得到"纯净名"
+                // 记录是否已有星标（AutoMarkPawn 模块追加的 "★"），剥离后保留以避免同一 tick 内 Name 重复设置
+                bool hadStar = TierTagHelper.HasStar(currentNick);
+                // 剥离已有评级前缀与星标，得到"纯净名"
                 string cleanNick = TierTagHelper.Strip(currentNick);
 
                 // 首次应用：保存原名到字典（若已存在则保留最早的）
@@ -153,6 +156,8 @@ namespace AutoEverything.Core
                 // 计算当前系统评级
                 CombatTier tier = CombatEvaluator.GetAutoCombatTier(pawn);
                 string newNick = tier + TIER_TAG_PREFIX_SEPARATOR + cleanNick;
+                // 保留已有星标：星标由 AutoMarkPawn 模块管理，此处仅透传避免闪烁
+                if (hadStar) newNick += TierTagHelper.StarMarker;
 
                 if (newNick != currentNick)
                 {
@@ -196,6 +201,9 @@ namespace AutoEverything.Core
                 string currentNick = nt.Nick ?? string.Empty;
                 if (!TierTagHelper.HasPrefix(currentNick)) continue;
 
+                // 记录是否已有星标，剥离前缀后保留星标（星标由 autoMarkPawn 独立管理）
+                bool hadStar = TierTagHelper.HasStar(currentNick);
+
                 int pid = pawn.thingIDNumber;
                 string cleanNick;
                 if (tierTagOriginals.TryGetValue(pid, out string saved))
@@ -206,6 +214,8 @@ namespace AutoEverything.Core
                 {
                     cleanNick = TierTagHelper.Strip(currentNick);
                 }
+                // 保留星标：清除评级前缀不应影响 autoMarkPawn 的星标
+                if (hadStar) cleanNick += TierTagHelper.StarMarker;
 
                 if (cleanNick != currentNick)
                 {
@@ -448,6 +458,7 @@ namespace AutoEverything.Core
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
             LookCompat(ref autoGearReallocate, "autoGearReallocate", true);
+            LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
 
