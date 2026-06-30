@@ -159,7 +159,7 @@ namespace AutoEverything.AutoWork
         // 第 2 遍：关键工作（Doctor/Warden/Childcare）
         //   - 有兴趣 → priority=1，计入 workCount
         //   - 保证至少 2 人 priority >= 1（不足时按技能等级补到 1）
-        //   - 其余无兴趣者 → priority=4
+        //   - 其余无兴趣者 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
 
         private static void AssignKeyWorkPriorities()
@@ -212,17 +212,17 @@ namespace AutoEverything.AutoWork
                 int need = 2 - assigned;
                 for (int i = 0; i < nonPassionate.Count; i++)
                 {
-                    int priority = i < need ? 1 : 4;
+                    int priority = i < need ? 1 : 0;
                     nonPassionate[i].workSettings.SetPriority(workType, priority);
                     if (priority <= 2) workCount[nonPassionate[i]]++;
                 }
             }
             else
             {
-                // 已 >= 2 人有兴趣，无兴趣者 → 4
+                // 已 >= 2 人有兴趣，无兴趣者 → 0（禁用）
                 for (int i = 0; i < nonPassionate.Count; i++)
                 {
-                    nonPassionate[i].workSettings.SetPriority(workType, 4);
+                    nonPassionate[i].workSettings.SetPriority(workType, 0);
                 }
             }
         }
@@ -285,7 +285,7 @@ namespace AutoEverything.AutoWork
         // 第 4 遍：研究
         //   - 候选排序：passion desc → workCount asc → skill desc
         //   - guarantee 1：top 1 → priority=2，计入 workCount
-        //   - 其余 → priority=4
+        //   - 其余 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
 
         private static void AssignResearchPriorities()
@@ -305,10 +305,10 @@ namespace AutoEverything.AutoWork
             // 排序：passion desc → workCount asc → skill desc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
-            // guarantee 1：top 1 → priority=2，其余 → 4
+            // guarantee 1：top 1 → priority=2，其余 → 0（禁用）
             for (int i = 0; i < workCandidates.Count; i++)
             {
-                int priority = i < 1 ? 2 : 4;
+                int priority = i < 1 ? 2 : 0;
                 workCandidates[i].workSettings.SetPriority(workType, priority);
                 if (priority <= 2) workCount[workCandidates[i]]++;
             }
@@ -318,7 +318,7 @@ namespace AutoEverything.AutoWork
         // 第 5 遍：其他技能工作（Cooking/Growing/Mining/Crafting 等）
         //   - 候选排序：passion desc → workCount asc → skill desc
         //   - guarantee 2：top 2 → priority=2，计入 workCount
-        //   - 其余 → priority=4
+        //   - 其余 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
 
         private static void AssignOtherSkillWorkPriorities()
@@ -343,10 +343,10 @@ namespace AutoEverything.AutoWork
             // 排序：passion desc → workCount asc → skill desc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
-            // guarantee 2：top 2 → priority=2，其余 → 4
+            // guarantee 2：top 2 → priority=2，其余 → 0（禁用）
             for (int i = 0; i < workCandidates.Count; i++)
             {
-                int priority = i < 2 ? 2 : 4;
+                int priority = i < 2 ? 2 : 0;
                 workCandidates[i].workSettings.SetPriority(workType, priority);
                 if (priority <= 2) workCount[workCandidates[i]]++;
             }

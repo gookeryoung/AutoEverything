@@ -348,12 +348,14 @@
 | 顺序 | 工作分类 | 包含类型 | 分配规则 | Others |
 |------|---------|---------|---------|--------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | 全部 → 1 | — |
-| 2 | 关键 | Doctor / Warden / Childcare | 有兴趣 → 1；保证至少 2 人 priority ≥ 1（不足时按技能等级补足）；计入工作计数 | → 4 |
+| 2 | 关键 | Doctor / Warden / Childcare | 有兴趣 → 1；保证至少 2 人 priority ≥ 1（不足时按技能等级补足）；计入工作计数 | → 0 |
 | 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 工作计数升序 → 技能降序；top 2 → 2；计入工作计数 | → 0 |
-| 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | → 4 |
-| 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | → 4 |
+| 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | → 0 |
+| 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | → 0 |
 | 6 | 杂务 | Hauling / Cleaning | S 档 = 4，A/B/C 档 = 3，D/X 档 = 1 | — |
 | 7 | 非技能 | BasicWorker 等 | 全部 → 3 | — |
+
+**Others 优先级 = 0（禁用）**：无兴趣者在保证数量满足后一律设为 0，不作为备选。设计意图：无兴趣者不应承担该工作，避免低效产出与心情惩罚。
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/搬运/清洁/非技能不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
