@@ -61,7 +61,7 @@ namespace AutoEverything.AutoWork
                     if (DLCCompat.IsGhoul(pawn)) continue;
                     if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
                     if (pawn.Dead || pawn.Downed) continue;
-                    // 未成年可参与工作，保留
+                    if (pawn.workSettings == null) continue;
                     candidatePawns.Add(pawn);
                 }
                 // 奴隶（Biotech DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
@@ -70,6 +70,7 @@ namespace AutoEverything.AutoWork
                     if (DLCCompat.IsGhoul(pawn)) continue;
                     if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
                     if (pawn.Dead || pawn.Downed) continue;
+                    if (pawn.workSettings == null) continue;
                     candidatePawns.Add(pawn);
                 }
             }
@@ -246,18 +247,18 @@ namespace AutoEverything.AutoWork
 
             if (isFishing)
             {
-                // Fishing：top 2 → priority=3，其余 → 0（钓鱼作为低强度工作，仅 2 人 priority=3 兜底）
+                // Fishing：top 2 → priority=3，其余 → 技能兜底（≥8→3，否则 0）
                 for (int i = 0; i < workCandidates.Count; i++)
                 {
                     Pawn pawn = workCandidates[i];
-                    int priority = i < 2 ? 3 : 0;
+                    int priority = i < 2 ? 3 : GetSkillFloorPriority(pawn, workType.relevantSkills);
                     pawn.workSettings.SetPriority(workType, priority);
                     if (priority <= 2) workCount[pawn]++;
                 }
             }
             else
             {
-                // Hunting：top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
+                // Hunting：top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → 技能兜底（≥8→3，否则 0）
                 for (int i = 0; i < workCandidates.Count; i++)
                 {
                     Pawn pawn = workCandidates[i];
@@ -272,7 +273,7 @@ namespace AutoEverything.AutoWork
                     }
                     else
                     {
-                        priority = 0;
+                        priority = GetSkillFloorPriority(pawn, workType.relevantSkills);
                     }
                     pawn.workSettings.SetPriority(workType, priority);
                     if (priority <= 2) workCount[pawn]++;
@@ -321,7 +322,7 @@ namespace AutoEverything.AutoWork
             // 排序：passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
-            // guarantee 1：top 1 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
+            // guarantee 1：top 1 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → 技能兜底（≥8→3，否则 0）
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
@@ -336,7 +337,7 @@ namespace AutoEverything.AutoWork
                 }
                 else
                 {
-                    priority = 0;
+                    priority = GetSkillFloorPriority(pawn, workType.relevantSkills);
                 }
                 pawn.workSettings.SetPriority(workType, priority);
                 if (priority <= 2) workCount[pawn]++;
@@ -372,9 +373,9 @@ namespace AutoEverything.AutoWork
             // 排序：passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
-            // guarantee 2：top 2 内有火 → priority=2，无火 → priority=3；其余 → 0
-            // 设计意图：至少 2 人承担专业工作，有火者优先承担（priority=2 计入 workCount），
-            // 无火者兜底（priority=3 不计入 workCount，避免影响后续负载均衡）
+            // guarantee 2：top 2 内有火 → priority=2，无火 → priority=3；其余 → 技能兜底（≥8→3，否则 0）
+            // 设计意图：至少 2 人承担专业工作，有火者优先承担（priority=2 计入 workCount）；
+            // top 2 外的高技能者（≥8）也保留 priority=3 备选，避免高技能奴隶/殖民者被排除在工作外
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
@@ -385,7 +386,7 @@ namespace AutoEverything.AutoWork
                 }
                 else
                 {
-                    priority = 0;
+                    priority = GetSkillFloorPriority(pawn, workType.relevantSkills);
                 }
                 pawn.workSettings.SetPriority(workType, priority);
                 if (priority <= 2) workCount[pawn]++;
@@ -492,6 +493,32 @@ namespace AutoEverything.AutoWork
                 if (v > max) max = v;
             }
             return max;
+        }
+
+        /// <summary>
+        /// 返回该 Pawn 在指定技能集上的最高技能等级（用于"等级≥8 即使无火也至少 priority=3"兜底）。
+        /// </summary>
+        private static int GetMaxSkillLevelForSkills(Pawn pawn, List<SkillDef> skills)
+        {
+            if (pawn?.skills == null) return 0;
+            if (skills == null || skills.Count == 0) return 0;
+            int max = 0;
+            for (int i = 0; i < skills.Count; i++)
+            {
+                SkillRecord sr = pawn.skills.GetSkill(skills[i]);
+                if (sr == null) continue;
+                if (sr.Level > max) max = sr.Level;
+            }
+            return max;
+        }
+
+        /// <summary>
+        /// 技能等级兜底：相关技能最高等级 ≥ 8 时返回 3，否则返回 0。
+        /// 用于"无火但技能高者至少 priority=3"的全局规则，避免高技能奴隶/殖民者被排除在工作外。
+        /// </summary>
+        private static int GetSkillFloorPriority(Pawn pawn, List<SkillDef> skills)
+        {
+            return GetMaxSkillLevelForSkills(pawn, skills) >= 8 ? 3 : 0;
         }
 
         /// <summary>
