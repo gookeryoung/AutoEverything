@@ -204,18 +204,26 @@
 
 ### 全局价值评级档次（CombatTier）
 
-殖民者**全局价值**按 `CombatTier` 枚举离散化为 6 档，DEBUG 模式下在面板角色行与日志中以 `S#王五` 格式显示（自定义评级则显示 `S(A)#王五`，括号内为玩家指定档）。
+殖民者**全局价值**按 `CombatTier` 枚举离散化为 8 档，DEBUG 模式下在面板角色行与日志中以 `S#王五` 格式显示（自定义评级则显示 `S(A)#王五`，括号内为玩家指定档）。
 
 **评级规则（不再局限于战斗维度，覆盖生产、社交、特质等全局价值）：**
 
 | 档次 | 判定条件（任一满足即归此档） | 说明 |
 |------|------------------------------|------|
-| **S** | 1. 坚韧（Tough）+ 格斗双火<br>2. 乱开枪（ShootingAccuracy degree=-1）+ 射击双火<br>3. 勤奋（Industriousness degree=2）或严重神经质（Neurotic degree=2）+ 手工/建造/艺术/烹饪/种植/采矿任一双火<br>4. 拥有任一特殊天赋特质：博闻强识（TooSmart）/开心果（Joyous）/极致体能（BodyMastery）/痴迷虚空（VoidFascination）/神秘学者（Occultist）/怪诞不经（Disturbing）<br>5. 沉鱼落雁（Beauty degree=2）+ 社交双火 | 全局顶级价值 |
-| **A** | 不满足 S，但所有 9 大兴趣技能中至少 2 个双 Major + 1 个单 Minor 以上 | 多面手高价值 |
+| **SSS** | 1. 乱开枪（ShootingAccuracy degree=-1）+ 坚韧（Tough）+ 射击双火<br>2. 坚韧（Tough）+ 格斗双火 + 敏捷（Nimble）或格斗者（Brawler）<br>3. 勤奋（Industriousness degree=2）且严重神经质（Neurotic degree=2）+ 3 个专业工作双火 | 顶级组合 |
+| **SS** | 1. 乱开枪 + 射击双火<br>2. 坚韧 + 格斗双火<br>3. 勤奋且严重神经质 + 2 个专业工作双火 | 强化组合 |
+| **S** | 1. 乱开枪 + 射击单火<br>2. 坚韧 + 格斗有火（Minor 或 Major）<br>3. 勤奋且严重神经质 + 1 个专业工作双火<br>4. 拥有任一特殊天赋特质：博闻强识（TooSmart）/开心果（Joyous）/极致体能（BodyMastery）/痴迷虚空（VoidFascination）/神秘学者（Occultist）/怪诞不经（Disturbing）<br>5. 沉鱼落雁（Beauty degree=2）+ 社交双火 | 全局高价值 |
+| **A** | 不满足以上，但所有 9 大兴趣技能中至少 2 个双 Major + 1 个单 Minor 以上 | 多面手高价值 |
 | **B** | 不满足以上，但所有 9 大兴趣技能中至少 1 个双 Major + 2 个单 Minor 以上 | 中等价值 |
-| **C** | 其他情况（无特殊组合、未触达 D 档负面特质） | 普通价值 |
-| **D** | 拥有任一负面特质：纵火狂（Pyromaniac）/脑子慢（SlowLearner）/脆弱（Wimp）/工作懒惰（Industriousness degree=-1）/工作怠惰（Industriousness degree=-2） | 低价值 |
+| **C** | 其他情况（无特殊组合、未触达负面特质降档） | 普通价值 |
+| **D** | 拥有任一负面特质且原档 > D 时降一档：纵火狂（Pyromaniac）/脑子慢（SlowLearner）/脆弱（Wimp）/工作懒惰（Industriousness degree=-1）/工作怠惰（Industriousness degree=-2） | 低价值（降档） |
 | **X** | `WorkTagIsDisabled(WorkTags.Violent)` | 无法从事暴力活动（医疗/未成年等） |
+
+**三大维度取最高档（MaxTier，不互斥）：** 乱开枪系列 / 坚韧格斗系列 / 工作狂神经质系列。
+
+**专业工作技能（用于工作狂神经质系列判定）：** 手工、建造、艺术、烹饪、种植、采矿（共 6 项，统计 Major 数量）。
+
+**降档规则：** 三大维度与原 S 条件 4/5 计算出 tier 后，若拥有任一负面特质且 `tier > D`，则 `tier` 降一档（D 不再降，X 先于一切判定不受影响）。
 
 **统计范围（9 大可兴趣技能）：** 射击、近战、社交、手工、建造、艺术、烹饪、种植、采矿。
 
@@ -246,7 +254,7 @@
 **典型分数范围**：
 - 全满级全双火满特质殖民者：15 + 18 + 180 ≈ 213 分
 - 新手殖民者（无火无技能无特质）：0 分
-- 命中自定义评级：采用档位代表分（D=5, C=15, B=25, A=50, S=80）+0.5 微量偏向，让同档自定义略优先于同档自动
+- 命中自定义评级：采用档位代表分（D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110）+0.5 微量偏向，让同档自定义略优先于同档自动
 
 **使用范围**：仅护甲分配的档内精排；武器分配不使用此分数，仍用 `ComputeCombatValue`（仅战斗维度）。
 
@@ -256,14 +264,14 @@
 
 | 操作 | 入口 | 说明 |
 |------|------|------|
-| 设置自定义档次 | 面板内"设置自定义档次"按钮 | 弹出 S/A/B/C/D/X 选项 FloatMenu，选定后写入存档 |
+| 设置自定义档次 | 面板内"设置自定义档次"按钮 | 弹出 SSS/SS/S/A/B/C/D/X 选项 FloatMenu，选定后写入存档 |
 | 清除自定义档次 | 面板内"清除自定义"按钮 | 移除自定义条目，恢复自动判定 |
 
 - **存档格式**：`List<string>`，元素格式 `档次#Pawn名字`，如 `S#王五`
 - **运行时**：解析为 `Dictionary<名字, CombatTier>` 供快速查询
 - **DEBUG 显示**：命中自定义评级的 Pawn 在面板与日志中显示 `S(A)#王五`（系统档 S 在前，括号内 A 为玩家指定档）；自动档仅显示 `S#王五`
 - **面板对比**：面板"当前档次"行直接显示完整识别码，括号区分自定义与系统档
-- **排序规则**：自定义评级档次映射为代表分（D=5, C=15, B=25, A=50, S=80, X=-1）+0.5 微量偏向，让同档自定义略优先于同档自动
+- **排序规则**：自定义评级档次映射为代表分（D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110, X=-1）+0.5 微量偏向，让同档自定义略优先于同档自动
 
 ### 全局人物评级标签（Nick 改名 + 殖民者栏重排）
 
@@ -287,7 +295,7 @@
 | 排序模式 | 比较器 | 规则 |
 |---------|--------|------|
 | 不排序 | — | 仅应用前缀，保留殖民者栏原顺序 |
-| 按评级+价值（推荐） | `ComparePawnByTierThenValueDesc` | 先按 `CombatTier` 降序 S→A→B→C→D→X，同档内按 `ComputeCombatValue` 降序 |
+| 按评级+价值（推荐） | `ComparePawnByTierThenValueDesc` | 先按 `CombatTier` 降序 SSS→SS→S→A→B→C→D→X，同档内按 `ComputeCombatValue` 降序 |
 | 按角色+评级 | `ComparePawnByRoleThenValueDesc` | 按角色分组，同角色内按评级降序 |
 | 按战斗价值 | `ComparePawnByCombatValueOnlyDesc` | 纯按 `ComputeCombatValue` 降序，不区分评级（高技能和平主义者可能挤占前列） |
 
@@ -360,7 +368,7 @@
 | 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 技能降序 → 工作计数升序；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
-| 6 | 杂务 | Hauling / Cleaning | 搬运：S 档 = 4，A/B/C 档 = 3，D/X 档 = 1；清洁：同搬运 | — |
+| 6 | 杂务 | Hauling / Cleaning | 搬运：SSS/SS/S 档 = 4，A/B/C 档 = 3，D/X 档 = 1；清洁：同搬运 | — |
 | 7 | 非技能 | BasicWorker 等 | 全部 → 3 | — |
 
 **Others 优先级规则**：保证数量外的「有兴趣但技能等级更低」者 → 4（备选，会在主力没空时补位）；保证数量外的「无兴趣」者 → 0（禁用）。设计意图：有兴趣者可作为备选保留生产能力，无兴趣者不应承担该工作避免低效产出与心情惩罚。
@@ -557,7 +565,7 @@ Source/AutoEverything/
 | Preview | `About/Preview.png` | Steam Workshop 预览图 |
 | ModIcon | `Textures/UI/Icons/ModIcon.png` | Mod 列表图标（`About.xml` 的 `modIconPath`） |
 | 标题图标 | `Textures/UI/Icons/AutoEverythingTitle.png` | 面板/文档标题装饰 |
-| 评级徽章 | `Textures/UI/Icons/Tier/Tier_{S,A,B,C,D,X}.png` | ITab 评级徽章，替代纯色块 |
+| 评级徽章 | `Textures/UI/Icons/Tier/Tier_{SSS,SS,S,A,B,C,D,X}.png` | ITab 评级徽章，替代纯色块（SS/SSS 暂无图，回退纯色块） |
 | 角色徽章 | `Textures/UI/Icons/Role/Role_{Brawler,Shooter,Doctor,Hunter,Worker,Pacifist,Leader,Default}.png` | ITab 角色徽章，左侧图标 + 右侧角色名 |
 
 ### 资源加载时机

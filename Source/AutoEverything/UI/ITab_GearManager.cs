@@ -18,7 +18,7 @@ namespace AutoEverything.UI
     /// UI 设计：使用带颜色底色的徽章（Badge）区分类别——
     ///   角色：蓝/红/绿/橙/灰等按角色类型区分
     ///   情境：红=战斗、橙=狩猎、青=寒冷、橙红=炎热、蓝=工作、白=日常
-    ///   评级：金=S、紫=A、蓝=B、绿=C、灰=D、红=X
+    ///   评级：钻金=SSS、亮金橙=SS、金=S、紫=A、蓝=B、绿=C、灰=D、红=X
     ///   护甲偏好：暗红=重甲[前排]、黄=自由[后排]、绿=轻甲[工人]
     ///
     /// 食尸鬼处理：食尸鬼也显示此面板，展示评级/战斗价值等信息供玩家参考，
@@ -280,10 +280,10 @@ namespace AutoEverything.UI
             if (Widgets.ButtonText(new Rect(tierBtnRect.x, tierBtnRect.y, tierBtnWidth, 28f),
                                    "AE_ReallocRules_SetCustomTier".Translate()))
             {
-                // 弹出 FloatMenu 选择档次 S/A/B/C/D/X
+                // 弹出 FloatMenu 选择档次 SSS/SS/S/A/B/C/D/X
                 List<FloatMenuOption> tierOptions = new List<FloatMenuOption>();
-                // 倒序展示：S 在最上
-                for (int t = (int)CombatTier.S; t >= (int)CombatTier.X; t--)
+                // 倒序展示：SSS 在最上
+                for (int t = (int)CombatTier.SSS; t >= (int)CombatTier.X; t--)
                 {
                     CombatTier localTier = (CombatTier)t;
                     tierOptions.Add(new FloatMenuOption(
@@ -874,18 +874,20 @@ namespace AutoEverything.UI
 
         /// <summary>
         /// 获取评级对应的徽章颜色。
-        /// S=金、A=紫、B=蓝、C=绿、D=灰、X=红
+        /// SSS=钻金、SS=亮金橙、S=金、A=紫、B=蓝、C=绿、D=灰、X=红
         /// </summary>
         private Color GetTierColor(CombatTier tier)
         {
             switch (tier)
             {
-                case CombatTier.S: return new Color(1.0f, 0.84f, 0.0f);    // 金
-                case CombatTier.A: return new Color(0.61f, 0.35f, 0.71f);  // 紫
-                case CombatTier.B: return new Color(0.2f, 0.6f, 0.85f);    // 蓝
-                case CombatTier.C: return new Color(0.18f, 0.8f, 0.44f);   // 绿
-                case CombatTier.D: return new Color(0.58f, 0.65f, 0.65f);  // 灰
-                default:           return new Color(0.85f, 0.2f, 0.2f);    // 红（X）
+                case CombatTier.SSS: return new Color(1.0f, 0.93f, 0.55f);  // 钻金（最高档，比金更亮）
+                case CombatTier.SS:  return new Color(1.0f, 0.75f, 0.20f);  // 亮金橙（次高档）
+                case CombatTier.S:   return new Color(1.0f, 0.84f, 0.0f);   // 金
+                case CombatTier.A:   return new Color(0.61f, 0.35f, 0.71f); // 紫
+                case CombatTier.B:   return new Color(0.2f, 0.6f, 0.85f);   // 蓝
+                case CombatTier.C:   return new Color(0.18f, 0.8f, 0.44f);  // 绿
+                case CombatTier.D:   return new Color(0.58f, 0.65f, 0.65f); // 灰
+                default:             return new Color(0.85f, 0.2f, 0.2f);   // 红（X）
             }
         }
 

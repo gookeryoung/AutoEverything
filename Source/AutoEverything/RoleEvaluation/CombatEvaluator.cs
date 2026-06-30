@@ -18,9 +18,9 @@ namespace AutoEverything.RoleEvaluation
     public static class CombatEvaluator
     {
         // 自定义评级档次对应的"代表分"，用于排序时与公式计算值同尺度比较
-        // 设计：自动公式下 D≈0~10，B≈10~30，A≈30~50，S≈50~80
-        // 自定义评级分数取每档中段：D=5, C=15, B=25, A=50, S=80, X=-1
-        // 这样自定义 S 档总能排到自动公式的 S 档之前（同档自定义优先）
+        // 设计：自动公式下 D≈0~10，B≈10~30，A≈30~50，S≈50~80，SS≈80~95，SSS≈95~110
+        // 自定义评级分数取每档中段：D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110, X=-1
+        // 这样自定义 SSS 档总能排到自动公式的 SSS 档之前（同档自定义优先）
         private static readonly float[] tierRepresentativeScore = new float[]
         {
             -1f,   // X
@@ -28,16 +28,20 @@ namespace AutoEverything.RoleEvaluation
             15f,   // C
             25f,   // B
             50f,   // A
-            80f    // S
+            80f,   // S
+            95f,   // SS
+            110f   // SSS
         };
 
         // 多 degree 特质：ShootingAccuracy 单一 defName，degree 区分乱开枪(-1)/冷枪手(+1)
         // 禁止把 degree 的 label 当作 defName 查询；Tough 不在原生 DefOf 中，需安全查询
         // Nimble/Bloodlust 同样不在原生 DefOf 中，与 WeaponTraitScorer 一致使用安全查询
+        // Brawler（格斗者）是原生 DefOf 始终存在，直接引用与 PawnRole/WeaponTraitScorer 一致
         private static readonly TraitDef shootingAccuracyDef = DefDatabase<TraitDef>.GetNamed("ShootingAccuracy", false);
         private static readonly TraitDef toughDef = DefDatabase<TraitDef>.GetNamed("Tough", false);
         private static readonly TraitDef nimbleDef = DefDatabase<TraitDef>.GetNamed("Nimble", false);
         private static readonly TraitDef bloodlustDef = DefDatabase<TraitDef>.GetNamed("Bloodlust", false);
+        private static readonly TraitDef brawlerDef = TraitDefOf.Brawler;
 
         /// <summary>
         /// 用于 D 档判定的特质查询（多 degree Industriousness + 单 degree Pyromaniac/SlowLearner/Wimp）。
@@ -215,117 +219,152 @@ namespace AutoEverything.RoleEvaluation
         /// 获取自动计算的战斗价值档次（忽略自定义评级覆盖）。
         /// 供面板显示与"自动档"对比使用。
         ///
-        /// 新规则（用户定义的全局价值评级）：
-        ///   S：满足任一特殊组合
-        ///     1. Tough + Melee 双 Major
-        ///     2. ShootingAccuracy degree=-1（乱开枪）+ Shooting 双 Major
-        ///     3. Industriousness degree=2（勤奋）OR Neurotic degree=2（严重神经质）
-        ///        + Crafting/Construction/Artistic/Cooking/Plants/Mining 任一双 Major
+        /// 新评级规则（三大维度取最高档 + 原S条件4/5 + A/B + 降档）：
+        ///   SSS：顶级组合
+        ///     1. 乱开枪 + 坚韧 + 射击双火
+        ///     2. 坚韧 + 格斗双火 + 敏捷或格斗者
+        ///     3. 勤奋且严重神经质 + 3 个专业工作双火
+        ///   SS：强化组合
+        ///     1. 乱开枪 + 射击双火
+        ///     2. 坚韧 + 格斗双火
+        ///     3. 勤奋且严重神经质 + 2 个专业工作双火
+        ///   S：全局高价值
+        ///     1. 乱开枪 + 射击单火
+        ///     2. 坚韧 + 格斗有火（Minor 或 Major）
+        ///     3. 勤奋且严重神经质 + 1 个专业工作双火
         ///     4. 拥有任一"特殊天赋"特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经）
-        ///     5. Beauty degree=2（沉鱼落雁）+ Social 双 Major
-        ///   A：不满足 S，但所有兴趣中至少 2 个双 Major + 1 个 Minor 以上
-        ///   B：不满足以上，但所有兴趣中至少 1 个双 Major + 2 个 Minor 以上
-        ///   D：拥有负面特质（纵火狂/脑子慢/脆弱/工作懒惰/工作怠惰）
+        ///     5. 沉鱼落雁（Beauty degree=2）+ 社交双火
+        ///   A：≥ 2 个双 Major + ≥ 1 个 Minor 以上
+        ///   B：≥ 1 个双 Major + ≥ 2 个 Minor 以上（合计 ≥ 3）
         ///   C：其他情况
-        ///   X：无法从事暴力活动（保留战斗维度判定，确保武器分配跳过）
+        ///   D：有负面特质且原档 > D 时降一档（纵火狂/脑子慢/脆弱/工作懒惰/工作怠惰）
+        ///   X：无法从事暴力活动（先于一切判定，不受降档影响）
         /// </summary>
         public static CombatTier GetAutoCombatTier(Pawn pawn)
         {
             if (pawn == null) return CombatTier.X;
 
             // X：无法从事暴力活动（医疗特质 DisableViolent、未成年限制等）
-            // 注：S/A/B/C/D 判定与战斗维度正交，但 X 档保留——避免给不能战斗的 Pawn 装武器
+            // 先于一切判定：X 档不受降档影响，避免给不能战斗的 Pawn 装武器
             if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return CombatTier.X;
 
             if (pawn.skills == null) return CombatTier.X;
 
-            // 统计所有兴趣的双 Major/Minor 数量
+            // 统计所有兴趣的双 Major/Minor 数量（用于 A/B 判定）
             int majorCount = CountPassions(pawn, Passion.Major);
             int minorCount = CountPassions(pawn, Passion.Minor);
 
-            // 取关键技能的 Major 状态
+            // 取关键技能的 Passion 状态
             bool shootingMajor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Major);
+            bool shootingMinor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Minor);
             bool meleeMajor = IsPassion(pawn, SkillDefOf.Melee, Passion.Major);
+            bool meleeMinor = IsPassion(pawn, SkillDefOf.Melee, Passion.Minor);
             bool socialMajor = IsPassion(pawn, SkillDefOf.Social, Passion.Major);
-            bool craftingMajor = IsPassion(pawn, SkillDefOf.Crafting, Passion.Major);
-            bool constructionMajor = IsPassion(pawn, SkillDefOf.Construction, Passion.Major);
-            bool artisticMajor = IsPassion(pawn, SkillDefOf.Artistic, Passion.Major);
-            bool cookingMajor = IsPassion(pawn, SkillDefOf.Cooking, Passion.Major);
-            bool plantsMajor = IsPassion(pawn, SkillDefOf.Plants, Passion.Major);
-            bool miningMajor = IsPassion(pawn, SkillDefOf.Mining, Passion.Major);
 
-            bool anyWorkMajor = craftingMajor || constructionMajor || artisticMajor
-                                 || cookingMajor || plantsMajor || miningMajor;
-
-            // S 条件 1：Tough + Melee 双火
-            if (toughDef != null && pawn.story?.traits != null
-                && pawn.story.traits.HasTrait(toughDef) && meleeMajor)
+            // 预计算特质状态（避免重复 DegreeOfTrait 调用）
+            bool hasTraits = pawn.story?.traits != null;
+            bool isTough = hasTraits && toughDef != null && pawn.story.traits.HasTrait(toughDef);
+            bool isNimble = hasTraits && nimbleDef != null && pawn.story.traits.HasTrait(nimbleDef);
+            bool isBrawler = hasTraits && pawn.story.traits.HasTrait(brawlerDef);
+            bool isTriggerHappy = false;
+            if (hasTraits && shootingAccuracyDef != null)
             {
-                return CombatTier.S;
+                isTriggerHappy = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef) == -1;
+            }
+            bool industrious2 = hasTraits && industriousnessDef != null
+                                && pawn.story.traits.DegreeOfTrait(industriousnessDef) == 2;
+            bool neurotic2 = hasTraits && neuroticDef != null
+                             && pawn.story.traits.DegreeOfTrait(neuroticDef) == 2;
+            bool beauty2 = hasTraits && beautyDef != null
+                           && pawn.story.traits.DegreeOfTrait(beautyDef) == 2;
+
+            int workMajors = CountWorkMajors(pawn);
+            bool meleeAnyPassion = meleeMajor || meleeMinor;
+
+            // 三大维度取最高档（MaxTier 累积，不互斥）
+            CombatTier tier = CombatTier.C;
+
+            // 维度1（乱开枪系列）：triggerHappy + shooting
+            //   SSS: triggerHappy + tough + shootingMajor
+            //   SS:  triggerHappy + shootingMajor
+            //   S:   triggerHappy + shootingMinor
+            if (isTriggerHappy)
+            {
+                if (isTough && shootingMajor)
+                    tier = MaxTier(tier, CombatTier.SSS);
+                else if (shootingMajor)
+                    tier = MaxTier(tier, CombatTier.SS);
+                else if (shootingMinor)
+                    tier = MaxTier(tier, CombatTier.S);
             }
 
-            // S 条件 2：乱开枪（ShootingAccuracy degree=-1）+ Shooting 双火
-            if (shootingAccuracyDef != null && pawn.story?.traits != null)
+            // 维度2（坚韧格斗系列）：tough + melee
+            //   SSS: tough + meleeMajor + (nimble || brawler)
+            //   SS:  tough + meleeMajor
+            //   S:   tough + meleeAnyPassion
+            if (isTough)
             {
-                int shootingAccDegree = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef);
-                if (shootingAccDegree == -1 && shootingMajor)
-                {
-                    return CombatTier.S;
-                }
+                if (meleeMajor && (isNimble || isBrawler))
+                    tier = MaxTier(tier, CombatTier.SSS);
+                else if (meleeMajor)
+                    tier = MaxTier(tier, CombatTier.SS);
+                else if (meleeAnyPassion)
+                    tier = MaxTier(tier, CombatTier.S);
             }
 
-            // S 条件 3：勤奋（Industriousness degree=2）或严重神经质（Neurotic degree=2）
-                //          + 手工/建造/艺术/烹饪/种植/采矿任一双火
-            if (pawn.story?.traits != null && anyWorkMajor)
+            // 维度3（工作狂神经质系列）：industrious2 AND neurotic2 + workMajors
+            //   SSS: industrious2 && neurotic2 && workMajors >= 3
+            //   SS:  industrious2 && neurotic2 && workMajors >= 2
+            //   S:   industrious2 && neurotic2 && workMajors >= 1
+            if (industrious2 && neurotic2)
             {
-                bool industrious2 = (industriousnessDef != null
-                                      && pawn.story.traits.DegreeOfTrait(industriousnessDef) == 2);
-                bool neurotic2 = (neuroticDef != null
-                                   && pawn.story.traits.DegreeOfTrait(neuroticDef) == 2);
-                if (industrious2 || neurotic2)
-                {
-                    return CombatTier.S;
-                }
+                if (workMajors >= 3)
+                    tier = MaxTier(tier, CombatTier.SSS);
+                else if (workMajors >= 2)
+                    tier = MaxTier(tier, CombatTier.SS);
+                else if (workMajors >= 1)
+                    tier = MaxTier(tier, CombatTier.S);
             }
 
-            // S 条件 4：拥有特殊天赋特质之一
+            // 原 S 条件 4：拥有特殊天赋特质之一
             //   博闻强识 TooSmart / 开心果 Joyous / 极致体能 BodyMastery
             //   痴迷虚空 VoidFascination / 神秘学者 Occultist / 怪诞不经 Disturbing
             if (HasSpecialTalentTrait(pawn))
             {
-                return CombatTier.S;
+                tier = MaxTier(tier, CombatTier.S);
             }
 
-            // S 条件 5：沉鱼落雁（Beauty degree=2）+ Social 双火
-            if (beautyDef != null && pawn.story?.traits != null
-                && pawn.story.traits.DegreeOfTrait(beautyDef) == 2
-                && socialMajor)
+            // 原 S 条件 5：沉鱼落雁（Beauty degree=2）+ Social 双火
+            if (beauty2 && socialMajor)
             {
-                return CombatTier.S;
+                tier = MaxTier(tier, CombatTier.S);
             }
 
-            // D：负面特质（任一）
+            // A/B 判定：仅在三大维度+原S条件均未触达（tier==C）时进行
+            if (tier == CombatTier.C)
+            {
+                // A：≥ 2 个双 Major + ≥ 1 个单 Minor
+                if (majorCount >= 2 && (majorCount + minorCount) >= 3)
+                {
+                    tier = CombatTier.A;
+                }
+                // B：≥ 1 个双 Major + ≥ 2 个单 Minor（合计 ≥ 3）
+                else if (majorCount >= 1 && (majorCount + minorCount) >= 3)
+                {
+                    tier = CombatTier.B;
+                }
+            }
+
+            // 降档：有负面特质且 tier > D 时降一档
             //   纵火狂 Pyromaniac / 脑子慢 SlowLearner / 脆弱 Wimp
             //   工作懒惰 Industriousness degree=-1 / 工作怠惰 Industriousness degree=-2
-            if (HasNegativeTrait(pawn))
+            // D 不再降；X 先于一切判定不受影响
+            if (tier > CombatTier.D && HasNegativeTrait(pawn))
             {
-                return CombatTier.D;
+                tier = (CombatTier)(tier - 1);
             }
 
-            // A：≥ 2 个双 Major + ≥ 1 个单 Minor
-            if (majorCount >= 2 && (majorCount + minorCount) >= 3)
-            {
-                return CombatTier.A;
-            }
-
-            // B：≥ 1 个双 Major + ≥ 2 个单 Minor（合计 ≥ 3）
-            if (majorCount >= 1 && (majorCount + minorCount) >= 3)
-            {
-                return CombatTier.B;
-            }
-
-            // C：其他
-            return CombatTier.C;
+            return tier;
         }
 
         /// <summary>
@@ -352,6 +391,31 @@ namespace AutoEverything.RoleEvaluation
         {
             SkillRecord s = pawn.skills?.GetSkill(skillDef);
             return s != null && s.passion == passion;
+        }
+
+        /// <summary>
+        /// 返回两档中较高的一档（枚举值大的更高：SSS>SS>S>A>B>C>D>X）。
+        /// 用于三大维度取最高档，避免互斥 if-else 提前退出。
+        /// </summary>
+        private static CombatTier MaxTier(CombatTier a, CombatTier b)
+        {
+            return (int)a >= (int)b ? a : b;
+        }
+
+        /// <summary>
+        /// 统计 6 大专业工作技能的双火（Major）数量。
+        /// 用于工作狂+神经质系列的 S/SS/SSS 判定。
+        /// </summary>
+        private static int CountWorkMajors(Pawn pawn)
+        {
+            int count = 0;
+            if (IsPassion(pawn, SkillDefOf.Crafting, Passion.Major)) count++;
+            if (IsPassion(pawn, SkillDefOf.Construction, Passion.Major)) count++;
+            if (IsPassion(pawn, SkillDefOf.Artistic, Passion.Major)) count++;
+            if (IsPassion(pawn, SkillDefOf.Cooking, Passion.Major)) count++;
+            if (IsPassion(pawn, SkillDefOf.Plants, Passion.Major)) count++;
+            if (IsPassion(pawn, SkillDefOf.Mining, Passion.Major)) count++;
+            return count;
         }
 
         private static bool HasSpecialTalentTrait(Pawn pawn)
@@ -401,19 +465,20 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 剥离 Label/Nick 上的评级前缀（格式：单字母 + #）。
-        /// 若无前缀返回原值。与 SGSettings.StripTierTagPrefix 同语义，独立实现避免跨类耦合。
+        /// 剥离 Label/Nick 上的评级前缀（格式：档次名 + #，支持多字母 SS#/SSS#）。
+        /// 若无前缀返回原值。与 AESettings.StripTierTagPrefix 同语义，独立实现避免跨类耦合。
         /// </summary>
         private static string StripTierTagPrefixFromLabel(string label)
         {
-            if (string.IsNullOrEmpty(label) || label.Length < 2) return label;
-            char c = label[0];
-            // 单字母（A-Z，覆盖 S/A/B/C/D/X）+ #
-            if (c >= 'A' && c <= 'Z' && label[1] == '#')
-            {
-                return label.Substring(2);
-            }
-            return label;
+            if (string.IsNullOrEmpty(label)) return label;
+            int hashIdx = label.IndexOf('#');
+            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
+            if (hashIdx <= 0 || hashIdx > 3) return label;
+            string prefix = label.Substring(0, hashIdx);
+            // 必须是合法 CombatTier 枚举名才剥离，避免误把玩家自定义 Nick 当评级前缀
+            return System.Enum.TryParse(prefix, out CombatTier _)
+                ? label.Substring(hashIdx + 1)
+                : label;
         }
     }
 }

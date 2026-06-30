@@ -160,7 +160,9 @@
   <AE_ReallocRules_ConfirmDesc>调整规则后点击"确认重配"执行，点击外部或取消则放弃。</AE_ReallocRules_ConfirmDesc>
   <AE_ReallocRules_Confirm>确认重配</AE_ReallocRules_Confirm>
   <AE_ReallocRules_Cancel>取消</AE_ReallocRules_Cancel>
-  <AE_Tier_S>S：双火带特质（最高）</AE_Tier_S>
+  <AE_Tier_SSS>SSS：乱开枪+坚韧+射击双火 / 坚韧+格斗双火+敏捷或格斗者 / 工作狂+神经质+3专业双火</AE_Tier_SSS>
+  <AE_Tier_SS>SS：乱开枪+射击双火 / 坚韧+格斗双火 / 工作狂+神经质+2专业双火</AE_Tier_SS>
+  <AE_Tier_S>S：乱开枪+射击单火 / 坚韧+格斗有火 / 工作狂+神经质+1专业双火 / 特殊天赋 / 沉鱼落雁+社交双火</AE_Tier_S>
   <AE_Tier_A>A：双火</AE_Tier_A>
   <AE_Tier_B>B：单火</AE_Tier_B>
   <AE_Tier_C>C：无火有特质</AE_Tier_C>

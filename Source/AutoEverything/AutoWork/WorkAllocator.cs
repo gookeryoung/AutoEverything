@@ -429,6 +429,8 @@ namespace AutoEverything.AutoWork
                     int priority;
                     switch (tier)
                     {
+                        case CombatTier.SSS:
+                        case CombatTier.SS:
                         case CombatTier.S: priority = 4; break;
                         case CombatTier.D:
                         case CombatTier.X: priority = 1; break;

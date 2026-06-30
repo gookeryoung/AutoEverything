@@ -385,14 +385,17 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 检查 Nick 是否已有评级前缀（格式：单字母 + #）。
+        /// 检查 Nick 是否已有评级前缀（格式：档次名 + #，支持多字母 SS#/SSS#）。
         /// </summary>
         private static bool HasTierTagPrefix(string nick)
         {
-            if (string.IsNullOrEmpty(nick) || nick.Length < 2) return false;
-            // 单字母（A-Z）+ #
-            char c = nick[0];
-            return (c >= 'A' && c <= 'Z') && nick[1] == '#';
+            if (string.IsNullOrEmpty(nick)) return false;
+            int hashIdx = nick.IndexOf('#');
+            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
+            if (hashIdx <= 0 || hashIdx > 3) return false;
+            string prefix = nick.Substring(0, hashIdx);
+            // 必须是合法 CombatTier 枚举名才视为评级前缀
+            return System.Enum.TryParse(prefix, out CombatTier _);
         }
 
         /// <summary>
@@ -400,11 +403,10 @@ namespace AutoEverything.Core
         /// </summary>
         private static string StripTierTagPrefix(string nick)
         {
-            if (HasTierTagPrefix(nick) && nick.Length > 2)
-            {
-                return nick.Substring(2);
-            }
-            return nick ?? string.Empty;
+            if (string.IsNullOrEmpty(nick)) return string.Empty;
+            if (!HasTierTagPrefix(nick)) return nick;
+            int hashIdx = nick.IndexOf('#');
+            return nick.Substring(hashIdx + 1);
         }
 
         // 预设方案（重构后新增）
