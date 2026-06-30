@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
@@ -38,6 +39,9 @@ namespace AutoEverything.Allocation
         private static readonly List<Pawn> candidatePawns = new List<Pawn>();
         private static readonly List<Thing> candidateWeapons = new List<Thing>();
 
+        // 评级缓存：排序前预计算，避免 Sort 比较器内 O(n log n) 次重复调用 GetAutoCombatTier
+        private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
+
         /// <summary>
         /// 为单个 Pawn 触发 EMP 手雷分配。
         /// 受全局周期控制：仅当距离上次全局分配超过 AllocationInterval 时才重新分配。
@@ -55,52 +59,70 @@ namespace AutoEverything.Allocation
         /// <summary>
         /// 全局分配：收集所有需要 EMP 手雷的 Flexible 后排殖民者与可用 EMP 武器，
         /// 按 CombatTier 升序排序后依次分配前 2 人。
+        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他 Pawn 评估。
         /// </summary>
         private static void AllocateAllColonists()
         {
-            candidatePawns.Clear();
-            candidateWeapons.Clear();
-
-            foreach (Map map in Find.Maps)
+            try
             {
-                CollectCandidatePawns(map);
-                CollectCandidateWeapons(map);
-            }
+                candidatePawns.Clear();
+                candidateWeapons.Clear();
+                tierCache.Clear();
 
-            if (candidatePawns.Count == 0 || candidateWeapons.Count == 0) return;
-
-            // 按 CombatTier 升序排序（评级低者优先）——List.Sort 非 LINQ，Tick 路径允许
-            // 设计意图：评级低的后排承担伤害能力较弱，优先持有 EMP 手雷提供战术价值
-            candidatePawns.Sort((a, b) =>
-                CombatEvaluator.GetAutoCombatTier(a).CompareTo(CombatEvaluator.GetAutoCombatTier(b)));
-
-            // 前 2 人分配 EMP 武器（库存携带，副武器特例）
-            int empCount = 0;
-
-            for (int i = 0; i < candidatePawns.Count; i++)
-            {
-                Pawn pawn = candidatePawns[i];
-
-                // 库存中已有 EMP 武器则跳过（避免重复分配）
-                if (HasEmpSidearm(pawn)) continue;
-
-                if (empCount < MinEmpPawns)
+                foreach (Map map in Find.Maps)
                 {
-                    int empIdx = FindFirstEmpWeaponIndex();
-                    if (empIdx >= 0)
-                    {
-                        AssignSidearm(pawn, candidateWeapons[empIdx], "EMP手雷(评级优先)");
-                        // null 占位避免 Remove 的 O(n) 列表重排
-                        candidateWeapons[empIdx] = null;
-                        empCount++;
-                        continue;
-                    }
+                    CollectCandidatePawns(map);
+                    CollectCandidateWeapons(map);
                 }
 
-                // 已达 2 人配额或无 EMP 武器可用，不再分配其他副武器
-                // 设计意图：每人只选最适合自己的主武器，不携带多个装备
+                if (candidatePawns.Count == 0 || candidateWeapons.Count == 0) return;
+
+                // 预计算评级缓存：避免 Sort 比较器内重复调用 GetAutoCombatTier（O(n log n) 次技能查询）
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn p = candidatePawns[i];
+                    tierCache[p] = CombatEvaluator.GetAutoCombatTier(p);
+                }
+
+                // 按 CombatTier 升序排序（评级低者优先）——List.Sort 非 LINQ，Tick 路径允许
+                // 设计意图：评级低的后排承担伤害能力较弱，优先持有 EMP 手雷提供战术价值
+                candidatePawns.Sort((a, b) => tierCache[a].CompareTo(tierCache[b]));
+
+                // 前 2 人分配 EMP 武器（库存携带，副武器特例）
+                int empCount = 0;
+
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn pawn = candidatePawns[i];
+
+                    // 库存中已有 EMP 武器则跳过（避免重复分配）
+                    if (HasEmpSidearm(pawn)) continue;
+
+                    if (empCount < MinEmpPawns)
+                    {
+                        int empIdx = FindFirstEmpWeaponIndex();
+                        if (empIdx >= 0)
+                        {
+                            AssignSidearm(pawn, candidateWeapons[empIdx], "EMP手雷(评级优先)");
+                            // null 占位避免 Remove 的 O(n) 列表重排
+                            candidateWeapons[empIdx] = null;
+                            empCount++;
+                            continue;
+                        }
+                    }
+
+                    // 已达 2 人配额或无 EMP 武器可用，不再分配其他副武器
+                    // 设计意图：每人只选最适合自己的主武器，不携带多个装备
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] EMP手雷分配失败: " + ex.Message, SidearmErrorSalt);
             }
         }
+
+        // EMP 手雷分配错误去重 salt，与 BeltAllocator.BeltErrorSalt 区分
+        private const int SidearmErrorSalt = 0xB1A1;
 
         private static void CollectCandidatePawns(Map map)
         {
@@ -136,6 +158,7 @@ namespace AutoEverything.Allocation
             {
                 // 仅收集 EMP 武器（取消其他副武器分配）
                 if (!GearDefClassifier.IsEmpWeapon(weapon)) continue;
+                if (weapon.IsForbidden(Faction.OfPlayer)) continue;
                 candidateWeapons.Add(weapon);
             }
         }

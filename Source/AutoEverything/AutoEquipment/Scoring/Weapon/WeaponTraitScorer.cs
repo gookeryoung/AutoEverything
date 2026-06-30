@@ -1,6 +1,7 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
+using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.AutoEquipment;
 
@@ -15,15 +16,8 @@ namespace AutoEverything.AutoEquipment.Scoring.Weapon
     {
         public string Name => "特质";
 
-        // 多 degree 特质：ShootingAccuracy 单一 defName，degree 区分乱开枪(-1)/冷枪手(+1)
-        // 禁止把 degree 的 label（"Trigger-happy"/"Careful shooter"）当作 defName 查询
-        private static readonly TraitDef shootingAccuracyDef = DefDatabase<TraitDef>.GetNamed("ShootingAccuracy", false);
-
-        // 原生 DefOf（Brawler）始终存在，无需 null 检查
-        // Nimble/Bloodlust/Tough 是真实 defName，但不在原生 DefOf 中，需安全查询
-        private static readonly TraitDef nimbleDef = DefDatabase<TraitDef>.GetNamed("Nimble", false);
-        private static readonly TraitDef bloodlustDef = DefDatabase<TraitDef>.GetNamed("Bloodlust", false);
-        private static readonly TraitDef toughDef = DefDatabase<TraitDef>.GetNamed("Tough", false);
+        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免与 CombatEvaluator 重复定义）
+        // Brawler 是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
         public void Score(Pawn pawn, Thing gear, Role role, GearContext context, GearWeights weights, ScoreBreakdown breakdown)
         {
@@ -70,19 +64,19 @@ namespace AutoEverything.AutoEquipment.Scoring.Weapon
             }
 
             // 敏捷特质：偏好近战
-            if (nimbleDef != null && pawn.story.traits.HasTrait(nimbleDef) && isMelee)
+            if (TraitDefCache.Nimble != null && pawn.story.traits.HasTrait(TraitDefCache.Nimble) && isMelee)
             {
                 breakdown.AddScore(Name, "敏捷+近战", 30f);
             }
 
             // 嗜血：偏好近战暴力
-            if (bloodlustDef != null && pawn.story.traits.HasTrait(bloodlustDef) && isMelee)
+            if (TraitDefCache.Bloodlust != null && pawn.story.traits.HasTrait(TraitDefCache.Bloodlust) && isMelee)
             {
                 breakdown.AddScore(Name, "嗜血+近战", 30f);
             }
 
             // 强健：适合前排近战
-            if (toughDef != null && pawn.story.traits.HasTrait(toughDef) && isMelee)
+            if (TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough) && isMelee)
             {
                 breakdown.AddScore(Name, "强健+近战", 20f);
             }
@@ -90,9 +84,9 @@ namespace AutoEverything.AutoEquipment.Scoring.Weapon
             // ShootingAccuracy 多 degree 特质：
             //   degree=-1 = 乱开枪（TriggerHappy）
             //   degree=+1 = 冷枪手（CarefulShooter）
-            if (shootingAccuracyDef != null && isRanged)
+            if (TraitDefCache.ShootingAccuracy != null && isRanged)
             {
-                int degree = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef);
+                int degree = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy);
 
                 if (degree < 0)
                 {

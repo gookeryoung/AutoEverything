@@ -1,5 +1,6 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
+using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.AutoEquipment.Scoring.Apparels
@@ -11,11 +12,7 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
     {
         public string Name => "特质";
 
-        // 缓存 TraitDef 查找，避免 Tick 路径每次重复字典查询
-        // 使用 GetNamed(defName, false) 安全查询：未找到返回 null 而非抛异常
-        private static readonly TraitDef industriousDef = DefDatabase<TraitDef>.GetNamed("Industriousness", false);
-        private static readonly TraitDef neuroticDef = DefDatabase<TraitDef>.GetNamed("Neurotic", false);
-        private static readonly TraitDef beautyDef = DefDatabase<TraitDef>.GetNamed("Beauty", false);
+        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免与 CombatEvaluator 重复定义）
 
         public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
@@ -25,9 +22,9 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
             // Industriousness 特质 degree：
             //   2 = industrious（勤奋）、1 = hard worker（努力工作）
             //   -1 = lazy（懒惰）、-2 = slothful（极其懒惰）
-            if (industriousDef != null && context == GearContext.Work)
+            if (TraitDefCache.Industriousness != null && context == GearContext.Work)
             {
-                int degree = pawn.story.traits.DegreeOfTrait(industriousDef);
+                int degree = pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness);
                 if (degree >= 1)
                     breakdown.AddScore(Name, degree >= 2 ? "勤奋+工作情境" : "努力工作+工作情境", 20f);
                 else if (degree < 0)
@@ -36,15 +33,15 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
 
             // 神经质：医疗/工作中略微偏好高属性防具
             // Neurotic degree：1 = 神经质、2 = 严重神经质
-            if (neuroticDef != null && (context == GearContext.Work || role == Role.Doctor))
+            if (TraitDefCache.Neurotic != null && (context == GearContext.Work || role == Role.Doctor))
             {
-                int degree = pawn.story.traits.DegreeOfTrait(neuroticDef);
+                int degree = pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic);
                 if (degree >= 1)
                     breakdown.AddScore(Name, "神经质+医疗/工作", 10f);
             }
 
             // 美感偏好（Beauty 特质 degree=2 美丽）
-            if (beautyDef != null && pawn.story.traits.HasTrait(beautyDef, 2))
+            if (TraitDefCache.Beauty != null && pawn.story.traits.HasTrait(TraitDefCache.Beauty, 2))
             {
                 float beautyValue = gear.GetStatValue(StatDefOf.Beauty);
                 if (beautyValue > 0f)

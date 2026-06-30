@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
@@ -36,6 +37,9 @@ namespace AutoEverything.Allocation
         private static readonly List<Pawn> candidatePawns = new List<Pawn>();
         private static readonly List<Thing> candidateBelts = new List<Thing>();
 
+        // 评级缓存：排序前预计算，避免 Sort 比较器内 O(n log n) 次重复调用 GetAutoCombatTier
+        private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
+
         /// <summary>
         /// 为单个 Pawn 触发 belt 分配。
         /// 受全局周期控制：仅当距离上次全局分配超过 AllocationInterval 时才重新分配。
@@ -52,79 +56,97 @@ namespace AutoEverything.Allocation
         /// <summary>
         /// 全局分配：收集候选并按 CombatTier 升序分配 belt。
         /// 评级低者优先配消防背包，其余配护盾腰带。
+        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他 Pawn 评估。
         /// </summary>
         private static void AllocateAllColonists()
         {
-            candidatePawns.Clear();
-            candidateBelts.Clear();
-
-            foreach (Map map in Find.Maps)
+            try
             {
-                CollectCandidatePawns(map);
-                CollectCandidateBelts(map);
-            }
+                candidatePawns.Clear();
+                candidateBelts.Clear();
+                tierCache.Clear();
 
-            if (candidatePawns.Count == 0 || candidateBelts.Count == 0) return;
-
-            // 按 CombatTier 升序排序（评级低者优先）——List.Sort 非 LINQ，Tick 路径允许
-            // 设计意图：评级低的重甲前排承担伤害能力较弱，优先配消防背包增强生存
-            candidatePawns.Sort((a, b) =>
-                CombatEvaluator.GetAutoCombatTier(a).CompareTo(CombatEvaluator.GetAutoCombatTier(b)));
-
-            // 前 2 人强制分配消防背包（若库存有），其余配护盾腰带
-            int firefoamCount = 0;
-
-            for (int i = 0; i < candidatePawns.Count; i++)
-            {
-                Pawn pawn = candidatePawns[i];
-                if (HasBelt(pawn)) continue;
-
-                // 优先给前 2 人（评级最低者）配消防背包
-                if (firefoamCount < MinFirefoamPawns)
+                foreach (Map map in Find.Maps)
                 {
-                    int firefoamIdx = FindFirstFirefoamPackIndex();
-                    if (firefoamIdx >= 0)
+                    CollectCandidatePawns(map);
+                    CollectCandidateBelts(map);
+                }
+
+                if (candidatePawns.Count == 0 || candidateBelts.Count == 0) return;
+
+                // 预计算评级缓存：避免 Sort 比较器内重复调用 GetAutoCombatTier（O(n log n) 次技能查询）
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn p = candidatePawns[i];
+                    tierCache[p] = CombatEvaluator.GetAutoCombatTier(p);
+                }
+
+                // 按 CombatTier 升序排序（评级低者优先）——List.Sort 非 LINQ，Tick 路径允许
+                // 设计意图：评级低的重甲前排承担伤害能力较弱，优先配消防背包增强生存
+                candidatePawns.Sort((a, b) => tierCache[a].CompareTo(tierCache[b]));
+
+                // 前 2 人强制分配消防背包（若库存有），其余配护盾腰带
+                int firefoamCount = 0;
+
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn pawn = candidatePawns[i];
+                    if (GearDefClassifier.HasBeltLayerApparel(pawn)) continue;
+
+                    // 优先给前 2 人（评级最低者）配消防背包
+                    if (firefoamCount < MinFirefoamPawns)
                     {
-                        AssignBelt(pawn, candidateBelts[firefoamIdx], "重甲前排消防背包(评级优先)");
+                        int firefoamIdx = FindFirstFirefoamPackIndex();
+                        if (firefoamIdx >= 0)
+                        {
+                            AssignBelt(pawn, candidateBelts[firefoamIdx], "重甲前排消防背包(评级优先)");
+                            // null 占位避免 Remove 的 O(n) 列表重排
+                            candidateBelts[firefoamIdx] = null;
+                            firefoamCount++;
+                            continue;
+                        }
+                    }
+
+                    // 其余候选在护盾腰带与消防背包中按评分选择
+                    // ScoreBelt：Heavy+护盾+100，Heavy+消防+60（默认护盾腰带胜出）
+                    Thing best = null;
+                    float bestScore = 0f;
+                    int bestIdx = -1;
+
+                    // 缓存 ArmorPreference 避免在内层循环重复调用 DetectRole（性能优化）
+                    // 候选池已全部为 Heavy，此处 armorPref 必为 Heavy，但保留以维持 ScoreBelt 签名
+                    ArmorPreference armorPref = ArmorPreference.Heavy;
+
+                    for (int j = 0; j < candidateBelts.Count; j++)
+                    {
+                        Thing b = candidateBelts[j];
+                        if (b == null) continue;
+
+                        float score = ScoreBelt(pawn, b, armorPref);
+                        if (score > bestScore)
+                        {
+                            bestScore = score;
+                            best = b;
+                            bestIdx = j;
+                        }
+                    }
+
+                    if (best != null)
+                    {
+                        AssignBelt(pawn, best, bestScore.ToString("F1"));
                         // null 占位避免 Remove 的 O(n) 列表重排
-                        candidateBelts[firefoamIdx] = null;
-                        firefoamCount++;
-                        continue;
+                        candidateBelts[bestIdx] = null;
                     }
                 }
-
-                // 其余候选在护盾腰带与消防背包中按评分选择
-                // ScoreBelt：Heavy+护盾+100，Heavy+消防+60（默认护盾腰带胜出）
-                Thing best = null;
-                float bestScore = 0f;
-                int bestIdx = -1;
-
-                // 缓存 ArmorPreference 避免在内层循环重复调用 DetectRole（性能优化）
-                // 候选池已全部为 Heavy，此处 armorPref 必为 Heavy，但保留以维持 ScoreBelt 签名
-                ArmorPreference armorPref = ArmorPreference.Heavy;
-
-                for (int j = 0; j < candidateBelts.Count; j++)
-                {
-                    Thing b = candidateBelts[j];
-                    if (b == null) continue;
-
-                    float score = ScoreBelt(pawn, b, armorPref);
-                    if (score > bestScore)
-                    {
-                        bestScore = score;
-                        best = b;
-                        bestIdx = j;
-                    }
-                }
-
-                if (best != null)
-                {
-                    AssignBelt(pawn, best, bestScore.ToString("F1"));
-                    // null 占位避免 Remove 的 O(n) 列表重排
-                    candidateBelts[bestIdx] = null;
-                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 腰带分配失败: " + ex.Message, BeltErrorSalt);
             }
         }
+
+        // 腰带分配错误去重 salt，与 AutoExecutor.GearErrorSalt 区分
+        private const int BeltErrorSalt = 0xB1A0;
 
         private static void CollectCandidatePawns(Map map)
         {
@@ -145,7 +167,7 @@ namespace AutoEverything.Allocation
                 if (RoleDetector.GetArmorPreference(role) != ArmorPreference.Heavy) continue;
 
                 // 必须有 belt 空位
-                if (HasBelt(pawn)) continue;
+                if (GearDefClassifier.HasBeltLayerApparel(pawn)) continue;
 
                 candidatePawns.Add(pawn);
             }
@@ -218,17 +240,8 @@ namespace AutoEverything.Allocation
 
         /// <summary>
         /// 检查 Pawn 是否已穿戴 belt 层附件。
+        /// 已迁移到 GearDefClassifier.HasBeltLayerApparel 统一实现。
         /// </summary>
-        private static bool HasBelt(Pawn pawn)
-        {
-            if (pawn.apparel?.WornApparel == null) return false;
-            List<Apparel> worn = pawn.apparel.WornApparel;
-            for (int i = 0; i < worn.Count; i++)
-            {
-                if (IsBelt(worn[i])) return true;
-            }
-            return false;
-        }
 
         private static int FindFirstFirefoamPackIndex()
         {

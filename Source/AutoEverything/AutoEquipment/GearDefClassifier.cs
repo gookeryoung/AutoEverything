@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.RoleEvaluation;
@@ -48,6 +49,23 @@ namespace AutoEverything.AutoEquipment
         {
             return thing?.def != null
                 && thing.def.defName.IndexOf("FIREFOAM", StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>
+        /// 检查 Pawn 是否已穿戴 belt 层附件（护盾腰带/消防背包等）。
+        /// 统一 BeltAllocator.HasBelt 的遍历逻辑，避免重复实现。
+        /// </summary>
+        public static bool HasBeltLayerApparel(Pawn pawn)
+        {
+            if (pawn?.apparel?.WornApparel == null) return false;
+            List<Apparel> worn = pawn.apparel.WornApparel;
+            for (int i = 0; i < worn.Count; i++)
+            {
+                Apparel ap = worn[i];
+                if (ap.def?.apparel?.layers == null) continue;
+                if (ap.def.apparel.layers.Contains(ApparelLayerDefOf.Belt)) return true;
+            }
+            return false;
         }
     }
 }

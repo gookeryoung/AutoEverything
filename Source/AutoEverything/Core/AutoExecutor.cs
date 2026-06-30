@@ -201,6 +201,13 @@ namespace AutoEverything.Core
                         CompGearManager comp = pawn.GetComp<CompGearManager>();
                         if (comp == null) continue;
                         if (comp.locked) continue;               // 尊重玩家锁定
+                        // 未成年仅评估防具，跳过武器/副武器/库存（与 CompGearManager.CompTick 守卫一致）
+                        if (DLCCompat.IsChild(pawn))
+                        {
+                            comp.ForceEvaluate(CompGearManager.ReloadTarget.Apparel);
+                            n++;
+                            continue;
+                        }
                         comp.ForceEvaluate(CompGearManager.ReloadTarget.All);
                         n++;
                     }

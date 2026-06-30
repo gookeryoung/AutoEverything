@@ -20,8 +20,7 @@ namespace AutoEverything.AutoEquipment
     /// </summary>
     public class CompGearManager : ThingComp
     {
-        // 缓存 TraitDef 查找，避免 Tick 路径每次重复字典查询
-        private static readonly TraitDef nudistDef = DefDatabase<TraitDef>.GetNamed("Nudist", false);
+        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免重复定义）
 
         // 缓存角色（周期性重算）
         public Role cachedRole = Role.Default;
@@ -474,7 +473,7 @@ namespace AutoEverything.AutoEquipment
                         prefersNudity = true;
                 }
             }
-            if (nudistDef != null && Pawn.story?.traits?.HasTrait(nudistDef) == true)
+            if (TraitDefCache.Nudist != null && Pawn.story?.traits?.HasTrait(TraitDefCache.Nudist) == true)
                 prefersNudity = true;
 
             if (prefersNudity)

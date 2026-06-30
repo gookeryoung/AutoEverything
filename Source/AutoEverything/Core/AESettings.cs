@@ -136,7 +136,7 @@ namespace AutoEverything.Core
 
                 string currentNick = nt.Nick ?? string.Empty;
                 // 剥离已有评级前缀，得到"纯净名"
-                string cleanNick = StripTierTagPrefix(currentNick);
+                string cleanNick = TierTagHelper.Strip(currentNick);
 
                 // 首次应用：保存原名到字典（若已存在则保留最早的）
                 int pid = pawn.thingIDNumber;
@@ -194,7 +194,7 @@ namespace AutoEverything.Core
                 if (nt == null) continue;
 
                 string currentNick = nt.Nick ?? string.Empty;
-                if (!HasTierTagPrefix(currentNick)) continue;
+                if (!TierTagHelper.HasPrefix(currentNick)) continue;
 
                 int pid = pawn.thingIDNumber;
                 string cleanNick;
@@ -204,7 +204,7 @@ namespace AutoEverything.Core
                 }
                 else
                 {
-                    cleanNick = StripTierTagPrefix(currentNick);
+                    cleanNick = TierTagHelper.Strip(currentNick);
                 }
 
                 if (cleanNick != currentNick)
@@ -283,6 +283,19 @@ namespace AutoEverything.Core
                     pawns.Add(pawn);
             }
 
+            // 预计算缓存：避免 Sort 比较器内 O(n log n) 次重复调用
+            // GetCombatTier/ComputeCombatValue/DetectRole（均涉及技能/特质查询）
+            sortTierCache.Clear();
+            sortValueCache.Clear();
+            sortRoleCache.Clear();
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn p = pawns[i];
+                sortTierCache[p] = CombatEvaluator.GetCombatTier(p);
+                sortValueCache[p] = CombatEvaluator.ComputeCombatValue(p);
+                sortRoleCache[p] = GetRoleOrder(RoleDetector.DetectRole(p));
+            }
+
             pawns.Sort(comparison);
 
             for (int i = 0; i < pawns.Count; i++)
@@ -293,6 +306,12 @@ namespace AutoEverything.Core
             Find.ColonistBar.MarkColonistsDirty();
         }
 
+        // 殖民者栏排序缓存：排序前预计算，避免 Sort 比较器内重复调用
+        // GetCombatTier/ComputeCombatValue/DetectRole（均涉及技能/特质查询）
+        private static readonly Dictionary<Pawn, CombatTier> sortTierCache = new Dictionary<Pawn, CombatTier>();
+        private static readonly Dictionary<Pawn, float> sortValueCache = new Dictionary<Pawn, float>();
+        private static readonly Dictionary<Pawn, int> sortRoleCache = new Dictionary<Pawn, int>();
+
         /// <summary>
         /// 评级降序比较器：先按 CombatTier 降序（S→A→B→C→D→X），
         /// 同档内再按 ComputeCombatValue 降序。
@@ -302,12 +321,10 @@ namespace AutoEverything.Core
         private static int ComparePawnByTierThenValueDesc(Pawn a, Pawn b)
         {
             // CombatTier 枚举值：X=0, D=1, C=2, B=3, A=4, S=5，降序即 S 在前
-            CombatTier ta = CombatEvaluator.GetCombatTier(a);
-            CombatTier tb = CombatEvaluator.GetCombatTier(b);
+            CombatTier ta = sortTierCache[a];
+            CombatTier tb = sortTierCache[b];
             if (ta != tb) return tb.CompareTo(ta);
-            float va = CombatEvaluator.ComputeCombatValue(a);
-            float vb = CombatEvaluator.ComputeCombatValue(b);
-            return vb.CompareTo(va);
+            return sortValueCache[b].CompareTo(sortValueCache[a]);
         }
 
         /// <summary>
@@ -317,9 +334,7 @@ namespace AutoEverything.Core
         /// </summary>
         private static int ComparePawnByCombatValueOnlyDesc(Pawn a, Pawn b)
         {
-            float va = CombatEvaluator.ComputeCombatValue(a);
-            float vb = CombatEvaluator.ComputeCombatValue(b);
-            return vb.CompareTo(va);
+            return sortValueCache[b].CompareTo(sortValueCache[a]);
         }
 
         /// <summary>
@@ -329,8 +344,8 @@ namespace AutoEverything.Core
         /// </summary>
         private static int ComparePawnByRoleThenValueDesc(Pawn a, Pawn b)
         {
-            int ra = GetRoleOrder(RoleDetector.DetectRole(a));
-            int rb = GetRoleOrder(RoleDetector.DetectRole(b));
+            int ra = sortRoleCache[a];
+            int rb = sortRoleCache[b];
             if (ra != rb) return ra.CompareTo(rb);
             return ComparePawnByTierThenValueDesc(a, b);
         }
@@ -383,32 +398,7 @@ namespace AutoEverything.Core
         /// </summary>
         public static bool HasTierTagPrefixOnLabel(string label)
         {
-            return HasTierTagPrefix(label);
-        }
-
-        /// <summary>
-        /// 检查 Nick 是否已有评级前缀（格式：档次名 + #，支持多字母 SS#/SSS#）。
-        /// </summary>
-        private static bool HasTierTagPrefix(string nick)
-        {
-            if (string.IsNullOrEmpty(nick)) return false;
-            int hashIdx = nick.IndexOf('#');
-            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
-            if (hashIdx <= 0 || hashIdx > 3) return false;
-            string prefix = nick.Substring(0, hashIdx);
-            // 必须是合法 CombatTier 枚举名才视为评级前缀
-            return System.Enum.TryParse(prefix, out CombatTier _);
-        }
-
-        /// <summary>
-        /// 剥离 Nick 上的评级前缀。若无前缀返回原值。
-        /// </summary>
-        private static string StripTierTagPrefix(string nick)
-        {
-            if (string.IsNullOrEmpty(nick)) return string.Empty;
-            if (!HasTierTagPrefix(nick)) return nick;
-            int hashIdx = nick.IndexOf('#');
-            return nick.Substring(hashIdx + 1);
+            return TierTagHelper.HasPrefix(label);
         }
 
         // 预设方案（重构后新增）

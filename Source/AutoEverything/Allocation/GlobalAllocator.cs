@@ -40,6 +40,12 @@ namespace AutoEverything.Allocation
         private static readonly List<Apparel> candidateApparels = new List<Apparel>();
         private static readonly HashSet<int> assignedApparelIds = new HashSet<int>();
 
+        // 战斗价值/评级/价值评分缓存：排序前预计算，避免 Sort 比较器内重复调用
+        // 与 candidateWeapons 等同模式：Clear + 复用，避免 GC
+        private static readonly Dictionary<Pawn, float> combatValueCache = new Dictionary<Pawn, float>();
+        private static readonly Dictionary<Pawn, int> tierCache = new Dictionary<Pawn, int>();
+        private static readonly Dictionary<Pawn, float> valueScoreCache = new Dictionary<Pawn, float>();
+
         /// <summary>
         /// 全局重配：放下所有殖民者武器与护甲，按战斗价值降序重新分配。
         /// 返回被触发的殖民者数量。
@@ -53,6 +59,9 @@ namespace AutoEverything.Allocation
             assignedWeaponIds.Clear();
             candidateApparels.Clear();
             assignedApparelIds.Clear();
+            combatValueCache.Clear();
+            tierCache.Clear();
+            valueScoreCache.Clear();
 
             // ========== 收集候选殖民者 ==========
             foreach (Map map in Find.Maps)
@@ -81,7 +90,6 @@ namespace AutoEverything.Allocation
             // 按战斗价值降序排序：高价值殖民者优先分配
             // 预计算缓存：List.Sort 是 O(n log n) 次比较，避免每次比较重复调用
             // ComputeCombatValue（涉及技能查询与特质查询），50 人约省 300 次重复计算
-            var combatValueCache = new Dictionary<Pawn, float>();
             for (int i = 0; i < sortedPawns.Count; i++)
             {
                 combatValueCache[sortedPawns[i]] = CombatEvaluator.ComputeCombatValue(sortedPawns[i]);
@@ -247,8 +255,6 @@ namespace AutoEverything.Allocation
             // 护甲分配按"全局价值评级"（CombatTier）降序，与武器分配解耦
             // 预计算缓存：避免 O(n log n) 次比较中重复调用 GetCombatTier 与 ComputePawnValueScore
             // （两者均涉及技能/特质查询），50 人约省 300+ 次重复计算
-            var tierCache = new Dictionary<Pawn, int>();
-            var valueScoreCache = new Dictionary<Pawn, float>();
             for (int i = 0; i < sortedPawns.Count; i++)
             {
                 Pawn p = sortedPawns[i];
@@ -384,7 +390,8 @@ namespace AutoEverything.Allocation
 
                     // 评级权重：同分时高评级优先
                     // 0.5 分/档 × 7 档 = 3.5（最大值），远小于匹配奖励(500)与惩罚(1000)
-                    CombatTier pawnTier = CombatEvaluator.GetCombatTier(pawn);
+                    // 复用已缓存的 tierCache，避免重复调用 GetCombatTier
+                    CombatTier pawnTier = (CombatTier)tierCache[pawn];
                     score += (float)pawnTier * 0.5f;
 
                     if (score > bestScore)

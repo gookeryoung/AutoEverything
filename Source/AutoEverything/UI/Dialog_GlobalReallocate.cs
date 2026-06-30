@@ -21,7 +21,8 @@ namespace AutoEverything.UI
         private static Vector2 scrollPos;
         // 初始值给充足高度，避免首帧内容被截断
         // 实际内容在 DoWindowContents 末尾会重新计算并覆盖
-        private float contentHeight = 900f;
+        // static：与 scrollPos 一致，多次开关窗口保留高度记忆
+        private static float contentHeight = 900f;
 
         public override Vector2 InitialSize
         {

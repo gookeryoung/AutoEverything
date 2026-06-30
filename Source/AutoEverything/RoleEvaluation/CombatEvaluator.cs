@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 using AutoEverything.Core;
 
@@ -33,39 +33,8 @@ namespace AutoEverything.RoleEvaluation
             110f   // SSS
         };
 
-        // 多 degree 特质：ShootingAccuracy 单一 defName，degree 区分乱开枪(-1)/冷枪手(+1)
-        // 禁止把 degree 的 label 当作 defName 查询；Tough 不在原生 DefOf 中，需安全查询
-        // Nimble/Bloodlust 同样不在原生 DefOf 中，与 WeaponTraitScorer 一致使用安全查询
-        // Brawler（格斗者）是原生 DefOf 始终存在，直接引用与 PawnRole/WeaponTraitScorer 一致
-        private static readonly TraitDef shootingAccuracyDef = DefDatabase<TraitDef>.GetNamed("ShootingAccuracy", false);
-        private static readonly TraitDef toughDef = DefDatabase<TraitDef>.GetNamed("Tough", false);
-        private static readonly TraitDef nimbleDef = DefDatabase<TraitDef>.GetNamed("Nimble", false);
-        private static readonly TraitDef bloodlustDef = DefDatabase<TraitDef>.GetNamed("Bloodlust", false);
-        private static readonly TraitDef brawlerDef = TraitDefOf.Brawler;
-
-        /// <summary>
-        /// 用于 D 档判定的特质查询（多 degree Industriousness + 单 degree Pyromaniac/SlowLearner/Wimp）。
-        /// </summary>
-        private static readonly TraitDef industriousnessDef = DefDatabase<TraitDef>.GetNamed("Industriousness", false);
-        private static readonly TraitDef neuroticDef = DefDatabase<TraitDef>.GetNamed("Neurotic", false);
-        private static readonly TraitDef beautyDef = DefDatabase<TraitDef>.GetNamed("Beauty", false);
-        private static readonly TraitDef pyromaniacDef = DefDatabase<TraitDef>.GetNamed("Pyromaniac", false);
-        private static readonly TraitDef slowLearnerDef = DefDatabase<TraitDef>.GetNamed("SlowLearner", false);
-        private static readonly TraitDef wimpDef = DefDatabase<TraitDef>.GetNamed("Wimp", false);
-
-        /// <summary>
-        /// 检查是否拥有"特殊天赋"特质之一（用于 S 条件 4）。
-        /// 博闻强识 TooSmart（原生）/ 开心果 Joyous（Anomaly）
-        /// 极致体能 BodyMastery（Anomaly）/ 痴迷虚空 VoidFascination（Anomaly）
-        /// 神秘学者 Occultist（Anomaly）/ 怪诞不经 Disturbing（Anomaly）
-        /// 全部用 GetNamed(false) 安全查询，未加载 DLC 时返回 null 跳过。
-        /// </summary>
-        private static readonly TraitDef tooSmartDef = DefDatabase<TraitDef>.GetNamed("TooSmart", false);
-        private static readonly TraitDef joyousDef = DefDatabase<TraitDef>.GetNamed("Joyous", false);
-        private static readonly TraitDef bodyMasteryDef = DefDatabase<TraitDef>.GetNamed("BodyMastery", false);
-        private static readonly TraitDef voidFascinationDef = DefDatabase<TraitDef>.GetNamed("VoidFascination", false);
-        private static readonly TraitDef occultistDef = DefDatabase<TraitDef>.GetNamed("Occultist", false);
-        private static readonly TraitDef disturbingDef = DefDatabase<TraitDef>.GetNamed("Disturbing", false);
+        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免与 WeaponTraitScorer 重复定义）
+        // Brawler（格斗者）是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
         /// <summary>
         /// 计算 Pawn 的战斗价值分（用于副武器分配优先级与全局重配顺序）。
@@ -104,12 +73,12 @@ namespace AutoEverything.RoleEvaluation
             // ShootingAccuracy degree=+1 是冷枪手（精度提升但冷却慢）
             if (pawn.story?.traits != null)
             {
-                if (toughDef != null && pawn.story.traits.HasTrait(toughDef))
+                if (TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough))
                     total += AESettings.cvToughBonus;
 
-                if (shootingAccuracyDef != null)
+                if (TraitDefCache.ShootingAccuracy != null)
                 {
-                    int shootingAccDegree = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef);
+                    int shootingAccDegree = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy);
                     if (shootingAccDegree < 0)
                         total += AESettings.cvTriggerHappyPenalty;
                     else if (shootingAccDegree > 0)
@@ -263,20 +232,20 @@ namespace AutoEverything.RoleEvaluation
 
             // 预计算特质状态（避免重复 DegreeOfTrait 调用）
             bool hasTraits = pawn.story?.traits != null;
-            bool isTough = hasTraits && toughDef != null && pawn.story.traits.HasTrait(toughDef);
-            bool isNimble = hasTraits && nimbleDef != null && pawn.story.traits.HasTrait(nimbleDef);
-            bool isBrawler = hasTraits && pawn.story.traits.HasTrait(brawlerDef);
+            bool isTough = hasTraits && TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough);
+            bool isNimble = hasTraits && TraitDefCache.Nimble != null && pawn.story.traits.HasTrait(TraitDefCache.Nimble);
+            bool isBrawler = hasTraits && pawn.story.traits.HasTrait(TraitDefOf.Brawler);
             bool isTriggerHappy = false;
-            if (hasTraits && shootingAccuracyDef != null)
+            if (hasTraits && TraitDefCache.ShootingAccuracy != null)
             {
-                isTriggerHappy = pawn.story.traits.DegreeOfTrait(shootingAccuracyDef) == -1;
+                isTriggerHappy = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
             }
-            bool industrious2 = hasTraits && industriousnessDef != null
-                                && pawn.story.traits.DegreeOfTrait(industriousnessDef) == 2;
-            bool neurotic2 = hasTraits && neuroticDef != null
-                             && pawn.story.traits.DegreeOfTrait(neuroticDef) == 2;
-            bool beauty2 = hasTraits && beautyDef != null
-                           && pawn.story.traits.DegreeOfTrait(beautyDef) == 2;
+            bool industrious2 = hasTraits && TraitDefCache.Industriousness != null
+                                && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) == 2;
+            bool neurotic2 = hasTraits && TraitDefCache.Neurotic != null
+                             && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) == 2;
+            bool beauty2 = hasTraits && TraitDefCache.Beauty != null
+                           && pawn.story.traits.DegreeOfTrait(TraitDefCache.Beauty) == 2;
 
             int workMajors = CountWorkMajors(pawn);
             bool meleeAnyPassion = meleeMajor || meleeMinor;
@@ -421,12 +390,12 @@ namespace AutoEverything.RoleEvaluation
         private static bool HasSpecialTalentTrait(Pawn pawn)
         {
             if (pawn.story?.traits == null) return false;
-            if (tooSmartDef != null && pawn.story.traits.HasTrait(tooSmartDef)) return true;
-            if (joyousDef != null && pawn.story.traits.HasTrait(joyousDef)) return true;
-            if (bodyMasteryDef != null && pawn.story.traits.HasTrait(bodyMasteryDef)) return true;
-            if (voidFascinationDef != null && pawn.story.traits.HasTrait(voidFascinationDef)) return true;
-            if (occultistDef != null && pawn.story.traits.HasTrait(occultistDef)) return true;
-            if (disturbingDef != null && pawn.story.traits.HasTrait(disturbingDef)) return true;
+            if (TraitDefCache.TooSmart != null && pawn.story.traits.HasTrait(TraitDefCache.TooSmart)) return true;
+            if (TraitDefCache.Joyous != null && pawn.story.traits.HasTrait(TraitDefCache.Joyous)) return true;
+            if (TraitDefCache.BodyMastery != null && pawn.story.traits.HasTrait(TraitDefCache.BodyMastery)) return true;
+            if (TraitDefCache.VoidFascination != null && pawn.story.traits.HasTrait(TraitDefCache.VoidFascination)) return true;
+            if (TraitDefCache.Occultist != null && pawn.story.traits.HasTrait(TraitDefCache.Occultist)) return true;
+            if (TraitDefCache.Disturbing != null && pawn.story.traits.HasTrait(TraitDefCache.Disturbing)) return true;
             return false;
         }
 
@@ -438,12 +407,12 @@ namespace AutoEverything.RoleEvaluation
         private static bool HasNegativeTrait(Pawn pawn)
         {
             if (pawn.story?.traits == null) return false;
-            if (pyromaniacDef != null && pawn.story.traits.HasTrait(pyromaniacDef)) return true;
-            if (slowLearnerDef != null && pawn.story.traits.HasTrait(slowLearnerDef)) return true;
-            if (wimpDef != null && pawn.story.traits.HasTrait(wimpDef)) return true;
-            if (industriousnessDef != null)
+            if (TraitDefCache.Pyromaniac != null && pawn.story.traits.HasTrait(TraitDefCache.Pyromaniac)) return true;
+            if (TraitDefCache.SlowLearner != null && pawn.story.traits.HasTrait(TraitDefCache.SlowLearner)) return true;
+            if (TraitDefCache.Wimp != null && pawn.story.traits.HasTrait(TraitDefCache.Wimp)) return true;
+            if (TraitDefCache.Industriousness != null)
             {
-                int deg = pawn.story.traits.DegreeOfTrait(industriousnessDef);
+                int deg = pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness);
                 if (deg == -1 || deg == -2) return true;
             }
             return false;
@@ -461,24 +430,7 @@ namespace AutoEverything.RoleEvaluation
             //   需剥离评级前缀返回纯净名 "王五"，否则：
             //   1) customTierMap 查询失配（玩家设置时用的是原名）
             //   2) 面板拼接会变成 "S#S#王五" 双重前缀
-            return StripTierTagPrefixFromLabel(pawn.LabelShort ?? string.Empty);
-        }
-
-        /// <summary>
-        /// 剥离 Label/Nick 上的评级前缀（格式：档次名 + #，支持多字母 SS#/SSS#）。
-        /// 若无前缀返回原值。与 AESettings.StripTierTagPrefix 同语义，独立实现避免跨类耦合。
-        /// </summary>
-        private static string StripTierTagPrefixFromLabel(string label)
-        {
-            if (string.IsNullOrEmpty(label)) return label;
-            int hashIdx = label.IndexOf('#');
-            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
-            if (hashIdx <= 0 || hashIdx > 3) return label;
-            string prefix = label.Substring(0, hashIdx);
-            // 必须是合法 CombatTier 枚举名才剥离，避免误把玩家自定义 Nick 当评级前缀
-            return System.Enum.TryParse(prefix, out CombatTier _)
-                ? label.Substring(hashIdx + 1)
-                : label;
+            return TierTagHelper.Strip(pawn.LabelShort ?? string.Empty);
         }
     }
 }

@@ -268,7 +268,15 @@ namespace AutoEverything.UI
             Text.Anchor = TextAnchor.MiddleLeft;
             bool prevWrap = Text.WordWrap;
             Text.WordWrap = false;
-            Widgets.Label(tierCodeRect, "AE_ReallocRules_CurrentTier".Translate() + ": " + tierCode);
+            GameFont prevFont = Text.Font;
+            string tierCodeLabel = "AE_ReallocRules_CurrentTier".Translate() + ": " + tierCode;
+            // 超宽时缩字号避免截断（tierCode 可能很长，如 "当前评级: SSS(SSS)#王五"）
+            if (Text.CalcSize(tierCodeLabel).x > tierCodeRect.width)
+            {
+                Text.Font = GameFont.Tiny;
+            }
+            Widgets.Label(tierCodeRect, tierCodeLabel);
+            Text.Font = prevFont;
             Text.WordWrap = prevWrap;
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
@@ -827,32 +835,6 @@ namespace AutoEverything.UI
             Text.Font = GameFont.Small;
             Text.WordWrap = prevWrap;
             GUI.color = prev;
-        }
-
-        /// <summary>
-        /// 绘制"标签: 值"行，标签灰色，值白色。
-        /// 关闭 WordWrap；labelWidth 用 Text.CalcSize 动态计算，避免固定 40% 截断中文标签。
-        /// </summary>
-        private void DrawLabeledRow(Listing_Standard l, string label, string value)
-        {
-            Rect row = l.GetRect(22f);
-            bool prevWrap = Text.WordWrap;
-            GUI.color = ColorLabelGray;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Text.Font = GameFont.Small;
-            Text.WordWrap = false;
-
-            // 动态计算标签宽度，避免固定 40% 截断
-            string labelText = label + ":";
-            Vector2 labelSize = Text.CalcSize(labelText);
-            float labelWidth = labelSize.x + 4f;
-
-            Widgets.Label(new Rect(row.x, row.y, labelWidth, row.height), labelText);
-            GUI.color = Color.white;
-            Widgets.Label(new Rect(row.x + labelWidth, row.y, row.width - labelWidth - 4f, row.height), value);
-            Text.Anchor = TextAnchor.UpperLeft;
-            Text.WordWrap = prevWrap;
-            GUI.color = Color.white;
         }
 
         // ===================== 颜色定义 =====================
