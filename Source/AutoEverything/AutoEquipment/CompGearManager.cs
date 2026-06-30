@@ -485,6 +485,10 @@ namespace AutoEverything.AutoEquipment
             int wornCount = Pawn.apparel.WornApparel.Count;
             AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateApparel: role={role}, context={context}, contextChanged={contextChanged}, 穿戴 {wornCount} 件");
 
+            // 先纠错：卸下远程角色错误持有的护盾腰带（护盾阻挡远程射击）
+            // 放在 BeltAllocator 前：先卸下再分配，避免刚卸下又被重新分配
+            RemoveWrongShieldBelt(role);
+
             // 腰带附件全局分配：纯近战角色（射击无火）优先装备护盾/消防背包
             // 受 3000 tick 全局周期控制，确保全局至少 1 人消防背包
             BeltAllocator.AllocateForPawn(Pawn);
@@ -576,6 +580,37 @@ namespace AutoEverything.AutoEquipment
             else
             {
                 AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateApparel: 无升级. 检查 {candidatesChecked} 候选");
+            }
+        }
+
+        /// <summary>
+        /// 检测并卸下错误持有的护盾腰带。
+        /// 护盾腰带仅属于重甲前排（Brawler），远程角色/轻甲工人穿着会阻挡远程射击。
+        /// 当 Pawn 角色非 Brawler 且正穿着护盾腰带时，卸下并丢到脚下。
+        /// 复用 GlobalAllocator 的 apparel 卸下模式：pawn.apparel.Remove + GenDrop.TryDropSpawn。
+        /// </summary>
+        private void RemoveWrongShieldBelt(Role role)
+        {
+            if (role == Role.Brawler) return;
+            if (Pawn.apparel?.WornApparel == null) return;
+
+            List<Apparel> worn = Pawn.apparel.WornApparel;
+            // 倒序遍历：卸下时列表会变，倒序避免索引错位
+            for (int i = worn.Count - 1; i >= 0; i--)
+            {
+                Apparel ap = worn[i];
+                if (!GearDefClassifier.IsShieldBelt(ap)) continue;
+                // 尊重玩家锁定的单件装备（与 EvaluateApparel 冲突检测一致）
+                if (Pawn.apparel.IsLocked(ap)) continue;
+
+                Pawn.apparel.Remove(ap);
+                Thing dropped;
+                if (GenDrop.TryDropSpawn(ap, Pawn.Position, Pawn.Map, ThingPlaceMode.Near, out dropped))
+                {
+                    Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下错误护盾腰带 '{ap.LabelShort}' (role={role}，护盾阻挡远程射击)");
+                }
+                // belt 层最多一件护盾腰带，卸下后即返回
+                return;
             }
         }
 

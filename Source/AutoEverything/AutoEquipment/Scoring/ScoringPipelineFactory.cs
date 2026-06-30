@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.AutoEquipment.Scoring.Weapon;
@@ -47,7 +47,8 @@ namespace AutoEverything.AutoEquipment.Scoring
 
         /// <summary>
         /// 获取防具评分管线。
-        /// 顺序：沾染 → 特质 → 工作 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 耐久 → 当前穿戴
+        /// 顺序：护盾腰带约束 → 沾染 → 特质 → 工作 → 情境 → 护甲 → 保温 → 移速 → 品质 → 皇家 → 意识形态 → 耐久 → 当前穿戴
+        /// 护盾腰带约束放首位：非 Brawler 角色 + 护盾腰带直接 Veto 短路，省后续计算。
         /// 耐久修正放在末尾，作为对最终分数的乘数修正（损坏防具按 HP 比例扣分）。
         /// </summary>
         public static ScoringPipeline<Apparel> GetApparelPipeline()
@@ -56,6 +57,7 @@ namespace AutoEverything.AutoEquipment.Scoring
             {
                 var scorers = new List<IScorer<Apparel>>
                 {
+                    new ApparelShieldBeltScorer(),   // 护盾腰带硬约束（非 Brawler 拒绝）
                     new ApparelTaintedScorer(),     // 沾染惩罚
                     new ApparelTraitScorer(),        // 特质
                     new ApparelWorkScorer(),         // 工作加成

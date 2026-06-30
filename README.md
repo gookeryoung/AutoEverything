@@ -52,7 +52,7 @@
 
 **贴身切换**：当殖民者持远程武器受近战攻击时，`CheckMeleeSidearm`（30 tick 周期）检测库存近战副武器并自动切换；取消征召时 `OnUndraft` 恢复主武器。该功能仅应对玩家手动给的副武器，自动分配已取消反向类型副武器。
 
-**护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅分配给重甲前排（Brawler），自由后排（Flexible）与轻甲工人（Light）不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
+**护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于重甲前排（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。自由后排（Flexible）与轻甲工人（Light）不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
 
 **护甲偏好**：`RoleDetector.GetArmorPreference(role)` 根据角色返回护甲偏好，影响全局重配时的护甲分配：
 
@@ -80,6 +80,11 @@
 **消防背包优先级**：重甲前排至少 2 人配备消防背包，优先给评级较低者。评级低的重甲前排承担伤害能力较弱，更需要消防背包增强生存。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得消防背包。
 
 **护盾腰带分配规则**：护盾腰带会阻挡所有远程射击，自由后排（Shooter/Hunter/Leader）需远程输出，不适用护盾；重甲前排（Brawler）以近战为主，护盾提供远程免疫最为契合。已穿护盾腰带的 Pawn 在武器评分时会触发 Veto（见下方）。
+
+**护盾腰带三重保险**：护盾腰带仅属于重甲前排（Brawler），通过三层约束确保不误配：
+1. **分配 gate**：`BeltAllocator` 候选收集时 `GetArmorPreference(role) != Heavy` 直接过滤，远程角色不进入分配池。
+2. **评分 Veto**：`ApparelShieldBeltScorer`（防具评分管线首位）检测非 Brawler 角色 + 护盾腰带 → `Veto(-9999f)`，即使因角色瞬变/玩家手动操作进入评分路径也会被拒绝。
+3. **已穿纠错**：`CompGearManager.EvaluateApparel` 周期调用 `RemoveWrongShieldBelt(role)`，检测已穿护盾腰带的非 Brawler 角色，卸下并丢到脚下（复用 `GlobalAllocator` 的 `pawn.apparel.Remove` + `GenDrop.TryDropSpawn` 模式）。
 
 **护盾腰带武器 Veto**：`WeaponTraitScorer` 在武器评分开头检查 Pawn 是否穿戴护盾腰带，若候选武器为远程武器则直接 `Veto(-9000f)`，确保持盾者不会被分配远程武器。
 
@@ -139,22 +144,23 @@
 
 ### 防具评分管线
 
-`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 12 个 Scorer：
+`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 13 个 Scorer：
 
 | 顺序 | Scorer | 说明 |
 |------|--------|------|
-| 1 | `ApparelTaintedScorer` | 沾染惩罚 |
-| 2 | `ApparelTraitScorer` | 特质偏好 |
-| 3 | `ApparelWorkScorer` | 工作属性加成 |
-| 4 | `ApparelContextScorer` | 温度情境 |
-| 5 | `ApparelArmorScorer` | 护甲值 |
-| 6 | `ApparelInsulationScorer` | 保温 |
-| 7 | `ApparelMoveSpeedScorer` | 移速影响 |
-| 8 | `ApparelQualityScorer` | 品质 |
-| 9 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
-| 10 | `ApparelIdeologyScorer` | 意识形态服装 |
-| 11 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
-| 12 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
+| 1 | `ApparelShieldBeltScorer` | 护盾腰带硬约束（非 Brawler 角色 + 护盾腰带 → Veto `-9999f`） |
+| 2 | `ApparelTaintedScorer` | 沾染惩罚 |
+| 3 | `ApparelTraitScorer` | 特质偏好 |
+| 4 | `ApparelWorkScorer` | 工作属性加成 |
+| 5 | `ApparelContextScorer` | 温度情境 |
+| 6 | `ApparelArmorScorer` | 护甲值 |
+| 7 | `ApparelInsulationScorer` | 保温 |
+| 8 | `ApparelMoveSpeedScorer` | 移速影响 |
+| 9 | `ApparelQualityScorer` | 品质 |
+| 10 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
+| 11 | `ApparelIdeologyScorer` | 意识形态服装 |
+| 12 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
+| 13 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
 
 ### 副武器评分
 
