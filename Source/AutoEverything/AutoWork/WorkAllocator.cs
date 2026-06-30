@@ -171,8 +171,7 @@ namespace AutoEverything.AutoWork
         // ════════════════════════════════════════════════════════════
         // 第 2 遍：关键工作（Doctor/Warden/Childcare）
         //   - 有兴趣 → priority=1，计入 workCount
-        //   - 保证至少 2 人 priority >= 1（不足时按技能等级补到 1）
-        //   - 其余无兴趣者 → priority=0（禁用，不备选）
+        //   - 无兴趣 → priority=3（备选，不计入 workCount）
         // ════════════════════════════════════════════════════════════
 
         private static void AssignKeyWorkPriorities()
@@ -194,81 +193,41 @@ namespace AutoEverything.AutoWork
             }
             if (workCandidates.Count == 0) return;
 
-            // 分组：passionate（有兴趣） vs nonPassionate
-            // 注：此处复用静态列表需在方法栈内分配，因为两组要同时存在
-            List<Pawn> passionate = new List<Pawn>();
-            List<Pawn> nonPassionate = new List<Pawn>();
+            // 所有人按是否有火区分：有火→1，无火→3
+            // 设计意图：关键工作（医疗/监管/育儿）容错性高，有火者全部优先承担，无火者兜底备选
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
-                if (HasPassionForAnySkill(pawn, workType.relevantSkills))
-                    passionate.Add(pawn);
-                else
-                    nonPassionate.Add(pawn);
-            }
-
-            // passionate 按技能等级降序排序（取技能最高的 top 2）
-            passionate.Sort((a, b) =>
-                ComputeSkillScore(b, workType.relevantSkills)
-                .CompareTo(ComputeSkillScore(a, workType.relevantSkills)));
-
-            // top 2 passionate → priority=1（保证数量内），其余 passionate → priority=4（备选）
-            for (int i = 0; i < passionate.Count; i++)
-            {
-                int priority = i < 2 ? 1 : 4;
-                passionate[i].workSettings.SetPriority(workType, priority);
-                if (priority <= 2) workCount[passionate[i]]++;
-            }
-
-            // 保证至少 2 人 priority >= 1：若 passionate < 2，从 nonPassionate 补足
-            if (passionate.Count < 2 && nonPassionate.Count > 0)
-            {
-                // 按技能等级降序补足（取技能最高的补到 priority=1）
-                nonPassionate.Sort((a, b) =>
-                    ComputeSkillScore(b, workType.relevantSkills)
-                    .CompareTo(ComputeSkillScore(a, workType.relevantSkills)));
-                int need = 2 - passionate.Count;
-                for (int i = 0; i < nonPassionate.Count; i++)
-                {
-                    // 补足的 → priority=1，其余无兴趣者 → priority=0（禁用）
-                    int priority = i < need ? 1 : 0;
-                    nonPassionate[i].workSettings.SetPriority(workType, priority);
-                    if (priority <= 2) workCount[nonPassionate[i]]++;
-                }
-            }
-            else
-            {
-                // 已 >= 2 人 priority >= 1，无兴趣者 → 0（禁用）
-                for (int i = 0; i < nonPassionate.Count; i++)
-                {
-                    nonPassionate[i].workSettings.SetPriority(workType, 0);
-                }
+                bool passionate = HasPassionForAnySkill(pawn, workType.relevantSkills);
+                int priority = passionate ? 1 : 3;
+                pawn.workSettings.SetPriority(workType, priority);
+                if (priority <= 2) workCount[pawn]++;
             }
         }
 
         // ════════════════════════════════════════════════════════════
         // 第 3 遍：狩猎（Hunting + Fishing）
         //   - 候选排序：后排优先 → passion desc → skill desc → workCount asc
-        //   - top 2 → priority=2，计入 workCount
-        //   - 其余 → priority=0（禁用）
+        //   - Hunting：top 2 → priority=2，其余有兴趣 → 4，其余无兴趣 → 0
+        //   - Fishing：top 2 → priority=3，其余 → 0
         // ════════════════════════════════════════════════════════════
 
         private static void AssignHuntingPriorities()
         {
             if (cachedHuntingDef != null)
-                AssignHuntingType(cachedHuntingDef);
+                AssignHuntingType(cachedHuntingDef, isFishing: false);
             if (cachedFishingDef != null)
-                AssignHuntingType(cachedFishingDef);
+                AssignHuntingType(cachedFishingDef, isFishing: true);
         }
 
-        private static void AssignHuntingType(WorkTypeDef workType)
+        private static void AssignHuntingType(WorkTypeDef workType, bool isFishing)
         {
             workCandidates.Clear();
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 Pawn pawn = candidatePawns[i];
                 if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
-                // 狩猎需远程武器：避免无兴趣低技能者被分配 priority=2
+                // 狩猎需远程武器：避免无兴趣低技能者被分配高优先级
                 // 优先级顺序不变（兴趣>等级仍由 ComparePawnsForHunting 保证）
                 if (pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
                 workCandidates.Add(pawn);
@@ -285,25 +244,39 @@ namespace AutoEverything.AutoWork
             }
             workCandidates.Sort((a, b) => ComparePawnsForHunting(a, b, workType.relevantSkills));
 
-            // top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
-            for (int i = 0; i < workCandidates.Count; i++)
+            if (isFishing)
             {
-                Pawn pawn = workCandidates[i];
-                int priority;
-                if (i < 2)
+                // Fishing：top 2 → priority=3，其余 → 0（钓鱼作为低强度工作，仅 2 人 priority=3 兜底）
+                for (int i = 0; i < workCandidates.Count; i++)
                 {
-                    priority = 2;
+                    Pawn pawn = workCandidates[i];
+                    int priority = i < 2 ? 3 : 0;
+                    pawn.workSettings.SetPriority(workType, priority);
+                    if (priority <= 2) workCount[pawn]++;
                 }
-                else if (HasPassionForAnySkill(pawn, workType.relevantSkills))
+            }
+            else
+            {
+                // Hunting：top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
+                for (int i = 0; i < workCandidates.Count; i++)
                 {
-                    priority = 4;
+                    Pawn pawn = workCandidates[i];
+                    int priority;
+                    if (i < 2)
+                    {
+                        priority = 2;
+                    }
+                    else if (HasPassionForAnySkill(pawn, workType.relevantSkills))
+                    {
+                        priority = 4;
+                    }
+                    else
+                    {
+                        priority = 0;
+                    }
+                    pawn.workSettings.SetPriority(workType, priority);
+                    if (priority <= 2) workCount[pawn]++;
                 }
-                else
-                {
-                    priority = 0;
-                }
-                pawn.workSettings.SetPriority(workType, priority);
-                if (priority <= 2) workCount[pawn]++;
             }
         }
 
@@ -373,7 +346,7 @@ namespace AutoEverything.AutoWork
         // ════════════════════════════════════════════════════════════
         // 第 5 遍：其他技能工作（Cooking/Growing/Mining/Crafting 等）
         //   - 候选排序：passion desc → skill desc → workCount asc
-        //   - guarantee 2：top 2 → priority=2，计入 workCount
+        //   - guarantee 2：top 2 内有火 → priority=2，无火 → priority=3
         //   - 其余 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
 
@@ -399,18 +372,16 @@ namespace AutoEverything.AutoWork
             // 排序：passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
-            // guarantee 2：top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
+            // guarantee 2：top 2 内有火 → priority=2，无火 → priority=3；其余 → 0
+            // 设计意图：至少 2 人承担专业工作，有火者优先承担（priority=2 计入 workCount），
+            // 无火者兜底（priority=3 不计入 workCount，避免影响后续负载均衡）
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
                 int priority;
                 if (i < 2)
                 {
-                    priority = 2;
-                }
-                else if (HasPassionForAnySkill(pawn, workType.relevantSkills))
-                {
-                    priority = 4;
+                    priority = HasPassionForAnySkill(pawn, workType.relevantSkills) ? 2 : 3;
                 }
                 else
                 {
