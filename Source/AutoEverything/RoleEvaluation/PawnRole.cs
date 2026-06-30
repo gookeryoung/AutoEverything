@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
@@ -232,6 +232,17 @@ namespace AutoEverything.RoleEvaluation
                 default:
                     return ArmorPreference.Light;
             }
+        }
+
+        /// <summary>
+        /// 判定角色是否为后排（用于狩猎分配优先级）。
+        /// 后排 = Flexible 护甲偏好：Shooter/Hunter/Leader。
+        /// 设计意图：后排角色应优先承担狩猎以练习射击，前排近战角色不应被分配狩猎。
+        /// 注意：本方法不依赖 Hunting 工作优先级（避免循环依赖），仅看护甲偏好。
+        /// </summary>
+        public static bool IsBackRow(Role role)
+        {
+            return GetArmorPreference(role) == ArmorPreference.Flexible;
         }
     }
 }

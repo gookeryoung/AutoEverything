@@ -338,20 +338,33 @@
 
 ## 自动工作分配（AutoWork）
 
-`AutoWork/WorkAllocator.cs` 提供基于兴趣（Passion）与全局评级（CombatTier）的工作优先级自动分配。
+`AutoWork/WorkAllocator.cs` 提供多遍协调分配 + 工作计数跟踪的工作优先级自动分配。
+将工作分为 7 类，按固定顺序分配，前排分配结果影响后排候选排序（通过工作计数实现均衡负载）。
 
 ### 分配规则
 
-| 工作类型 | 优先级 | 说明 |
-|---------|--------|------|
-| 紧急工作（灭火/就医/卧床） | 1 | 全部殖民者 |
-| 技能工作 + 有兴趣 | 2 | 有 Passion 的工作 |
-| 技能工作 + 无兴趣 | 0 | 禁用 |
-| 技能工作 + 全殖民地无人有兴趣 | 3（前2人）/ 0（其余） | 按技能等级取前2人兜底 |
-| 搬运/清洁 + S 档 | 4 | 高价值殖民者少做杂活 |
-| 搬运/清洁 + D/X 档 | 1 | 低价值殖民者多做杂活 |
-| 搬运/清洁 + A/B/C 档 | 3 | 中等 |
-| 非技能工作（开关等） | 3 | 全部殖民者 |
+工作类型按以下分类与顺序分配（顺序影响工作计数，前排分配结果影响后排候选）：
+
+| 顺序 | 工作分类 | 包含类型 | 分配规则 | Others |
+|------|---------|---------|---------|--------|
+| 1 | 紧急 | Firefighter / Patient / PatientBedRest | 全部 → 1 | — |
+| 2 | 关键 | Doctor / Warden / Childcare | 有兴趣 → 1；保证至少 2 人 priority ≥ 1（不足时按技能等级补足）；计入工作计数 | → 4 |
+| 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 工作计数升序 → 技能降序；top 2 → 2；计入工作计数 | → 0 |
+| 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | → 4 |
+| 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | → 4 |
+| 6 | 杂务 | Hauling / Cleaning | S 档 = 4，A/B/C 档 = 3，D/X 档 = 1 | — |
+| 7 | 非技能 | BasicWorker 等 | 全部 → 3 | — |
+
+**工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/搬运/清洁/非技能不计入）。
+用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
+
+**三因子排序**：Passion 降序 → WorkCount 升序 → SkillLevel 降序。
+Passion 量化：None=0, Minor=1, Major=2。
+
+**后排角色优先**（仅狩猎）：通过 `RoleDetector.IsBackRow(role)` 判定，仅 `ArmorPreference.Flexible`（Shooter/Hunter/Leader）视为后排。
+设计意图：后排角色应优先承担狩猎以练习射击能力。
+
+**循环依赖规避**：Hunting 始终设为 2 或 0，绝不设为 1，因此不会污染 `RoleDetector.DetectRole` 的 Hunter 判定（其依赖 Hunting priority == 1）。
 
 ### 自定义优先级自动启用
 
@@ -457,6 +470,19 @@ Source/AutoEverything/
 | `ForceEvaluate` / `ReloadAllColonists` | 入口防御：食尸鬼/不适用类别跳过 |
 
 **玩家手动给食尸鬼装备的物品由玩家自行负责，MOD 不干预、不清理。**
+
+## 奴隶处理
+
+奴隶（Ideology DLC）不参与自动装备管理与自动工作分配，玩家手动给奴隶装备/指派工作由玩家负责：
+
+| 流程 | 奴隶处理 |
+|------|---------|
+| `CompGearManager.CompTick` 日常评估 | 未征召时直接 return，不主动找武器/防具/药品 |
+| `GlobalAllocator.ReallocateAll` 全局重配 | 候选收集时跳过奴隶 |
+| `SidearmAllocator` / `BeltAllocator` 全局分配 | 候选收集时跳过奴隶 |
+| `WorkAllocator.ReallocateAll` 工作重配 | 候选收集时跳过奴隶 |
+
+**设计意图**：奴隶的装备与工作由玩家完全控制，MOD 不干预。征召时的副武器切换逻辑保留（奴隶无副武器本就跳过）。
 
 ## 性能约束
 

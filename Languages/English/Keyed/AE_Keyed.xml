@@ -218,5 +218,5 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_AutoWork>Auto Work Assignment</AE_AutoWork>
   <AE_GlobalWorkReallocate>Global Work Reallocate</AE_GlobalWorkReallocate>
   <AE_GlobalWorkReallocateResult>Reassigned work priorities for {0} colonists</AE_GlobalWorkReallocateResult>
-  <AE_TT_GlobalWorkReallocate>Reassign all colonists' work priorities by passion and tier. Auto-enables custom priorities. Emergency=1, passionate skills=2, hauling/cleaning by tier=1/3/4, unpassionate skills top 2=3.</AE_TT_GlobalWorkReallocate>
+  <AE_TT_GlobalWorkReallocate>Reassign all colonists' work priorities via multi-pass coordinated allocation by work category. Emergency=1; key work (Doctor/Warden/Childcare) passionate=1 with >= 2 guaranteed; Hunting max 2 with back-row priority; Research guarantees 1; other skill work guarantees 2, sorted by passion -> work count -> skill; hauling/cleaning by tier=1/3/4.</AE_TT_GlobalWorkReallocate>
 </LanguageData>

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -62,6 +62,8 @@ namespace AutoEverything.Allocation
                     if (DLCCompat.IsGhoul(pawn)) continue;
                     if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
                     if (pawn.Dead || pawn.Downed) continue;
+                    // 奴隶不参与全局装备重配（玩家手动装备由玩家负责）
+                    if (DLCCompat.IsSlave(pawn)) continue;
                     // 征召中的殖民者正在战斗，不打断（玩家可在规则面板关闭此保护）
                     if (AESettings.reallocateRespectDrafted && pawn.Drafted) continue;
 

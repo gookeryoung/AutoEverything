@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
@@ -120,6 +120,11 @@ namespace AutoEverything.AutoEquipment
                 }
                 return;
             }
+
+            // 奴隶不主动找武器装备：未征召时跳过所有自动评估
+            // 玩家手动给奴隶装备由玩家负责，MOD 不干预
+            // 征召时的副武器切换已在上方处理（奴隶无副武器本就跳过）
+            if (isSlave) return;
 
             if (tickOffset < 0)
                 tickOffset = parent.thingIDNumber % AESettings.evaluateInterval;
