@@ -353,10 +353,10 @@
 |------|---------|---------|---------|--------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | 全部 → 1 | — |
 | 2 | 关键 | Doctor / Warden / Childcare | 有兴趣者按技能降序，top 2 → 1；保证至少 2 人 priority ≥ 1（不足时按技能等级从无兴趣者补足）；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
-| 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 工作计数升序 → 技能降序；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
+| 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 技能降序 → 工作计数升序；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
-| 6 | 杂务 | Hauling / Cleaning | 搬运：所有人 → 1（确保资源及时入库）；清洁：S 档 = 4，A/B/C 档 = 3，D/X 档 = 1 | — |
+| 6 | 杂务 | Hauling / Cleaning | 搬运：S 档 = 4，A/B/C 档 = 3，D/X 档 = 1；清洁：同搬运 | — |
 | 7 | 非技能 | BasicWorker 等 | 全部 → 3 | — |
 
 **Others 优先级规则**：保证数量外的「有兴趣但技能等级更低」者 → 4（备选，会在主力没空时补位）；保证数量外的「无兴趣」者 → 0（禁用）。设计意图：有兴趣者可作为备选保留生产能力，无兴趣者不应承担该工作避免低效产出与心情惩罚。
@@ -364,7 +364,7 @@
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/搬运/清洁/非技能不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
 
-**三因子排序**：Passion 降序 → WorkCount 升序 → SkillLevel 降序。
+**三因子排序**：Passion 降序 → SkillLevel 降序 → WorkCount 升序。
 Passion 量化：None=0, Minor=1, Major=2。
 
 **后排角色优先**（仅狩猎）：通过 `RoleDetector.IsBackRow(role)` 判定，仅 `ArmorPreference.Flexible`（Shooter/Hunter/Leader）视为后排。

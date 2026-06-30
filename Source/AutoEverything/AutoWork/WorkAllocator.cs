@@ -235,7 +235,7 @@ namespace AutoEverything.AutoWork
 
         // ════════════════════════════════════════════════════════════
         // 第 3 遍：狩猎（Hunting + Fishing）
-        //   - 候选排序：后排优先 → passion desc → workCount asc → skill desc
+        //   - 候选排序：后排优先 → passion desc → skill desc → workCount asc
         //   - top 2 → priority=2，计入 workCount
         //   - 其余 → priority=0（禁用）
         // ════════════════════════════════════════════════════════════
@@ -259,7 +259,7 @@ namespace AutoEverything.AutoWork
             }
             if (workCandidates.Count == 0) return;
 
-            // 排序：后排优先 → passion desc → workCount asc → skill desc
+            // 排序：后排优先 → passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsForHunting(a, b, workType.relevantSkills));
 
             // top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
@@ -302,7 +302,7 @@ namespace AutoEverything.AutoWork
 
         // ════════════════════════════════════════════════════════════
         // 第 4 遍：研究
-        //   - 候选排序：passion desc → workCount asc → skill desc
+        //   - 候选排序：passion desc → skill desc → workCount asc
         //   - guarantee 1：top 1 → priority=2，计入 workCount
         //   - 其余 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
@@ -321,7 +321,7 @@ namespace AutoEverything.AutoWork
             }
             if (workCandidates.Count == 0) return;
 
-            // 排序：passion desc → workCount asc → skill desc
+            // 排序：passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
             // guarantee 1：top 1 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
@@ -348,7 +348,7 @@ namespace AutoEverything.AutoWork
 
         // ════════════════════════════════════════════════════════════
         // 第 5 遍：其他技能工作（Cooking/Growing/Mining/Crafting 等）
-        //   - 候选排序：passion desc → workCount asc → skill desc
+        //   - 候选排序：passion desc → skill desc → workCount asc
         //   - guarantee 2：top 2 → priority=2，计入 workCount
         //   - 其余 → priority=0（禁用，不备选）
         // ════════════════════════════════════════════════════════════
@@ -372,7 +372,7 @@ namespace AutoEverything.AutoWork
             }
             if (workCandidates.Count == 0) return;
 
-            // 排序：passion desc → workCount asc → skill desc
+            // 排序：passion desc → skill desc → workCount asc
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
 
             // guarantee 2：top 2 → priority=2，其余有兴趣 → priority=4（备选），其余无兴趣 → priority=0（禁用）
