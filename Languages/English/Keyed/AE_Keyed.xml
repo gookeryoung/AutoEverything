@@ -226,8 +226,13 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <!-- ITab bottom checkboxes (auto execution) -->
   <AE_AutoTierTag>Auto Tier Rating</AE_AutoTierTag>
   <AE_AutoWorkConfig>Auto Work Config</AE_AutoWorkConfig>
+  <AE_AutoGearReallocate>Auto Gear Reallocate</AE_AutoGearReallocate>
   <AE_TT_AutoTierTag>When enabled, automatically applies tier rating: every 3000 ticks and immediately when new colonists arrive.
 Checking it triggers one immediate execution; unchecking clears all tier tags and restores original names.</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>When enabled, automatically reallocates work priorities: every 3000 ticks and immediately when new colonists arrive.
 Checking it triggers one immediate execution; unchecking only stops auto execution, current work priorities are retained.</AE_TT_AutoWorkConfig>
+  <AE_TT_AutoGearReallocate>When enabled, automatically evaluates gear upgrades (lightweight check): every 3000 ticks and immediately when new colonists arrive.
+Does not interrupt drafted pawns; slaves and locked pawns are excluded; does not drop current gear, only swaps when better gear is available.
+Checking it triggers one immediate execution; unchecking only stops auto execution, current gear is retained.</AE_TT_AutoGearReallocate>
+  <AE_AutoGearReallocateResult>Auto gear evaluation triggered for {0} colonists</AE_AutoGearReallocateResult>
 </LanguageData>

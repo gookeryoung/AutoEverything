@@ -136,15 +136,15 @@ namespace AutoEverything.UI
             // 食尸鬼可能没有 comp（被排除注入），仍允许显示评级信息
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：2 勾选框 + 1 按钮 + 3 间隔
+            // 底部区预留高度：3 勾选框 + 1 按钮 + 4 间隔
             float buttonHeight = 30f;
             float buttonGap = 8f;
             float checkboxHeight = 24f;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（2 勾选框 + 1 按钮 + 3 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 2 + buttonHeight + buttonGap * 3));
+            // 内容区高度 = 总高 - 底部区（3 勾选框 + 1 按钮 + 4 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 3 + buttonHeight + buttonGap * 4));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -310,7 +310,7 @@ namespace AutoEverything.UI
             cachedContentHeight = l.CurHeight + 20f;
             Widgets.EndScrollView();
 
-            // ===================== 底部区：2 勾选框 + 1 按钮 =====================
+            // ===================== 底部区：3 勾选框 + 1 按钮 =====================
             // 1. 人员自动评级勾选框：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
             Rect tierCheckRect = new Rect(
                 rect.x,
@@ -359,11 +359,30 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerWorkNow();
             }
 
-            // 3. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
+            // 3. 装备自动重配勾选框：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前装备）
+            Rect gearCheckRect = new Rect(
+                rect.x,
+                workCheckRect.yMax + buttonGap,
+                rect.width,
+                checkboxHeight);
+
+            bool prevWrap3 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevGear = AESettings.autoGearReallocate;
+            Widgets.CheckboxLabeled(gearCheckRect, "AE_AutoGearReallocate".Translate(), ref AESettings.autoGearReallocate);
+            Text.WordWrap = prevWrap3;
+            TooltipHandler.TipRegion(gearCheckRect, "AE_TT_AutoGearReallocate".Translate());
+            // 状态变化检测：勾选时立即执行；取消勾选仅停止自动（无副作用）
+            if (AESettings.autoGearReallocate && AESettings.autoGearReallocate != prevGear)
+            {
+                AutoExecutor.TriggerGearNow();
+            }
+
+            // 4. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
             // 食尸鬼面板也显示此按钮（统一入口），但 GlobalAllocator 内部会跳过食尸鬼
             Rect buttonRect = new Rect(
                 rect.x,
-                workCheckRect.yMax + buttonGap,
+                gearCheckRect.yMax + buttonGap,
                 rect.width,
                 buttonHeight);
 

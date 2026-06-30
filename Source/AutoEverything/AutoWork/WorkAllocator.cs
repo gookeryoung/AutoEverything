@@ -51,16 +51,25 @@ namespace AutoEverything.AutoWork
             }
 
             // 2. 收集候选殖民者（复用 BeltAllocator/GlobalAllocator 的过滤链）
+            // 奴隶也参与工作分配：Biotech DLC 的 SlavesOfColonySpawned 返回空列表时不影响
             candidatePawns.Clear();
             foreach (Map map in Find.Maps)
             {
+                // 殖民者（FreeColonistsSpawned 不含奴隶）
                 foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
                 {
                     if (DLCCompat.IsGhoul(pawn)) continue;
                     if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
                     if (pawn.Dead || pawn.Downed) continue;
-                    if (DLCCompat.IsSlave(pawn)) continue;
                     // 未成年可参与工作，保留
+                    candidatePawns.Add(pawn);
+                }
+                // 奴隶（Biotech DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
+                foreach (Pawn pawn in map.mapPawns.SlavesOfColonySpawned)
+                {
+                    if (DLCCompat.IsGhoul(pawn)) continue;
+                    if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
+                    if (pawn.Dead || pawn.Downed) continue;
                     candidatePawns.Add(pawn);
                 }
             }
@@ -259,6 +268,9 @@ namespace AutoEverything.AutoWork
             {
                 Pawn pawn = candidatePawns[i];
                 if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
+                // 狩猎需远程武器：避免无兴趣低技能者被分配 priority=2
+                // 优先级顺序不变（兴趣>等级仍由 ComparePawnsForHunting 保证）
+                if (pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
                 workCandidates.Add(pawn);
             }
             if (workCandidates.Count == 0) return;

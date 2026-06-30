@@ -19,6 +19,7 @@ namespace AutoEverything.Core
         public static bool sidearms = true;
         public static bool autoWorkEnabled = true;  // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;       // 人员自动评级（周期触发 + 新增人员触发）
+        public static bool autoGearReallocate = true;  // 自动装备重配主开关（轻量升级检查，周期触发）
 
         // 情境切换
         public static bool combatSwitch = true;      // 征召/取消征召时切换装备
@@ -65,6 +66,7 @@ namespace AutoEverything.Core
         public static float heavyArmorSharpThreshold = 0.4f;  // 护甲锐穿 ≥ 此值视为重甲
         public static float heavyArmorPenaltyForLight = -1000f; // Heavy 偏好角色对轻甲的减分（强制选重甲）
         public static float lightArmorPenaltyForHeavy = -1000f; // Light 偏好角色对重甲的减分（强制选轻甲）
+        public static float heavyArmorMatchBonus = 500f;        // 角色偏好与护甲类型匹配时的奖励分（Heavy+heavy / Light+light），让匹配偏好显著胜过 Flexible
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -451,9 +453,11 @@ namespace AutoEverything.Core
             LookCompat(ref heavyArmorSharpThreshold, "heavyArmorSharpThreshold", 0.4f);
             LookCompat(ref heavyArmorPenaltyForLight, "heavyArmorPenaltyForLight", -1000f);
             LookCompat(ref lightArmorPenaltyForHeavy, "lightArmorPenaltyForHeavy", -1000f);
+            LookCompat(ref heavyArmorMatchBonus, "heavyArmorMatchBonus", 500f);
             LookCompat(ref debugLogging, "debugLogging", false);
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
+            LookCompat(ref autoGearReallocate, "autoGearReallocate", true);
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
 

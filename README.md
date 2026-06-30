@@ -237,6 +237,27 @@
 - **武器分配**：沿用原战斗维度评分 `SidearmAllocator.ComputeCombatValue`（射击/格斗等级 × 兴趣乘数 + 战斗特质加分），武器评分体系完全不变。
 - **护甲分配**：在 `GlobalAllocator.ReallocateApparel` 入口处按 `CombatTier` 降序重排 `sortedPawns`，让 S 档殖民者优先获得价值最高的护甲；同档内再用 `ComputePawnValueScore` 精排，让同档中培养更深的殖民者优先。
 
+### 护甲分配算法（重甲单位优先）
+
+护甲分配采用"逐件分配"算法：每件护甲按内在价值降序进入分配流程，分配给"评分最高"的殖民者。
+
+评分公式：
+```
+护甲评分 = GearScorer.ScoreApparel(基础分) + 角色偏好调整 + 评级权重
+```
+
+| 角色偏好 | 护甲类型 | 调整 | 说明 |
+|---------|---------|------|------|
+| Heavy（重甲[前排]）| 重甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Heavy 显著胜过 Flexible |
+| Heavy（重甲[前排]）| 轻甲 | `+heavyArmorPenaltyForLight`（默认 **-1000**） | 硬否决，强制选重甲 |
+| Light（轻甲[工人]）| 轻甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Light 显著胜过 Flexible |
+| Light（轻甲[工人]）| 重甲 | `+lightArmorPenaltyForHeavy`（默认 **-1000**） | 硬否决，强制选轻甲 |
+| Flexible（自由[后排]）| 任意 | 0 | 既不奖励也不惩罚 |
+
+**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），仅用于打破同分平局，远小于匹配奖励（500）与硬否决惩罚（1000）。
+
+**设计意图**：通过将匹配奖励从 +50 提升到 +500，让重甲偏好单位（Brawler）显著优先获得重甲，避免高评级 Flexible 殖民者抢占重甲。Flexible 殖民者仍可在无 Heavy 候选时获得重甲（无竞争者时 score 不需要超过任何人）。
+
 ### 同档精排评分（ComputePawnValueScore）
 
 用于同 `CombatTier` 档内的精细排序。评分公式：
@@ -365,7 +386,7 @@
 |------|---------|---------|---------|--------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | 全部 → 1 | — |
 | 2 | 关键 | Doctor / Warden / Childcare | 有兴趣者按技能降序，top 2 → 1；保证至少 2 人 priority ≥ 1（不足时按技能等级从无兴趣者补足）；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
-| 3 | 狩猎 | Hunting / Fishing | 候选排序：后排优先 → 兴趣降序 → 技能降序 → 工作计数升序；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
+| 3 | 狩猎 | Hunting / Fishing | 候选需装备远程武器；候选排序：后排优先 → 兴趣降序 → 技能降序 → 工作计数升序；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 4 | 研究 | Research | 保证 1 人：排序同上（无后排优先）；top 1 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 5 | 普通技能 | Cooking / Growing / Mining / Crafting / Smithing / Tailoring / Art / Construction / PlantCutting / Handling | 保证 2 人：排序同上；top 2 → 2；计入工作计数 | 有兴趣 → 4；无兴趣 → 0 |
 | 6 | 杂务 | Hauling / Cleaning | 搬运：SSS/SS/S 档 = 4，A/B/C 档 = 3，D/X 档 = 1；清洁：同搬运 | — |
@@ -381,6 +402,9 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 **后排角色优先**（仅狩猎）：通过 `RoleDetector.IsBackRow(role)` 判定，仅 `ArmorPreference.Flexible`（Shooter/Hunter/Leader）视为后排。
 设计意图：后排角色应优先承担狩猎以练习射击能力。
+
+**狩猎需远程武器**：候选收集阶段过滤 `pawn.equipment?.Primary?.def.IsRangedWeapon != true` 的殖民者（未装备武器 / 装备近战武器 / 装备非武器均排除）。
+设计意图：避免无兴趣低技能者被分配 priority=2 的狩猎工作（狩猎需远程武器才能进行）。优先级顺序不变（兴趣>等级仍由 `ComparePawnsForHunting` 保证）。
 
 **循环依赖规避**：Hunting 始终设为 2 或 0，绝不设为 1，因此不会污染 `RoleDetector.DetectRole` 的 Hunter 判定（其依赖 Hunting priority == 1）。
 
@@ -398,15 +422,25 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ## 自动执行（AutoExecutor）
 
-`Core/AutoExecutor.cs` 静态类负责工作重配与人员评级的周期/新增殖民者自动触发。
+`Core/AutoExecutor.cs` 静态类负责工作重配、人员评级与装备重配的周期/新增殖民者自动触发。
 
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
 - **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
-- **周期触发**：每 3000 tick（约 50 秒）执行一次工作重配与人员评级
+- **周期触发**：每 3000 tick（约 50 秒）执行一次工作重配、人员评级与装备重配
 - **新增殖民者检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加 → 立即触发（不弹消息框）
-- **首次初始化守卫**：`lastWorkTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作与评级各自独立 try-catch + `Log.ErrorOnce`，salt 独立
+- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
+- **错误隔离**：工作、评级、装备重配各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
+
+### 装备自动重配（轻量升级检查）
+
+- **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
+- **机制**：调用每个殖民者的 `CompGearManager.ForceEvaluate(ReloadTarget.All)`，独立评估升级机会
+- **不打断战斗**：征召中（`Drafted`）的殖民者跳过
+- **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
+- **尊重锁定**：`comp.locked` 为 true 的殖民者跳过
+- **不放下当前装备**：与手动"全局重配"不同，自动重配不放下装备到地上，仅评估是否有更优装备可换
+- **入口**：殖民者装备面板（ITab）底部 → "装备自动重配"勾选框（`AESettings.autoGearReallocate`，默认勾选）
 
 ## 架构模型
 
@@ -485,9 +519,10 @@ Source/AutoEverything/
 | 征召副武器检查 | 30 tick | 战斗紧迫，需快速切近战 |
 | `SidearmAllocator` | 2000 tick | 全局副武器分配 |
 | `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |
-| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增加时立即触发工作+评级 |
+| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增加时立即触发工作+评级+装备重配 |
 | `AutoExecutor` 工作重配 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
+| `AutoExecutor` 装备重配 | 3000 tick | 轻量升级检查（ForceEvaluate），不放下当前装备；周期 + 新增殖民者 + ITab 勾选时触发 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
 | 死亡 Pawn 字典清理 | 60000 tick | `RoleDetector`/`ContextDetector` 残留条目清理 |
@@ -509,16 +544,19 @@ Source/AutoEverything/
 
 ## 奴隶处理
 
-奴隶（Ideology DLC）不参与自动装备管理与自动工作分配，玩家手动给奴隶装备/指派工作由玩家负责：
+奴隶（Ideology DLC）不参与自动装备管理，但**参与自动工作分配**（作为殖民地劳动力）：
 
 | 流程 | 奴隶处理 |
 |------|---------|
 | `CompGearManager.CompTick` 日常评估 | 未征召时直接 return，不主动找武器/防具/药品 |
 | `GlobalAllocator.ReallocateAll` 全局重配 | 候选收集时跳过奴隶 |
+| `AutoExecutor.ExecuteGear` 自动装备重配 | 候选收集时跳过奴隶（与 `CompTick` 一致） |
 | `SidearmAllocator` / `BeltAllocator` 全局分配 | 候选收集时跳过奴隶 |
-| `WorkAllocator.ReallocateAll` 工作重配 | 候选收集时跳过奴隶 |
+| `WorkAllocator.ReallocateAll` 工作重配 | **奴隶参与分配**（通过 `map.mapPawns.SlavesOfColonySpawned` 收集） |
 
-**设计意图**：奴隶的装备与工作由玩家完全控制，MOD 不干预。征召时的副武器切换逻辑保留（奴隶无副武器本就跳过）。
+**设计意图**：奴隶的装备由玩家完全控制，MOD 不干预；但奴隶作为殖民地劳动力，应参与工作优先级自动分配（紧急工作、搬运、清洁等）。征召时的副武器切换逻辑保留（奴隶无副武器本就跳过）。
+
+**奴隶收集**：`mapPawns.FreeColonistsSpawned` 不含奴隶，需单独遍历 `mapPawns.SlavesOfColonySpawned`。无 Biotech DLC 时该方法返回空列表，不影响无 DLC 环境。
 
 ## 性能约束
 
@@ -619,6 +657,10 @@ make rebuild-check  # 完整重建后检查
 | `PawnRole.cs` / `GetArmorPreference` | `## 护甲偏好` 表格 |
 | 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
 | `GlobalAllocator.cs` / `Dialog_GlobalReallocate.cs` | `## 全局重配` 与 `### 保护规则` |
+| `GlobalAllocator.cs` 护甲匹配奖励 | `### 护甲分配算法（重甲单位优先）` 表格 |
+| `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
+| `WorkAllocator.cs` 奴隶收集/狩猎限制 | `## 奴隶处理` + `## 自动工作分配（AutoWork）` 狩猎条目 |
+| `ITab_GearManager.cs` 底部勾选框 | `## 自动执行（AutoExecutor）` 入口章节 |
 | `SGSettings.cs` 排序相关 | `### 殖民者栏默认排序` 表格 |
 | 新增/删除源文件 | `### 目录结构` 代码块 |
 | 新增/修改图片资源 | `## 图片资源` 表格与 `### 资源加载时机` |

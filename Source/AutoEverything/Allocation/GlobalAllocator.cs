@@ -369,8 +369,8 @@ namespace AutoEverything.Allocation
                     // 角色偏好调整：
                     // - Heavy 偏好 + 轻甲：大惩罚（-1000，硬否决）
                     // - Light 偏好 + 重甲：大惩罚（-1000，硬否决）
-                    // - Heavy 偏好 + 重甲：匹配奖励（+50，让 Heavy 天然胜过 Flexible）
-                    // - Light 偏好 + 轻甲：匹配奖励（+50，让 Light 天然胜过 Flexible）
+                    // - Heavy 偏好 + 重甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Heavy 显著胜过 Flexible）
+                    // - Light 偏好 + 轻甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Light 显著胜过 Flexible）
                     // - Flexible：无调整（既不奖励也不惩罚）
                     // 设计意图：匹配偏好的殖民者优先获得对应类型护甲，
                     //   避免 Flexible 殖民者抢走 Heavy 殖民者急需的重甲
@@ -380,10 +380,10 @@ namespace AutoEverything.Allocation
                         score += AESettings.lightArmorPenaltyForHeavy;
                     else if ((pref == ArmorPreference.Heavy && isHeavy)
                              || (pref == ArmorPreference.Light && !isHeavy))
-                        score += 50f;  // 匹配奖励
+                        score += AESettings.heavyArmorMatchBonus;  // 匹配奖励（默认 500，让匹配偏好显著胜过 Flexible）
 
                     // 评级权重：同分时高评级优先
-                    // 0.5 分/档：足够打破平局，但远小于匹配奖励(50)与惩罚(1000)
+                    // 0.5 分/档 × 7 档 = 3.5（最大值），远小于匹配奖励(500)与惩罚(1000)
                     CombatTier pawnTier = CombatEvaluator.GetCombatTier(pawn);
                     score += (float)pawnTier * 0.5f;
 
