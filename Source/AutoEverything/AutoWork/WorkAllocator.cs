@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using Verse.AI;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 
@@ -36,7 +35,11 @@ namespace AutoEverything.AutoWork
 
         // workCount 硬上限：每人最多承担 N 项 priority≤2 的专业工作，超限者跳过候选
         // 候选不足保证人数时回退放宽，保证小殖民地工作有人做
-        private const int MaxCoreWorkCount = 2;
+        private const int MaxCoreWorkCount = 3;
+
+        // Crafting 技能组（Crafting/Smithing/Tailoring）共享 1 个 workCount
+        // 这三个工作类型都关联 Crafting 技能，应视为 1 个专业工作，避免手工专家因三个共享技能的工作快速达到上限
+        private static readonly Dictionary<Pawn, bool> craftingSkillCounted = new Dictionary<Pawn, bool>();
 
         // WorkTypeDef 缓存与分类（懒加载，避免静态字段初始化器跨线程调用 DefDatabase）
         private static List<WorkTypeDef> cachedWorkTypes;
@@ -115,6 +118,7 @@ namespace AutoEverything.AutoWork
 
             // 4. 重置工作计数（每次重配都从 0 开始，避免脏数据）
             workCount.Clear();
+            craftingSkillCounted.Clear();
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 workCount[candidatePawns[i]] = 0;
@@ -344,8 +348,9 @@ namespace AutoEverything.AutoWork
         }
 
         // ════════════════════════════════════════════════════════════
-        // 第 5 遍：其他技能工作（Cooking/Mining/Crafting/Construction 等）
+        // 第 4 遍：其他技能工作（Mining/Crafting/Construction 等）
         //   保证 2 人，有火 top2→2，无火 top2→3，有火保底 3，无火技能兜底
+        //   手工类工作（Crafting 组 + Construction）优先分配，避免手工专家被非手工工作占用 workCount
         // ════════════════════════════════════════════════════════════
 
         private static void AssignOtherSkillWorkPriorities()
@@ -361,10 +366,29 @@ namespace AutoEverything.AutoWork
                 RequireRangedWeapon = false,
                 UseBackRowSort = false
             };
+            // 先分配手工类工作（Crafting 组 + Construction）
+            // 手工专家应优先获得这些工作，避免被非手工工作占用 workCount 导致后续手工工作被硬上限拦截
             for (int i = 0; i < otherSkillWorkDefs.Count; i++)
             {
-                AssignWorkType(otherSkillWorkDefs[i], config);
+                WorkTypeDef wt = otherSkillWorkDefs[i];
+                if (IsCraftingSkillWork(wt) || wt.defName == "Construction")
+                    AssignWorkType(wt, config);
             }
+            // 再分配其他技能工作（Mining/Art/Handling 等）
+            for (int i = 0; i < otherSkillWorkDefs.Count; i++)
+            {
+                WorkTypeDef wt = otherSkillWorkDefs[i];
+                if (!IsCraftingSkillWork(wt) && wt.defName != "Construction")
+                    AssignWorkType(wt, config);
+            }
+        }
+
+        /// <summary>
+        /// 判断工作类型是否关联 Crafting 技能（Crafting/Smithing/Tailoring 共享同一技能）。
+        /// </summary>
+        private static bool IsCraftingSkillWork(WorkTypeDef wt)
+        {
+            return wt.relevantSkills != null && wt.relevantSkills.Contains(SkillDefOf.Crafting);
         }
 
         // ════════════════════════════════════════════════════════════
@@ -546,16 +570,19 @@ namespace AutoEverything.AutoWork
             {
                 Pawn pawn = workCandidates[i];
                 bool hasPassion = HasPassionForAnySkill(pawn, workType.relevantSkills);
+                // 满载者（回退放宽加入的）不抢占 Guarantee 优先级，只给 Floor 保底
+                // 避免工作很多的专家被回退放宽后仍获得 priority=1
+                bool isOverloaded = workCount[pawn] >= MaxCoreWorkCount;
                 int priority;
 
-                if (i < config.GuaranteeCount)
+                if (i < config.GuaranteeCount && !isOverloaded)
                 {
-                    // 原则 1+2：保证 N 人承担，有火/无火分别给优先级
+                    // 原则 1+2：保证 N 人承担（仅未满载者），有火/无火分别给优先级
                     priority = hasPassion ? config.GuaranteePassionatePriority : config.GuaranteeNonPassionatePriority;
                 }
                 else if (hasPassion)
                 {
-                    // 原则 3：有火者保底优先级
+                    // 原则 3：有火者保底优先级（含回退放宽的满载者）
                     priority = config.FloorPassionatePriority;
                 }
                 else
@@ -567,7 +594,26 @@ namespace AutoEverything.AutoWork
                 }
 
                 pawn.workSettings.SetPriority(workType, priority);
-                if (priority <= 2) workCount[pawn]++;
+                if (priority <= 2)
+                {
+                    // Crafting 技能组（Crafting/Smithing/Tailoring）共享 1 个 workCount
+                    // 这三个工作类型都关联 Crafting 技能，应视为 1 个专业工作
+                    bool isCraftingSkill = workType.relevantSkills != null
+                        && workType.relevantSkills.Contains(SkillDefOf.Crafting);
+                    if (isCraftingSkill)
+                    {
+                        bool alreadyCounted = craftingSkillCounted.TryGetValue(pawn, out bool counted) && counted;
+                        if (!alreadyCounted)
+                        {
+                            workCount[pawn]++;
+                            craftingSkillCounted[pawn] = true;
+                        }
+                    }
+                    else
+                    {
+                        workCount[pawn]++;
+                    }
+                }
             }
         }
 

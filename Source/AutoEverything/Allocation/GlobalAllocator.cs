@@ -149,8 +149,7 @@ namespace AutoEverything.Allocation
                     }
 
                     // 放下武器到 Pawn 位置，进入地图候选池
-                    ThingWithComps dropped;
-                    pawn.equipment.TryDropEquipment(primary, out dropped, pawn.Position, false);
+                    pawn.equipment.TryDropEquipment(primary, out ThingWithComps dropped, pawn.Position, false);
                     if (dropped != null)
                     {
                         droppedCount++;

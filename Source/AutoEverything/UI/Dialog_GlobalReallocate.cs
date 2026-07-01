@@ -2,9 +2,6 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using AutoEverything.Core;
-using AutoEverything.RoleEvaluation;
-using AutoEverything.AutoEquipment;
-using AutoEverything.AutoEquipment.Scoring;
 using AutoEverything.Allocation;
 
 namespace AutoEverything.UI
