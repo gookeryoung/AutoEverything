@@ -30,6 +30,10 @@ namespace AutoEverything.AutoWork
         // 每次狩猎分配前 Clear+重填，仅在该次 Sort 内有效
         private static readonly Dictionary<Pawn, bool> backRowCache = new Dictionary<Pawn, bool>();
 
+        // 服务类工作排序缓存：CombatTier 预计算，避免 Sort 比较器内重复调用 GetCombatTier
+        // 每次服务类分配前 Clear+重填，仅在该次 Sort 内有效
+        private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
+
         // WorkTypeDef 缓存与分类（懒加载，避免静态字段初始化器跨线程调用 DefDatabase）
         private static List<WorkTypeDef> cachedWorkTypes;
         private static readonly List<WorkTypeDef> keyWorkDefs = new List<WorkTypeDef>();
@@ -46,6 +50,8 @@ namespace AutoEverything.AutoWork
         /// 2. 三因子排序选 guarantee 人选（passion desc → skill desc → workCount asc）
         /// 3. FloorPassionatePriority：有火者超出 guarantee 部分至少给此保底优先级
         /// 4. UseSkillFloorForNonPassionate：无火者超出 guarantee 部分按技能兜底（≥12→2, ≥8→3, 否则 FloorNonPassionatePriority）
+        /// 注：奴隶在专业工作中与殖民者同流程（按兴趣/技能参与分配），
+        /// 奴隶的特殊处理仅在服务类工作（搬运/清洁/非技能）中生效，见 AssignServiceWorkType。
         /// </summary>
         private struct WorkAllocationConfig
         {
@@ -115,8 +121,7 @@ namespace AutoEverything.AutoWork
             AssignHuntingPriorities();            // 第 3 遍：狩猎类（Hunting/Fishing/PlantCutting/Growing）
             AssignResearchPriorities();           // 第 4 遍：研究
             AssignOtherSkillWorkPriorities();     // 第 5 遍：其他技能工作
-            AssignHaulingCleaningPriorities();    // 第 6 遍：搬运/清洁
-            AssignNonSkillWorkPriorities();       // 第 7 遍：非技能工作
+            AssignServiceWorkPriorities();        // 第 6 遍：服务类（搬运/清洁/非技能）
 
             return candidatePawns.Count;
         }
@@ -335,59 +340,119 @@ namespace AutoEverything.AutoWork
         }
 
         // ════════════════════════════════════════════════════════════
-        // 第 6 遍：搬运/清洁（按 CombatTier 分档，不计入 workCount）
-        //   SSS/SS/S=4, A/B/C=3, D/X=1
+        // 第 6 遍：服务类工作（搬运/清洁/非技能 BasicWorker 等，不计入 workCount）
+        //   排序：奴隶优先 → 评级升序（最低档在前）→ 工作计数升序
+        //   规则：1.奴隶均 priority=1
+        //         2.保底 1 人 priority=1（排序首位非奴隶，即评级最低者）
+        //         3.工作计数 < 3 的 priority=1（均衡负载）
+        //         4.以上均不满足时按评级分档（S+=4, A/B/C=3, D/X=1）
         // ════════════════════════════════════════════════════════════
 
-        private static void AssignHaulingCleaningPriorities()
+        private static void AssignServiceWorkPriorities()
         {
             for (int i = 0; i < cachedWorkTypes.Count; i++)
             {
                 WorkTypeDef wt = cachedWorkTypes[i];
-                if (wt.defName != "Hauling" && wt.defName != "Cleaning") continue;
+                if (IsEmergencyWork(wt)) continue;
+                // 搬运/清洁 + 无 relevantSkills 的非技能工作（如 BasicWorker）
+                bool isHaulingCleaning = wt.defName == "Hauling" || wt.defName == "Cleaning";
+                bool isNonSkill = wt.relevantSkills == null || wt.relevantSkills.Count == 0;
+                if (!isHaulingCleaning && !isNonSkill) continue;
 
-                for (int j = 0; j < candidatePawns.Count; j++)
+                AssignServiceWorkType(wt);
+            }
+        }
+
+        private static void AssignServiceWorkType(WorkTypeDef workType)
+        {
+            workCandidates.Clear();
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                Pawn pawn = candidatePawns[i];
+                if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
+                workCandidates.Add(pawn);
+            }
+            if (workCandidates.Count == 0) return;
+
+            // 预计算评级缓存，避免 Sort 比较器内重复调用 GetCombatTier
+            tierCache.Clear();
+            for (int i = 0; i < workCandidates.Count; i++)
+            {
+                Pawn p = workCandidates[i];
+                tierCache[p] = CombatEvaluator.GetCombatTier(p);
+            }
+
+            // 排序：奴隶优先 → 评级升序（最低档在前）→ 工作计数升序
+            workCandidates.Sort(ComparePawnsForServiceWork);
+
+            bool guaranteedOne = false;
+            for (int i = 0; i < workCandidates.Count; i++)
+            {
+                Pawn pawn = workCandidates[i];
+                int priority;
+
+                if (DLCCompat.IsSlave(pawn))
                 {
-                    Pawn pawn = candidatePawns[j];
-                    if (pawn.WorkTagIsDisabled(wt.workTags)) continue;
-                    CombatTier tier = CombatEvaluator.GetCombatTier(pawn);
-                    int priority;
+                    // 规则 1：奴隶均 priority=1
+                    priority = 1;
+                    guaranteedOne = true;
+                }
+                else if (!guaranteedOne)
+                {
+                    // 规则 2+4：保底 1 人 priority=1（排序首位非奴隶，即评级最低者）
+                    priority = 1;
+                    guaranteedOne = true;
+                }
+                else if (workCount[pawn] < 3)
+                {
+                    // 规则 3：其他优先 1/2 工作数量少于 3 的 priority=1（均衡负载）
+                    priority = 1;
+                }
+                else
+                {
+                    // 兜底：按评级分档（高价值殖民者少做服务类工作）
+                    CombatTier tier = tierCache[pawn];
                     switch (tier)
                     {
                         case CombatTier.SSS:
                         case CombatTier.SS:
                         case CombatTier.S: priority = 4; break;
-                        case CombatTier.D:
-                        case CombatTier.X: priority = 1; break;
-                        default: priority = 3; break; // A/B/C
+                        case CombatTier.A:
+                        case CombatTier.B:
+                        case CombatTier.C: priority = 3; break;
+                        default: priority = 1; break; // D/X
                     }
-                    pawn.workSettings.SetPriority(wt, priority);
                 }
+
+                pawn.workSettings.SetPriority(workType, priority);
+                // 服务类工作不计入 workCount
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // 第 7 遍：非技能工作（BasicWorker 等，全部 priority=3，不计入 workCount）
-        // ════════════════════════════════════════════════════════════
-
-        private static void AssignNonSkillWorkPriorities()
+        /// <summary>
+        /// 服务类工作专用比较器：奴隶优先 → 评级升序（最低档在前）→ 工作计数升序。
+        /// 设计意图：奴隶承担服务类工作（受限工作类型多），
+        ///   评级低者优先（高价值殖民者应专注技能工作），
+        ///   工作计数少者优先（均衡负载）。
+        /// 注：评级结果由调用方预计算存入 tierCache，避免比较器内重复调用 GetCombatTier。
+        /// </summary>
+        private static int ComparePawnsForServiceWork(Pawn a, Pawn b)
         {
-            for (int i = 0; i < cachedWorkTypes.Count; i++)
-            {
-                WorkTypeDef wt = cachedWorkTypes[i];
-                // 跳过已在前 6 遍处理的类别
-                if (IsEmergencyWork(wt)) continue;
-                if (wt.defName == "Hauling" || wt.defName == "Cleaning") continue;
-                // 仅处理无 relevantSkills 的非技能工作
-                if (wt.relevantSkills != null && wt.relevantSkills.Count > 0) continue;
+            // 1. 奴隶优先（true 排前）
+            bool slaveA = DLCCompat.IsSlave(a);
+            bool slaveB = DLCCompat.IsSlave(b);
+            if (slaveA != slaveB) return slaveB.CompareTo(slaveA);
 
-                for (int j = 0; j < candidatePawns.Count; j++)
-                {
-                    Pawn pawn = candidatePawns[j];
-                    if (pawn.WorkTagIsDisabled(wt.workTags)) continue;
-                    pawn.workSettings.SetPriority(wt, 3);
-                }
-            }
+            // 2. 评级升序（最低档在前，X=0 → SSS=7）
+            CombatTier tierA = tierCache.TryGetValue(a, out CombatTier ta) ? ta : CombatTier.X;
+            CombatTier tierB = tierCache.TryGetValue(b, out CombatTier tb) ? tb : CombatTier.X;
+            int tierCompare = ((int)tierA).CompareTo((int)tierB);
+            if (tierCompare != 0) return tierCompare;
+
+            // 3. 工作计数升序（工作少者优先）
+            int countA = workCount[a];
+            int countB = workCount[b];
+            return countA.CompareTo(countB);
         }
 
         // ════════════════════════════════════════════════════════════
@@ -401,6 +466,7 @@ namespace AutoEverything.AutoWork
         /// 3. 超出 guarantee 的有火者给 FloorPassionatePriority 保底优先级
         /// 4. 超出 guarantee 的无火者：UseSkillFloorForNonPassionate=true 时按技能兜底（≥12→2, ≥8→3, 否则 0），
         ///    false 时直接给 FloorNonPassionatePriority
+        /// 注：奴隶在专业工作中与殖民者同流程，按兴趣/技能参与分配，无特殊优先级。
         /// </summary>
         private static void AssignWorkType(WorkTypeDef workType, WorkAllocationConfig config)
         {
