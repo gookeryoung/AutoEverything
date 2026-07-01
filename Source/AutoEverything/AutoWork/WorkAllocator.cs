@@ -192,15 +192,31 @@ namespace AutoEverything.AutoWork
                 if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
                 workCandidates.Add(pawn);
             }
+
             if (workCandidates.Count == 0) return;
 
+            // 三因子排序
+            workCandidates.Sort((a, b) =>ComparePawnsByPassionWorkCountSkill(a, b, workType.relevantSkills));
+
+            // 所有人按是否有火区分：有火→1，无火→3
             // 所有人按是否有火区分：有火→1，无火→3
             // 设计意图：关键工作（医疗/监管/育儿）容错性高，有火者全部优先承担，无火者兜底备选
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
-                bool passionate = HasPassionForAnySkill(pawn, workType.relevantSkills);
-                int priority = passionate ? 1 : 3;
+                int priority;
+
+                if (i < 2) {
+                    priority = HasPassionForAnySkill(pawn, workType.relevantSkills) ? 1 : 3;
+                } else {
+                    if (HasPassionForAnySkill(pawn, workType.relevantSkills)) {
+                        priority = 3;
+                    } else {
+                        // 技能等级兜底
+                        priority = GetSkillFloorPriority(pawn, workType.relevantSkills);
+                    }
+                }
+
                 pawn.workSettings.SetPriority(workType, priority);
                 if (priority <= 2) workCount[pawn]++;
             }
@@ -523,11 +539,15 @@ namespace AutoEverything.AutoWork
         }
 
         /// <summary>
-        /// 技能等级兜底：相关技能最高等级 ≥ 8 时返回 3，否则返回 0。
+        /// 技能等级兜底：相关技能最高等级 ≥ 12 时返回 2, ≥ 8 时返回 3，否则返回 0。
         /// 用于"无火但技能高者至少 priority=3"的全局规则，避免高技能奴隶/殖民者被排除在工作外。
         /// </summary>
         private static int GetSkillFloorPriority(Pawn pawn, List<SkillDef> skills)
         {
+            // 技能等级兜底：相关技能最高等级 ≥ 12 时返回 2。
+            if (GetMaxSkillLevelForSkills(pawn, skills) >= 12) return 2;
+
+            // 技能等级兜底：相关技能最高等级 ≥ 8 时返回 3，否则返回 0。
             return GetMaxSkillLevelForSkills(pawn, skills) >= 8 ? 3 : 0;
         }
 
