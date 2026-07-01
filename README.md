@@ -480,8 +480,8 @@
 | 3 | 钓鱼 | Fishing | 2 | 3 | 3 | 3 | 技能兜底 | 需远程武器 + 后排排序 |
 | 3 | 割除 | PlantCutting | 2 | 1 | 0 | 3 | 0 | — |
 | 3 | 种植 | Growing | 2 | 2 | 0 | 3 | 0 | — |
-| 4 | 研究 | Research | 1 | 2 | 2 | 4 | 技能兜底 | — |
-| 5 | 普通技能 | Mining / Crafting / Smithing / Tailoring / Art / Construction / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | — |
+| 4 | 普通技能 | Mining / Crafting / Smithing / Tailoring / Art / Construction / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | — |
+| 5 | 研究 | Research | 1 | 2 | 2 | 4 | 技能兜底 | 普通技能之后分配，让手工专家先累加 workCount |
 | 6 | 服务类 | Hauling / Cleaning / BasicWorker 等 | — | 见下方服务类规则 | — | — | — | 不计入 workCount，奴隶优先 |
 
 **top N 有火/无火**：保证人数内按三因子排序选取，有火者给"top N 有火"优先级，无火者给"top N 无火"优先级。

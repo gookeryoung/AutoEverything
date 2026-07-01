@@ -121,11 +121,14 @@ namespace AutoEverything.AutoWork
             }
 
             // 5. 多遍分配（顺序严格固定，前排分配结果影响后排候选排序）
+            // 普通技能（手工/采矿等）必须在研究之前分配：
+            // 手工专家先获得手工工作累加 workCount，研究分配时硬上限才能拦截已满载者，
+            // 避免"工作很多的手工专家被分配研究 priority=1"
             AssignEmergencyPriorities();          // 第 1 遍：紧急工作
-            AssignKeyWorkPriorities();            // 第 2 遍：关键工作（Doctor/Warden/Childcare）
+            AssignKeyWorkPriorities();            // 第 2 遍：关键工作（Doctor/Warden/Childcare + Cooking）
             AssignHuntingPriorities();            // 第 3 遍：狩猎类（Hunting/Fishing/PlantCutting/Growing）
-            AssignResearchPriorities();           // 第 4 遍：研究
-            AssignOtherSkillWorkPriorities();     // 第 5 遍：其他技能工作
+            AssignOtherSkillWorkPriorities();     // 第 4 遍：其他技能工作（手工/采矿/建造等）
+            AssignResearchPriorities();           // 第 5 遍：研究
             AssignServiceWorkPriorities();        // 第 6 遍：服务类（搬运/清洁/非技能）
 
             return candidatePawns.Count;
