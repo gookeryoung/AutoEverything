@@ -1,6 +1,7 @@
 using System;
 using RimWorld;
 using Verse;
+using AutoEverything.Allocation;
 using AutoEverything.AutoEquipment;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
@@ -193,9 +194,12 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 执行装备重配：轻量升级检查（每 Pawn 调用 ForceEvaluate，不放下当前装备）。
+        /// 执行装备重配：调用 GlobalAllocator.ReallocateAll(silent: true) 全局放下重配。
+        /// 与手动触发语义一致：先放下所有装备，按战斗价值降序全局重新分配，
+        /// 确保高评级殖民者优先获得好装备，避免低评分殖民者抢占。
         /// 受 AESettings.autoGearReallocate 开关控制，关闭时不执行。
-        /// 过滤链与 CompGearManager.CompTick 一致：食尸鬼/不适用/Dead/Downed/奴隶/锁定/征召 均排除。
+        /// 过滤链（食尸鬼/不适用/Dead/Downed/奴隶/未成年/锁定/征召）由 ReallocateAll 内部统一处理。
+        /// silent=true 走 AEDebug.Log，避免周期触发刷屏控制台。
         /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
         /// </summary>
         private static void ExecuteGear(int tick, bool showMessage)
@@ -205,30 +209,7 @@ namespace AutoEverything.Core
 
             try
             {
-                int n = 0;
-                foreach (Map map in Find.Maps)
-                {
-                    foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
-                    {
-                        if (DLCCompat.IsGhoul(pawn)) continue;
-                        if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
-                        if (pawn.Dead || pawn.Downed) continue;
-                        if (DLCCompat.IsSlave(pawn)) continue;   // 奴隶未征召不参与自动装备
-                        if (pawn.Drafted) continue;              // 不打断征召战斗
-                        CompGearManager comp = pawn.GetComp<CompGearManager>();
-                        if (comp == null) continue;
-                        if (comp.locked) continue;               // 尊重玩家锁定
-                        // 未成年仅评估防具，跳过武器/副武器/库存（与 CompGearManager.CompTick 守卫一致）
-                        if (DLCCompat.IsChild(pawn))
-                        {
-                            comp.ForceEvaluate(CompGearManager.ReloadTarget.Apparel);
-                            n++;
-                            continue;
-                        }
-                        comp.ForceEvaluate(CompGearManager.ReloadTarget.All);
-                        n++;
-                    }
-                }
+                int n = GlobalAllocator.ReallocateAll(silent: true);
                 AEDebug.Log(() => $"[AutoExecutor] 自动装备重配: {n} 个殖民者 (tick={tick})");
                 if (showMessage)
                 {

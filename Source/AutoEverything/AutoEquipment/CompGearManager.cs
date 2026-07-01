@@ -535,6 +535,10 @@ namespace AutoEverything.AutoEquipment
             // 放在 BeltAllocator 前：先卸下再分配，避免刚卸下又被重新分配
             RemoveWrongShieldBelt(role);
 
+            // 纠错：卸下护甲类型不匹配的躯干护甲（Heavy 偏好穿轻甲 / Light 偏好穿重甲）
+            // 放在候选评估前：主动卸下不匹配护甲，避免升级阈值检查保留不匹配护甲
+            RemoveWrongArmorType(role);
+
             // 纠错：非奴隶不应穿戴奴隶项圈（Ideology DLC 奴隶专用装备）
             RemoveSlaveCollar();
 
@@ -548,6 +552,9 @@ namespace AutoEverything.AutoEquipment
             float bestWornScore = 0f;
             int candidatesChecked = 0;
 
+            // 护甲偏好（循环外计算一次，避免每个候选护甲重复调用 GetArmorPreference）
+            ArmorPreference pref = RoleDetector.GetArmorPreference(role);
+
             foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel))
             {
                 if (!(thing is Apparel apparel)) continue;
@@ -559,6 +566,13 @@ namespace AutoEverything.AutoEquipment
                 if (apparel.def.apparel?.gender != Gender.None && apparel.def.apparel.gender != Pawn.gender) continue;
                 var bioApp = apparel.TryGetComp<CompBiocodable>();
                 if (bioApp != null && bioApp.Biocoded && bioApp.CodedPawn != Pawn) continue;
+
+                // 护甲偏好硬否决：Heavy 偏好拒绝轻甲，Light 偏好拒绝重甲
+                // Flexible 偏好不否决（自由选择）
+                float apparelArmorSharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                bool apparelIsHeavy = apparelArmorSharp >= AESettings.heavyArmorSharpThreshold;
+                if (pref == ArmorPreference.Heavy && !apparelIsHeavy) continue;
+                if (pref == ArmorPreference.Light && apparelIsHeavy) continue;
 
                 // 遵守装备策略限制
                 if (Pawn.outfits?.CurrentApparelPolicy?.filter != null
@@ -649,6 +663,9 @@ namespace AutoEverything.AutoEquipment
             Apparel fallbackApparel = null;
             float fallbackScore = -99999f;
 
+            // 护甲偏好（循环外计算一次）
+            ArmorPreference pref = RoleDetector.GetArmorPreference(role);
+
             foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel))
             {
                 if (!(thing is Apparel apparel)) continue;
@@ -662,6 +679,13 @@ namespace AutoEverything.AutoEquipment
                 if (Pawn.outfits?.CurrentApparelPolicy?.filter != null
                     && !Pawn.outfits.CurrentApparelPolicy.filter.Allows(apparel))
                     continue;
+
+                // 护甲偏好硬否决：过渡防具也排除偏好不匹配的护甲
+                // 否则 Heavy 偏好角色赤身时穿轻甲过渡，下次评估因升级阈值无法替换
+                float apparelArmorSharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                bool apparelIsHeavy = apparelArmorSharp >= AESettings.heavyArmorSharpThreshold;
+                if (pref == ArmorPreference.Heavy && !apparelIsHeavy) continue;
+                if (pref == ArmorPreference.Light && apparelIsHeavy) continue;
 
                 ScoreBreakdown bd = GearScorer.ScoreApparelWithBreakdown(Pawn, apparel, role, context);
                 // Veto 的防具（如护盾腰带）仍排除——对远程角色比赤身更糟
@@ -708,6 +732,51 @@ namespace AutoEverything.AutoEquipment
                 }
                 // belt 层最多一件护盾腰带，卸下后即返回
                 return;
+            }
+        }
+
+        /// <summary>
+        /// 检测并卸下护甲类型不匹配的已穿戴躯干护甲。
+        /// Heavy 偏好角色（Brawler）穿戴轻甲时卸下——前排战士需重甲承担伤害。
+        /// Light 偏好角色（Worker/Doctor 等）穿戴重甲时卸下——工人需轻甲提高工作效率。
+        /// Flexible 偏好角色（Shooter/Hunter/Leader）不卸下——自由选择。
+        /// 仅检查躯干护甲（bodyPartGroups 含 Torso），帽子/腰带等不纠错
+        /// （护盾腰带由 RemoveWrongShieldBelt 处理）。
+        /// 复用 RemoveWrongShieldBelt 的卸下模式：apparel.Remove + GenDrop.TryDropSpawn。
+        /// 设计意图：Tick 路径下已穿戴的不匹配护甲需主动卸下，否则 EvaluateApparel 的
+        /// 升级阈值检查会因 newScore 不显著高于 wornScore 而保留不匹配护甲。
+        /// </summary>
+        private void RemoveWrongArmorType(Role role)
+        {
+            ArmorPreference pref = RoleDetector.GetArmorPreference(role);
+            if (pref == ArmorPreference.Flexible) return;  // 自由选择，不纠错
+            if (Pawn.apparel?.WornApparel == null) return;
+
+            List<Apparel> worn = Pawn.apparel.WornApparel;
+            // 倒序遍历：卸下时列表会变，倒序避免索引错位
+            for (int i = worn.Count - 1; i >= 0; i--)
+            {
+                Apparel ap = worn[i];
+                // 仅检查躯干护甲（衣物/防弹衣/重型护甲），跳过腰带/帽子等
+                if (ap.def.apparel?.bodyPartGroups == null) continue;
+                if (!ap.def.apparel.bodyPartGroups.Contains(BodyPartGroupDefOf.Torso)) continue;
+
+                // 尊重玩家锁定的单件装备（与 EvaluateApparel 冲突检测一致）
+                if (Pawn.apparel.IsLocked(ap)) continue;
+
+                float armorSharp = ap.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                bool isHeavy = armorSharp >= AESettings.heavyArmorSharpThreshold;
+
+                bool wrong = (pref == ArmorPreference.Heavy && !isHeavy)
+                          || (pref == ArmorPreference.Light && isHeavy);
+                if (!wrong) continue;
+
+                Pawn.apparel.Remove(ap);
+                Thing dropped;
+                if (GenDrop.TryDropSpawn(ap, Pawn.Position, Pawn.Map, ThingPlaceMode.Near, out dropped))
+                {
+                    Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下不匹配护甲 '{ap.LabelShort}' (role={role}, pref={pref}, isHeavy={isHeavy})");
+                }
             }
         }
 

@@ -51,8 +51,9 @@ namespace AutoEverything.Allocation
         /// 返回被触发的殖民者数量。
         /// 注意：本方法仅影响装备分配，不修改 pawn.playerSettings.displayOrder，
         ///       即不改变殖民者栏顺序——玩家可放心使用，不会打乱已排好的头像顺序。
+        /// silent=true 时日志走 AEDebug.Log（周期自动重配不刷屏），false 时走 Log.Message（手动触发供玩家调试）。
         /// </summary>
-        public static int ReallocateAll()
+        public static int ReallocateAll(bool silent = false)
         {
             sortedPawns.Clear();
             candidateWeapons.Clear();
@@ -73,6 +74,8 @@ namespace AutoEverything.Allocation
                     if (pawn.Dead || pawn.Downed) continue;
                     // 奴隶不参与全局装备重配（玩家手动装备由玩家负责）
                     if (DLCCompat.IsSlave(pawn)) continue;
+                    // 未成年不参与全局重配：避免被分配武器，由 Tick 路径仅评估防具
+                    if (DLCCompat.IsChild(pawn)) continue;
                     // 征召中的殖民者正在战斗，不打断（玩家可在规则面板关闭此保护）
                     if (AESettings.reallocateRespectDrafted && pawn.Drafted) continue;
 
@@ -97,12 +100,12 @@ namespace AutoEverything.Allocation
             sortedPawns.Sort((a, b) => combatValueCache[b].CompareTo(combatValueCache[a]));
 
             // ========== 武器重配 ==========
-            ReallocateWeapons();
+            ReallocateWeapons(silent);
 
             // ========== 护甲重配（按角色偏好分配重甲/轻甲） ==========
             if (AESettings.reallocateApparel)
             {
-                ReallocateApparel();
+                ReallocateApparel(silent);
             }
 
             // ========== 副武器与库存：仍用 ForceEvaluate ==========
@@ -121,8 +124,9 @@ namespace AutoEverything.Allocation
 
         /// <summary>
         /// 武器重配：放下所有殖民者武器，按战斗价值降序从地图候选池评分分配。
+        /// silent=true 时日志走 AEDebug.Log，false 时走 Log.Message。
         /// </summary>
-        private static void ReallocateWeapons()
+        private static void ReallocateWeapons(bool silent)
         {
             // ========== 第一遍：放下所有殖民者的当前武器 ==========
             // 设计意图：让无火小人手里的好武器进入地图候选池，供双火小人拾取
@@ -150,14 +154,23 @@ namespace AutoEverything.Allocation
                     if (dropped != null)
                     {
                         droppedCount++;
-                        Log.Message($"[AutoEverything] 全局重配: {AEDebug.Label(pawn)} 放下武器 {dropped.LabelShort}");
+                        if (silent)
+                            AEDebug.Log(() => $"[AutoEverything] 全局重配: {AEDebug.Label(pawn)} 放下武器 {dropped.LabelShort}");
+                        else
+                            Log.Message($"[AutoEverything] 全局重配: {AEDebug.Label(pawn)} 放下武器 {dropped.LabelShort}");
                     }
                 }
-                Log.Message($"[AutoEverything] 全局重配: 共 {droppedCount} 把武器已释放到地图候选池");
+                if (silent)
+                    AEDebug.Log(() => $"[AutoEverything] 全局重配: 共 {droppedCount} 把武器已释放到地图候选池");
+                else
+                    Log.Message($"[AutoEverything] 全局重配: 共 {droppedCount} 把武器已释放到地图候选池");
             }
             else
             {
-                Log.Message("[AutoEverything] 全局重配: 已禁用'放下当前武器'，仅评估地图候选池");
+                if (silent)
+                    AEDebug.Log(() => "[AutoEverything] 全局重配: 已禁用'放下当前武器'，仅评估地图候选池");
+                else
+                    Log.Message("[AutoEverything] 全局重配: 已禁用'放下当前武器'，仅评估地图候选池");
             }
 
             // ========== 收集地图候选武器 ==========
@@ -227,11 +240,17 @@ namespace AutoEverything.Allocation
                     var job = JobMaker.MakeJob(JobDefOf.Equip, bestWeapon);
                     pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
 
-                    Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={CombatEvaluator.ComputeCombatValue(pawn):F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
+                    if (silent)
+                        AEDebug.Log(() => $"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={CombatEvaluator.ComputeCombatValue(pawn):F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
+                    else
+                        Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={CombatEvaluator.ComputeCombatValue(pawn):F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
                 }
                 else
                 {
-                    Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} 无可用武器");
+                    if (silent)
+                        AEDebug.Log(() => $"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} 无可用武器");
+                    else
+                        Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} 无可用武器");
                 }
 
                 // 服装由后续 ReallocateApparel 处理
@@ -249,8 +268,9 @@ namespace AutoEverything.Allocation
         ///   - 角色偏好匹配奖励：Heavy 偏好+重甲 = +matchBonus，Light 偏好+轻甲 = +matchBonus
         ///     让匹配偏好的殖民者天然胜过 Flexible 偏好
         ///   - 评级权重：同分时高评级优先（权重小，仅打破平局）
+        /// silent=true 时日志走 AEDebug.Log，false 时走 Log.Message。
         /// </summary>
-        private static void ReallocateApparel()
+        private static void ReallocateApparel(bool silent)
         {
             // 护甲分配按"全局价值评级"（CombatTier）降序，与武器分配解耦
             // 预计算缓存：避免 O(n log n) 次比较中重复调用 GetCombatTier 与 ComputePawnValueScore
@@ -300,7 +320,10 @@ namespace AutoEverything.Allocation
                         }
                     }
                 }
-                Log.Message($"[AutoEverything] 全局重配护甲: 共 {droppedApparelCount} 件护甲已释放到地图候选池");
+                if (silent)
+                    AEDebug.Log(() => $"[AutoEverything] 全局重配护甲: 共 {droppedApparelCount} 件护甲已释放到地图候选池");
+                else
+                    Log.Message($"[AutoEverything] 全局重配护甲: 共 {droppedApparelCount} 件护甲已释放到地图候选池");
             }
 
             // ========== 收集地图候选护甲 ==========
@@ -372,20 +395,17 @@ namespace AutoEverything.Allocation
                     float armorSharp = ap.GetStatValue(StatDefOf.ArmorRating_Sharp);
                     bool isHeavy = armorSharp >= AESettings.heavyArmorSharpThreshold;
 
-                    // 角色偏好调整：
-                    // - Heavy 偏好 + 轻甲：大惩罚（-1000，硬否决）
-                    // - Light 偏好 + 重甲：大惩罚（-1000，硬否决）
+                    // 角色偏好硬否决（Veto）：
+                    // - Heavy 偏好 + 轻甲：continue 跳过（前排战士必须重甲承担伤害）
+                    // - Light 偏好 + 重甲：continue 跳过（工人需轻甲提高工作效率）
                     // - Heavy 偏好 + 重甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Heavy 显著胜过 Flexible）
                     // - Light 偏好 + 轻甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Light 显著胜过 Flexible）
-                    // - Flexible：无调整（既不奖励也不惩罚）
-                    // 设计意图：匹配偏好的殖民者优先获得对应类型护甲，
-                    //   避免 Flexible 殖民者抢走 Heavy 殖民者急需的重甲
-                    if (pref == ArmorPreference.Heavy && !isHeavy)
-                        score += AESettings.heavyArmorPenaltyForLight;
-                    else if (pref == ArmorPreference.Light && isHeavy)
-                        score += AESettings.lightArmorPenaltyForHeavy;
-                    else if ((pref == ArmorPreference.Heavy && isHeavy)
-                             || (pref == ArmorPreference.Light && !isHeavy))
+                    // - Flexible：无调整（既不奖励也不否决，自由选择）
+                    // 设计意图：硬否决彻底杜绝"重甲前排穿轻甲"，匹配偏好的殖民者优先获得对应类型护甲
+                    if (pref == ArmorPreference.Heavy && !isHeavy) continue;
+                    if (pref == ArmorPreference.Light && isHeavy) continue;
+                    if ((pref == ArmorPreference.Heavy && isHeavy)
+                        || (pref == ArmorPreference.Light && !isHeavy))
                         score += AESettings.heavyArmorMatchBonus;  // 匹配奖励（默认 500，让匹配偏好显著胜过 Flexible）
 
                     // 评级权重：同分时高评级优先
@@ -412,11 +432,17 @@ namespace AutoEverything.Allocation
                     bestPawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
 
                     totalAssigned++;
-                    Log.Message($"[AutoEverything] 全局重配护甲 #{totalAssigned}: {AEDebug.Label(bestPawn)} ← {ap.LabelShort} (score={bestScore:F1})");
+                    if (silent)
+                        AEDebug.Log(() => $"[AutoEverything] 全局重配护甲 #{totalAssigned}: {AEDebug.Label(bestPawn)} ← {ap.LabelShort} (score={bestScore:F1})");
+                    else
+                        Log.Message($"[AutoEverything] 全局重配护甲 #{totalAssigned}: {AEDebug.Label(bestPawn)} ← {ap.LabelShort} (score={bestScore:F1})");
                 }
             }
 
-            Log.Message($"[AutoEverything] 全局重配护甲完成: 共分配 {totalAssigned} 件护甲");
+            if (silent)
+                AEDebug.Log(() => $"[AutoEverything] 全局重配护甲完成: 共分配 {totalAssigned} 件护甲");
+            else
+                Log.Message($"[AutoEverything] 全局重配护甲完成: 共分配 {totalAssigned} 件护甲");
         }
 
         /// <summary>

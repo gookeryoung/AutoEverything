@@ -54,13 +54,19 @@
 
 **护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于重甲前排（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。自由后排（Flexible）与轻甲工人（Light）不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
 
-**护甲偏好**：`RoleDetector.GetArmorPreference(role)` 根据角色返回护甲偏好，影响全局重配时的护甲分配：
+**护甲偏好**：`RoleDetector.GetArmorPreference(role)` 根据角色返回护甲偏好，通过**硬否决（Veto）**影响所有装备分配路径（全局重配 + Tick 路径 + 过渡兜底）：
 
 | 角色 | 护甲偏好 | 说明 |
 |------|---------|------|
-| `Brawler` | `Heavy`（重甲[前排]）| 强制重甲，承担伤害 |
+| `Brawler` | `Heavy`（重甲[前排]）| 强制重甲，承担伤害；穿轻甲时 `RemoveWrongArmorType` 主动卸下 |
 | `Shooter`/`Hunter`/`Leader` | `Flexible`（自由[后排]）| 按评分自由选择，有重甲盈余时考虑 |
-| `Worker`/`Doctor`/`Pacifist`/`Default` | `Light`（轻甲[工人]）| 强制轻甲以保持工作效率 |
+| `Worker`/`Doctor`/`Pacifist`/`Default` | `Light`（轻甲[工人]）| 强制轻甲以保持工作效率；穿重甲时 `RemoveWrongArmorType` 主动卸下 |
+
+**硬否决规则**（`Heavy` 偏好拒绝轻甲，`Light` 偏好拒绝重甲，`Flexible` 不否决）：
+- `GlobalAllocator.ReallocateApparel`：候选循环 `continue` 跳过不匹配护甲
+- `CompGearManager.EvaluateApparel`：Tick 路径候选循环 `continue` 跳过
+- `CompGearManager.TryFallbackApparel`：过渡防具兜底也 `continue` 跳过
+- `CompGearManager.RemoveWrongArmorType`：Tick 路径主动卸下已穿戴的不匹配躯干护甲
 
 ### 禁止类装备
 
@@ -73,7 +79,7 @@
 | 手榴弹 | defName/label 含 `GRENADE`（破片/燃烧瓶/毒气手雷）| Veto `-9000f`（单次消耗品，不适合持续主武器） | `WeaponForbiddenScorer` |
 | 火箭发射器 | label 含 `rocket launcher`（末日/三连火箭）| Veto `-9000f`（单次消耗品） | `WeaponForbiddenScorer` |
 
-**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底仍排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）——这些比赤身更糟。
+**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）与护甲偏好不匹配的防具——这些比赤身更糟。
 
 ### 研究型殖民者偏好
 
@@ -255,7 +261,8 @@
      - 直接 `MakeJob(Equip)`，不依赖 `EvaluateWeapon` 的 job 流程
   5. 服装/副武器/库存仍用 `ForceEvaluate` 评估
 - **效果**：无火小人手里的好武器会释放给双火小人，实现"高价值装备优先分配给高价值殖民者"
-- **过滤**：跳过食尸鬼、动物、奴隶、未成年、已倒下、征召中的殖民者
+- **过滤**：跳过食尸鬼、动物、奴隶、未成年、已倒下、征召中、已锁定的殖民者
+- **自动触发**：`AutoExecutor.ExecuteGear` 周期调用 `ReallocateAll(silent: true)`，与手动触发语义一致（见 [装备自动重配](#装备自动重配全局放下重配)）
 
 ### 全局价值评级档次（CombatTier）
 
@@ -304,14 +311,16 @@
 | 角色偏好 | 护甲类型 | 调整 | 说明 |
 |---------|---------|------|------|
 | Heavy（重甲[前排]）| 重甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Heavy 显著胜过 Flexible |
-| Heavy（重甲[前排]）| 轻甲 | `+heavyArmorPenaltyForLight`（默认 **-1000**） | 硬否决，强制选重甲 |
+| Heavy（重甲[前排]）| 轻甲 | **Veto（`continue` 跳过）** | 硬否决，强制选重甲 |
 | Light（轻甲[工人]）| 轻甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Light 显著胜过 Flexible |
-| Light（轻甲[工人]）| 重甲 | `+lightArmorPenaltyForHeavy`（默认 **-1000**） | 硬否决，强制选轻甲 |
-| Flexible（自由[后排]）| 任意 | 0 | 既不奖励也不惩罚 |
+| Light（轻甲[工人]）| 重甲 | **Veto（`continue` 跳过）** | 硬否决，强制选轻甲 |
+| Flexible（自由[后排]）| 任意 | 0 | 既不奖励也不否决 |
 
-**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），仅用于打破同分平局，远小于匹配奖励（500）与硬否决惩罚（1000）。
+**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），仅用于打破同分平局，远小于匹配奖励（500）。
 
-**设计意图**：通过将匹配奖励从 +50 提升到 +500，让重甲偏好单位（Brawler）显著优先获得重甲，避免高评级 Flexible 殖民者抢占重甲。Flexible 殖民者仍可在无 Heavy 候选时获得重甲（无竞争者时 score 不需要超过任何人）。
+**设计意图**：硬否决彻底杜绝"重甲前排穿轻甲"；匹配奖励 +500 让重甲偏好单位（Brawler）显著优先获得重甲，避免高评级 Flexible 殖民者抢占重甲。Flexible 殖民者仍可在无 Heavy 候选时获得重甲（无竞争者时 score 不需要超过任何人）。
+
+> 注：`heavyArmorPenaltyForLight` / `lightArmorPenaltyForHeavy` 设置字段保留以兼容旧存档，但已不再使用（改为 Veto）。
 
 ### 同档精排评分（ComputePawnValueScore）
 
@@ -521,14 +530,17 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **错误隔离**：工作、评级、装备重配、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
-### 装备自动重配（轻量升级检查）
+### 装备自动重配（全局放下重配）
 
 - **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
-- **机制**：调用每个殖民者的 `CompGearManager.ForceEvaluate(ReloadTarget.All)`，独立评估升级机会
+- **机制**：调用 `GlobalAllocator.ReallocateAll(silent: true)`，与手动"全局重配"语义一致——先放下所有殖民者武器与护甲到地图候选池，按战斗价值降序全局重新分配
+- **高评级优先**：高战斗价值殖民者优先选装备，避免低评分殖民者抢占好装备
+- **护甲偏好硬否决**：重甲前排（Heavy）拒绝轻甲，轻甲工人（Light）拒绝重甲，自由后排（Flexible）自由选择
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
+- **未成年排除**：未成年不参与全局重配（避免被分配武器），由 Tick 路径仅评估防具
 - **尊重锁定**：`comp.locked` 为 true 的殖民者跳过
-- **不放下当前装备**：与手动"全局重配"不同，自动重配不放下装备到地上，仅评估是否有更优装备可换
+- **静默日志**：周期触发走 `AEDebug.Log`（不刷屏控制台），手动触发走 `Log.Message`（供玩家调试）
 - **入口**：殖民者装备面板（ITab）底部 → "装备自动重配"勾选框（`AESettings.autoGearReallocate`，默认勾选）
 
 ### 高价值非殖民者标记（AutoMarkPawn）
@@ -639,7 +651,7 @@ Source/AutoEverything/
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增加时立即触发工作+评级+装备重配 |
 | `AutoExecutor` 工作重配 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
-| `AutoExecutor` 装备重配 | 3000 tick | 轻量升级检查（ForceEvaluate），不放下当前装备；周期 + 新增殖民者 + ITab 勾选时触发 |
+| `AutoExecutor` 装备重配 | 3000 tick | 全局放下重配（`ReallocateAll(silent: true)`），与手动重配语义一致；周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 高价值标记 | 实时（Harmony 补丁） | S+ 档次非殖民者人类头顶绘制红色星标；ITab 勾选时统计数量弹消息，取消勾选自动停止绘制 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
@@ -668,7 +680,7 @@ Source/AutoEverything/
 |------|---------|
 | `CompGearManager.CompTick` 日常评估 | 未征召时直接 return，不主动找武器/防具/药品 |
 | `GlobalAllocator.ReallocateAll` 全局重配 | 候选收集时跳过奴隶 |
-| `AutoExecutor.ExecuteGear` 自动装备重配 | 候选收集时跳过奴隶（与 `CompTick` 一致） |
+| `AutoExecutor.ExecuteGear` 自动装备重配 | 调用 `ReallocateAll(silent: true)`，候选收集时跳过奴隶（与 `CompTick` 一致） |
 | `SidearmAllocator` / `BeltAllocator` 全局分配 | 候选收集时跳过奴隶 |
 | `WorkAllocator.ReallocateAll` 工作重配 | **奴隶参与分配**（通过 `map.mapPawns.SlavesOfColonySpawned` 收集） |
 
