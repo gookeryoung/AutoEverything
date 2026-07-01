@@ -34,6 +34,10 @@ namespace AutoEverything.AutoWork
         // 每次服务类分配前 Clear+重填，仅在该次 Sort 内有效
         private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
 
+        // workCount 硬上限：每人最多承担 N 项 priority≤2 的专业工作，超限者跳过候选
+        // 候选不足保证人数时回退放宽，保证小殖民地工作有人做
+        private const int MaxCoreWorkCount = 2;
+
         // WorkTypeDef 缓存与分类（懒加载，避免静态字段初始化器跨线程调用 DefDatabase）
         private static List<WorkTypeDef> cachedWorkTypes;
         private static readonly List<WorkTypeDef> keyWorkDefs = new List<WorkTypeDef>();
@@ -43,6 +47,7 @@ namespace AutoEverything.AutoWork
         private static WorkTypeDef cachedResearchDef;
         private static WorkTypeDef cachedPlantCuttingDef;
         private static WorkTypeDef cachedGrowingDef;
+        private static WorkTypeDef cachedCookingDef;
 
         /// <summary>
         /// 工作分配配置：统一描述各工作类型的优先级规则，编码四大原则。
@@ -152,6 +157,9 @@ namespace AutoEverything.AutoWork
                 if (wt.defName == "PlantCutting") { cachedPlantCuttingDef = wt; continue; }
                 if (wt.defName == "Growing") { cachedGrowingDef = wt; continue; }
 
+                // 烹饪：升格为关键工作（生存关键，保证 1 人 priority≤2）
+                if (wt.defName == "Cooking") { cachedCookingDef = wt; continue; }
+
                 // 研究
                 if (wt.defName == "Research") { cachedResearchDef = wt; continue; }
 
@@ -220,6 +228,23 @@ namespace AutoEverything.AutoWork
             {
                 AssignWorkType(keyWorkDefs[i], config);
             }
+
+            // 烹饪：生存关键，保证 1 人 priority≤2
+            // top1 有火→1（优先让有火者做饭），无火→2（保底有人做）
+            // 超出 top1 的有火者→3（保留生产能力），无火者→0（不强制无兴趣者做饭）
+            WorkAllocationConfig cookingConfig = new WorkAllocationConfig
+            {
+                GuaranteeCount = 1,
+                GuaranteePassionatePriority = 1,
+                GuaranteeNonPassionatePriority = 2,
+                FloorPassionatePriority = 3,
+                UseSkillFloorForNonPassionate = false,
+                FloorNonPassionatePriority = 0,
+                RequireRangedWeapon = false,
+                UseBackRowSort = false
+            };
+            if (cachedCookingDef != null)
+                AssignWorkType(cachedCookingDef, cookingConfig);
         }
 
         // ════════════════════════════════════════════════════════════
@@ -470,6 +495,7 @@ namespace AutoEverything.AutoWork
         /// </summary>
         private static void AssignWorkType(WorkTypeDef workType, WorkAllocationConfig config)
         {
+            // 候选收集：跳过已满载者（workCount 硬上限，强制均衡负载）
             workCandidates.Clear();
             for (int i = 0; i < candidatePawns.Count; i++)
             {
@@ -477,7 +503,21 @@ namespace AutoEverything.AutoWork
                 if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
                 // 狩猎类需远程武器：避免无远程武器者被分配
                 if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
+                if (workCount[pawn] >= MaxCoreWorkCount) continue;  // 硬上限：跳过已满载者
                 workCandidates.Add(pawn);
+            }
+            // 回退放宽：严格候选不足保证人数时，重新收集全部候选（含满载者）
+            // 场景：小殖民地人手不足，必须让已满载者承担更多工作
+            if (workCandidates.Count < config.GuaranteeCount)
+            {
+                workCandidates.Clear();
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn pawn = candidatePawns[i];
+                    if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
+                    if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
+                    workCandidates.Add(pawn);
+                }
             }
             if (workCandidates.Count == 0) return;
 

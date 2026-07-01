@@ -463,6 +463,8 @@
 3. **有火保底**：超出 guarantee 的有火者至少给 `FloorPassionatePriority`（如 3），保留生产能力
 4. **无火技能兜底**：超出 guarantee 的无火者，`UseSkillFloorForNonPassionate=true` 时按技能等级兜底（≥12→2, ≥8→3, 否则 0）；`=false` 时直接给 `FloorNonPassionatePriority`
 
+**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=2` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。若严格收集后候选不足保证人数，回退放宽（含满载者），保证小殖民地工作有人做。
+
 **奴隶处理**：奴隶在专业工作中与殖民者同流程，按兴趣/技能参与分配，无特殊优先级。奴隶的特殊处理仅在服务类工作（搬运/清洁/非技能）中生效，见下方[服务类工作规则](#服务类工作规则搬运清洁非技能)。
 
 ### 分配规则
@@ -473,12 +475,13 @@
 |------|---------|---------|---------|-----------|-----------|---------|---------|---------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | — | 全部 → 1 | 全部 → 1 | — | — | 不计入 workCount |
 | 2 | 关键 | Doctor / Warden / Childcare | 2 | 1 | 3 | 3 | 技能兜底 | — |
+| 2 | 烹饪 | Cooking | 1 | 1 | 2 | 3 | 0 | 生存关键，保证 1 人 priority≤2 |
 | 3 | 狩猎 | Hunting | 2 | 2 | 2 | 4 | 技能兜底 | 需远程武器 + 后排排序 |
 | 3 | 钓鱼 | Fishing | 2 | 3 | 3 | 3 | 技能兜底 | 需远程武器 + 后排排序 |
 | 3 | 割除 | PlantCutting | 2 | 1 | 0 | 3 | 0 | — |
 | 3 | 种植 | Growing | 2 | 2 | 0 | 3 | 0 | — |
 | 4 | 研究 | Research | 1 | 2 | 2 | 4 | 技能兜底 | — |
-| 5 | 普通技能 | Cooking / Mining / Crafting / Smithing / Tailoring / Art / Construction / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | — |
+| 5 | 普通技能 | Mining / Crafting / Smithing / Tailoring / Art / Construction / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | — |
 | 6 | 服务类 | Hauling / Cleaning / BasicWorker 等 | — | 见下方服务类规则 | — | — | — | 不计入 workCount，奴隶优先 |
 
 **top N 有火/无火**：保证人数内按三因子排序选取，有火者给"top N 有火"优先级，无火者给"top N 无火"优先级。
@@ -491,6 +494,7 @@
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/服务类不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
+**硬上限**：每人最多 2 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽。
 
 **三因子排序**：Passion 降序 → SkillLevel 降序 → WorkCount 升序。
 Passion 量化：None=0, Minor=1, Major=2。
