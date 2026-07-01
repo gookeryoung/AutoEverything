@@ -1,4 +1,4 @@
-﻿using AutoEverything.RoleEvaluation;
+using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.AutoEquipment.Scoring
 {
@@ -35,6 +35,12 @@ namespace AutoEverything.AutoEquipment.Scoring
         /// <summary>品质权重</summary>
         public float w_quality;
 
+        /// <summary>文化尊崇武器加分（Noble，需 Ideology DLC）</summary>
+        public float w_ideology_noble;
+
+        /// <summary>文化鄙夷武器惩罚（Despised，取负值，需 Ideology DLC）</summary>
+        public float w_ideology_despised;
+
         // ===================== 防具权重 =====================
 
         /// <summary>护甲权重</summary>
@@ -67,6 +73,8 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_cooldown = 10.0f,
             w_range = 1.5f,
             w_quality = 10.0f,
+            w_ideology_noble = 200.0f,
+            w_ideology_despised = 300.0f,
             w_armor = 200.0f,
             w_insulation = 10.0f,
             w_movespeed = 20.0f,
@@ -85,6 +93,8 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_cooldown = 12.0f,
             w_range = 0.5f,
             w_quality = 8.0f,
+            w_ideology_noble = 250.0f,
+            w_ideology_despised = 400.0f,
             w_armor = 300.0f,
             w_insulation = 5.0f,
             w_movespeed = 5.0f,
@@ -103,6 +113,8 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_cooldown = 8.0f,
             w_range = 1.0f,
             w_quality = 20.0f,
+            w_ideology_noble = 150.0f,
+            w_ideology_despised = 200.0f,
             w_armor = 150.0f,
             w_insulation = 10.0f,
             w_movespeed = 15.0f,
@@ -121,6 +133,8 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_cooldown = 15.0f,
             w_range = 4.0f,
             w_quality = 10.0f,
+            w_ideology_noble = 200.0f,
+            w_ideology_despised = 300.0f,
             w_armor = 100.0f,
             w_insulation = 10.0f,
             w_movespeed = 30.0f,

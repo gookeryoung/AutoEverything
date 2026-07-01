@@ -304,7 +304,7 @@ namespace AutoEverything.AutoWork
             WorkAllocationConfig config = new WorkAllocationConfig
             {
                 GuaranteeCount = 1,
-                GuaranteePassionatePriority = 2,
+                GuaranteePassionatePriority = 1,
                 GuaranteeNonPassionatePriority = 2,
                 FloorPassionatePriority = 4,
                 UseSkillFloorForNonPassionate = true,

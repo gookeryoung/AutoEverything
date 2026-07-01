@@ -1,11 +1,14 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
+using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.AutoEquipment.Scoring.Weapon
 {
     /// <summary>
-    /// 武器意识形态评分：检查意识形态戒律对武器类型的偏好。
+    /// 武器意识形态评分：检查文化戒律对武器的偏好（Noble）或鄙夷（Despised）。
+    /// Noble 加 w_ideology_noble 分；Despised 减 w_ideology_despised 分（大额负分，不用 Veto）。
+    /// 需 Ideology DLC；未加载或 Pawn 无 Ideo 时跳过。
     /// </summary>
     public class WeaponIdeologyScorer : IScorer<Thing>
     {
@@ -14,39 +17,21 @@ namespace AutoEverything.AutoEquipment.Scoring.Weapon
         public void Score(Pawn pawn, Thing gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
-            if (pawn.Ideo == null) return;
+            // DLCCompat 内部已守卫 ModsConfig.IdeologyActive 与 pawn.Ideo==null
+            int disposition = DLCCompat.GetWeaponDisposition(pawn, gear.def);
+            if (disposition == 0) return;  // None：无态度，跳过
 
-            bool isMelee = gear.def.IsMeleeWeapon;
-            bool isRanged = gear.def.IsRangedWeapon;
-
-            // 遍历意识形态戒律，查找武器偏好
-            // 注意：戒律列表可能为空，使用 PreceptsListForReading 避免分配
-            var precepts = pawn.Ideo.PreceptsListForReading;
-            for (int i = 0; i < precepts.Count; i++)
+            if (disposition == 1)  // Noble：尊崇
             {
-                var precept = precepts[i];
-                string preceptName = precept.def.defName;
-
-                // 仅处理武器相关戒律
-                if (!preceptName.Contains("Weapon") &&
-                    !preceptName.Contains("Melee") &&
-                    !preceptName.Contains("Ranged")) continue;
-
-                // 判断是偏好还是厌恶
-                bool disapproved = preceptName.Contains("Disapproved")
-                    || preceptName.Contains("Despised")
-                    || preceptName.Contains("Horrible");
-
-                float preceptScore = disapproved ? -30f : 30f;
-
-                if (isMelee && preceptName.Contains("Melee"))
-                {
-                    breakdown.AddScore(Name, breakdown.CollectItems ? $"{precept.def.label}+近战" : null, preceptScore);
-                }
-                else if (isRanged && preceptName.Contains("Ranged"))
-                {
-                    breakdown.AddScore(Name, breakdown.CollectItems ? $"{precept.def.label}+远程" : null, preceptScore);
-                }
+                breakdown.AddScore(Name,
+                    breakdown.CollectItems ? "文化尊崇" : null,
+                    weights.w_ideology_noble);
+            }
+            else  // disposition == 2, Despised：鄙夷
+            {
+                breakdown.AddScore(Name,
+                    breakdown.CollectItems ? "文化鄙夷" : null,
+                    -weights.w_ideology_despised);
             }
         }
     }

@@ -161,9 +161,11 @@
 
 若任一硬性约束被触发（如生物编码不匹配、格斗者持远程），直接 `Veto(-9000f)`，管线短路。
 
+**意识形态惩罚**：文化鄙夷（Despised）武器施加 `-w_ideology_despised`（默认 -300）大额负分，但不触发 Veto。与硬约束 Veto（-9000）区分：文化鄙夷是强烈负面偏好，玩家应保留选择权（如战利品中只有该武器时仍可拾取过渡）。文化尊崇（Noble）武器施加 `+w_ideology_noble`（默认 +200）加分。
+
 ### 权重预设方案
 
-`GearWeights` 结构包含 13 个权重字段。提供 4 个预设方案：
+`GearWeights` 结构包含 15 个权重字段（含意识形态尊崇/鄙夷）。提供 4 个预设方案：
 
 | 方案 | 特点 | 适用场景 |
 |------|------|----------|
@@ -173,6 +175,12 @@
 | `Hunting` | 远程射程与精准优先 | 狩猎为主 |
 
 玩家可在设置界面循环切换，存档持久化。
+
+**意识形态权重**（需 Ideology DLC）：
+- `w_ideology_noble`：文化尊崇武器加分（Standard=200, Aggressive=250, Economic=150, Hunting=200）
+- `w_ideology_despised`：文化鄙夷武器惩罚（取负值，Standard=300, Aggressive=400, Economic=200, Hunting=300）
+
+鄙夷武器使用大额负分（-300）而非 Veto，与硬约束（如非 Brawler Veto 近战）语义区分：文化鄙夷是强烈负面偏好，玩家应保留选择权（如战利品中只有该武器时仍可拾取过渡）。
 
 ### 武器评分管线
 
@@ -188,7 +196,7 @@
 | 6 | `WeaponDpsScorer` | DPS 与伤害倍率 |
 | 7 | `WeaponRangeScorer` | 射程 |
 | 8 | `WeaponQualityScorer` | 品质 |
-| 9 | `WeaponIdeologyScorer` | 意识形态偏好 |
+| 9 | `WeaponIdeologyScorer` | 意识形态武器偏好（Noble +w_ideology_noble / Despised -w_ideology_despised，需 Ideology DLC） |
 | 10 | `WeaponDurabilityScorer` | 耐久修正（乘法） |
 
 ### 防具评分管线
