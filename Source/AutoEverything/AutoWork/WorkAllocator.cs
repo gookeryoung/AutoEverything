@@ -41,6 +41,126 @@ namespace AutoEverything.AutoWork
         // 这三个工作类型都关联 Crafting 技能，应视为 1 个专业工作，避免手工专家因三个共享技能的工作快速达到上限
         private static readonly Dictionary<Pawn, bool> craftingSkillCounted = new Dictionary<Pawn, bool>();
 
+        // ════════════════════════════════════════════════════════════
+        // 工作分配配置（静态只读，避免每次分配重复构造）
+        // ════════════════════════════════════════════════════════════
+
+        // 关键工作（Doctor/Warden/Childcare）：保证 2 人，有火 top2→1，无火 top2→3，有火保底 3，无火技能兜底
+        private static readonly WorkAllocationConfig KeyWorkConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 1,
+            GuaranteeNonPassionatePriority = 3,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = true,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 烹饪：保证 1 人 priority≤2，有火 top1→1，无火 top1→2，有火保底 3，无火→0
+        private static readonly WorkAllocationConfig CookingConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 1,
+            GuaranteePassionatePriority = 1,
+            GuaranteeNonPassionatePriority = 2,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = false,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 普通技能（手工类+其他）：保证 2 人，有火 top2→2，无火 top2→3，有火保底 3，无火技能兜底
+        private static readonly WorkAllocationConfig OtherSkillConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 2,
+            GuaranteeNonPassionatePriority = 3,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = true,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 狩猎：需远程武器+后排排序，保证 2 人 top2→2，有火保底 4，无火技能兜底
+        private static readonly WorkAllocationConfig HuntingConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 2,
+            GuaranteeNonPassionatePriority = 2,
+            FloorPassionatePriority = 4,
+            UseSkillFloorForNonPassionate = true,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = true,
+            UseBackRowSort = true
+        };
+
+        // 钓鱼：需远程武器+后排排序，保证 2 人 top2→3，有火保底 3，无火技能兜底
+        private static readonly WorkAllocationConfig FishingConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 3,
+            GuaranteeNonPassionatePriority = 3,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = true,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = true,
+            UseBackRowSort = true
+        };
+
+        // 割除：有火 top2→1，有火保底 3，无火→0
+        private static readonly WorkAllocationConfig PlantCuttingConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 1,
+            GuaranteeNonPassionatePriority = 0,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = false,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 种植：有火 top2→2，有火保底 3，无火→0
+        private static readonly WorkAllocationConfig GrowingConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteePassionatePriority = 2,
+            GuaranteeNonPassionatePriority = 0,
+            FloorPassionatePriority = 3,
+            UseSkillFloorForNonPassionate = false,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 研究：保证 1 人，top1→1，有火保底 4，无火技能兜底
+        private static readonly WorkAllocationConfig ResearchConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 1,
+            GuaranteePassionatePriority = 1,
+            GuaranteeNonPassionatePriority = 2,
+            FloorPassionatePriority = 4,
+            UseSkillFloorForNonPassionate = true,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // ════════════════════════════════════════════════════════════
+        // 分配阶段：按顺序执行的工作类型+配置列表（数据驱动，消除多个 Assign*Priorities 方法）
+        // ════════════════════════════════════════════════════════════
+
+        private struct WorkPhase
+        {
+            public WorkTypeDef WorkType;
+            public WorkAllocationConfig Config;
+        }
+
+        private static List<WorkPhase> skillWorkPhases;
+
         // WorkTypeDef 缓存与分类（懒加载，避免静态字段初始化器跨线程调用 DefDatabase）
         private static List<WorkTypeDef> cachedWorkTypes;
         private static readonly List<WorkTypeDef> keyWorkDefs = new List<WorkTypeDef>();
@@ -125,22 +245,19 @@ namespace AutoEverything.AutoWork
             }
 
             // 5. 多遍分配（顺序严格固定，前排分配结果影响后排候选排序）
-            // 普通技能（手工/采矿等）必须在研究之前分配：
-            // 手工专家先获得手工工作累加 workCount，研究分配时硬上限才能拦截已满载者，
-            // 避免"工作很多的手工专家被分配研究 priority=1"
+            // 阶段列表驱动：关键 → 烹饪 → 手工类 → 狩猎类 → 其他普通技能 → 研究
+            // 手工类提前到狩猎类之前：手工专家优先获得手工工作，避免被狩猎占用 workCount
             AssignEmergencyPriorities();          // 第 1 遍：紧急工作
-            AssignKeyWorkPriorities();            // 第 2 遍：关键工作（Doctor/Warden/Childcare + Cooking）
-            AssignHuntingPriorities();            // 第 3 遍：狩猎类（Hunting/Fishing/PlantCutting/Growing）
-            AssignOtherSkillWorkPriorities();     // 第 4 遍：其他技能工作（手工/采矿/建造等）
-            AssignResearchPriorities();           // 第 5 遍：研究
-            AssignServiceWorkPriorities();        // 第 6 遍：服务类（搬运/清洁/非技能）
+            for (int i = 0; i < skillWorkPhases.Count; i++)  // 第 2-7 遍：技能工作
+                AssignWorkType(skillWorkPhases[i].WorkType, skillWorkPhases[i].Config);
+            AssignServiceWorkPriorities();        // 第 8 遍：服务类（搬运/清洁/非技能）
 
             return candidatePawns.Count;
         }
 
         /// <summary>
         /// 懒加载并按 defName/WorkTags 分类 WorkTypeDef（仅执行一次）。
-        /// 分类：紧急（运行时判定）/ 关键 / 狩猎类 / 研究 / 普通技能 / 杂务 / 非技能。
+        /// 分类：紧急（运行时判定）/ 关键 / 烹饪 / 狩猎类 / 研究 / 普通技能 / 服务类（搬运/清洁/非技能）。
         /// </summary>
         private static void CacheAndClassifyWorkTypes()
         {
@@ -170,7 +287,7 @@ namespace AutoEverything.AutoWork
                 // 研究
                 if (wt.defName == "Research") { cachedResearchDef = wt; continue; }
 
-                // 搬运/清洁（第 6 遍运行时按 defName 判定，不进列表）
+                // 搬运/清洁（最后一遍运行时按 defName 判定，不进列表）
                 if (wt.defName == "Hauling" || wt.defName == "Cleaning") continue;
 
                 // 其他技能工作：有 relevantSkills 且非上述类别
@@ -180,6 +297,57 @@ namespace AutoEverything.AutoWork
                 }
                 // 非技能工作（如 BasicWorker）由第 7 遍运行时遍历 cachedWorkTypes 兜底处理
             }
+
+            // 构建分配阶段列表（顺序决定 workCount 累加次序，影响后续硬上限拦截）
+            BuildSkillWorkPhases();
+        }
+
+        /// <summary>
+        /// 构建技能工作分配阶段列表。
+        /// 顺序：关键 → 烹饪 → 手工类 → 狩猎类 → 其他普通技能 → 研究
+        /// 手工类提前到狩猎类之前：手工专家优先获得手工工作，避免被狩猎占用 workCount
+        /// </summary>
+        private static void BuildSkillWorkPhases()
+        {
+            skillWorkPhases = new List<WorkPhase>();
+
+            // 关键工作（Doctor/Warden/Childcare）
+            for (int i = 0; i < keyWorkDefs.Count; i++)
+                skillWorkPhases.Add(new WorkPhase { WorkType = keyWorkDefs[i], Config = KeyWorkConfig });
+
+            // 烹饪：生存关键，保证 1 人 priority≤2
+            if (cachedCookingDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedCookingDef, Config = CookingConfig });
+
+            // 手工类（Crafting 组 + Construction）：优先于狩猎，避免手工专家被狩猎占用 workCount
+            for (int i = 0; i < otherSkillWorkDefs.Count; i++)
+            {
+                WorkTypeDef wt = otherSkillWorkDefs[i];
+                if (IsCraftingSkillWork(wt) || wt.defName == "Construction")
+                    skillWorkPhases.Add(new WorkPhase { WorkType = wt, Config = OtherSkillConfig });
+            }
+
+            // 狩猎类（Hunting/Fishing/PlantCutting/Growing）
+            if (cachedHuntingDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedHuntingDef, Config = HuntingConfig });
+            if (cachedFishingDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedFishingDef, Config = FishingConfig });
+            if (cachedPlantCuttingDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedPlantCuttingDef, Config = PlantCuttingConfig });
+            if (cachedGrowingDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedGrowingDef, Config = GrowingConfig });
+
+            // 其他普通技能（Mining/Art/Handling 等）
+            for (int i = 0; i < otherSkillWorkDefs.Count; i++)
+            {
+                WorkTypeDef wt = otherSkillWorkDefs[i];
+                if (!IsCraftingSkillWork(wt) && wt.defName != "Construction")
+                    skillWorkPhases.Add(new WorkPhase { WorkType = wt, Config = OtherSkillConfig });
+            }
+
+            // 研究：最后分配，让手工专家先累加 workCount，研究时硬上限拦截
+            if (cachedResearchDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkType = cachedResearchDef, Config = ResearchConfig });
         }
 
         /// <summary>
@@ -213,176 +381,6 @@ namespace AutoEverything.AutoWork
             }
         }
 
-        // ════════════════════════════════════════════════════════════
-        // 第 2 遍：关键工作（Doctor/Warden/Childcare）
-        //   保证 2 人，有火 top2→1，无火 top2→3，有火保底 3，无火技能兜底
-        // ════════════════════════════════════════════════════════════
-
-        private static void AssignKeyWorkPriorities()
-        {
-            WorkAllocationConfig config = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 1,
-                GuaranteeNonPassionatePriority = 3,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = true,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            for (int i = 0; i < keyWorkDefs.Count; i++)
-            {
-                AssignWorkType(keyWorkDefs[i], config);
-            }
-
-            // 烹饪：生存关键，保证 1 人 priority≤2
-            // top1 有火→1（优先让有火者做饭），无火→2（保底有人做）
-            // 超出 top1 的有火者→3（保留生产能力），无火者→0（不强制无兴趣者做饭）
-            WorkAllocationConfig cookingConfig = new WorkAllocationConfig
-            {
-                GuaranteeCount = 1,
-                GuaranteePassionatePriority = 1,
-                GuaranteeNonPassionatePriority = 2,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = false,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            if (cachedCookingDef != null)
-                AssignWorkType(cachedCookingDef, cookingConfig);
-        }
-
-        // ════════════════════════════════════════════════════════════
-        // 第 3 遍：狩猎类（Hunting/Fishing/PlantCutting/Growing）
-        //   Hunting：需远程武器+后排排序，保证 2 人 top2→2，有火保底 4，无火技能兜底
-        //   Fishing：需远程武器+后排排序，保证 2 人 top2→3，有火保底 3，无火技能兜底
-        //   PlantCutting：保证 2 人，有火 top2→1，有火保底 3，无火→0
-        //   Growing：保证 2 人，有火 top2→2，有火保底 3，无火→0
-        // ════════════════════════════════════════════════════════════
-
-        private static void AssignHuntingPriorities()
-        {
-            // Hunting：需远程武器 + 后排排序，top2→2，有火保底 4，无火技能兜底
-            WorkAllocationConfig huntingConfig = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 2,
-                GuaranteeNonPassionatePriority = 2,
-                FloorPassionatePriority = 4,
-                UseSkillFloorForNonPassionate = true,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = true,
-                UseBackRowSort = true
-            };
-            if (cachedHuntingDef != null)
-                AssignWorkType(cachedHuntingDef, huntingConfig);
-
-            // Fishing：需远程武器 + 后排排序，top2→3，有火保底 3，无火技能兜底
-            WorkAllocationConfig fishingConfig = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 3,
-                GuaranteeNonPassionatePriority = 3,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = true,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = true,
-                UseBackRowSort = true
-            };
-            if (cachedFishingDef != null)
-                AssignWorkType(cachedFishingDef, fishingConfig);
-
-            // PlantCutting（割除）：有火 top2→1，有火保底 3，无火→0
-            WorkAllocationConfig cuttingConfig = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 1,
-                GuaranteeNonPassionatePriority = 0,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = false,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            if (cachedPlantCuttingDef != null)
-                AssignWorkType(cachedPlantCuttingDef, cuttingConfig);
-
-            // Growing（种植）：有火 top2→2，有火保底 3，无火→0
-            WorkAllocationConfig growingConfig = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 2,
-                GuaranteeNonPassionatePriority = 0,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = false,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            if (cachedGrowingDef != null)
-                AssignWorkType(cachedGrowingDef, growingConfig);
-        }
-
-        // ════════════════════════════════════════════════════════════
-        // 第 4 遍：研究
-        //   保证 1 人，top1→2，有火保底 4，无火技能兜底
-        // ════════════════════════════════════════════════════════════
-
-        private static void AssignResearchPriorities()
-        {
-            if (cachedResearchDef == null) return;
-            WorkAllocationConfig config = new WorkAllocationConfig
-            {
-                GuaranteeCount = 1,
-                GuaranteePassionatePriority = 1,
-                GuaranteeNonPassionatePriority = 2,
-                FloorPassionatePriority = 4,
-                UseSkillFloorForNonPassionate = true,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            AssignWorkType(cachedResearchDef, config);
-        }
-
-        // ════════════════════════════════════════════════════════════
-        // 第 4 遍：其他技能工作（Mining/Crafting/Construction 等）
-        //   保证 2 人，有火 top2→2，无火 top2→3，有火保底 3，无火技能兜底
-        //   手工类工作（Crafting 组 + Construction）优先分配，避免手工专家被非手工工作占用 workCount
-        // ════════════════════════════════════════════════════════════
-
-        private static void AssignOtherSkillWorkPriorities()
-        {
-            WorkAllocationConfig config = new WorkAllocationConfig
-            {
-                GuaranteeCount = 2,
-                GuaranteePassionatePriority = 2,
-                GuaranteeNonPassionatePriority = 3,
-                FloorPassionatePriority = 3,
-                UseSkillFloorForNonPassionate = true,
-                FloorNonPassionatePriority = 0,
-                RequireRangedWeapon = false,
-                UseBackRowSort = false
-            };
-            // 先分配手工类工作（Crafting 组 + Construction）
-            // 手工专家应优先获得这些工作，避免被非手工工作占用 workCount 导致后续手工工作被硬上限拦截
-            for (int i = 0; i < otherSkillWorkDefs.Count; i++)
-            {
-                WorkTypeDef wt = otherSkillWorkDefs[i];
-                if (IsCraftingSkillWork(wt) || wt.defName == "Construction")
-                    AssignWorkType(wt, config);
-            }
-            // 再分配其他技能工作（Mining/Art/Handling 等）
-            for (int i = 0; i < otherSkillWorkDefs.Count; i++)
-            {
-                WorkTypeDef wt = otherSkillWorkDefs[i];
-                if (!IsCraftingSkillWork(wt) && wt.defName != "Construction")
-                    AssignWorkType(wt, config);
-            }
-        }
-
         /// <summary>
         /// 判断工作类型是否关联 Crafting 技能（Crafting/Smithing/Tailoring 共享同一技能）。
         /// </summary>
@@ -392,7 +390,7 @@ namespace AutoEverything.AutoWork
         }
 
         // ════════════════════════════════════════════════════════════
-        // 第 6 遍：服务类工作（搬运/清洁/非技能 BasicWorker 等，不计入 workCount）
+        // 最后一遍：服务类工作（搬运/清洁/非技能 BasicWorker 等，不计入 workCount）
         //   排序：奴隶优先 → 评级升序（最低档在前）→ 工作计数升序
         //   规则：1.奴隶均 priority=1
         //         2.保底 1 人 priority=1（排序首位非奴隶，即评级最低者）

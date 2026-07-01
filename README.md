@@ -452,18 +452,18 @@
 ## 自动工作分配（AutoWork）
 
 `AutoWork/WorkAllocator.cs` 提供多遍协调分配 + 工作计数跟踪的工作优先级自动分配。
-所有技能类工作复用统一 `AssignWorkType` + `WorkAllocationConfig` 四大原则分配，将工作分为 6 类按固定顺序分配，前排分配结果影响后排候选排序（通过工作计数实现均衡负载）。
+所有技能类工作复用统一 `AssignWorkType` + `WorkAllocationConfig` 四大原则分配，通过数据驱动的 `skillWorkPhases` 阶段列表按固定顺序执行，前排分配结果影响后排候选排序（通过工作计数实现均衡负载）。
 
 ### 统一四大原则
 
-所有技能类工作（关键/狩猎类/研究/普通技能）共用统一分配 API，配置由 `WorkAllocationConfig` 结构编码：
+所有技能类工作（关键/烹饪/手工类/狩猎类/其他普通技能/研究）共用统一分配 API，配置由 `WorkAllocationConfig` 结构编码：
 
 1. **保证数量**：`GuaranteeCount` 确保至少 N 人承担（无论有无火），top N 内有火给 `GuaranteePassionatePriority`、无火给 `GuaranteeNonPassionatePriority`
 2. **三因子排序**：top N 人选按 Passion 降序 → SkillLevel 降序 → WorkCount 升序选择，保证数量内选兴趣最高、技能最强的
 3. **有火保底**：超出 guarantee 的有火者至少给 `FloorPassionatePriority`（如 3），保留生产能力
 4. **无火技能兜底**：超出 guarantee 的无火者，`UseSkillFloorForNonPassionate=true` 时按技能等级兜底（≥12→2, ≥8→3, 否则 0）；`=false` 时直接给 `FloorNonPassionatePriority`
 
-**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=2` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。若严格收集后候选不足保证人数，回退放宽（含满载者），但满载者不抢占 Guarantee 优先级，只给 Floor 保底（避免工作很多的专家被回退后仍获得 priority=1）。
+**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=4` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。若严格收集后候选不足保证人数，回退放宽（含满载者），但满载者不抢占 Guarantee 优先级，只给 Floor 保底（避免工作很多的专家被回退后仍获得 priority=1）。
 
 **Crafting 技能组共享 workCount**：Crafting（制作）/Smithing（锻造）/Tailoring（缝制）三个工作类型都关联 Crafting 技能，视为 1 个专业工作，共享 1 个 workCount。避免手工专家因三个共享技能的工作快速达到上限。
 
@@ -477,14 +477,15 @@
 |------|---------|---------|---------|-----------|-----------|---------|---------|---------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | — | 全部 → 1 | 全部 → 1 | — | — | 不计入 workCount |
 | 2 | 关键 | Doctor / Warden / Childcare | 2 | 1 | 3 | 3 | 技能兜底 | — |
-| 2 | 烹饪 | Cooking | 1 | 1 | 2 | 3 | 0 | 生存关键，保证 1 人 priority≤2 |
-| 3 | 狩猎 | Hunting | 2 | 2 | 2 | 4 | 技能兜底 | 需远程武器 + 后排排序 |
-| 3 | 钓鱼 | Fishing | 2 | 3 | 3 | 3 | 技能兜底 | 需远程武器 + 后排排序 |
-| 3 | 割除 | PlantCutting | 2 | 1 | 0 | 3 | 0 | — |
-| 3 | 种植 | Growing | 2 | 2 | 0 | 3 | 0 | — |
-| 4 | 普通技能 | Mining / Crafting / Smithing / Tailoring / Art / Construction / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | 手工类（Crafting 组 + Construction）优先分配；Crafting 组共享 1 个 workCount |
-| 5 | 研究 | Research | 1 | 2 | 2 | 4 | 技能兜底 | 普通技能之后分配，让手工专家先累加 workCount |
-| 6 | 服务类 | Hauling / Cleaning / BasicWorker 等 | — | 见下方服务类规则 | — | — | — | 不计入 workCount，奴隶优先 |
+| 3 | 烹饪 | Cooking | 1 | 1 | 2 | 3 | 0 | 生存关键，保证 1 人 priority≤2 |
+| 4 | 手工类 | Crafting / Smithing / Tailoring / Construction | 2 | 2 | 3 | 3 | 技能兜底 | Crafting 组共享 1 个 workCount；手工专家优先于狩猎分配 |
+| 5 | 狩猎 | Hunting | 2 | 2 | 2 | 4 | 技能兜底 | 需远程武器 + 后排排序 |
+| 5 | 钓鱼 | Fishing | 2 | 3 | 3 | 3 | 技能兜底 | 需远程武器 + 后排排序 |
+| 5 | 割除 | PlantCutting | 2 | 1 | 0 | 3 | 0 | — |
+| 5 | 种植 | Growing | 2 | 2 | 0 | 3 | 0 | — |
+| 6 | 其他普通技能 | Mining / Art / Handling 等 | 2 | 2 | 3 | 3 | 技能兜底 | — |
+| 7 | 研究 | Research | 1 | 1 | 2 | 4 | 技能兜底 | 最后分配，让手工专家先累加 workCount |
+| 8 | 服务类 | Hauling / Cleaning / BasicWorker 等 | — | 见下方服务类规则 | — | — | — | 不计入 workCount，奴隶优先 |
 
 **top N 有火/无火**：保证人数内按三因子排序选取，有火者给"top N 有火"优先级，无火者给"top N 无火"优先级。
 
@@ -496,7 +497,7 @@
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/服务类不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
-**硬上限**：每人最多 2 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽（满载者降级至 Floor 保底，不抢占 Guarantee 优先级）。
+**硬上限**：每人最多 4 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽（满载者降级至 Floor 保底，不抢占 Guarantee 优先级）。
 **Crafting 组共享**：Crafting/Smithing/Tailoring 三个工作类型关联同一 Crafting 技能，共享 1 个 workCount，视为 1 个专业工作。
 
 **三因子排序**：Passion 降序 → SkillLevel 降序 → WorkCount 升序。
