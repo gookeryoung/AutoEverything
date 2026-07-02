@@ -10,15 +10,16 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 全局自动执行器：周期触发工作重配、人员评级与装备重配。
+    /// 全局自动执行器：事件驱动工作重配、周期触发人员评级与装备重配。
     ///
     /// 设计模式：复用 SidearmAllocator/BeltAllocator 的静态门控模式，
     /// 由 CompGearManager.CompTick 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
     /// 不新增 MapComponent/GameComponent，KISS 原则——CompTick 已是现成的每 tick 入口。
     ///
     /// 触发条件：
-    /// - 周期触发：工作重配每 10000 tick（约 2.8 分钟），人员评级/装备重配/星标每 3000 tick（约 50 秒）
-    /// - 新增殖民者：殖民者数量增加时立即触发（不弹消息框）
+    /// - 工作重配（事件驱动）：殖民者数量增加或减少时立即触发（不弹消息框）；ITab 勾选时立即触发（弹消息框）
+    ///   工作重配不再周期触发，避免频繁变更优先级触发 RimWorld Job 重评估，从而中断手术/进食等长 Job
+    /// - 评级/装备/星标（周期 + 事件）：每 3000 tick（约 50 秒）周期触发；殖民者数量增加时立即触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈）
     ///
     /// 装备重配采用轻量升级检查（ForceEvaluate），不放下当前装备，不打断征召战斗。
@@ -30,12 +31,8 @@ namespace AutoEverything.Core
     {
         // 周期触发间隔：3000 tick ≈ 50 秒
         // 人员评级/装备重配/星标均为非紧急操作，延迟可接受
+        // 注：工作重配改为事件驱动（殖民者增减 + ITab 手动触发），不再周期触发
         private const int ExecuteInterval = 3000;
-
-        // 工作重配专用间隔：10000 tick ≈ 2.8 分钟
-        // 工作优先级变更会触发 RimWorld Job 重评估，频繁重配会中断手术/进食等长 Job
-        // 工作分配相对稳定（殖民者技能/特质变化慢），延长周期减少打断
-        private const int WorkExecuteInterval = 10000;
 
         // 殖民者数量检查间隔：60 tick ≈ 1 秒
         // 每 tick 查询 PawnsFinder.AllMaps_FreeColonists.Count 有少量开销，60 tick 检查一次足够
@@ -85,24 +82,28 @@ namespace AutoEverything.Core
                 return;
             }
 
-            // 新增殖民者检测：数量增加时立即触发工作+评级+装备重配+星标（不弹消息）
+            // 殖民者数量变化检测：增加或减少时立即触发工作重配（不弹消息）
+            // 工作重配改为事件驱动，不再周期触发，避免频繁变更优先级中断手术/进食等长 Job
+            // 增加时：新人加入需分配工作；减少时：减员可能导致某项工作无人做，需重新保底
             int currentCount = PawnsFinder.AllMaps_FreeColonists.Count;
-            if (currentCount > lastColonistCount)
+            if (currentCount != lastColonistCount)
             {
+                bool isIncrease = currentCount > lastColonistCount;
                 lastColonistCount = currentCount;
+                // 工作重配：增加或减少都触发
                 ExecuteWork(tick, showMessage: false);
-                ExecuteTier(tick, showMessage: false);
-                ExecuteGear(tick, showMessage: false);
-                ExecuteMark(tick, showMessage: false);
+                // 评级/装备/星标：只在增加时触发（减员不影响其他人评级/装备）
+                if (isIncrease)
+                {
+                    ExecuteTier(tick, showMessage: false);
+                    ExecuteGear(tick, showMessage: false);
+                    ExecuteMark(tick, showMessage: false);
+                }
                 return;
             }
             lastColonistCount = currentCount;
 
-            // 周期触发：工作重配 10000 tick，评级/装备/星标 3000 tick
-            if (tick - lastWorkTick >= WorkExecuteInterval)
-            {
-                ExecuteWork(tick, showMessage: false);
-            }
+            // 周期触发：评级/装备/星标 3000 tick（工作重配已改为事件驱动，无周期触发）
             if (tick - lastTierTick >= ExecuteInterval)
             {
                 ExecuteTier(tick, showMessage: false);
