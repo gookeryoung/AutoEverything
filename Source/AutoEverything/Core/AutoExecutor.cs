@@ -17,7 +17,7 @@ namespace AutoEverything.Core
     /// 不新增 MapComponent/GameComponent，KISS 原则——CompTick 已是现成的每 tick 入口。
     ///
     /// 触发条件：
-    /// - 周期触发：每 3000 tick（约 50 秒）执行一次工作重配、人员评级与装备重配
+    /// - 周期触发：工作重配每 10000 tick（约 2.8 分钟），人员评级/装备重配/星标每 3000 tick（约 50 秒）
     /// - 新增殖民者：殖民者数量增加时立即触发（不弹消息框）
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈）
     ///
@@ -29,8 +29,13 @@ namespace AutoEverything.Core
     internal static class AutoExecutor
     {
         // 周期触发间隔：3000 tick ≈ 50 秒
-        // 工作重配与人员评级均为非紧急操作，延迟可接受
+        // 人员评级/装备重配/星标均为非紧急操作，延迟可接受
         private const int ExecuteInterval = 3000;
+
+        // 工作重配专用间隔：10000 tick ≈ 2.8 分钟
+        // 工作优先级变更会触发 RimWorld Job 重评估，频繁重配会中断手术/进食等长 Job
+        // 工作分配相对稳定（殖民者技能/特质变化慢），延长周期减少打断
+        private const int WorkExecuteInterval = 10000;
 
         // 殖民者数量检查间隔：60 tick ≈ 1 秒
         // 每 tick 查询 PawnsFinder.AllMaps_FreeColonists.Count 有少量开销，60 tick 检查一次足够
@@ -93,8 +98,8 @@ namespace AutoEverything.Core
             }
             lastColonistCount = currentCount;
 
-            // 周期触发：每 3000 tick 执行一次
-            if (tick - lastWorkTick >= ExecuteInterval)
+            // 周期触发：工作重配 10000 tick，评级/装备/星标 3000 tick
+            if (tick - lastWorkTick >= WorkExecuteInterval)
             {
                 ExecuteWork(tick, showMessage: false);
             }

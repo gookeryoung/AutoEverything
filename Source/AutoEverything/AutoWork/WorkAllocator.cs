@@ -34,6 +34,10 @@ namespace AutoEverything.AutoWork
         // 每次辅助工作分配前 Clear+重填
         private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
 
+        // 候选标记缓存：末尾清零非候选旧优先级时快速判断 pawn 是否在 workCandidates 内
+        // 替代全局清零：只对非候选调用 SetPriority(0)，候选者 SetPriority(intended) 由 RimWorld no-op 优化避免重评估
+        private static readonly HashSet<Pawn> inWorkCandidates = new HashSet<Pawn>();
+
         // workCount 硬上限：每人最多承担 N 项 priority≤2 的专业工作，超限者跳过候选
         // 候选不足保证人数时回退放宽，保证小殖民地工作有人做
         private const int MaxCoreWorkCount = 3;
@@ -100,7 +104,7 @@ namespace AutoEverything.AutoWork
             GuaranteeCount = 1,
             GuaranteePassionatePriority = 1,
             GuaranteeNonPassionatePriority = 1,
-            FloorPassionatePriority = 3,
+            FloorPassionatePriority = 2,
             UseSkillFloorForNonPassionate = true,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = false,
@@ -607,6 +611,23 @@ namespace AutoEverything.AutoWork
                     workCount[pawn]++;
                 }
             }
+
+            // 末尾清零非候选的旧优先级（替代全局清零，避免硬上限跳过者保留旧值）
+            // RimWorld SetPriority 对相同值 no-op，候选者已 SetPriority(intended) 不会重复触发重评估
+            // 仅非候选（硬上限跳过/WorkTagIsDisabled/无远程武器）需 SetPriority(0)，且仅在旧值非 0 时触发重评估
+            inWorkCandidates.Clear();
+            for (int i = 0; i < workCandidates.Count; i++)
+            {
+                inWorkCandidates.Add(workCandidates[i]);
+            }
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                Pawn pawn = candidatePawns[i];
+                if (!inWorkCandidates.Contains(pawn))
+                {
+                    pawn.workSettings.SetPriority(workType, 0);
+                }
+            }
         }
 
         /// <summary>
@@ -729,6 +750,22 @@ namespace AutoEverything.AutoWork
                 if (priority <= 2)
                 {
                     workCount[pawn]++;
+                }
+            }
+
+            // 末尾清零非候选的所有 workTypes 旧优先级（替代全局清零）
+            inWorkCandidates.Clear();
+            for (int i = 0; i < workCandidates.Count; i++)
+            {
+                inWorkCandidates.Add(workCandidates[i]);
+            }
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                Pawn pawn = candidatePawns[i];
+                if (inWorkCandidates.Contains(pawn)) continue;
+                for (int j = 0; j < workTypes.Count; j++)
+                {
+                    pawn.workSettings.SetPriority(workTypes[j], 0);
                 }
             }
         }

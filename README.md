@@ -522,7 +522,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **MOD 选项** → 启用/禁用"工作自动配置"（`AESettings.autoWorkEnabled`，默认勾选）
 - **殖民者装备面板（ITab）底部** → "工作自动配置"勾选框
-  - **勾选时**：立即执行一次工作重配，并启用自动执行（每 3000 tick + 新增殖民者时立即触发）
+  - **勾选时**：立即执行一次工作重配，并启用自动执行（每 10000 tick + 新增殖民者时立即触发）
   - **取消勾选时**：仅停止自动执行，保留当前工作分配（工作优先级无法撤销）
   - **默认勾选**
 
@@ -532,7 +532,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
 - **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
-- **周期触发**：每 3000 tick（约 50 秒）执行一次工作重配、人员评级、装备重配（高价值标记为实时绘制，无周期执行）
+- **周期触发**：工作重配每 10000 tick（约 2.8 分钟）、人员评级/装备重配每 3000 tick（约 50 秒）执行一次（高价值标记为实时绘制，无周期执行）。工作重配周期较长是为了避免频繁变更优先级触发 RimWorld Job 重评估，从而中断手术/进食等长 Job
 - **新增殖民者检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加 → 立即触发（不弹消息框）
 - **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
 - **错误隔离**：工作、评级、装备重配、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500）
@@ -658,7 +658,7 @@ Source/AutoEverything/
 | `SidearmAllocator` | 2000 tick | 全局副武器分配 |
 | `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增加时立即触发工作+评级+装备重配 |
-| `AutoExecutor` 工作重配 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
+| `AutoExecutor` 工作重配 | 10000 tick（≈2.8 分钟）| 周期较长以避免频繁变更优先级中断手术/进食等长 Job；新增殖民者 + ITab 勾选时立即触发 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 装备重配 | 3000 tick | 按评级排序 `ForceEvaluate`（不脱光）；周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 高价值标记 | 实时（Harmony 补丁） | S+ 档次非殖民者人类头顶绘制红色星标；ITab 勾选时统计数量弹消息，取消勾选自动停止绘制 |
