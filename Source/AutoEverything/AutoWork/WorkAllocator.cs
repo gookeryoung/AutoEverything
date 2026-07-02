@@ -629,9 +629,12 @@ namespace AutoEverything.AutoWork
                 }
             }
 
-            // 末尾清零非候选的旧优先级（替代全局清零，避免硬上限跳过者保留旧值）
+            // 末尾清理非候选的旧优先级（替代全局清零，避免硬上限跳过者保留旧值）
             // RimWorld SetPriority 对相同值 no-op，候选者已 SetPriority(intended) 不会重复触发重评估
-            // 仅非候选（硬上限跳过/WorkTagIsDisabled/无远程武器）需 SetPriority(0)，且仅在旧值非 0 时触发重评估
+            // 非候选分两类处理：
+            //   - WorkTagIsDisabled/无远程武器：给0（不能做此工作）
+            //   - 硬上限跳过的满载者：有火者给 Floor 保底（双火/单火），无火者给0
+            //     避免高技能有火者被硬上限完全排除，违背"有火者保底"原则
             inWorkCandidates.Clear();
             for (int i = 0; i < workCandidates.Count; i++)
             {
@@ -640,10 +643,30 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 Pawn pawn = candidatePawns[i];
-                if (!inWorkCandidates.Contains(pawn))
+                if (inWorkCandidates.Contains(pawn)) continue;
+
+                // WorkTagIsDisabled 或无远程武器者给0（不能做此工作）
+                if (pawn.WorkTagIsDisabled(workType.workTags))
                 {
                     pawn.workSettings.SetPriority(workType, 0);
+                    continue;
                 }
+                if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true)
+                {
+                    pawn.workSettings.SetPriority(workType, 0);
+                    continue;
+                }
+
+                // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给0
+                int passionLevel = GetMaxPassionForSkills(pawn, workType.relevantSkills);
+                int priority;
+                if (passionLevel >= (int)Passion.Major)
+                    priority = config.FloorMajorPriority;
+                else if (passionLevel >= (int)Passion.Minor)
+                    priority = config.FloorMinorPriority;
+                else
+                    priority = 0;
+                pawn.workSettings.SetPriority(workType, priority);
             }
         }
 
@@ -783,7 +806,8 @@ namespace AutoEverything.AutoWork
                 }
             }
 
-            // 末尾清零非候选的所有 workTypes 旧优先级（替代全局清零）
+            // 末尾清理非候选的所有 workTypes 旧优先级（替代全局清零）
+            // 硬上限跳过的满载者：有火者给 Floor 保底，无火者/WorkTagIsDisabled/无远程武器者给0
             inWorkCandidates.Clear();
             for (int i = 0; i < workCandidates.Count; i++)
             {
@@ -793,10 +817,32 @@ namespace AutoEverything.AutoWork
             {
                 Pawn pawn = candidatePawns[i];
                 if (inWorkCandidates.Contains(pawn)) continue;
-                for (int j = 0; j < workTypes.Count; j++)
+
+                // WorkTagIsDisabled 或无远程武器者给0
+                if (pawn.WorkTagIsDisabled(firstWork.workTags))
                 {
-                    pawn.workSettings.SetPriority(workTypes[j], 0);
+                    for (int j = 0; j < workTypes.Count; j++)
+                        pawn.workSettings.SetPriority(workTypes[j], 0);
+                    continue;
                 }
+                if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true)
+                {
+                    for (int j = 0; j < workTypes.Count; j++)
+                        pawn.workSettings.SetPriority(workTypes[j], 0);
+                    continue;
+                }
+
+                // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给0
+                int passionLevel = GetMaxPassionForSkills(pawn, skills);
+                int priority;
+                if (passionLevel >= (int)Passion.Major)
+                    priority = config.FloorMajorPriority;
+                else if (passionLevel >= (int)Passion.Minor)
+                    priority = config.FloorMinorPriority;
+                else
+                    priority = 0;
+                for (int j = 0; j < workTypes.Count; j++)
+                    pawn.workSettings.SetPriority(workTypes[j], priority);
             }
         }
 

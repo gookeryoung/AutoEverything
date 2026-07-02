@@ -463,7 +463,7 @@
 3. **有火保底**：超出 guarantee 的双火/单火者分别给 `FloorMajorPriority`/`FloorMinorPriority` 保底优先级，保留生产能力
 4. **无火者**：超出 guarantee 的无火者直接给 `FloorNonPassionatePriority`（通常为0，规则要求"无火优先级0"）
 
-**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。若严格收集后候选不足保证人数，回退放宽（含满载者），但满载者不抢占 Guarantee 优先级，只给 Floor 保底（避免工作很多的专家被回退后仍获得 priority=1）。
+**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。满载者不参与排序、不抢占 Guarantee 优先级，但**有火者仍给 Floor 保底**（双火/单火），无火者给0——避免高技能有火者被硬上限完全排除。若严格收集后候选不足保证人数，回退放宽（含满载者），满载者同样不抢占 Guarantee。
 
 **Crafting 技能组分配**：Crafting（制作）/Smithing（锻造）/Tailoring（缝制）三个工作类型都关联 Crafting 技能，通过 `AssignWorkGroup` **一次排序、同时分配**相同优先级，共享 1 个 workCount。避免分三次独立排序导致 workCount 变化影响后续排序、手工工作分散给不同人。
 
@@ -490,7 +490,7 @@
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/辅助不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
-**硬上限**：每人最多 3 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽（满载者降级至 Floor 保底，不抢占 Guarantee 优先级）。
+**硬上限**：每人最多 3 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽。满载者不抢占 Guarantee 优先级，但有火者仍给 Floor 保底（避免高技能有火者被完全排除）。
 **Crafting 组分配**：Smithing/Tailoring/Crafting 三个工作类型通过 `AssignWorkGroup` 一次排序同时分配相同优先级，共享 1 个 workCount，视为 1 个专业工作。避免分三次独立排序导致 workCount 变化影响排序、手工工作分散给不同人。
 
 **三因子排序**：Passion 降序 → SkillLevel 降序 → WorkCount 升序。
