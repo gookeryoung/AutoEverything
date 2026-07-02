@@ -46,66 +46,71 @@ namespace AutoEverything.AutoWork
         // 工作分配配置（静态只读，避免每次分配重复构造）
         // ════════════════════════════════════════════════════════════
 
-        // 重要专业工作（Doctor/Warden/Childcare/Cooking/PlantCutting）：保底2，三因素高者1低者3
+        // 重要专业工作（Doctor/Warden/Childcare/Cooking/PlantCutting）：保底2，双火1/单火2/无火3(保底)/超出无火0
         private static readonly WorkAllocationConfig KeyWorkConfig = new WorkAllocationConfig
         {
             GuaranteeCount = 2,
-            GuaranteePassionatePriority = 1,
+            GuaranteeMajorPriority = 1,
+            GuaranteeMinorPriority = 2,
             GuaranteeNonPassionatePriority = 3,
-            FloorPassionatePriority = 3,
-            UseSkillFloorForNonPassionate = true,
+            FloorMajorPriority = 1,
+            FloorMinorPriority = 2,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = false,
             UseBackRowSort = false
         };
 
-        // 普通专业工作（Construction/Mining/Growing/Smithing/Tailoring/Crafting/Art）：保底2，三因素高者2低者3
+        // 普通专业工作（Construction/Mining/Growing/Smithing/Tailoring/Crafting/Art）：保底2，双火2/单火3/无火3(保底)/超出无火0
         private static readonly WorkAllocationConfig OtherSkillConfig = new WorkAllocationConfig
         {
             GuaranteeCount = 2,
-            GuaranteePassionatePriority = 2,
+            GuaranteeMajorPriority = 2,
+            GuaranteeMinorPriority = 3,
             GuaranteeNonPassionatePriority = 3,
-            FloorPassionatePriority = 3,
-            UseSkillFloorForNonPassionate = true,
+            FloorMajorPriority = 2,
+            FloorMinorPriority = 3,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = false,
             UseBackRowSort = false
         };
 
-        // 次级专业工作-普通类（Handling/Fishing）：保底1，三因素高者2低者4
+        // 次级专业工作-普通类（Handling/Fishing）：保底2，双火2/单火4/无火3(保底)/超出无火0
         private static readonly WorkAllocationConfig SecondaryConfig = new WorkAllocationConfig
         {
-            GuaranteeCount = 1,
-            GuaranteePassionatePriority = 2,
-            GuaranteeNonPassionatePriority = 4,
-            FloorPassionatePriority = 4,
-            UseSkillFloorForNonPassionate = false,
+            GuaranteeCount = 2,
+            GuaranteeMajorPriority = 2,
+            GuaranteeMinorPriority = 4,
+            GuaranteeNonPassionatePriority = 3,
+            FloorMajorPriority = 2,
+            FloorMinorPriority = 4,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = false,
             UseBackRowSort = false
         };
 
-        // 次级专业工作-远程类（Hunting）：保底1，三因素高者2低者4，需远程武器+后排排序
+        // 次级专业工作-远程类（Hunting）：保底2，双火2/单火4/无火3(保底)/超出无火0，需远程武器+后排排序
         private static readonly WorkAllocationConfig SecondaryRangedConfig = new WorkAllocationConfig
         {
-            GuaranteeCount = 1,
-            GuaranteePassionatePriority = 2,
-            GuaranteeNonPassionatePriority = 4,
-            FloorPassionatePriority = 4,
-            UseSkillFloorForNonPassionate = false,
+            GuaranteeCount = 2,
+            GuaranteeMajorPriority = 2,
+            GuaranteeMinorPriority = 4,
+            GuaranteeNonPassionatePriority = 3,
+            FloorMajorPriority = 2,
+            FloorMinorPriority = 4,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = true,
             UseBackRowSort = true
         };
 
-        // 研究工作（Research/DarkStudy）：保底1，专业工作<3的三因素最高者1，其他有火者3
+        // 研究工作（Research/DarkStudy）：保底1，双火2/单火3/无火0/超出无火0，最后分配
         private static readonly WorkAllocationConfig ResearchConfig = new WorkAllocationConfig
         {
             GuaranteeCount = 1,
-            GuaranteePassionatePriority = 1,
-            GuaranteeNonPassionatePriority = 1,
-            FloorPassionatePriority = 2,
-            UseSkillFloorForNonPassionate = true,
+            GuaranteeMajorPriority = 2,
+            GuaranteeMinorPriority = 3,
+            GuaranteeNonPassionatePriority = 0,
+            FloorMajorPriority = 2,
+            FloorMinorPriority = 3,
             FloorNonPassionatePriority = 0,
             RequireRangedWeapon = false,
             UseBackRowSort = false
@@ -138,20 +143,21 @@ namespace AutoEverything.AutoWork
 
         /// <summary>
         /// 工作分配配置：统一描述各工作类型的优先级规则，编码四大原则。
-        /// 1. GuaranteeCount：保证至少 N 人承担（无论有无火），top N 内有火/无火分别给 GuaranteePassionate/GuaranteeNonPassionate
+        /// 1. GuaranteeCount：保证至少 N 人承担（无论有无火），top N 内双火/单火/无火分别给 GuaranteeMajor/Minor/NonPassionate
         /// 2. 三因子排序选 guarantee 人选（passion desc → skill desc → workCount asc）
-        /// 3. FloorPassionatePriority：有火者超出 guarantee 部分至少给此保底优先级
-        /// 4. UseSkillFloorForNonPassionate：无火者超出 guarantee 部分按技能兜底（≥12→2, ≥8→3, 否则 FloorNonPassionatePriority）
+        /// 3. FloorMajorPriority/FloorMinorPriority：双火/单火者超出 guarantee 部分给此保底优先级
+        /// 4. FloorNonPassionatePriority：无火者超出 guarantee 部分给此优先级（通常为0，规则要求无火优先级0）
         /// 注：奴隶与殖民者同流程，按兴趣/技能参与分配，无特殊优先级。
         /// </summary>
         private struct WorkAllocationConfig
         {
             public int GuaranteeCount;                  // 保证人数
-            public int GuaranteePassionatePriority;     // top N 内有火优先级
-            public int GuaranteeNonPassionatePriority;  // top N 内无火优先级
-            public int FloorPassionatePriority;         // 超出 top N 的有火保底优先级
-            public bool UseSkillFloorForNonPassionate;  // 超出 top N 的无火者是否启用技能兜底
-            public int FloorNonPassionatePriority;      // 超出 top N 的无火者优先级（不启用技能兜底时直接用）
+            public int GuaranteeMajorPriority;          // top N 内双火优先级
+            public int GuaranteeMinorPriority;          // top N 内单火优先级
+            public int GuaranteeNonPassionatePriority;  // top N 内无火优先级（保底3）
+            public int FloorMajorPriority;              // 超出 top N 的双火保底优先级
+            public int FloorMinorPriority;              // 超出 top N 的单火保底优先级
+            public int FloorNonPassionatePriority;      // 超出 top N 的无火优先级（0）
             public bool RequireRangedWeapon;            // 是否要求持有远程武器（狩猎类）
             public bool UseBackRowSort;                 // 是否启用后排优先排序（狩猎类）
         }
@@ -478,11 +484,10 @@ namespace AutoEverything.AutoWork
 
         /// <summary>
         /// 统一工作优先级分配方法，按 config 四大原则执行：
-        /// 1. 保证 GuaranteeCount 人承担（top N 内有火/无火分别给 GuaranteePassionate/GuaranteeNonPassionate）
+        /// 1. 保证 GuaranteeCount 人承担（top N 内双火/单火/无火分别给 GuaranteeMajor/Minor/NonPassionate）
         /// 2. 三因子排序选 guarantee 人选（passion desc → skill desc → workCount asc）
-        /// 3. 超出 guarantee 的有火者给 FloorPassionatePriority 保底优先级
-        /// 4. 超出 guarantee 的无火者：UseSkillFloorForNonPassionate=true 时按技能兜底（≥12→2, ≥8→3, 否则 0），
-        ///    false 时直接给 FloorNonPassionatePriority
+        /// 3. 超出 guarantee 的双火/单火者分别给 FloorMajorPriority/FloorMinorPriority 保底优先级
+        /// 4. 超出 guarantee 的无火者直接给 FloorNonPassionatePriority（通常为0，规则要求无火优先级0）
         /// 注：奴隶在专业工作中与殖民者同流程，按兴趣/技能参与分配，无特殊优先级。
         /// </summary>
         private static void AssignWorkType(WorkTypeDef workType, WorkAllocationConfig config)
@@ -570,7 +575,7 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
-                bool hasPassion = HasPassionForAnySkill(pawn, workType.relevantSkills);
+                int passionLevel = GetMaxPassionForSkills(pawn, workType.relevantSkills);
                 // 满载者（回退放宽加入的）不抢占 Guarantee 优先级，只给 Floor 保底
                 // 避免工作很多的专家被回退放宽后仍获得 priority=1
                 bool isOverloaded = workCount[pawn] >= MaxCoreWorkCount;
@@ -578,32 +583,44 @@ namespace AutoEverything.AutoWork
 
                 if (i < config.GuaranteeCount && !isOverloaded)
                 {
-                    // 原则 1+2：保证 N 人承担（仅未满载者），有火/无火分别给优先级
-                    priority = hasPassion ? config.GuaranteePassionatePriority : config.GuaranteeNonPassionatePriority;
-                }
-                else if (hasPassion)
-                {
-                    // 原则 3：有火者保底优先级（含回退放宽的满载者）
-                    priority = config.FloorPassionatePriority;
+                    // 原则 1+2：保证 N 人承担（仅未满载者），双火/单火/无火分别给优先级
+                    if (passionLevel >= (int)Passion.Major)
+                        priority = config.GuaranteeMajorPriority;
+                    else if (passionLevel >= (int)Passion.Minor)
+                        priority = config.GuaranteeMinorPriority;
+                    else
+                        priority = config.GuaranteeNonPassionatePriority;
                 }
                 else
                 {
-                    // 原则 4：无火者技能兜底或固定优先级
-                    priority = config.UseSkillFloorForNonPassionate
-                        ? GetSkillFloorPriority(pawn, workType.relevantSkills)
-                        : config.FloorNonPassionatePriority;
+                    // 原则 3+4：超出 guarantee 或满载者降级，双火/单火/无火分别给 Floor 保底
+                    if (passionLevel >= (int)Passion.Major)
+                        priority = config.FloorMajorPriority;
+                    else if (passionLevel >= (int)Passion.Minor)
+                        priority = config.FloorMinorPriority;
+                    else
+                        priority = config.FloorNonPassionatePriority;
                 }
 
                 pawn.workSettings.SetPriority(workType, priority);
 
-                // 调试：记录每个候选的最终优先级与归类（G=Guarantee/F=FloorPassion/N=NonPassion）
+                // 调试：记录每个候选的最终优先级与归类（GM=Guarantee双火/Gi=Guarantee单火/FM=Floor双火/Fi=Floor单火/N=无火）
                 AEDebug.Log(() =>
                 {
                     int finalIdx = i;
-                    string bucket = (finalIdx < config.GuaranteeCount && !isOverloaded)
-                        ? "G" : (hasPassion ? "F" : "N");
+                    string bucket;
+                    if (finalIdx < config.GuaranteeCount && !isOverloaded)
+                    {
+                        bucket = passionLevel >= (int)Passion.Major ? "GM"
+                            : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
+                    }
+                    else
+                    {
+                        bucket = passionLevel >= (int)Passion.Major ? "FM"
+                            : (passionLevel >= (int)Passion.Minor ? "Fi" : "N");
+                    }
                     int wcBefore = workCount[pawn];
-                    return $"[WorkAllocator] {workType.defName}[{finalIdx}] {AEDebug.Label(pawn)} p={GetMaxPassionForSkills(pawn, workType.relevantSkills)} s={GetMaxSkillLevelForSkills(pawn, workType.relevantSkills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
+                    return $"[WorkAllocator] {workType.defName}[{finalIdx}] {AEDebug.Label(pawn)} p={passionLevel} s={GetMaxSkillLevelForSkills(pawn, workType.relevantSkills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
                 });
 
                 if (priority <= 2)
@@ -711,23 +728,27 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < workCandidates.Count; i++)
             {
                 Pawn pawn = workCandidates[i];
-                bool hasPassion = HasPassionForAnySkill(pawn, skills);
+                int passionLevel = GetMaxPassionForSkills(pawn, skills);
                 bool isOverloaded = workCount[pawn] >= MaxCoreWorkCount;
                 int priority;
 
                 if (i < config.GuaranteeCount && !isOverloaded)
                 {
-                    priority = hasPassion ? config.GuaranteePassionatePriority : config.GuaranteeNonPassionatePriority;
-                }
-                else if (hasPassion)
-                {
-                    priority = config.FloorPassionatePriority;
+                    if (passionLevel >= (int)Passion.Major)
+                        priority = config.GuaranteeMajorPriority;
+                    else if (passionLevel >= (int)Passion.Minor)
+                        priority = config.GuaranteeMinorPriority;
+                    else
+                        priority = config.GuaranteeNonPassionatePriority;
                 }
                 else
                 {
-                    priority = config.UseSkillFloorForNonPassionate
-                        ? GetSkillFloorPriority(pawn, skills)
-                        : config.FloorNonPassionatePriority;
+                    if (passionLevel >= (int)Passion.Major)
+                        priority = config.FloorMajorPriority;
+                    else if (passionLevel >= (int)Passion.Minor)
+                        priority = config.FloorMinorPriority;
+                    else
+                        priority = config.FloorNonPassionatePriority;
                 }
 
                 // 对所有工作类型设置相同优先级（一次排序结果同时分配）
@@ -736,14 +757,23 @@ namespace AutoEverything.AutoWork
                     pawn.workSettings.SetPriority(workTypes[j], priority);
                 }
 
-                // 调试：记录每个候选的最终优先级
+                // 调试：记录每个候选的最终优先级（GM=Guarantee双火/Gi=Guarantee单火/FM=Floor双火/Fi=Floor单火/N=无火）
                 AEDebug.Log(() =>
                 {
                     int finalIdx = i;
-                    string bucket = (finalIdx < config.GuaranteeCount && !isOverloaded)
-                        ? "G" : (hasPassion ? "F" : "N");
+                    string bucket;
+                    if (finalIdx < config.GuaranteeCount && !isOverloaded)
+                    {
+                        bucket = passionLevel >= (int)Passion.Major ? "GM"
+                            : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
+                    }
+                    else
+                    {
+                        bucket = passionLevel >= (int)Passion.Major ? "FM"
+                            : (passionLevel >= (int)Passion.Minor ? "Fi" : "N");
+                    }
                     int wcBefore = workCount[pawn];
-                    return $"[WorkAllocator] {groupLabel}[{finalIdx}] {AEDebug.Label(pawn)} p={GetMaxPassionForSkills(pawn, skills)} s={GetMaxSkillLevelForSkills(pawn, skills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
+                    return $"[WorkAllocator] {groupLabel}[{finalIdx}] {AEDebug.Label(pawn)} p={passionLevel} s={GetMaxSkillLevelForSkills(pawn, skills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
                 });
 
                 // 整组只加 1 个 workCount（手工类视为 1 个专业工作）
@@ -848,33 +878,6 @@ namespace AutoEverything.AutoWork
                 if (sr.Level > max) max = sr.Level;
             }
             return max;
-        }
-
-        /// <summary>
-        /// 技能等级兜底：相关技能最高等级 ≥ 12 时返回 2, ≥ 8 时返回 3，否则返回 0。
-        /// 用于"无火但技能高者至少 priority=3"的全局规则，避免高技能奴隶/殖民者被排除在工作外。
-        /// </summary>
-        private static int GetSkillFloorPriority(Pawn pawn, List<SkillDef> skills)
-        {
-            int maxLevel = GetMaxSkillLevelForSkills(pawn, skills);
-            if (maxLevel >= 12) return 2;
-            return maxLevel >= 8 ? 3 : 0;
-        }
-
-        /// <summary>
-        /// 检查殖民者是否对任一指定技能有兴趣（Minor 或 Major）。
-        /// </summary>
-        private static bool HasPassionForAnySkill(Pawn pawn, List<SkillDef> skills)
-        {
-            if (pawn?.skills == null) return false;
-            if (skills == null || skills.Count == 0) return false;
-            for (int i = 0; i < skills.Count; i++)
-            {
-                SkillRecord sr = pawn.skills.GetSkill(skills[i]);
-                if (sr != null && sr.passion != Passion.None)
-                    return true;
-            }
-            return false;
         }
 
         /// <summary>

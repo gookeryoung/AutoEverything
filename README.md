@@ -458,10 +458,10 @@
 
 所有技能类工作（重要专业/普通专业/次级专业/研究）共用统一分配 API，配置由 `WorkAllocationConfig` 结构编码：
 
-1. **保证数量**：`GuaranteeCount` 确保至少 N 人承担（无论有无火），top N 内有火给 `GuaranteePassionatePriority`、无火给 `GuaranteeNonPassionatePriority`
+1. **保证数量**：`GuaranteeCount` 确保至少 N 人承担（无论有无火），top N 内双火给 `GuaranteeMajorPriority`、单火给 `GuaranteeMinorPriority`、无火给 `GuaranteeNonPassionatePriority`
 2. **三因子排序**：top N 人选按 Passion 降序 → SkillLevel 降序 → WorkCount 升序选择，保证数量内选兴趣最高、技能最强的
-3. **有火保底**：超出 guarantee 的有火者至少给 `FloorPassionatePriority`（如 3），保留生产能力
-4. **无火技能兜底**：超出 guarantee 的无火者，`UseSkillFloorForNonPassionate=true` 时按技能等级兜底（≥12→2, ≥8→3, 否则 0）；`=false` 时直接给 `FloorNonPassionatePriority`
+3. **有火保底**：超出 guarantee 的双火/单火者分别给 `FloorMajorPriority`/`FloorMinorPriority` 保底优先级，保留生产能力
+4. **无火者**：超出 guarantee 的无火者直接给 `FloorNonPassionatePriority`（通常为0，规则要求"无火优先级0"）
 
 **workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。若严格收集后候选不足保证人数，回退放宽（含满载者），但满载者不抢占 Guarantee 优先级，只给 Floor 保底（避免工作很多的专家被回退后仍获得 priority=1）。
 
@@ -473,20 +473,20 @@
 
 工作类型按以下分类与顺序分配（顺序影响工作计数，前排分配结果影响后排候选）：
 
-| 顺序 | 工作分类 | 包含类型 | 保证人数 | top N 有火 | top N 无火 | 有火保底 | 无火兜底 | 特殊约束 |
-|------|---------|---------|---------|-----------|-----------|---------|---------|---------|
-| 1 | 紧急 | Firefighter / Patient / PatientBedRest | — | 全部 → 1 | 全部 → 1 | — | — | 不计入 workCount |
-| 2 | 重要专业 | Doctor / Warden / Childcare / Cooking / PlantCutting | 2 | 1 | 3 | 3 | 技能兜底 | — |
-| 3 | 普通专业 | Construction / Mining / Growing / Smithing / Tailoring / Crafting / Art | 2 | 2 | 3 | 3 | 技能兜底 | Crafting 组分配共享 1 workCount |
-| 4 | 次级专业 | Handling / Fishing / Hunting | 1 | 2 | 4 | 4 | 0 | Hunting 需远程武器+后排排序 |
-| 5 | 研究 | Research / DarkStudy | 1 | 1 | 1 | 3 | 技能兜底 | 最后分配，专业工作<3者优先 |
+| 顺序 | 工作分类 | 包含类型 | 保底 | 双火 | 单火 | 无火(top N) | 无火(超出) | 特殊约束 |
+|------|---------|---------|------|------|------|-------------|------------|---------|
+| 1 | 紧急 | Firefighter / Patient / PatientBedRest | — | 1 | 1 | 1 | — | 不计入 workCount |
+| 2 | 重要专业 | Doctor / Warden / Childcare / Cooking / PlantCutting | 2 | 1 | 2 | 3 | 0 | — |
+| 3 | 普通专业 | Construction / Mining / Growing / Smithing / Tailoring / Crafting / Art | 2 | 2 | 3 | 3 | 0 | Crafting 组分配共享 1 workCount |
+| 4 | 次级专业 | Handling / Fishing / Hunting | 2 | 2 | 4 | 3 | 0 | Hunting 需远程武器+后排排序 |
+| 5 | 研究 | Research / DarkStudy | 1 | 2 | 3 | 0 | 0 | 最后分配 |
 | 6 | 辅助 | Hauling / Cleaning / BasicWorker 等 | — | 见辅助工作规则 | — | — | — | 不计入 workCount，按评级分档 |
 
-**top N 有火/无火**：保证人数内按三因子排序选取，有火者给"top N 有火"优先级，无火者给"top N 无火"优先级。
+**双火/单火**：对应 Passion.Major / Passion.Minor，整个候选列表中（含超出保底）双火/单火分别给"双火"/"单火"列优先级。
 
-**有火保底**：超出保证人数的有火者至少给此优先级（原则 3），确保有兴趣者保留生产能力。
+**无火(top N)**：保底人数内按三因子排序选取，无火者给此优先级（保底3，实现"保底2人即使无火也3"）。
 
-**无火兜底**：超出保证人数的无火者，"技能兜底"表示按相关技能最高等级判定（≥12→2, ≥8→3, 否则 0，原则 4）；"0"表示直接禁用。
+**无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/辅助不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
