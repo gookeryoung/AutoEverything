@@ -578,10 +578,12 @@ namespace AutoEverything.AutoWork
                 int passionLevel = GetMaxPassionForSkills(pawn, workType.relevantSkills);
                 // 满载者（回退放宽加入的）不抢占 Guarantee 优先级，只给 Floor 保底
                 // 避免工作很多的专家被回退放宽后仍获得 priority=1
+                // 例外：回退放宽模式（人手不足）下，满载者必须走 Guarantee 逻辑保证保底人数，
+                // 否则无火满载者会走 Floor(=0) 导致 GuaranteeCount 保底失效
                 bool isOverloaded = workCount[pawn] >= MaxCoreWorkCount;
                 int priority;
 
-                if (i < config.GuaranteeCount && !isOverloaded)
+                if (i < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                 {
                     // 原则 1+2：保证 N 人承担（仅未满载者），双火/单火/无火分别给优先级
                     if (passionLevel >= (int)Passion.Major)
@@ -609,7 +611,7 @@ namespace AutoEverything.AutoWork
                 {
                     int finalIdx = i;
                     string bucket;
-                    if (finalIdx < config.GuaranteeCount && !isOverloaded)
+                    if (finalIdx < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                     {
                         bucket = passionLevel >= (int)Passion.Major ? "GM"
                             : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
@@ -755,7 +757,7 @@ namespace AutoEverything.AutoWork
                 bool isOverloaded = workCount[pawn] >= MaxCoreWorkCount;
                 int priority;
 
-                if (i < config.GuaranteeCount && !isOverloaded)
+                if (i < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                 {
                     if (passionLevel >= (int)Passion.Major)
                         priority = config.GuaranteeMajorPriority;
@@ -785,7 +787,7 @@ namespace AutoEverything.AutoWork
                 {
                     int finalIdx = i;
                     string bucket;
-                    if (finalIdx < config.GuaranteeCount && !isOverloaded)
+                    if (finalIdx < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                     {
                         bucket = passionLevel >= (int)Passion.Major ? "GM"
                             : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
