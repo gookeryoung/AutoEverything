@@ -546,6 +546,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **护甲偏好硬否决**：重甲前排（Heavy）拒绝拾取轻甲，轻甲工人（Light）拒绝拾取重甲，自由后排（Flexible）自由选择
 - **有条件卸下**：`RemoveWrongArmorType` 仅当地图上有匹配护甲可换时才卸下不匹配护甲，避免赤身反复脱穿
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
+- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过 `ForceEvaluate` 与 `EvaluateInventory`，避免取药 `TryTakeOrderedJob` 取消手术 Job 导致手术死循环
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
 - **未成年**：仅评估防具（`ForceEvaluate(Apparel)`），跳过武器/副武器/库存
 - **尊重锁定**：`comp.locked` 为 true 的殖民者跳过

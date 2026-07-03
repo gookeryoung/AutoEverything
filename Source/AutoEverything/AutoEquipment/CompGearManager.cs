@@ -222,10 +222,13 @@ namespace AutoEverything.AutoEquipment
             var job = Pawn.CurJob;
             if (job == null) return false;
             var def = job.def;
+            // 手术执行 Job 是 DoBill，其 bill 为 Bill_Medical（含手术配方）
+            // 漏检 DoBill 会导致 EvaluateInventory 取药 TryTakeOrderedJob 取消手术 Job，手术永远做不完
             return def == JobDefOf.TendPatient
                 || def == JobDefOf.TendEntity
                 || def == JobDefOf.Rescue
-                || def == JobDefOf.TakeToBedToOperate;
+                || def == JobDefOf.TakeToBedToOperate
+                || (def == JobDefOf.DoBill && job.bill is Bill_Medical);
         }
 
         // ===================== 手动触发换装 =====================
@@ -250,6 +253,9 @@ namespace AutoEverything.AutoEquipment
         {
             if (Pawn == null || Pawn.Dead || Pawn.Map == null) return;
             if (DLCCompat.IsGhoul(Pawn)) return;
+            // 不打断医疗工作：手术/治疗执行期间跳过强制评估
+            // EvaluateInventory 会 TryTakeOrderedJob 取药，取消当前手术 DoBill Job，导致手术死循环
+            if (IsDoingMedicalJob()) return;
 
             try
             {
@@ -868,9 +874,8 @@ namespace AutoEverything.AutoEquipment
             // 防止反复拾取药品——每次尝试后冷却
             if (Find.TickManager.TicksGame - lastMedPickupTick < 2500) return;
 
-            // 不打断当前工作去拾取药品
-            if (Pawn.CurJob != null && Pawn.CurJob.def == JobDefOf.TakeCountToInventory)
-                return;
+            // 不打断医疗工作：手术 DoBill 执行期间取药会 TryTakeOrderedJob 取消手术 Job，导致手术死循环
+            if (IsDoingMedicalJob()) return;
 
             // 医生与有医疗技能的战斗人员应携带药品
             int medSkill = Pawn.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
