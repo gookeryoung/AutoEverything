@@ -479,6 +479,12 @@ namespace AutoEverything.AutoWork
                 {
                     priority = 4;
                 }
+                // 豁免：清洁 priority=1 会先于研究(priority>=2)执行，打断研究；研究员的清洁降为4
+                if (priority == 1 && workType.defName == "Cleaning" && GetMaxResearchPriority(pawn) >= 2)
+                {
+                    priority = 4;
+                }
+
                 pawn.workSettings.SetPriority(workType, priority);
                 // 辅助工作不计入 workCount
             }
@@ -512,7 +518,9 @@ namespace AutoEverything.AutoWork
         /// </summary>
         private static void AssignWorkType(WorkTypeDef workType, WorkAllocationConfig config)
         {
-            // 候选收集：跳过已满载者（workCount 硬上限，强制均衡负载）
+            // 候选收集：包含满载者，让满载者参与排序
+            // 满载者在 top N 内走 Floor 保底（不抢占 Guarantee），无火者落在 top N 外走 Floor(=0)
+            // 避免满载者被跳过后，候选无火者错误获得 Guarantee 保底导致重复承担（保底人数超标）
             workCandidates.Clear();
             for (int i = 0; i < candidatePawns.Count; i++)
             {
@@ -520,24 +528,11 @@ namespace AutoEverything.AutoWork
                 if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
                 // 狩猎类需远程武器：避免无远程武器者被分配
                 if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
-                if (workCount[pawn] >= MaxCoreWorkCount) continue;  // 硬上限：跳过已满载者
                 workCandidates.Add(pawn);
             }
-            // 回退放宽：严格候选不足保证人数时，重新收集全部候选（含满载者）
-            // 场景：小殖民地人手不足，必须让已满载者承担更多工作
-            bool fallbackRelaxed = false;
-            if (workCandidates.Count < config.GuaranteeCount)
-            {
-                fallbackRelaxed = true;
-                workCandidates.Clear();
-                for (int i = 0; i < candidatePawns.Count; i++)
-                {
-                    Pawn pawn = candidatePawns[i];
-                    if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
-                    if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
-                    workCandidates.Add(pawn);
-                }
-            }
+            // 回退放宽：候选不足保证人数时（小殖民地人手不足），满载者走 Guarantee 逻辑保证保底
+            // 候选已包含满载者，无需重新收集，仅设标志
+            bool fallbackRelaxed = workCandidates.Count < config.GuaranteeCount;
             if (workCandidates.Count == 0)
             {
                 AEDebug.Log(() => $"[WorkAllocator] {workType.defName}: SKIP (no candidates, total={candidatePawns.Count})");
@@ -707,30 +702,17 @@ namespace AutoEverything.AutoWork
             // 调试：构造工作类型组标签（如 Smithing+Tailoring+Crafting），仅在 debug 开启时构造
             string groupLabel = AEDebug.IsActive ? BuildWorkGroupLabel(workTypes) : null;
 
-            // 候选收集：跳过已满载者（workCount 硬上限）
+            // 候选收集：包含满载者，让满载者参与排序（与 AssignWorkType 一致）
             workCandidates.Clear();
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 Pawn pawn = candidatePawns[i];
                 if (pawn.WorkTagIsDisabled(firstWork.workTags)) continue;
                 if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
-                if (workCount[pawn] >= MaxCoreWorkCount) continue;
                 workCandidates.Add(pawn);
             }
-            // 回退放宽
-            bool fallbackRelaxed = false;
-            if (workCandidates.Count < config.GuaranteeCount)
-            {
-                fallbackRelaxed = true;
-                workCandidates.Clear();
-                for (int i = 0; i < candidatePawns.Count; i++)
-                {
-                    Pawn pawn = candidatePawns[i];
-                    if (pawn.WorkTagIsDisabled(firstWork.workTags)) continue;
-                    if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
-                    workCandidates.Add(pawn);
-                }
-            }
+            // 回退放宽：候选不足保证人数时，满载者走 Guarantee 逻辑保证保底
+            bool fallbackRelaxed = workCandidates.Count < config.GuaranteeCount;
             if (workCandidates.Count == 0)
             {
                 AEDebug.Log(() => $"[WorkAllocator] {groupLabel ?? "Group"}: SKIP (no candidates, total={candidatePawns.Count})");

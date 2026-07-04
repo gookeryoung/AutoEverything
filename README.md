@@ -299,6 +299,8 @@
 
 **降档规则：** 三大维度与原 S 条件 4/5 计算出 tier 后，若拥有任一负面特质且 `tier > D`，则 `tier` 降一档（D 不再降，X 先于一切判定不受影响）。
 
+**配偶评级豁免：** 与 S 级以上（S/SS/SSS）人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）。配偶评级用 `GetAutoCombatTier` 计算，避免递归。自定义评级优先于配偶豁免。
+
 **统计范围（9 大可兴趣技能）：** 射击、近战、社交、手工、建造、艺术、烹饪、种植、采矿。
 
 **特殊天赋特质来源：**
@@ -463,7 +465,7 @@
 3. **有火保底**：超出 guarantee 的双火/单火者分别给 `FloorMajorPriority`/`FloorMinorPriority` 保底优先级，保留生产能力
 4. **无火者**：超出 guarantee 的无火者直接给 `FloorNonPassionatePriority`（通常为0，规则要求"无火优先级0"）
 
-**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集阶段跳过已满载者，强制均衡负载。满载者不参与排序、不抢占 Guarantee 优先级，但**有火者仍给 Floor 保底**（双火/单火），无火者给0——避免高技能有火者被硬上限完全排除。若严格收集后候选不足保证人数，回退放宽（含满载者），**回退放宽模式下满载者走 Guarantee 逻辑**（按 passion 给 Guarantee 优先级），保证保底人数不因满载失效。
+**workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集**包含满载者**，让满载者参与排序：满载者在 top N 内走 Floor 保底（不抢占 Guarantee），无火者落在 top N 外走 Floor(=0)，避免满载者被跳过后候选无火者错误获得 Guarantee 保底导致重复承担。满载者有火者仍给 Floor 保底（双火/单火），无火者给0——避免高技能有火者被硬上限完全排除。若候选不足保证人数（小殖民地人手不足），回退放宽模式下满载者走 Guarantee 逻辑，保证保底人数不失效。
 
 **Crafting 技能组分配**：Crafting（制作）/Smithing（锻造）/Tailoring（缝制）三个工作类型都关联 Crafting 技能，通过 `AssignWorkGroup` **一次排序、同时分配**相同优先级，共享 1 个 workCount。避免分三次独立排序导致 workCount 变化影响后续排序、手工工作分散给不同人。
 
@@ -490,7 +492,7 @@
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/辅助不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
-**硬上限**：每人最多 3 项 priority≤2 的专业工作，候选收集阶段跳过已满载者，候选不足时回退放宽。正常模式满载者不抢占 Guarantee 优先级，但有火者仍给 Floor 保底（避免高技能有火者被完全排除）。回退放宽模式下满载者走 Guarantee 逻辑，保证保底人数不失效。
+**硬上限**：每人最多 3 项 priority≤2 的专业工作，候选收集包含满载者参与排序。满载者在 top N 内走 Floor 保底（不抢占 Guarantee），无火者落在 top N 外走 Floor(=0)，避免重复承担。回退放宽模式（小殖民地）下满载者走 Guarantee 逻辑，保证保底人数不失效。
 **Crafting 组分配**：Smithing/Tailoring/Crafting 三个工作类型通过 `AssignWorkGroup` 一次排序同时分配相同优先级，共享 1 个 workCount，视为 1 个专业工作。避免分三次独立排序导致 workCount 变化影响排序、手工工作分散给不同人。
 
 **三因子排序**：Passion 降序 → SkillLevel 降序 → WorkCount 升序。

@@ -52,6 +52,12 @@ namespace AutoEverything.RoleEvaluation
                 return tierRepresentativeScore[(int)customTier] + 0.5f;
             }
 
+            // 配偶评级豁免：与 S+ 配偶结婚的殖民者，用 S 代表分保证排序一致
+            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
+            {
+                return tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
+            }
+
             if (pawn.skills == null) return 0f;
 
             float total = 0f;
@@ -113,7 +119,16 @@ namespace AutoEverything.RoleEvaluation
             if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
                 return customTier;
 
-            return GetAutoCombatTier(pawn);
+            CombatTier autoTier = GetAutoCombatTier(pawn);
+
+            // 配偶评级豁免：与 S+ 人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）
+            // 用 GetAutoCombatTier 计算配偶评级，避免 GetCombatTier 递归（A 配偶 B，B 配偶 A）
+            if (autoTier < CombatTier.S && HasSpouseTierAtLeast(pawn, CombatTier.S))
+            {
+                return CombatTier.S;
+            }
+
+            return autoTier;
         }
 
         /// <summary>
@@ -137,6 +152,12 @@ namespace AutoEverything.RoleEvaluation
             if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
             {
                 return tierRepresentativeScore[(int)customTier] + 0.5f;
+            }
+
+            // 配偶评级豁免：与 S+ 配偶结婚的殖民者，用 S 代表分保证排序一致
+            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
+            {
+                return tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
             }
 
             float score = 0f;
@@ -431,6 +452,32 @@ namespace AutoEverything.RoleEvaluation
             //   1) customTierMap 查询失配（玩家设置时用的是原名）
             //   2) 面板拼接会变成 "S#S#王五" 双重前缀
             return TierTagHelper.Strip(pawn.LabelShort ?? string.Empty);
+        }
+
+        /// <summary>
+        /// 获取 Pawn 的存活配偶（Spouse 关系），无配偶或配偶已死返回 null。
+        /// </summary>
+        private static Pawn GetSpouse(Pawn pawn)
+        {
+            if (pawn.relations == null) return null;
+            var directRelations = pawn.relations.DirectRelations;
+            for (int i = 0; i < directRelations.Count; i++)
+            {
+                DirectPawnRelation rel = directRelations[i];
+                if (rel.def == PawnRelationDefOf.Spouse && rel.otherPawn != null && !rel.otherPawn.Dead)
+                    return rel.otherPawn;
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// 检查 Pawn 的配偶（自动评级）是否 >= 指定档次。
+        /// 用 GetAutoCombatTier 计算配偶评级，避免 GetCombatTier 递归（A 配偶 B，B 配偶 A 死循环）。
+        /// </summary>
+        private static bool HasSpouseTierAtLeast(Pawn pawn, CombatTier minTier)
+        {
+            Pawn spouse = GetSpouse(pawn);
+            return spouse != null && GetAutoCombatTier(spouse) >= minTier;
         }
     }
 }
