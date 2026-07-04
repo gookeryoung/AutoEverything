@@ -23,6 +23,9 @@ namespace AutoEverything.AutoEquipment.Scoring
         /// <summary>近战 DPS 权重</summary>
         public float w_dps;
 
+        /// <summary>近战护甲穿透权重（0~1 小数 × 权重）</summary>
+        public float w_armorPenetration;
+
         /// <summary>远程伤害倍率权重</summary>
         public float w_dmg;
 
@@ -69,14 +72,15 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_passionMinor = 1.5f,
             w_passionMajor = 2.0f,
             w_dps = 5.0f,
+            w_armorPenetration = 50.0f,
             w_dmg = 30.0f,
             w_cooldown = 10.0f,
             w_range = 1.5f,
             w_quality = 10.0f,
             w_ideology_noble = 200.0f,
             w_ideology_despised = 300.0f,
-            w_armor = 200.0f,
-            w_insulation = 10.0f,
+            w_armor = 300.0f,
+            w_insulation = 50.0f,
             w_movespeed = 20.0f,
             w_workspeed = 60.0f,
             upgradeThreshold = 0.15f
@@ -89,14 +93,15 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_passionMinor = 1.5f,
             w_passionMajor = 2.5f,
             w_dps = 8.0f,
+            w_armorPenetration = 60.0f,
             w_dmg = 40.0f,
             w_cooldown = 12.0f,
             w_range = 0.5f,
             w_quality = 8.0f,
             w_ideology_noble = 250.0f,
             w_ideology_despised = 400.0f,
-            w_armor = 300.0f,
-            w_insulation = 5.0f,
+            w_armor = 400.0f,
+            w_insulation = 30.0f,
             w_movespeed = 5.0f,
             w_workspeed = 40.0f,
             upgradeThreshold = 0.10f
@@ -109,14 +114,15 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_passionMinor = 1.5f,
             w_passionMajor = 1.5f,
             w_dps = 3.0f,
+            w_armorPenetration = 40.0f,
             w_dmg = 20.0f,
             w_cooldown = 8.0f,
             w_range = 1.0f,
             w_quality = 20.0f,
             w_ideology_noble = 150.0f,
             w_ideology_despised = 200.0f,
-            w_armor = 150.0f,
-            w_insulation = 10.0f,
+            w_armor = 250.0f,
+            w_insulation = 50.0f,
             w_movespeed = 15.0f,
             w_workspeed = 70.0f,
             upgradeThreshold = 0.25f
@@ -129,14 +135,15 @@ namespace AutoEverything.AutoEquipment.Scoring
             w_passionMinor = 1.5f,
             w_passionMajor = 2.0f,
             w_dps = 4.0f,
+            w_armorPenetration = 30.0f,
             w_dmg = 25.0f,
             w_cooldown = 15.0f,
             w_range = 4.0f,
             w_quality = 10.0f,
             w_ideology_noble = 200.0f,
             w_ideology_despised = 300.0f,
-            w_armor = 100.0f,
-            w_insulation = 10.0f,
+            w_armor = 200.0f,
+            w_insulation = 50.0f,
             w_movespeed = 30.0f,
             w_workspeed = 40.0f,
             upgradeThreshold = 0.20f

@@ -165,7 +165,7 @@
 
 ### 权重预设方案
 
-`GearWeights` 结构包含 15 个权重字段（含意识形态尊崇/鄙夷）。提供 4 个预设方案：
+`GearWeights` 结构包含 16 个权重字段（含意识形态尊崇/鄙夷、护甲穿透）。提供 4 个预设方案：
 
 | 方案 | 特点 | 适用场景 |
 |------|------|----------|
@@ -175,6 +175,15 @@
 | `Hunting` | 远程射程与精准优先 | 狩猎为主 |
 
 玩家可在设置界面循环切换，存档持久化。
+
+**武器核心权重**：
+- `w_dps`：近战 DPS 权重（Standard=5, Aggressive=8, Economic=3, Hunting=4）
+- `w_armorPenetration`：近战护甲穿透权重（0~1 小数 × 权重，Standard=50, Aggressive=60, Economic=40, Hunting=30）——解决单分子剑问题：DPS 不高但穿透极高（0.83），对高护甲敌人有奇效
+- `w_dmg`：远程伤害倍率权重（Standard=30, Aggressive=40, Economic=20, Hunting=25）
+
+**防具核心权重**：
+- `w_armor`：护甲权重（Standard=300, Aggressive=400, Economic=250, Hunting=200）——高权重确保超织物等高护甲材质压过低护甲材质（如人皮）的品质加分
+- `w_insulation`：保温权重（Standard=50, Aggressive=30, Economic=50, Hunting=50）——确保隔温优势能体现
 
 **意识形态权重**（需 Ideology DLC）：
 - `w_ideology_noble`：文化尊崇武器加分（Standard=200, Aggressive=250, Economic=150, Hunting=200）
@@ -193,7 +202,7 @@
 | 3 | `WeaponTraitScorer` | 特质（仅 `Brawler` 特质否决远程武器，技能型 Brawler 不否决） |
 | 4 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0）；双修角色（射击+近战均有火）远程武器额外 +50 |
 | 5 | `WeaponContextScorer` | 情境加成（战斗 +DPS / 狩猎 +射程） |
-| 6 | `WeaponDpsScorer` | DPS 与伤害倍率 |
+| 6 | `WeaponDpsScorer` | 近战：DPS + 护甲穿透（0~1 × `w_armorPenetration`）；远程：伤害倍率 + 射速。战斗情境 ×1.5 |
 | 7 | `WeaponRangeScorer` | 射程 |
 | 8 | `WeaponQualityScorer` | 品质 |
 | 9 | `WeaponIdeologyScorer` | 意识形态武器偏好（Noble +w_ideology_noble / Despised -w_ideology_despised，需 Ideology DLC） |
