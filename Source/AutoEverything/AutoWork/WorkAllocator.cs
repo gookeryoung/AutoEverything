@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using RimWorld;
@@ -473,9 +474,28 @@ namespace AutoEverything.AutoWork
                     case CombatTier.A: priority = 3; break;
                     default: priority = 1; break; // B/C/D/X
                 }
+                // 豁免：搬运 priority=1 会先于研究(priority>=2)执行，打断研究；研究员的搬运降为4
+                if (priority == 1 && workType.defName == "Hauling" && GetMaxResearchPriority(pawn) >= 2)
+                {
+                    priority = 4;
+                }
                 pawn.workSettings.SetPriority(workType, priority);
                 // 辅助工作不计入 workCount
             }
+        }
+
+        /// <summary>
+        /// 返回 Pawn 当前 Research/DarkStudy 工作优先级的最大值（0 表示未承担研究）。
+        /// 用于辅助工作豁免判定：研究优先级>=2 时搬运降级，避免打断研究。
+        /// </summary>
+        private static int GetMaxResearchPriority(Pawn pawn)
+        {
+            int p = 0;
+            if (cachedResearchDef != null)
+                p = Math.Max(p, pawn.workSettings.GetPriority(cachedResearchDef));
+            if (cachedDarkStudyDef != null)
+                p = Math.Max(p, pawn.workSettings.GetPriority(cachedDarkStudyDef));
+            return p;
         }
 
         // ════════════════════════════════════════════════════════════

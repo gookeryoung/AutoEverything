@@ -511,6 +511,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **评级 SSS/SS/S → priority=4**：高价值殖民者少做辅助工作
 - **评级 A → priority=3**
 - **评级 B/C/D/X → priority=1**
+- **搬运豁免**：Hauling priority=1 会先于研究(priority>=2)执行从而打断研究，故 Pawn 的 Research/DarkStudy 优先级 >= 2 时，Hauling 降为 priority=4
 
 辅助工作不计入 workCount（避免污染技能工作的均衡负载计算）。
 
