@@ -45,22 +45,19 @@ namespace AutoEverything.AutoEquipment.Scoring.Weapon
                 return;
             }
 
-            // 格斗者特质（TraitDefOf.Brawler 始终存在）：绝对拒绝远程武器
-            // 仅真正的 Brawler 特质才拒绝远程，技能型 Brawler（基于技能判定，无特质）不拒绝
-            // 设计意图：技能型 Brawler 近战远程双修，应优先远程武器，贴身时切换近战副武器
-            if (pawn.story.traits.HasTrait(TraitDefOf.Brawler))
+            // Brawler 角色（基于特质或兴趣/技能判定）：拒绝远程武器
+            // 设计意图：近战定位的小人不应配备远程武器，无论是否有 Brawler 特质
+            if (role == Role.Brawler && isRanged)
             {
-                if (isRanged)
-                {
-                    breakdown.Veto(-9000f);
-                    breakdown.AddScore(Name, "格斗者特质+远程=拒绝", -9000f);
-                    return;
-                }
+                breakdown.Veto(-9000f);
+                breakdown.AddScore(Name, "格斗者角色+远程=拒绝", -9000f);
+                return;
+            }
 
-                if (isMelee)
-                {
-                    breakdown.AddScore(Name, "格斗者特质+近战", 50f);
-                }
+            // 格斗者特质（TraitDefOf.Brawler 始终存在）：近战武器额外加分（特质偏好）
+            if (pawn.story.traits.HasTrait(TraitDefOf.Brawler) && isMelee)
+            {
+                breakdown.AddScore(Name, "格斗者特质+近战", 50f);
             }
 
             // 敏捷特质：偏好近战

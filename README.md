@@ -36,8 +36,8 @@
 
 **关键约束**：
 
-1. **Brawler 特质拒绝远程**：仅拥有真正 `Brawler` 特质（`TraitDefOf.Brawler`）的殖民者会被 `Veto(-9000f)` 拒绝远程武器。基于技能判定的 `Brawler` 角色（近战 ≥ 8 且近战 > 射击，但无特质）**不拒绝远程武器**——此类殖民者近战远程双修，应优先拿远程武器作为主武器，贴身时再切换近战副武器。
-2. **非格斗者拒绝近战**：`WeaponTraitScorer` 在评分开头检查 Role，仅 `Brawler` 角色（基于特质或技能判定）允许装备近战武器；`Worker`/`Doctor`/`Pacifist`/`Default`（Light）与 `Shooter`/`Hunter`/`Leader`（Flexible）在武器评分时会触发 `Veto(-9000f)` 拒绝近战武器。设计意图：轻甲无防护不宜近战，后排应优先远程输出。
+1. **Brawler 角色拒绝远程**：`Brawler` 角色（基于 `Brawler` 特质、或兴趣组合判定、或技能等级判定）会被 `Veto(-9000f)` 拒绝远程武器。近战定位的小人不配备远程武器，无论是否有 `Brawler` 特质。
+2. **非格斗者拒绝近战**：`WeaponTraitScorer` 在评分开头检查 Role，仅 `Brawler` 角色（基于特质或兴趣/技能判定）允许装备近战武器；`Worker`/`Doctor`/`Pacifist`/`Default`（Light）与 `Shooter`/`Hunter`/`Leader`（Flexible）在武器评分时会触发 `Veto(-9000f)` 拒绝近战武器。设计意图：轻甲无防护不宜近战，后排应优先远程输出。
 
 ## 主武器选择规则
 
@@ -45,12 +45,11 @@
 
 | 殖民者类型 | 主武器 | 说明 |
 |-----------|--------|------|
-| `Brawler` 特质 | 近战 | Veto 远程武器 |
-| 双修（射击+近战均有火） | 远程 | `WeaponSkillScorer` 给远程 +50 偏好分，贴身时 `CheckMeleeSidearm` 切换 |
-| 纯近战（射击无火） | 近战 | 按 `WeaponSkillScorer` 评分自然选择 |
+| `Brawler` 角色 | 近战 | Veto 远程武器（`WeaponTraitScorer` -9000f） |
 | 纯远程（近战无火） | 远程 | 按评分自然选择 |
+| 双修（射击+近战均有火） | 按技能等级 | 射击 ≥ 近战 → Shooter（远程）；近战 > 射击 → Brawler（近战） |
 
-**贴身切换**：当殖民者持远程武器受近战攻击时，`CheckMeleeSidearm`（30 tick 周期）检测库存近战副武器并自动切换；取消征召时 `OnUndraft` 恢复主武器。该功能仅应对玩家手动给的副武器，自动分配已取消反向类型副武器。
+**贴身切换**：当殖民者持远程武器受近战攻击时，`CheckMeleeSidearm`（30 tick 周期）检测库存近战副武器并自动切换；取消征召时 `OnUndraft` 恢复主武器。该功能仅应对玩家手动给 Shooter 角色的近战副武器，自动分配已取消反向类型副武器。
 
 **护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于近战角色（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`，`role != Role.Brawler` 过滤）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。远程角色不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
 
@@ -81,7 +80,7 @@
 - 射击与近战 passion 均为 `None`（非战斗型）
 - 医疗 ≥ 8 **或** 研究 ≥ 8（有专长可发挥）
 
-**加分**：+50（参考 `WeaponSkillScorer` 双修远程偏好分，让实验服在同类防具评分中显著领先）。
+**加分**：+50（让实验服在同类防具评分中显著领先，确保研究型殖民者优先穿戴）。
 
 ### 过渡装备兜底
 
@@ -186,8 +185,8 @@
 |------|--------|------|
 | 1 | `WeaponBiocodedScorer` | 生物编码检查，不匹配直接 Veto |
 | 2 | `WeaponForbiddenScorer` | 禁止类武器（手榴弹/火箭发射器）Veto `-9000f`，单次消耗品不适合持续主武器 |
-| 3 | `WeaponTraitScorer` | 特质（仅 `Brawler` 特质否决远程武器，技能型 Brawler 不否决） |
-| 4 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0）；双修角色（射击+近战均有火）远程武器额外 +50 |
+| 3 | `WeaponTraitScorer` | 角色硬约束：`Brawler` 角色 Veto 远程武器（`-9000f`）；非 Brawler 角色 Veto 近战武器；护盾腰带 Veto 远程；格斗者/敏捷/嗜血/强健特质加分 |
+| 4 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0） |
 | 5 | `WeaponContextScorer` | 情境加成（战斗 +DPS / 狩猎 +射程） |
 | 6 | `WeaponDpsScorer` | 近战：DPS + 护甲穿透（0~1 × `w_armorPenetration`）；远程：伤害倍率 + 射速。战斗情境 ×1.5 |
 | 7 | `WeaponRangeScorer` | 射程 |

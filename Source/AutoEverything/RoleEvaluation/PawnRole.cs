@@ -126,8 +126,24 @@ namespace AutoEverything.RoleEvaluation
                     int melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
                     int medicine = pawn.skills.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
 
+                    // 兴趣组合优先判定（天赋倾向比当前技能等级更能反映长期定位）
+                    Passion shootingPassion = pawn.skills.GetSkill(SkillDefOf.Shooting)?.passion ?? Passion.None;
+                    Passion meleePassion = pawn.skills.GetSkill(SkillDefOf.Melee)?.passion ?? Passion.None;
+
+                    // 近战有火且射击无火 → Brawler（无论技能等级）
+                    if (meleePassion != Passion.None && shootingPassion == Passion.None)
+                    {
+                        result = Role.Brawler;
+                        reason = $"近战{(meleePassion == Passion.Major ? "双火" : "单火")}+射击无火 (兴趣优先)";
+                    }
+                    // 射击有火且近战无火 → Shooter
+                    else if (shootingPassion != Passion.None && meleePassion == Passion.None)
+                    {
+                        result = Role.Shooter;
+                        reason = $"射击{(shootingPassion == Passion.Major ? "双火" : "单火")}+近战无火 (兴趣优先)";
+                    }
                     // 医生：医疗是其最佳战斗相关技能且 >= 8
-                    if (medicine >= 8 && medicine >= shooting && medicine >= melee)
+                    else if (medicine >= 8 && medicine >= shooting && medicine >= melee)
                     {
                         result = Role.Doctor;
                         reason = $"医疗={medicine} >= 射击={shooting}, 近战={melee}";
