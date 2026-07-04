@@ -70,7 +70,7 @@
 | 手榴弹 | defName/label 含 `GRENADE`（破片/燃烧瓶/毒气手雷）| Veto `-9000f`（单次消耗品，不适合持续主武器） | `WeaponForbiddenScorer` |
 | 火箭发射器 | label 含 `rocket launcher`（末日/三连火箭）| Veto `-9000f`（单次消耗品） | `WeaponForbiddenScorer` |
 
-**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）——这些比赤身更糟；但不排除护甲偏好不匹配的防具（赤身时穿任意护甲过渡）。
+**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）——这些比赤身更糟；不排除其他防具（赤身时穿任意护甲过渡）。
 
 ### 研究型殖民者偏好
 
@@ -242,7 +242,7 @@
 
 - 取消携带多个装备：每人只选最适合自己的主武器，不再自动分配反向类型副武器
 - EMP 手雷特例：评级较低的 Flexible 后排至少 2 人持有 EMP 手雷，应对机械族/护盾等需要 EMP 的战术场景
-- 评级低者优先：重甲前排承担近战，评级低的后排承担 EMP 战术支援。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得 EMP 手雷
+- 评级低者优先：近战角色承担前排，评级低的后排承担 EMP 战术支援。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得 EMP 手雷
 
 ### 副武器类型选择规则
 
@@ -599,7 +599,7 @@ Source/AutoEverything/
 │   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤
 │   └── CombatTier.cs                      # 战斗价值档次枚举
 ├── RoleEvaluation/                        # → namespace AutoEverything.RoleEvaluation
-│   ├── PawnRole.cs                        # 角色检测 + 护甲偏好
+│   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎/EMP 分配）
 │   ├── GearContext.cs                    # 情境检测
 │   ├── PawnStateCleaner.cs                # Pawn 状态清理工具
 │   └── CombatEvaluator.cs                 # 战斗价值/评级计算（从 SidearmAllocator 拆分）
@@ -784,10 +784,10 @@ make rebuild-check  # 完整重建后检查
 | `GearPreset.cs` / `GearPolicyEngine.cs` | `## 权重预设方案` 表格 |
 | `CompGearManager.cs` Tick 路径 | `## 评估周期` 表格 |
 | `WeaponSkillScorer.cs` / `WeaponTraitScorer.cs` | `## 主武器选择规则` 表格 |
-| `PawnRole.cs` / `GetArmorPreference` | `## 护甲偏好` 表格 |
+| `PawnRole.cs` / `GetArmorPreference` | `## 护甲选择` 章节（纯评分驱动，ArmorPreference 仅用于 IsBackRow） |
 | 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
 | `GlobalAllocator.cs` / `Dialog_GlobalReallocate.cs` | `## 全局重配` 与 `### 保护规则` |
-| `GlobalAllocator.cs` 护甲匹配奖励 | `### 护甲分配算法（重甲单位优先）` 表格 |
+| `GlobalAllocator.cs` 护甲分配 | `### 护甲分配算法（纯评分驱动）` |
 | `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
 | `WorkAllocator.cs` 奴隶收集/狩猎限制/工作分配规则 | `## 奴隶处理` + `## 自动工作分配（AutoWork）` 分配规则表格与统一四大原则 |
 | `PawnMarker.cs` / `AutoMarkPawn` 模块 | `### 高价值非殖民者标记（AutoMarkPawn）` |
