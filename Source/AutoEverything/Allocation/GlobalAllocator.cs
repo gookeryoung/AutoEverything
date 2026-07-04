@@ -385,30 +385,12 @@ namespace AutoEverything.Allocation
 
                     Role role = comp.CurrentRole;
                     GearContext context = ContextDetector.GetContext(pawn);
-                    ArmorPreference pref = RoleDetector.GetArmorPreference(role);
 
-                    // 基础评分
+                    // 基础评分（纯护甲值评分驱动，由 ApparelArmorScorer 自然选择高护甲装备）
                     float score = GearScorer.ScoreApparel(pawn, ap, role, context);
 
-                    // 重甲判定：ArmorRating_Sharp ≥ 阈值
-                    float armorSharp = ap.GetStatValue(StatDefOf.ArmorRating_Sharp);
-                    bool isHeavy = armorSharp >= AESettings.heavyArmorSharpThreshold;
-
-                    // 角色偏好硬否决（Veto）：
-                    // - Heavy 偏好 + 轻甲：continue 跳过（前排战士必须重甲承担伤害）
-                    // - Light 偏好 + 重甲：continue 跳过（工人需轻甲提高工作效率）
-                    // - Heavy 偏好 + 重甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Heavy 显著胜过 Flexible）
-                    // - Light 偏好 + 轻甲：匹配奖励（+AESettings.heavyArmorMatchBonus，默认 500，让 Light 显著胜过 Flexible）
-                    // - Flexible：无调整（既不奖励也不否决，自由选择）
-                    // 设计意图：硬否决彻底杜绝"重甲前排穿轻甲"，匹配偏好的殖民者优先获得对应类型护甲
-                    if (pref == ArmorPreference.Heavy && !isHeavy) continue;
-                    if (pref == ArmorPreference.Light && isHeavy) continue;
-                    if ((pref == ArmorPreference.Heavy && isHeavy)
-                        || (pref == ArmorPreference.Light && !isHeavy))
-                        score += AESettings.heavyArmorMatchBonus;  // 匹配奖励（默认 500，让匹配偏好显著胜过 Flexible）
-
                     // 评级权重：同分时高评级优先
-                    // 0.5 分/档 × 7 档 = 3.5（最大值），远小于匹配奖励(500)与惩罚(1000)
+                    // 0.5 分/档 × 7 档 = 3.5（最大值），让高 CombatTier 殖民者优先获得高护甲装备
                     // 复用已缓存的 tierCache，避免重复调用 GetCombatTier
                     CombatTier pawnTier = (CombatTier)tierCache[pawn];
                     score += (float)pawnTier * 0.5f;

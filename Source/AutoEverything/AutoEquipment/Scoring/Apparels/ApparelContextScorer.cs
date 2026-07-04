@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 using AutoEverything.RoleEvaluation;
 
@@ -14,19 +14,17 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
         public void Score(Pawn pawn, Apparel gear, Role role, GearContext context,
                           GearWeights weights, ScoreBreakdown breakdown)
         {
-            ThingDef stuff = gear.Stuff;
-
             switch (context)
             {
                 case GearContext.Cold:
                     {
-                        float cold = gear.def.GetStatValueAbstract(StatDefOf.Insulation_Cold, stuff);
+                        float cold = gear.GetStatValue(StatDefOf.Insulation_Cold);
                         if (cold > 0f)
                         {
                             float score = cold * 50f;
                             breakdown.AddScore(Name, breakdown.CollectItems ? $"寒冷+冷保温{cold:F1} × 50" : null, score);
                         }
-                        float armor = gear.def.GetStatValueAbstract(StatDefOf.ArmorRating_Sharp, stuff);
+                        float armor = gear.GetStatValue(StatDefOf.ArmorRating_Sharp);
                         if (armor > 0f)
                         {
                             float score = armor * 20f;
@@ -37,14 +35,14 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
 
                 case GearContext.Hot:
                     {
-                        float heat = gear.def.GetStatValueAbstract(StatDefOf.Insulation_Heat, stuff);
+                        float heat = gear.GetStatValue(StatDefOf.Insulation_Heat);
                         if (heat > 0f)
                         {
                             float score = heat * 50f;
                             breakdown.AddScore(Name, breakdown.CollectItems ? $"炎热+热保温{heat:F1} × 50" : null, score);
                         }
                         // 炎热情境惩罚重甲
-                        float armor = gear.def.GetStatValueAbstract(StatDefOf.ArmorRating_Sharp, stuff);
+                        float armor = gear.GetStatValue(StatDefOf.ArmorRating_Sharp);
                         if (armor > 0f)
                         {
                             float score = -armor * 30f;

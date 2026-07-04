@@ -52,25 +52,12 @@
 
 **贴身切换**：当殖民者持远程武器受近战攻击时，`CheckMeleeSidearm`（30 tick 周期）检测库存近战副武器并自动切换；取消征召时 `OnUndraft` 恢复主武器。该功能仅应对玩家手动给的副武器，自动分配已取消反向类型副武器。
 
-**护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于重甲前排（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。自由后排（Flexible）与轻甲工人（Light）不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
+**护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于近战角色（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`，`role != Role.Brawler` 过滤）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。远程角色不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
 
-**护甲偏好**：`RoleDetector.GetArmorPreference(role)` 根据角色返回护甲偏好，通过**硬否决（Veto）**影响装备拾取，通过**有条件卸下**纠正已穿戴的不匹配护甲：
+**护甲选择：纯评分驱动**：所有护甲按防护能力评分，不区分重甲/轻甲类别。`ApparelArmorScorer` 使用实例 API `gear.GetStatValue(StatDefOf.ArmorRating_Sharp)`（含 stuff + 品质 + HP 修正）计算护甲分，高护甲装备自然胜出。关键角色（高 `CombatTier`）通过评级权重加分优先获得高护甲装备。
 
-| 角色 | 护甲偏好 | 说明 |
-|------|---------|------|
-| `Brawler` | `Heavy`（重甲[前排]）| 强制重甲，承担伤害；穿轻甲时 `RemoveWrongArmorType` 有条件卸下 |
-| `Shooter`/`Hunter`/`Leader` | `Flexible`（自由[后排]）| 按评分自由选择，有重甲盈余时考虑 |
-| `Worker`/`Doctor`/`Pacifist`/`Default` | `Light`（轻甲[工人]）| 强制轻甲以保持工作效率；穿重甲时 `RemoveWrongArmorType` 有条件卸下 |
-
-**硬否决规则**（`Heavy` 偏好拒绝轻甲，`Light` 偏好拒绝重甲，`Flexible` 不否决）：
-- `GlobalAllocator.ReallocateApparel`：候选循环 `continue` 跳过不匹配护甲
-- `CompGearManager.EvaluateApparel`：Tick 路径候选循环 `continue` 跳过
-
-**有条件卸下**（避免反复脱穿）：
-- `CompGearManager.RemoveWrongArmorType`：仅当地图上存在可拾取的匹配护甲时才卸下不匹配躯干护甲（`HasMatchingArmorOnMap` 检查），避免卸下后赤身
-
-**过渡兜底不检查护甲偏好**：
-- `CompGearManager.TryFallbackApparel`：赤身时穿任意护甲过渡（比赤身强），不匹配护甲由 `RemoveWrongArmorType` 在有匹配替换时主动卸下
+**过渡兜底**：
+- `CompGearManager.TryFallbackApparel`：赤身时穿任意防具过渡（比赤身强），由护甲评分在下次评估时自然替换为更优装备
 
 ### 禁止类装备
 
@@ -112,25 +99,25 @@
 
 ## 腰带附件全局分配
 
-`BeltAllocator.cs` 为重甲前排（Heavy=Brawler）分配腰带附件（护盾腰带 / 消防背包）：
+`BeltAllocator.cs` 为近战角色（Brawler）分配腰带附件（护盾腰带 / 消防背包）：
 
 - **周期**：3000 tick（约 50 秒）全局扫描一次
-- **候选**：仅重甲前排（Heavy=Brawler）+ belt 层空缺；地图上所有 belt 类附件
+- **候选**：仅近战角色（`role == Role.Brawler`）+ belt 层空缺；地图上所有 belt 类附件
 - **排序**：按 `CombatTier` 升序（评级低者优先）
 - **分配规则**：前 2 人强制分配消防背包（若库存有），其余配护盾腰带
-- **评分**：护盾腰带对重甲前排 +100；消防背包对所有候选 +60；品质 ×5 加分
+- **评分**：护盾腰带对 Brawler +100；消防背包对所有候选 +60；品质 ×5 加分
 
 | 腰带类型 | 评分 | 适用对象 |
 |---------|------|---------|
-| 护盾腰带 | +100 | 重甲前排（Brawler），贴身近战免疫远程射击 |
-| 消防背包 | +60 | 重甲前排（Brawler），应对火灾/机械族，优先给评级较低者 |
+| 护盾腰带 | +100 | 近战角色（Brawler），贴身近战免疫远程射击 |
+| 消防背包 | +60 | 近战角色（Brawler），应对火灾/机械族，优先给评级较低者 |
 
-**消防背包优先级**：重甲前排至少 2 人配备消防背包，优先给评级较低者。评级低的重甲前排承担伤害能力较弱，更需要消防背包增强生存。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得消防背包。
+**消防背包优先级**：近战角色至少 2 人配备消防背包，优先给评级较低者。评级低的近战角色承担伤害能力较弱，更需要消防背包增强生存。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得消防背包。
 
-**护盾腰带分配规则**：护盾腰带会阻挡所有远程射击，自由后排（Shooter/Hunter/Leader）需远程输出，不适用护盾；重甲前排（Brawler）以近战为主，护盾提供远程免疫最为契合。已穿护盾腰带的 Pawn 在武器评分时会触发 Veto（见下方）。
+**护盾腰带分配规则**：护盾腰带会阻挡所有远程射击，远程角色（Shooter/Hunter/Leader）需远程输出，不适用护盾；近战角色（Brawler）以近战为主，护盾提供远程免疫最为契合。已穿护盾腰带的 Pawn 在武器评分时会触发 Veto（见下方）。
 
-**护盾腰带三重保险**：护盾腰带仅属于重甲前排（Brawler），通过三层约束确保不误配：
-1. **分配 gate**：`BeltAllocator` 候选收集时 `GetArmorPreference(role) != Heavy` 直接过滤，远程角色不进入分配池。
+**护盾腰带三重保险**：护盾腰带仅属于近战角色（Brawler），通过三层约束确保不误配：
+1. **分配 gate**：`BeltAllocator` 候选收集时 `role != Role.Brawler` 直接过滤，远程角色不进入分配池。
 2. **评分 Veto**：`ApparelShieldBeltScorer`（防具评分管线首位）检测非 Brawler 角色 + 护盾腰带 → `Veto(-9999f)`，即使因角色瞬变/玩家手动操作进入评分路径也会被拒绝。
 3. **已穿纠错**：`CompGearManager.EvaluateApparel` 周期调用 `RemoveWrongShieldBelt(role)`，检测已穿护盾腰带的非 Brawler 角色，卸下并丢到脚下（复用 `GlobalAllocator` 的 `pawn.apparel.Remove` + `GenDrop.TryDropSpawn` 模式）。
 
@@ -322,28 +309,20 @@
 - **武器分配**：沿用原战斗维度评分 `SidearmAllocator.ComputeCombatValue`（射击/格斗等级 × 兴趣乘数 + 战斗特质加分），武器评分体系完全不变。
 - **护甲分配**：在 `GlobalAllocator.ReallocateApparel` 入口处按 `CombatTier` 降序重排 `sortedPawns`，让 S 档殖民者优先获得价值最高的护甲；同档内再用 `ComputePawnValueScore` 精排，让同档中培养更深的殖民者优先。
 
-### 护甲分配算法（重甲单位优先）
+### 护甲分配算法（纯评分驱动）
 
 护甲分配采用"逐件分配"算法：每件护甲按内在价值降序进入分配流程，分配给"评分最高"的殖民者。
 
 评分公式：
 ```
-护甲评分 = GearScorer.ScoreApparel(基础分) + 角色偏好调整 + 评级权重
+护甲评分 = GearScorer.ScoreApparel(基础分) + 评级权重
 ```
 
-| 角色偏好 | 护甲类型 | 调整 | 说明 |
-|---------|---------|------|------|
-| Heavy（重甲[前排]）| 重甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Heavy 显著胜过 Flexible |
-| Heavy（重甲[前排]）| 轻甲 | **Veto（`continue` 跳过）** | 硬否决，强制选重甲 |
-| Light（轻甲[工人]）| 轻甲 | `+heavyArmorMatchBonus`（默认 **500**） | 匹配奖励，让 Light 显著胜过 Flexible |
-| Light（轻甲[工人]）| 重甲 | **Veto（`continue` 跳过）** | 硬否决，强制选轻甲 |
-| Flexible（自由[后排]）| 任意 | 0 | 既不奖励也不否决 |
+**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），让高评级殖民者在同分时优先获得高护甲装备。
 
-**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），仅用于打破同分平局，远小于匹配奖励（500）。
+**设计意图**：纯护甲值评分驱动，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正。高护甲装备（如超织物衬衫）自然胜过低护甲装备（如人皮衬衫）。高 `CombatTier` 殖民者通过评级权重 + 降序排序优先获得高护甲装备。
 
-**设计意图**：硬否决彻底杜绝"重甲前排穿轻甲"；匹配奖励 +500 让重甲偏好单位（Brawler）显著优先获得重甲，避免高评级 Flexible 殖民者抢占重甲。Flexible 殖民者仍可在无 Heavy 候选时获得重甲（无竞争者时 score 不需要超过任何人）。
-
-> 注：`heavyArmorPenaltyForLight` / `lightArmorPenaltyForHeavy` 设置字段保留以兼容旧存档，但已不再使用（改为 Veto）。
+> 注：`heavyArmorSharpThreshold` / `heavyArmorPenaltyForLight` / `lightArmorPenaltyForHeavy` / `heavyArmorMatchBonus` 设置字段保留 Scribe 读取以兼容旧存档，但代码中不再使用。
 
 ### 同档精排评分（ComputePawnValueScore）
 
@@ -555,8 +534,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
 - **机制**：按战斗价值降序逐个调用 `CompGearManager.ForceEvaluate(ReloadTarget.All)`，通过升级阈值检查是否有更优装备可换（不主动脱光当前装备）
 - **高评级优先**：高战斗价值殖民者优先评估，通过升级阈值拾取地图上的更好装备
-- **护甲偏好硬否决**：重甲前排（Heavy）拒绝拾取轻甲，轻甲工人（Light）拒绝拾取重甲，自由后排（Flexible）自由选择
-- **有条件卸下**：`RemoveWrongArmorType` 仅当地图上有匹配护甲可换时才卸下不匹配护甲，避免赤身反复脱穿
+- **护甲纯评分驱动**：所有护甲按防护能力评分，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正，高护甲装备自然胜出
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
 - **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过 `ForceEvaluate` 与 `EvaluateInventory`，避免取药 `TryTakeOrderedJob` 取消手术 Job 导致手术死循环
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）

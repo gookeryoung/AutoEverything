@@ -62,12 +62,13 @@ namespace AutoEverything.Core
         public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
 
         // 全局重配护甲分配
-        // 设计为玩家可调：阈值与偏好规则可调
+        // 护甲选择已改为纯评分驱动，不再使用 Heavy/Light 类别判定
+        // 以下字段保留 Scribe 读取以兼容旧存档，但代码中不再使用
         public static bool reallocateApparel = true;            // 是否同时重配护甲（默认开启）
-        public static float heavyArmorSharpThreshold = 0.4f;  // 护甲锐穿 ≥ 此值视为重甲
-        public static float heavyArmorPenaltyForLight = -1000f; // Heavy 偏好角色对轻甲的减分（强制选重甲）
-        public static float lightArmorPenaltyForHeavy = -1000f; // Light 偏好角色对重甲的减分（强制选轻甲）
-        public static float heavyArmorMatchBonus = 500f;        // 角色偏好与护甲类型匹配时的奖励分（Heavy+heavy / Light+light），让匹配偏好显著胜过 Flexible
+        public static float heavyArmorSharpThreshold = 0.4f;  // 已废弃：纯评分驱动，保留存档兼容
+        public static float heavyArmorPenaltyForLight = -1000f; // 已废弃：纯评分驱动，保留存档兼容
+        public static float lightArmorPenaltyForHeavy = -1000f; // 已废弃：纯评分驱动，保留存档兼容
+        public static float heavyArmorMatchBonus = 500f;        // 已废弃：纯评分驱动，保留存档兼容
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -359,14 +360,14 @@ namespace AutoEverything.Core
         {
             switch (role)
             {
-                case Role.Brawler:  return 0;
-                case Role.Shooter:  return 1;
-                case Role.Doctor:   return 2;
-                case Role.Worker:   return 3;
+                case Role.Brawler: return 0;
+                case Role.Shooter: return 1;
+                case Role.Doctor: return 2;
+                case Role.Worker: return 3;
                 case Role.Pacifist: return 4;
-                case Role.Hunter:   return 5;
-                case Role.Leader:   return 6;
-                default:            return 99;
+                case Role.Hunter: return 5;
+                case Role.Leader: return 6;
+                default: return 99;
             }
         }
 

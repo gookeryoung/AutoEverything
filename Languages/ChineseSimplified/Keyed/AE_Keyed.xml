@@ -138,9 +138,9 @@
   <AE_ReallocRules_RespectLocked>跳过已锁定的殖民者</AE_ReallocRules_RespectLocked>
   <AE_ReallocRules_RespectBiocoded>跳过生物编码武器</AE_ReallocRules_RespectBiocoded>
 
-  <!-- 护甲偏好规则 -->
-  <AE_ReallocRules_ArmorPrefSection>护甲偏好规则</AE_ReallocRules_ArmorPrefSection>
-  <AE_ReallocRules_ArmorPref_Desc>前排战士优先重甲；后排有重甲盈余时考虑重甲；工人/猎人/医疗使用轻甲以提高工作效率</AE_ReallocRules_ArmorPref_Desc>
+  <!-- 护甲分配规则 -->
+  <AE_ReallocRules_ArmorPrefSection>护甲分配规则</AE_ReallocRules_ArmorPrefSection>
+  <AE_ReallocRules_ArmorPref_Desc>纯护甲值评分驱动：所有护甲按防护能力评分，高评级殖民者优先获得高护甲装备</AE_ReallocRules_ArmorPref_Desc>
   <AE_ReallocRules_CurrentArmorPref>当前角色护甲偏好</AE_ReallocRules_CurrentArmorPref>
   <AE_ArmorPref_Heavy>重甲[前排]</AE_ArmorPref_Heavy>
   <AE_ArmorPref_Flexible>自由[后排]</AE_ArmorPref_Flexible>

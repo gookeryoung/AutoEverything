@@ -138,9 +138,9 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_ReallocRules_RespectLocked>Skip locked colonists</AE_ReallocRules_RespectLocked>
   <AE_ReallocRules_RespectBiocoded>Skip biocoded weapons</AE_ReallocRules_RespectBiocoded>
 
-  <!-- Armor preference rules -->
-  <AE_ReallocRules_ArmorPrefSection>Armor Preference Rules</AE_ReallocRules_ArmorPrefSection>
-  <AE_ReallocRules_ArmorPref_Desc>Front-line fighters prefer heavy armor; back-line uses heavy if surplus; workers/hunters/medics use light armor for efficiency</AE_ReallocRules_ArmorPref_Desc>
+  <!-- Armor allocation rules -->
+  <AE_ReallocRules_ArmorPrefSection>Armor Allocation Rules</AE_ReallocRules_ArmorPrefSection>
+  <AE_ReallocRules_ArmorPref_Desc>Score-driven by armor value: all armor scored by protection, high-tier colonists get high-armor gear first</AE_ReallocRules_ArmorPref_Desc>
   <AE_ReallocRules_CurrentArmorPref>Current role armor preference</AE_ReallocRules_CurrentArmorPref>
   <AE_ArmorPref_Heavy>Heavy[front]</AE_ArmorPref_Heavy>
   <AE_ArmorPref_Flexible>Flex[back]</AE_ArmorPref_Flexible>

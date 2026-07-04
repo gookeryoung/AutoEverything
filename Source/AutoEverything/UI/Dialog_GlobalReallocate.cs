@@ -122,7 +122,7 @@ namespace AutoEverything.UI
             l.CheckboxLabeled("AE_ReallocRules_RespectBiocoded".Translate(), ref AESettings.reallocateRespectBiocoded);
             l.Gap(8f);
 
-            // ===================== 护甲偏好规则 =====================
+            // ===================== 护甲分配规则 =====================
             GUI.color = new Color(0.85f, 0.85f, 0.85f);
             l.Label("AE_ReallocRules_ArmorPrefSection".Translate());
             GUI.color = Color.white;
@@ -133,12 +133,6 @@ namespace AutoEverything.UI
             Text.Font = GameFont.Small;
 
             l.CheckboxLabeled("AE_ReallocRules_ReallocApparel".Translate(), ref AESettings.reallocateApparel);
-            l.Label("  " + "AE_ReallocRules_HeavyThreshold".Translate() + ": " + AESettings.heavyArmorSharpThreshold.ToString("F2"));
-            AESettings.heavyArmorSharpThreshold = l.Slider(AESettings.heavyArmorSharpThreshold, 0.1f, 1.0f);
-            l.Label("  " + "AE_ReallocRules_HeavyPenaltyForLight".Translate() + ": " + AESettings.heavyArmorPenaltyForLight.ToString("F0"));
-            AESettings.heavyArmorPenaltyForLight = l.Slider(AESettings.heavyArmorPenaltyForLight, -2000f, 0f);
-            l.Label("  " + "AE_ReallocRules_LightPenaltyForHeavy".Translate() + ": " + AESettings.lightArmorPenaltyForHeavy.ToString("F0"));
-            AESettings.lightArmorPenaltyForHeavy = l.Slider(AESettings.lightArmorPenaltyForHeavy, -2000f, 0f);
 
             l.End();
             contentHeight = l.CurHeight + 20f;

@@ -99,7 +99,7 @@ namespace AutoEverything.Allocation
                         int firefoamIdx = FindFirstFirefoamPackIndex();
                         if (firefoamIdx >= 0)
                         {
-                            AssignBelt(pawn, candidateBelts[firefoamIdx], "重甲前排消防背包(评级优先)");
+                            AssignBelt(pawn, candidateBelts[firefoamIdx], "近战消防背包(评级优先)");
                             // null 占位避免 Remove 的 O(n) 列表重排
                             candidateBelts[firefoamIdx] = null;
                             firefoamCount++;
@@ -108,21 +108,18 @@ namespace AutoEverything.Allocation
                     }
 
                     // 其余候选在护盾腰带与消防背包中按评分选择
-                    // ScoreBelt：Heavy+护盾+100，Heavy+消防+60（默认护盾腰带胜出）
+                    // ScoreBelt：Brawler+护盾+100，Brawler+消防+60（默认护盾腰带胜出）
                     Thing best = null;
                     float bestScore = 0f;
                     int bestIdx = -1;
 
-                    // 缓存 ArmorPreference 避免在内层循环重复调用 DetectRole（性能优化）
-                    // 候选池已全部为 Heavy，此处 armorPref 必为 Heavy，但保留以维持 ScoreBelt 签名
-                    ArmorPreference armorPref = ArmorPreference.Heavy;
-
+                    // 候选池已全部为 Brawler（CollectCandidatePawns 已 gate），护盾腰带默认 +100
                     for (int j = 0; j < candidateBelts.Count; j++)
                     {
                         Thing b = candidateBelts[j];
                         if (b == null) continue;
 
-                        float score = ScoreBelt(pawn, b, armorPref);
+                        float score = ScoreBelt(pawn, b);
                         if (score > bestScore)
                         {
                             bestScore = score;
@@ -160,11 +157,11 @@ namespace AutoEverything.Allocation
                 CompGearManager comp = pawn.GetComp<CompGearManager>();
                 if (comp == null || comp.locked) continue;
 
-                // 仅重甲前排（Heavy=Brawler）参与 belt 分配
+                // 仅近战角色（Brawler）参与 belt 分配
                 // 设计意图：护盾腰带阻挡远程射击，仅适合近战角色；
-                // 消防背包也优先给前排承担伤害的重甲单位
+                // 消防背包也优先给前排承担伤害的近战单位
                 Role role = RoleDetector.DetectRole(pawn);
-                if (RoleDetector.GetArmorPreference(role) != ArmorPreference.Heavy) continue;
+                if (role != Role.Brawler) continue;
 
                 // 必须有 belt 空位
                 if (GearDefClassifier.HasBeltLayerApparel(pawn)) continue;
@@ -184,22 +181,19 @@ namespace AutoEverything.Allocation
         }
 
         /// <summary>
-        /// belt 评分：护盾腰带对重甲前排 +100，消防背包对所有候选 +60。
-        /// 设计意图：候选池已全部为 Heavy，护盾腰带默认胜出；
+        /// belt 评分：护盾腰带对近战角色 +100，消防背包对所有候选 +60。
+        /// 设计意图：候选池已全部为 Brawler（CollectCandidatePawns 已 gate），护盾腰带默认胜出；
         /// 消防背包评分较低，仅在前 2 人强制分配逻辑中选用。
-        /// 注：armorPref 由调用方传入（恒为 Heavy），保留签名以便未来扩展。
         /// </summary>
-        private static float ScoreBelt(Pawn pawn, Thing belt, ArmorPreference armorPref)
+        private static float ScoreBelt(Pawn pawn, Thing belt)
         {
             float score = 0f;
 
-            // 护盾腰带：仅重甲前排（Heavy）加分
+            // 护盾腰带：仅近战角色（Brawler）加分
+            // 候选池已全部为 Brawler，护盾腰带默认 +100
             if (GearDefClassifier.IsShieldBelt(belt))
             {
-                if (armorPref == ArmorPreference.Heavy)
-                {
-                    score += 100f;
-                }
+                score += 100f;
             }
 
             // 消防背包：应对火灾/机械族，所有候选可用
