@@ -619,6 +619,9 @@ namespace AutoEverything.AutoWork
                         priority = config.FloorNonPassionatePriority;
                 }
 
+                // 技能等级保底：相关技能≥8 者 priority 不低于 3
+                priority = ApplySkillFloor(priority, pawn, workType.relevantSkills);
+
                 pawn.workSettings.SetPriority(workType, priority);
 
                 // 调试：记录每个候选的最终优先级与归类（GM=Guarantee双火/Gi=Guarantee单火/FM=Floor双火/Fi=Floor单火/N=无火）
@@ -683,6 +686,8 @@ namespace AutoEverything.AutoWork
                     priority = config.FloorMinorPriority;
                 else
                     priority = 0;
+                // 技能等级保底：相关技能≥8 者 priority 不低于 3
+                priority = ApplySkillFloor(priority, pawn, workType.relevantSkills);
                 pawn.workSettings.SetPriority(workType, priority);
             }
         }
@@ -778,6 +783,9 @@ namespace AutoEverything.AutoWork
                         priority = config.FloorNonPassionatePriority;
                 }
 
+                // 技能等级保底：相关技能≥8 者 priority 不低于 3
+                priority = ApplySkillFloor(priority, pawn, skills);
+
                 // 对所有工作类型设置相同优先级（一次排序结果同时分配）
                 for (int j = 0; j < workTypes.Count; j++)
                 {
@@ -845,6 +853,8 @@ namespace AutoEverything.AutoWork
                     priority = config.FloorMinorPriority;
                 else
                     priority = 0;
+                // 技能等级保底：相关技能≥8 者 priority 不低于 3
+                priority = ApplySkillFloor(priority, pawn, skills);
                 for (int j = 0; j < workTypes.Count; j++)
                     pawn.workSettings.SetPriority(workTypes[j], priority);
             }
@@ -928,6 +938,21 @@ namespace AutoEverything.AutoWork
                 if (sr.Level > max) max = sr.Level;
             }
             return max;
+        }
+
+        /// <summary>
+        /// 技能等级保底：相关技能≥8 者 priority 不低于 3（即 priority 为 0 或 >3 时提升到 3）。
+        /// 设计意图：高技能无火者仍以 priority=3 参与工作，不被完全排除。
+        /// 注意：priority=1/2/3 时不触发保底（已满足"不低于 3"）。
+        /// </summary>
+        private static int ApplySkillFloor(int priority, Pawn pawn, List<SkillDef> skills)
+        {
+            if (priority == 0 || priority > 3)
+            {
+                if (GetMaxSkillLevelForSkills(pawn, skills) >= 8)
+                    return 3;
+            }
+            return priority;
         }
 
         /// <summary>

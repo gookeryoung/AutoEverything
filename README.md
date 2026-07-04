@@ -451,6 +451,7 @@
 2. **三因子排序**：top N 人选按 Passion 降序 → SkillLevel 降序 → WorkCount 升序选择，保证数量内选兴趣最高、技能最强的
 3. **有火保底**：超出 guarantee 的双火/单火者分别给 `FloorMajorPriority`/`FloorMinorPriority` 保底优先级，保留生产能力
 4. **无火者**：超出 guarantee 的无火者直接给 `FloorNonPassionatePriority`（通常为0，规则要求"无火优先级0"）
+5. **技能等级保底**：相关技能等级 ≥8 者 priority 不低于 3（`ApplySkillFloor`），即使无火也以 priority=3 参与工作，不被完全排除。适用于超出 guarantee 的无火者（0 → 3）与非候选满载者（0 → 3）
 
 **workCount 硬上限**：每人最多承担 `MaxCoreWorkCount=3` 项 priority≤2 的专业工作。候选收集**包含满载者**，让满载者参与排序：满载者在 top N 内走 Floor 保底（不抢占 Guarantee），无火者落在 top N 外走 Floor(=0)，避免满载者被跳过后候选无火者错误获得 Guarantee 保底导致重复承担。满载者有火者仍给 Floor 保底（双火/单火），无火者给0——避免高技能有火者被硬上限完全排除。若候选不足保证人数（小殖民地人手不足），回退放宽模式下满载者走 Guarantee 逻辑，保证保底人数不失效。
 
@@ -475,7 +476,7 @@
 
 **无火(top N)**：保底人数内按三因子排序选取，无火者给此优先级（保底3，实现"保底2人即使无火也3"）。
 
-**无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。
+**无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。**例外**：相关技能 ≥8 者保底 priority=3（`ApplySkillFloor`），高技能无火者仍参与工作。
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/辅助不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
@@ -536,6 +537,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **护甲纯评分驱动**：所有护甲按防护能力评分，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正，高护甲装备自然胜出
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
 - **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过 `ForceEvaluate` 与 `EvaluateInventory`，避免取药 `TryTakeOrderedJob` 取消手术 Job 导致手术死循环
+- **不打断休养**：受伤/患病卧床休养的殖民者（`Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest`）跳过 `CompTick`/`ForceEvaluate`/`EvaluateInventory`，避免换装 `TryTakeOrderedJob` 取消 `LayDown` Job 打断免疫力/治疗进度导致重伤者死亡
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
 - **未成年**：仅评估防具（`ForceEvaluate(Apparel)`），跳过武器/副武器/库存
 - **尊重锁定**：`comp.locked` 为 true 的殖民者跳过
@@ -643,7 +645,7 @@ Source/AutoEverything/
 
 | 路径 | 周期 | 说明 |
 |------|------|------|
-| `CompTick` 主评估 | `evaluateInterval`（默认 500 tick ≈ 8 秒） | 武器/防具/药品/副武器 |
+| `CompTick` 主评估 | `evaluateInterval`（默认 500 tick ≈ 8 秒） | 武器/防具/药品/副武器；医疗工作/受伤休养中跳过 |
 | 征召副武器检查 | 30 tick | 战斗紧迫，需快速切近战 |
 | `SidearmAllocator` | 2000 tick | 全局副武器分配 |
 | `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |

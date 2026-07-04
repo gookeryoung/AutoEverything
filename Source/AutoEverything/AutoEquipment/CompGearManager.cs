@@ -155,11 +155,12 @@ namespace AutoEverything.AutoEquipment
 
                 AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 评估 tick: role={role}, context={context}, contextChanged={contextChanged}, weapon={Pawn.equipment?.Primary?.LabelShort ?? "none"}, isSlave={isSlave}, isChild={isChild}");
 
-                // 不打断医疗工作：治疗、手术、救援
-                // TryTakeOrderedJob 会取消当前工作，导致医生把药品装进口袋并陷入死循环
-                if (IsDoingMedicalJob())
+                // 不打断医疗工作与伤员休养：治疗、手术、救援、伤员休养
+                // TryTakeOrderedJob 会取消当前工作，导致医生把药品装进口袋并陷入死循环；
+                // 伤员休养被打断会取消 LayDown Job，打断免疫力/治疗进度导致重伤者死亡
+                if (IsDoingMedicalJob() || IsRecoveringInBed())
                 {
-                    AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 跳过评估：正在执行医疗工作 ({Pawn.CurJob?.def?.defName})");
+                    AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 跳过评估：正在执行医疗工作或休养 ({Pawn.CurJob?.def?.defName})");
                     return;
                 }
 
@@ -231,6 +232,15 @@ namespace AutoEverything.AutoEquipment
                 || (def == JobDefOf.DoBill && job.bill is Bill_Medical);
         }
 
+        // ===================== 伤员休养守卫 =====================
+
+        private bool IsRecoveringInBed()
+        {
+            // 受伤/患病休养中：卧床且需要医疗休养
+            // 避免换装 TryTakeOrderedJob 取消 LayDown Job，打断免疫力/治疗进度导致重伤者死亡
+            return Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest(Pawn);
+        }
+
         // ===================== 手动触发换装 =====================
 
         /// <summary>
@@ -253,9 +263,10 @@ namespace AutoEverything.AutoEquipment
         {
             if (Pawn == null || Pawn.Dead || Pawn.Map == null) return;
             if (DLCCompat.IsGhoul(Pawn)) return;
-            // 不打断医疗工作：手术/治疗执行期间跳过强制评估
-            // EvaluateInventory 会 TryTakeOrderedJob 取药，取消当前手术 DoBill Job，导致手术死循环
-            if (IsDoingMedicalJob()) return;
+            // 不打断医疗工作与伤员休养：手术/治疗执行期间跳过强制评估
+            // EvaluateInventory 会 TryTakeOrderedJob 取药，取消当前手术 DoBill Job，导致手术死循环；
+            // 伤员休养被打断会取消 LayDown Job，打断免疫力/治疗进度导致重伤者死亡
+            if (IsDoingMedicalJob() || IsRecoveringInBed()) return;
 
             try
             {
@@ -777,8 +788,9 @@ namespace AutoEverything.AutoEquipment
             // 防止反复拾取药品——每次尝试后冷却
             if (Find.TickManager.TicksGame - lastMedPickupTick < 2500) return;
 
-            // 不打断医疗工作：手术 DoBill 执行期间取药会 TryTakeOrderedJob 取消手术 Job，导致手术死循环
-            if (IsDoingMedicalJob()) return;
+            // 不打断医疗工作与伤员休养：手术 DoBill 执行期间取药会 TryTakeOrderedJob 取消手术 Job，导致手术死循环；
+            // 伤员休养被打断会取消 LayDown Job，打断免疫力/治疗进度导致重伤者死亡
+            if (IsDoingMedicalJob() || IsRecoveringInBed()) return;
 
             // 医生与有医疗技能的战斗人员应携带药品
             int medSkill = Pawn.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
