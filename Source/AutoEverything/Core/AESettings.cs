@@ -151,8 +151,8 @@ namespace AutoEverything.Core
                     cleanNick = tierTagOriginals[pid];
                 }
 
-                // 计算当前系统评级
-                CombatTier tier = CombatEvaluator.GetAutoCombatTier(pawn);
+                // 计算当前系统评级（含配偶豁免，不含自定义评级覆盖）
+                CombatTier tier = CombatEvaluator.GetSystemTier(pawn);
                 string newNick = tier + TIER_TAG_PREFIX_SEPARATOR + cleanNick;
 
                 if (newNick != currentNick)

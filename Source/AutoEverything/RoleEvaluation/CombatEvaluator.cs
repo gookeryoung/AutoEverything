@@ -119,10 +119,22 @@ namespace AutoEverything.RoleEvaluation
             if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
                 return customTier;
 
+            return GetSystemTier(pawn);
+        }
+
+        /// <summary>
+        /// 计算系统评级（含配偶豁免，不含自定义评级覆盖）。
+        /// 用于评级标签显示：玩家手动设置的自定义评级不在 Nick 上重复显示，
+        ///   但配偶豁免属于系统自动评级，需同步反映。
+        /// </summary>
+        public static CombatTier GetSystemTier(Pawn pawn)
+        {
+            if (pawn == null) return CombatTier.X;
+
             CombatTier autoTier = GetAutoCombatTier(pawn);
 
             // 配偶评级豁免：与 S+ 人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）
-            // 用 GetAutoCombatTier 计算配偶评级，避免 GetCombatTier 递归（A 配偶 B，B 配偶 A）
+            // 用 GetAutoCombatTier 计算配偶评级，避免递归（A 配偶 B，B 配偶 A）
             if (autoTier < CombatTier.S && HasSpouseTierAtLeast(pawn, CombatTier.S))
             {
                 return CombatTier.S;

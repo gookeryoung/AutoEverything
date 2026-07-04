@@ -255,8 +255,9 @@ namespace AutoEverything.UI
             GUI.color = Color.white;
 
             // 显示当前 Pawn 的识别码：系统档固定，自定义档写入括号
+            // 系统档含配偶豁免（GetSystemTier），与评级标签一致
             string pawnName = CombatEvaluator.GetPawnLookupName(pawn);
-            CombatTier autoTier = CombatEvaluator.GetAutoCombatTier(pawn);
+            CombatTier autoTier = CombatEvaluator.GetSystemTier(pawn);
             bool hasCustom = AESettings.TryGetCustomTier(pawnName, out CombatTier customTier);
 
             string tierCode = hasCustom

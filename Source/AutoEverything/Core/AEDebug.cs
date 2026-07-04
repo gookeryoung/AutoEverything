@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 using AutoEverything.RoleEvaluation;
 
@@ -59,8 +59,8 @@ namespace AutoEverything.Core
                 return labelShort;
             }
 
-            // 系统评级始终固定显示
-            CombatTier autoTier = CombatEvaluator.GetAutoCombatTier(pawn);
+            // 系统评级始终固定显示（含配偶豁免，与评级标签一致）
+            CombatTier autoTier = CombatEvaluator.GetSystemTier(pawn);
             string name = CombatEvaluator.GetPawnLookupName(pawn);
 
             // 命中自定义评级时把自定义档写入括号
