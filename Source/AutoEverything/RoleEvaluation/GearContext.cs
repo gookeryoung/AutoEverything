@@ -74,6 +74,12 @@ namespace AutoEverything.RoleEvaluation
             if (AESettings.huntingWeapon && IsHunting(pawn))
                 return LogContextIfChanged(pawn, GearContext.Hunting, "狩猎工作中");
 
+            // 战斗 Job（未征召反击）：AttackStatic/AttackMelee/UseVerbOnThing/Wait_Combat 等
+            // alwaysShowWeapon=true 的 Job（非狩猎）都是战斗相关，应归为 Combat 情境用战斗权重评估
+            // 修复 BUG：原代码 L129 把 alwaysShowWeapon=true 的 Job 跳过落到 Normal，导致反击时用普通权重
+            if (pawn.CurJob != null && pawn.CurJob.def.alwaysShowWeapon)
+                return LogContextIfChanged(pawn, GearContext.Combat, $"战斗={pawn.CurJob.def.defName}");
+
             // 温度检测：仅在持续暴露后才触发
             if (AESettings.temperatureAware && pawn.Map != null)
             {

@@ -128,7 +128,7 @@
 
 | 情境 | 触发条件 |
 |------|----------|
-| `Combat` | 已征召 |
+| `Combat` | 已征召，或当前 Job 为战斗类（`AttackStatic`/`AttackMelee`/`Wait_Combat` 等非狩猎的 `alwaysShowWeapon` Job，捕获未征召反击） |
 | `Hunting` | 当前工作为 `Hunt` 或 `PredatorHunt` |
 | `Cold` | 环境温度低于舒适下限 + `tempDangerMargin`，持续 2500 tick（约 42 秒） |
 | `Hot` | 环境温度高于舒适上限 + `tempDangerMargin`，持续 2500 tick |

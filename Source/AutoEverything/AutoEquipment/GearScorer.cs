@@ -1,4 +1,4 @@
-﻿using RimWorld;
+using RimWorld;
 using Verse;
 using AutoEverything.AutoEquipment.Scoring;
 using AutoEverything.RoleEvaluation;
@@ -32,18 +32,13 @@ namespace AutoEverything.AutoEquipment
 
             float score = breakdown.Vetoed ? breakdown.VetoScore : breakdown.Total;
 
-            // 可疑评分：真实武器却得 0 或负分时记录（WarningOnce 防刷屏，详细报告走调试开关）
-            // 仅在可疑评分且开启调试时才重新走 WithBreakdown 取明细
-            if (score <= 0f && (weapon.def.IsRangedWeapon || weapon.def.IsMeleeWeapon))
+            // 可疑评分：真实武器却得 0 或负分时记录（仅在 debug 开启时输出，避免 Tick 路径字符串分配）
+            // 性能优化：原代码每件候选都构造字符串插值 + Log.WarningOnce，Tick 路径 50 Pawn × 100 武器 = 显著 GC
+            // 现仅在 AEDebug.IsActive 时才构造，生产环境零分配
+            if (AEDebug.IsActive && score <= 0f && (weapon.def.IsRangedWeapon || weapon.def.IsMeleeWeapon))
             {
-                Log.WarningOnce($"[AutoEverything] ScoreWeapon 可疑评分 {score:F1}: {pawn.LabelShort} + '{weapon.def.defName}' (role={role}, context={context})",
-                    pawn.thingIDNumber ^ weapon.thingIDNumber);
-                if (AEDebug.IsActive)
-                {
-                    // 重新评分取明细（仅可疑时，频率低）
-                    var detailedBreakdown = ScoreWeaponWithBreakdown(pawn, weapon, role, context);
-                    AEDebug.Log(() => detailedBreakdown.BuildReport(pawn.LabelShort, weapon.LabelShort));
-                }
+                var detailedBreakdown = ScoreWeaponWithBreakdown(pawn, weapon, role, context);
+                AEDebug.Log(() => detailedBreakdown.BuildReport(pawn.LabelShort, weapon.LabelShort));
             }
 
             return score;
@@ -80,17 +75,12 @@ namespace AutoEverything.AutoEquipment
 
             float score = breakdown.Vetoed ? breakdown.VetoScore : breakdown.Total;
 
-            // 可疑评分：非沾染却得负分（WarningOnce 防刷屏，详细报告走调试开关）
-            if (score <= 0f && !apparel.WornByCorpse)
+            // 可疑评分：非沾染却得负分（仅在 debug 开启时输出，避免 Tick 路径字符串分配）
+            // 性能优化：同 ScoreWeapon，生产环境零分配
+            if (AEDebug.IsActive && score <= 0f && !apparel.WornByCorpse)
             {
-                Log.WarningOnce($"[AutoEverything] ScoreApparel 可疑评分 {score:F1}: {pawn.LabelShort} + '{apparel.def.defName}' (role={role}, context={context})",
-                    pawn.thingIDNumber ^ apparel.thingIDNumber);
-                if (AEDebug.IsActive)
-                {
-                    // 重新评分取明细（仅可疑时，频率低）
-                    var detailedBreakdown = ScoreApparelWithBreakdown(pawn, apparel, role, context);
-                    AEDebug.Log(() => detailedBreakdown.BuildReport(pawn.LabelShort, apparel.LabelShort));
-                }
+                var detailedBreakdown = ScoreApparelWithBreakdown(pawn, apparel, role, context);
+                AEDebug.Log(() => detailedBreakdown.BuildReport(pawn.LabelShort, apparel.LabelShort));
             }
 
             return score;
