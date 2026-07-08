@@ -38,6 +38,11 @@ namespace AutoEverything.Core
         // 每 tick 查询 PawnsFinder.AllMaps_FreeColonists.Count 有少量开销，60 tick 检查一次足够
         private const int CheckInterval = 60;
 
+        // 工作重配冷却：2500 tick ≈ 42 秒
+        // 殖民者数量变化后延迟触发，避免战斗中连续死亡连锁触发工作重配打断医疗 Job
+        // ITab 手动触发（TriggerWorkNow）不受此冷却限制
+        private const int WorkReallocCooldown = 2500;
+
         private static int lastCheckTick = -9999;
         private static int lastWorkTick = -9999;
         private static int lastTierTick = -9999;
@@ -46,6 +51,10 @@ namespace AutoEverything.Core
 
         // 殖民者数量缓存：-1 = 首次只记录不触发，避免存档加载误触发
         private static int lastColonistCount = -1;
+
+        // 待重配标志：殖民者数量变化时标记，冷却结束且非战斗中才真正触发
+        // 避免战斗中死亡立即触发 ReallocateAll 打断医生手术
+        private static bool pendingWorkRealloc = false;
 
         // 装备重配候选缓存：按战斗价值降序排序后逐个 ForceEvaluate，避免 GC
         private static readonly List<Pawn> gearCandidates = new List<Pawn>();
@@ -82,26 +91,34 @@ namespace AutoEverything.Core
                 return;
             }
 
-            // 殖民者数量变化检测：增加或减少时立即触发工作重配（不弹消息）
-            // 工作重配改为事件驱动，不再周期触发，避免频繁变更优先级中断手术/进食等长 Job
-            // 增加时：新人加入需分配工作；减少时：减员可能导致某项工作无人做，需重新保底
+            // 殖民者数量变化检测：增加或减少时标记待重配（不弹消息）
+            // 工作重配改为事件驱动 + 冷却 + 战斗过滤：
+            //   - 战斗中死亡立即触发会打断医生手术（SetPriority 取消 TendPatient/DoBill）
+            //   - 标记 pendingWorkRealloc，冷却结束且非战斗中才真正触发
+            // 评级/装备/星标：增加时立即触发（不打断 Job——评级只改 Nick，装备走 ForceEvaluate 有医疗守卫）
             int currentCount = PawnsFinder.AllMaps_FreeColonists.Count;
             if (currentCount != lastColonistCount)
             {
                 bool isIncrease = currentCount > lastColonistCount;
                 lastColonistCount = currentCount;
-                // 工作重配：增加或减少都触发
-                ExecuteWork(tick, showMessage: false);
-                // 评级/装备/星标：只在增加时触发（减员不影响其他人评级/装备）
+                // 评级/装备/星标：增加时立即触发（不打断 Job）
                 if (isIncrease)
                 {
                     ExecuteTier(tick, showMessage: false);
                     ExecuteGear(tick, showMessage: false);
                     ExecuteMark(tick, showMessage: false);
                 }
-                return;
+                // 工作重配：标记待触发，不立即执行
+                pendingWorkRealloc = true;
             }
-            lastColonistCount = currentCount;
+
+            // 待重配触发：冷却结束且非战斗中才真正执行工作重配
+            // AnyCombatActive 仅在 pending && 冷却到期时调用，平时无开销
+            if (pendingWorkRealloc && tick - lastWorkTick >= WorkReallocCooldown && !AnyCombatActive())
+            {
+                pendingWorkRealloc = false;
+                ExecuteWork(tick, showMessage: false);
+            }
 
             // 周期触发：评级/装备/星标 3000 tick（工作重配已改为事件驱动，无周期触发）
             if (tick - lastTierTick >= ExecuteInterval)
@@ -305,6 +322,27 @@ namespace AutoEverything.Core
             {
                 Log.ErrorOnce("[AutoEverything] 高价值星标统计失败: " + ex.Message, MarkErrorSalt);
             }
+        }
+
+        /// <summary>
+        /// 战斗检测：检查所有地图是否有未 Downed 的敌对 Pawn。
+        /// 仅在 pendingWorkRealloc && 冷却到期时调用，平时无开销。
+        /// 用于战斗中延迟工作重配——避免 SetPriority 打断医生正在执行的 TendPatient/DoBill(Bill_Medical)。
+        /// </summary>
+        private static bool AnyCombatActive()
+        {
+            foreach (Map map in Find.Maps)
+            {
+                if (map.mapPawns == null) continue;
+                IReadOnlyList<Pawn> allPawns = map.mapPawns.AllPawnsSpawned;
+                for (int i = 0; i < allPawns.Count; i++)
+                {
+                    Pawn p = allPawns[i];
+                    if (p.Downed || p.Dead) continue;
+                    if (p.HostileTo(Faction.OfPlayer)) return true;
+                }
+            }
+            return false;
         }
     }
 }

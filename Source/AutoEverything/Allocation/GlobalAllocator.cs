@@ -65,6 +65,8 @@ namespace AutoEverything.Allocation
             valueScoreCache.Clear();
 
             // ========== 收集候选殖民者 ==========
+            // 医疗守卫：跳过正在执行医疗 Job/休养的 Pawn——TryDropEquipment/TryTakeOrderedJob/
+            // apparel.Remove 都会取消当前 Job，手术/治疗/休养被打断会导致手术死循环或伤员失救死亡
             foreach (Map map in Find.Maps)
             {
                 foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
@@ -78,6 +80,8 @@ namespace AutoEverything.Allocation
                     if (DLCCompat.IsChild(pawn)) continue;
                     // 征召中的殖民者正在战斗，不打断（玩家可在规则面板关闭此保护）
                     if (AESettings.reallocateRespectDrafted && pawn.Drafted) continue;
+                    // 医疗守卫：手术/治疗/休养中不打断
+                    if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
 
                     CompGearManager comp = pawn.GetComp<CompGearManager>();
                     // 已锁定的殖民者尊重玩家意愿（玩家可在规则面板关闭此保护）

@@ -513,7 +513,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **MOD 选项** → 启用/禁用"工作自动配置"（`AESettings.autoWorkEnabled`，默认勾选）
 - **殖民者装备面板（ITab）底部** → "工作自动配置"勾选框
-  - **勾选时**：立即执行一次工作重配，并启用自动执行（殖民者增减时立即触发，无周期触发）
+  - **勾选时**：立即执行一次工作重配，并启用自动执行（殖民者增减时标记待触发，冷却+非战斗中执行）
   - **取消勾选时**：仅停止自动执行，保留当前工作分配（工作优先级无法撤销）
   - **默认勾选**
 
@@ -524,7 +524,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
 - **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
 - **周期触发**：人员评级/装备重配每 3000 tick（约 50 秒）执行一次（工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行）
-- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 立即触发工作重配（不弹消息框）。增加时额外触发评级+装备+星标。工作重配改为事件驱动是为了避免频繁变更优先级触发 RimWorld Job 重评估，从而中断手术/进食等长 Job
+- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 待触发（不立即执行）。增加时额外触发评级+装备+星标（这三者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
 - **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
 - **错误隔离**：工作、评级、装备重配、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
@@ -536,8 +536,9 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **高评级优先**：高战斗价值殖民者优先评估，通过升级阈值拾取地图上的更好装备
 - **护甲纯评分驱动**：所有护甲按防护能力评分，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正，高护甲装备自然胜出
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
-- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过 `ForceEvaluate` 与 `EvaluateInventory`，避免取药 `TryTakeOrderedJob` 取消手术 Job 导致手术死循环
-- **不打断休养**：受伤/患病卧床休养的殖民者（`Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest`）跳过 `CompTick`/`ForceEvaluate`/`EvaluateInventory`，避免换装 `TryTakeOrderedJob` 取消 `LayDown` Job 打断免疫力/治疗进度导致重伤者死亡
+- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过所有全局重配入口（`CompTick`/`ForceEvaluate`/`EvaluateInventory`/`GlobalAllocator.ReallocateAll`/`WorkAllocator.ReallocateAll`），避免 `TryTakeOrderedJob`/`SetPriority`/`apparel.Remove`/`TryDropEquipment` 取消手术 Job 导致手术死循环
+- **不打断休养**：受伤/患病卧床休养的殖民者（`Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest`）跳过所有全局重配入口，避免换装 `TryTakeOrderedJob` 取消 `LayDown` Job 打断免疫力/治疗进度导致重伤者死亡
+- **守卫统一**：医疗/休养守卫逻辑集中在 `Core/PawnJobGuard.cs` 的 `ShouldSkipForMedical(Pawn)`，所有全局重配入口复用同一判断
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
 - **未成年**：仅评估防具（`ForceEvaluate(Apparel)`），跳过武器/副武器/库存
 - **尊重锁定**：`comp.locked` 为 true 的殖民者跳过
@@ -649,8 +650,8 @@ Source/AutoEverything/
 | 征召副武器检查 | 30 tick | 战斗紧迫，需快速切近战 |
 | `SidearmAllocator` | 2000 tick | 全局副武器分配 |
 | `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |
-| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增加或减少时立即触发工作重配；增加时额外触发评级+装备+星标 |
-| `AutoExecutor` 工作重配 | 事件驱动（无周期）| 殖民者增减时立即触发 + ITab 勾选时触发。改为事件驱动以避免频繁变更优先级中断手术/进食等长 Job |
+| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc`；增加时立即触发评级+装备+星标 |
+| `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 装备重配 | 3000 tick | 按评级排序 `ForceEvaluate`（不脱光）；周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 高价值标记 | 实时（Harmony 补丁） | S+ 档次非殖民者人类头顶绘制红色星标；ITab 勾选时统计数量弹消息，取消勾选自动停止绘制 |
