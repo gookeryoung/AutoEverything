@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text;
 using AutoEverything.RoleEvaluation;
 
@@ -90,6 +90,18 @@ namespace AutoEverything.AutoEquipment.Scoring
         {
             Vetoed = true;
             VetoScore = score;
+        }
+
+        /// <summary>
+        /// 重置状态供静态缓存复用（性能路径避免每次 new ScoreBreakdown 的 GC 压力）。
+        /// RimWorld 单线程，调用方在下次评分前使用完返回值即可。
+        /// </summary>
+        public void Reset()
+        {
+            Total = 0f;
+            Vetoed = false;
+            VetoScore = -9000f;
+            items?.Clear();
         }
 
         /// <summary>

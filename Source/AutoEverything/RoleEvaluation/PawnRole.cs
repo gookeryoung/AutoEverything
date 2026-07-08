@@ -179,20 +179,19 @@ namespace AutoEverything.RoleEvaluation
                 }
             }
 
-            // 仅在角色变化时记录日志，避免刷屏
+            // 角色变化是调试信息：战斗中频繁切换会刷屏，改用 AEDebug.Log 受 debugLogging 开关控制
             int pawnId = pawn.thingIDNumber;
             if (lastLoggedRole.TryGetValue(pawnId, out Role prev))
             {
                 if (prev != result)
                 {
-                    Log.Message($"[AutoEverything] {AEDebug.Label(pawn)} 角色变化: {prev} -> {result} ({reason})");
+                    AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色变化: {prev} -> {result} ({reason})");
                     lastLoggedRole[pawnId] = result;
                 }
             }
             else
             {
                 // 首次见到该 Pawn：用 AEDebug.Log 避免游戏加载时刷屏（50 个殖民者 = 50 条日志）
-                // 仅角色变化时才用 Log.Message 输出，减少玩家控制台噪音
                 AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
                 lastLoggedRole[pawnId] = result;
             }

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.RoleEvaluation;
@@ -14,6 +14,11 @@ namespace AutoEverything.AutoEquipment.Scoring
     public class ScoringPipeline<TThing> where TThing : Thing
     {
         private readonly List<IScorer<TThing>> scorers;
+
+        // 性能路径静态缓存：复用 ScoreBreakdown 实例避免 Tick 路径 GC 压力
+        // RimWorld 单线程，调用方（GearScorer.ScoreWeapon/ScoreApparel）在下次评分前使用完返回值
+        // 泛型类每个 TThing 实例独立缓存（武器管线与防具管线互不干扰）
+        private static readonly ScoreBreakdown fastBreakdown = new ScoreBreakdown(false);
 
         public ScoringPipeline(List<IScorer<TThing>> scorers)
         {
@@ -50,7 +55,11 @@ namespace AutoEverything.AutoEquipment.Scoring
                                             GearContext context, GearWeights weights,
                                             bool collectItems)
         {
-            var breakdown = new ScoreBreakdown(collectItems);
+            // 性能路径复用静态缓存避免 GC，调试路径 new 独立实例（BuildReport 需要持久数据）
+            ScoreBreakdown breakdown = collectItems
+                ? new ScoreBreakdown(true)
+                : fastBreakdown;
+            if (!collectItems) breakdown.Reset();
 
             // 按顺序执行所有 Scorer
             for (int i = 0; i < scorers.Count; i++)

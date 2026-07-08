@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.Core;
@@ -145,7 +145,9 @@ namespace AutoEverything.RoleEvaluation
             {
                 if (prev != newContext)
                 {
-                    Log.Message($"[AutoEverything] {pawn.LabelShort} 情境变化: {prev} -> {newContext}"
+                    // 情境变化是调试信息：战斗中 Combat↔Work↔Normal 频繁切换会刷屏
+                    // 改用 AEDebug.Log 受 debugLogging 开关控制
+                    AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 情境变化: {prev} -> {newContext}"
                         + (reason != null ? $" ({reason})" : ""));
                     lastLoggedContext[pawnId] = newContext;
                 }
@@ -153,7 +155,6 @@ namespace AutoEverything.RoleEvaluation
             else
             {
                 // 首次见到该 Pawn：用 AEDebug.Log 避免游戏加载时刷屏
-                // 仅情境变化时才用 Log.Message 输出，减少玩家控制台噪音
                 AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 初始情境: {newContext}"
                     + (reason != null ? $" ({reason})" : ""));
                 lastLoggedContext[pawnId] = newContext;
