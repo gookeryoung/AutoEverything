@@ -3,6 +3,7 @@
 
 # 项目路径
 PROJECT := Source/AutoEverything/AutoEverything.csproj
+TEST_PROJECT := Test/AutoEverything.Tests/AutoEverything.Tests.csproj
 CONFIG := Release
 OUTPUT := Assemblies/AutoEverything.dll
 
@@ -11,7 +12,7 @@ OUTPUT := Assemblies/AutoEverything.dll
 DOTNET := dotnet
 DOTNET_FLAGS := -clp:Force
 
-.PHONY: all build check clean restore rebuild rebuild-check help
+.PHONY: all build check clean restore rebuild rebuild-check test test-check help
 
 # 默认目标：构建
 all: build
@@ -45,6 +46,15 @@ rebuild: clean build
 # 重新构建后检查
 rebuild-check: clean check
 
+# 构建并运行单元测试（零依赖控制台运行器，不使用 xunit/NUnit）
+# 测试项目通过 ProjectReference 引用主项目，自动处理构建顺序
+test:
+	$(DOTNET) build -c $(CONFIG) $(DOTNET_FLAGS) $(TEST_PROJECT)
+	$(DOTNET) run -c $(CONFIG) --no-build --project $(TEST_PROJECT)
+
+# 检查 + 测试：完整门禁（规则强制 check 通过 + 单元测试通过）
+test-check: check test
+
 # 查看可用目标
 help:
 	echo AutoEverything Makefile 目标:
@@ -54,4 +64,6 @@ help:
 	echo   make rebuild       清理后重新构建
 	echo   make rebuild-check 清理后重新构建并验证
 	echo   make restore       还原 NuGet 依赖
+	echo   make test          构建并运行单元测试
+	echo   make test-check    check + test 完整门禁
 	echo   make help          显示此帮助信息

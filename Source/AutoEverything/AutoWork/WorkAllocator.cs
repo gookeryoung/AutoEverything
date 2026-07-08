@@ -951,7 +951,14 @@ namespace AutoEverything.AutoWork
         /// </summary>
         private static int ApplySkillFloor(int priority, Pawn pawn, List<SkillDef> skills)
         {
-            int skillLevel = GetMaxSkillLevelForSkills(pawn, skills);
+            return ApplySkillFloorCore(priority, GetMaxSkillLevelForSkills(pawn, skills));
+        }
+
+        /// <summary>
+        /// 技能等级保底的纯逻辑核心（不依赖 Pawn/SkillDef，便于单元测试）。
+        /// </summary>
+        internal static int ApplySkillFloorCore(int priority, int skillLevel)
+        {
             // 技能≥12：priority 不低于 2（0/3/4 → 2，1/2 不变）
             if (skillLevel >= 12 && (priority == 0 || priority >= 3))
                 return 2;

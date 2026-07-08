@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>AutoEverything.Tests</AssemblyName>
+    <RootNamespace>AutoEverything.Tests</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- 不输出到 Assemblies/，避免污染游戏目录 -->
+    <OutputPath>bin\$(Configuration)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RimWorldPath>e:\SteamLibrary\steamapps\common\RimWorld</RimWorldPath>
+    <HarmonyPath>e:\SteamLibrary\steamapps\workshop\content\294100\2009463077\Current\Assemblies</HarmonyPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 主项目 DLL 复制到测试目录，避免运行时找不到 AutoEverything.dll -->
+    <ProjectReference Include="..\..\Source\AutoEverything\AutoEverything.csproj">
+      <Private>true</Private>
+      <OutputItemType>Content</OutputItemType>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+
+</Project>
