@@ -45,6 +45,11 @@ namespace AutoEverything.UI
         private static ArmorPreference cachedArmorPref;
         private static float cachedCombatValue;
         private static float cachedPawnValue;
+        // 评级识别码缓存：GetSystemTier 涉及 9 技能查询 + 配偶递归，每帧重算浪费
+        private static string cachedPawnLookupName;
+        private static CombatTier cachedAutoTier;
+        private static bool cachedHasCustom;
+        private static CombatTier cachedCustomTier;
 
         // ScrollView 滚动位置：static 保持位置，切换 Pawn 时不重置
         private static Vector2 scrollPos = Vector2.zero;
@@ -162,6 +167,11 @@ namespace AutoEverything.UI
                 cachedArmorPref = RoleDetector.GetArmorPreference(cachedRole);
                 cachedCombatValue = CombatEvaluator.ComputeCombatValue(pawn);
                 cachedPawnValue = CombatEvaluator.ComputePawnValueScore(pawn);
+                // 评级识别码：GetSystemTier 含配偶豁免（与评级标签一致），
+                // 涉及 9 技能查询 + 配偶递归，纳入缓存避免每帧重算
+                cachedPawnLookupName = CombatEvaluator.GetPawnLookupName(pawn);
+                cachedAutoTier = CombatEvaluator.GetSystemTier(pawn);
+                cachedHasCustom = AESettings.TryGetCustomTier(cachedPawnLookupName, out cachedCustomTier);
             }
 
             Role role = cachedRole;
@@ -170,6 +180,9 @@ namespace AutoEverything.UI
             ArmorPreference armorPref = cachedArmorPref;
             float combatValue = cachedCombatValue;
             float pawnValue = cachedPawnValue;
+            string pawnName = cachedPawnLookupName;
+            CombatTier autoTier = cachedAutoTier;
+            bool hasCustom = cachedHasCustom;
 
             // ===================== ScrollView 包裹内容区 =====================
             // 内部 inner rect 从 (0,0) 开始，宽度比 outer 少 16f 预留滚动条
@@ -256,12 +269,10 @@ namespace AutoEverything.UI
 
             // 显示当前 Pawn 的识别码：系统档固定，自定义档写入括号
             // 系统档含配偶豁免（GetSystemTier），与评级标签一致
-            string pawnName = CombatEvaluator.GetPawnLookupName(pawn);
-            CombatTier autoTier = CombatEvaluator.GetSystemTier(pawn);
-            bool hasCustom = AESettings.TryGetCustomTier(pawnName, out CombatTier customTier);
+            // pawnName/autoTier/hasCustom 已在 60 tick 缓存块内计算，避免每帧重算评级
 
             string tierCode = hasCustom
-                ? autoTier + "(" + customTier + ")#" + pawnName
+                ? autoTier + "(" + cachedCustomTier + ")#" + pawnName
                 : autoTier + "#" + pawnName;
 
             Rect tierCodeRect = l.GetRect(22f);
@@ -866,14 +877,14 @@ namespace AutoEverything.UI
         {
             switch (role)
             {
-                case Role.Shooter:  return new Color(0.29f, 0.56f, 0.85f);  // 蓝
-                case Role.Brawler:  return new Color(0.85f, 0.29f, 0.29f);  // 红
-                case Role.Doctor:   return new Color(0.29f, 0.85f, 0.48f);  // 绿
-                case Role.Hunter:   return new Color(0.85f, 0.63f, 0.29f);  // 橙
-                case Role.Worker:   return new Color(0.6f, 0.6f, 0.6f);     // 灰
+                case Role.Shooter: return new Color(0.29f, 0.56f, 0.85f);  // 蓝
+                case Role.Brawler: return new Color(0.85f, 0.29f, 0.29f);  // 红
+                case Role.Doctor: return new Color(0.29f, 0.85f, 0.48f);  // 绿
+                case Role.Hunter: return new Color(0.85f, 0.63f, 0.29f);  // 橙
+                case Role.Worker: return new Color(0.6f, 0.6f, 0.6f);     // 灰
                 case Role.Pacifist: return new Color(0.7f, 0.7f, 0.7f);     // 浅灰
-                case Role.Leader:   return new Color(0.85f, 0.77f, 0.29f);  // 金
-                default:            return new Color(0.8f, 0.8f, 0.8f);     // 白灰
+                case Role.Leader: return new Color(0.85f, 0.77f, 0.29f);  // 金
+                default: return new Color(0.8f, 0.8f, 0.8f);     // 白灰
             }
         }
 
@@ -884,12 +895,12 @@ namespace AutoEverything.UI
         {
             switch (context)
             {
-                case GearContext.Combat:  return new Color(0.85f, 0.2f, 0.2f);   // 红
-                case GearContext.Work:    return new Color(0.2f, 0.5f, 0.85f);   // 蓝
+                case GearContext.Combat: return new Color(0.85f, 0.2f, 0.2f);   // 红
+                case GearContext.Work: return new Color(0.2f, 0.5f, 0.85f);   // 蓝
                 case GearContext.Hunting: return new Color(0.85f, 0.5f, 0.2f);   // 橙
-                case GearContext.Cold:    return new Color(0.2f, 0.7f, 0.85f);   // 青
-                case GearContext.Hot:     return new Color(0.85f, 0.4f, 0.2f);   // 橙红
-                default:                  return new Color(0.8f, 0.8f, 0.8f);    // 白灰
+                case GearContext.Cold: return new Color(0.2f, 0.7f, 0.85f);   // 青
+                case GearContext.Hot: return new Color(0.85f, 0.4f, 0.2f);   // 橙红
+                default: return new Color(0.8f, 0.8f, 0.8f);    // 白灰
             }
         }
 
@@ -902,13 +913,13 @@ namespace AutoEverything.UI
             switch (tier)
             {
                 case CombatTier.SSS: return new Color(1.0f, 0.93f, 0.55f);  // 钻金（最高档，比金更亮）
-                case CombatTier.SS:  return new Color(1.0f, 0.75f, 0.20f);  // 亮金橙（次高档）
-                case CombatTier.S:   return new Color(1.0f, 0.84f, 0.0f);   // 金
-                case CombatTier.A:   return new Color(0.61f, 0.35f, 0.71f); // 紫
-                case CombatTier.B:   return new Color(0.2f, 0.6f, 0.85f);   // 蓝
-                case CombatTier.C:   return new Color(0.18f, 0.8f, 0.44f);  // 绿
-                case CombatTier.D:   return new Color(0.58f, 0.65f, 0.65f); // 灰
-                default:             return new Color(0.85f, 0.2f, 0.2f);   // 红（X）
+                case CombatTier.SS: return new Color(1.0f, 0.75f, 0.20f);  // 亮金橙（次高档）
+                case CombatTier.S: return new Color(1.0f, 0.84f, 0.0f);   // 金
+                case CombatTier.A: return new Color(0.61f, 0.35f, 0.71f); // 紫
+                case CombatTier.B: return new Color(0.2f, 0.6f, 0.85f);   // 蓝
+                case CombatTier.C: return new Color(0.18f, 0.8f, 0.44f);  // 绿
+                case CombatTier.D: return new Color(0.58f, 0.65f, 0.65f); // 灰
+                default: return new Color(0.85f, 0.2f, 0.2f);   // 红（X）
             }
         }
 
@@ -920,9 +931,9 @@ namespace AutoEverything.UI
         {
             switch (pref)
             {
-                case ArmorPreference.Heavy:    return new Color(0.75f, 0.22f, 0.17f);  // 暗红
+                case ArmorPreference.Heavy: return new Color(0.75f, 0.22f, 0.17f);  // 暗红
                 case ArmorPreference.Flexible: return new Color(0.95f, 0.77f, 0.06f);  // 黄
-                default:                       return new Color(0.15f, 0.68f, 0.38f);  // 绿
+                default: return new Color(0.15f, 0.68f, 0.38f);  // 绿
             }
         }
     }
