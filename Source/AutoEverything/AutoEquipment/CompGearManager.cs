@@ -492,7 +492,8 @@ namespace AutoEverything.AutoEquipment
 
             if (fallbackWeapon != null)
             {
-                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 过渡武器: 空手无匹配, 使用 '{fallbackWeapon.LabelShort}' (rawScore={fallbackScore:F1}, role={role})");
+                // 决策日志走 AEDebug.Log，与 EvaluateWeapon 一致，避免 50 Pawn 同时换装刷屏
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 过渡武器: 空手无匹配, 使用 '{fallbackWeapon.LabelShort}' (rawScore={fallbackScore:F1}, role={role})");
                 var job = JobMaker.MakeJob(JobDefOf.Equip, fallbackWeapon);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
             }
@@ -616,9 +617,9 @@ namespace AutoEverything.AutoEquipment
 
             if (bestApparel != null)
             {
-                // 构建冲突防具日志（避免 Tick 路径中 LINQ，改用 for 循环）
+                // 决策日志走 AEDebug.Log，与 EvaluateWeapon 一致，避免 50 Pawn 同时换装刷屏
                 string conflictInfo = BuildConflictApparelInfo(role, context, bestApparel);
-                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateApparel 决策: 切换到 {bestApparel.LabelShort} (score={bestScore:F1}) 替换穿戴 (score={bestWornScore:F1}, threshold={AESettings.upgradeThreshold:F2}). 检查 {candidatesChecked} 候选. 冲突防具: {conflictInfo}");
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateApparel 决策: 切换到 {bestApparel.LabelShort} (score={bestScore:F1}) 替换穿戴 (score={bestWornScore:F1}, threshold={AESettings.upgradeThreshold:F2}). 检查 {candidatesChecked} 候选. 冲突防具: {conflictInfo}");
                 var job = JobMaker.MakeJob(JobDefOf.Wear, bestApparel);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
 
@@ -678,7 +679,8 @@ namespace AutoEverything.AutoEquipment
 
             if (fallbackApparel != null)
             {
-                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 过渡防具: 赤身无匹配, 穿戴 '{fallbackApparel.LabelShort}' (score={fallbackScore:F1}, role={role})");
+                // 决策日志走 AEDebug.Log，与 EvaluateWeapon 一致，避免 50 Pawn 同时换装刷屏
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 过渡防具: 赤身无匹配, 穿戴 '{fallbackApparel.LabelShort}' (score={fallbackScore:F1}, role={role})");
                 var job = JobMaker.MakeJob(JobDefOf.Wear, fallbackApparel);
                 Pawn.jobs.TryTakeOrderedJob(job, Verse.AI.JobTag.Misc);
             }
@@ -708,7 +710,8 @@ namespace AutoEverything.AutoEquipment
                 Thing dropped;
                 if (GenDrop.TryDropSpawn(ap, Pawn.Position, Pawn.Map, ThingPlaceMode.Near, out dropped))
                 {
-                    Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下错误护盾腰带 '{ap.LabelShort}' (role={role}，护盾阻挡远程射击)");
+                    // 纠错日志走 AEDebug.Log，与 EvaluateWeapon 一致，避免战斗中集中纠错刷屏
+                    if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 卸下错误护盾腰带 '{ap.LabelShort}' (role={role}，护盾阻挡远程射击)");
                 }
                 // belt 层最多一件护盾腰带，卸下后即返回
                 return;
@@ -737,7 +740,8 @@ namespace AutoEverything.AutoEquipment
                 Thing dropped;
                 if (GenDrop.TryDropSpawn(ap, Pawn.Position, Pawn.Map, ThingPlaceMode.Near, out dropped))
                 {
-                    Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} 卸下奴隶项圈 '{ap.LabelShort}' (非奴隶不应穿戴)");
+                    // 纠错日志走 AEDebug.Log，与 EvaluateWeapon 一致，避免旧存档加载集中纠错刷屏
+                    if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 卸下奴隶项圈 '{ap.LabelShort}' (非奴隶不应穿戴)");
                 }
                 return;
             }
