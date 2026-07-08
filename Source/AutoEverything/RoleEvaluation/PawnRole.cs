@@ -185,14 +185,15 @@ namespace AutoEverything.RoleEvaluation
             {
                 if (prev != result)
                 {
-                    AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色变化: {prev} -> {result} ({reason})");
+                    // 加 if 守卫避免闭包分配（CompTick 路径）
+                    if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色变化: {prev} -> {result} ({reason})");
                     lastLoggedRole[pawnId] = result;
                 }
             }
             else
             {
-                // 首次见到该 Pawn：用 AEDebug.Log 避免游戏加载时刷屏（50 个殖民者 = 50 条日志）
-                AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
+                // 首次见到该 Pawn：加 if 守卫避免游戏加载时闭包分配
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
                 lastLoggedRole[pawnId] = result;
             }
 

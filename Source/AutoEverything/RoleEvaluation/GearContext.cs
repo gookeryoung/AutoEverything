@@ -146,16 +146,16 @@ namespace AutoEverything.RoleEvaluation
                 if (prev != newContext)
                 {
                     // 情境变化是调试信息：战斗中 Combat↔Work↔Normal 频繁切换会刷屏
-                    // 改用 AEDebug.Log 受 debugLogging 开关控制
-                    AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 情境变化: {prev} -> {newContext}"
+                    // 加 if 守卫避免闭包分配（CompTick 路径）
+                    if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 情境变化: {prev} -> {newContext}"
                         + (reason != null ? $" ({reason})" : ""));
                     lastLoggedContext[pawnId] = newContext;
                 }
             }
             else
             {
-                // 首次见到该 Pawn：用 AEDebug.Log 避免游戏加载时刷屏
-                AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 初始情境: {newContext}"
+                // 首次见到该 Pawn：加 if 守卫避免游戏加载时闭包分配
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {pawn.LabelShort} 初始情境: {newContext}"
                     + (reason != null ? $" ({reason})" : ""));
                 lastLoggedContext[pawnId] = newContext;
             }
