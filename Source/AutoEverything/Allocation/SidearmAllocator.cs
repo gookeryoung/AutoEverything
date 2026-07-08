@@ -194,8 +194,9 @@ namespace AutoEverything.Allocation
             job.count = 1;
             pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
 
-            // 决策日志：玩家可见的换装反馈（低频，受全局周期控制）
-            Log.Message($"[AutoEverything] EMP 手雷分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetAutoCombatTier(pawn)}) ← {weapon.LabelShort} (reason={reason})");
+            // 决策日志：受 debug 开关控制（低频，受全局周期控制）
+            if (AEDebug.IsActive)
+                AEDebug.Log(() => $"[AutoEverything] EMP 手雷分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetAutoCombatTier(pawn)}) ← {weapon.LabelShort} (reason={reason})");
         }
     }
 }

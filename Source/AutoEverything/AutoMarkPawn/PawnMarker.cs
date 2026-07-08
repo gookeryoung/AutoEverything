@@ -32,14 +32,62 @@ namespace AutoEverything.AutoMarkPawn
     /// </summary>
     public static class PawnMarker
     {
+        // 评级缓存：DrawPawnGUIOverlay Postfix 每帧调用 IsHighValue，
+        // 若直接 GetCombatTier 则每个非殖民者每秒重算 60 次完整评级（技能/特质/配偶递归查询）。
+        // 2500 tick ≈ 42 秒，评级在此窗口内稳定，非殖民者技能/特质不会突变。
+        private struct CachedTier
+        {
+            public CombatTier tier;
+            public int tick;
+        }
+
+        private const int CacheInterval = 2500;
+        private const int CleanupInterval = 60000;
+        private static readonly Dictionary<Pawn, CachedTier> tierCache = new Dictionary<Pawn, CachedTier>();
+        private static readonly List<Pawn> cleanupBuffer = new List<Pawn>();
+        private static int lastCleanupTick = -9999;
+
         /// <summary>
         /// 判断 Pawn 是否为高价值（S+ 档次，含自定义评级覆盖）。
         /// CombatEvaluator.GetCombatTier 优先返回自定义评级，未命中则返回自动判定。
+        /// 结果按 tick 缓存，避免每帧重算（DrawPawnGUIOverlay Postfix 高频调用）。
         /// </summary>
         public static bool IsHighValue(Pawn pawn)
         {
             if (pawn == null) return false;
-            return CombatEvaluator.GetCombatTier(pawn) >= CombatTier.S;
+
+            int tick = Find.TickManager.TicksGame;
+
+            // 定期清理：移除不 Spawned / 已死亡的 Pawn（避免内存泄漏）
+            if (tick - lastCleanupTick > CleanupInterval)
+            {
+                CleanupCache();
+                lastCleanupTick = tick;
+            }
+
+            if (tierCache.TryGetValue(pawn, out CachedTier c) && tick - c.tick < CacheInterval)
+                return c.tier >= CombatTier.S;
+
+            CombatTier tier = CombatEvaluator.GetCombatTier(pawn);
+            tierCache[pawn] = new CachedTier { tier = tier, tick = tick };
+            return tier >= CombatTier.S;
+        }
+
+        /// <summary>
+        /// 清理缓存中不 Spawned 或已死亡的 Pawn，避免引用泄漏。
+        /// 由 IsHighValue 周期触发（60000 tick ≈ 17 分钟），无显式调用方。
+        /// </summary>
+        private static void CleanupCache()
+        {
+            cleanupBuffer.Clear();
+            foreach (var kvp in tierCache)
+            {
+                Pawn p = kvp.Key;
+                if (p == null || p.Dead || !p.Spawned)
+                    cleanupBuffer.Add(p);
+            }
+            for (int i = 0; i < cleanupBuffer.Count; i++)
+                tierCache.Remove(cleanupBuffer[i]);
         }
 
         /// <summary>

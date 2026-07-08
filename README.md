@@ -697,7 +697,7 @@ Source/AutoEverything/
 - Tick 路径禁止 LINQ、禁止 `new List<>()`、禁止 `OrderBy`
 - 集合用静态缓存或实例字段复用（如 `SidearmAllocator` 的 `candidatePawns`/`candidateWeapons`）
 - 评估日志走 `AEDebug.Log`，受 `debugLogging` 开关短路
-- 决策日志（换装结果）保留 `Log.Message`，玩家可见
+- 决策日志（换装结果）：手动触发保留 `Log.Message`（玩家可见），周期触发走 `AEDebug.Log`（避免刷屏）；`SidearmAllocator` 仅有周期触发，统一走 `AEDebug.Log`
 - 可疑评分日志用 `Log.WarningOnce` 防刷屏
 
 ## 兼容性

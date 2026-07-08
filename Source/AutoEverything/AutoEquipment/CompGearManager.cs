@@ -177,7 +177,7 @@ namespace AutoEverything.AutoEquipment
                 {
                     if (contextChanged)
                         if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 执行 EvaluateWeapon (情境变化 {prevContext}->{context})");
-                    else
+                        else
                         if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 执行 EvaluateWeapon (无武器，强制评估)");
                     EvaluateWeapon(role, context, contextChanged);
                 }
@@ -401,8 +401,8 @@ namespace AutoEverything.AutoEquipment
                 if (thing.def.IsStuff) continue; // 木材、钢铁等非武器
                 if (thing.IsForbidden(Pawn)) { candidatesSkipped++; continue; }
                 if (!Pawn.CanReserve(thing) || !Pawn.CanReach(thing, PathEndMode.ClosestTouch, Danger.Some)) { candidatesSkipped++; continue; }
-                if (thing.def.IsRangedWeapon && Pawn.WorkTagIsDisabled(WorkTags.Violent)) { candidatesSkipped++; continue; }
-                if (thing.def.IsMeleeWeapon && Pawn.WorkTagIsDisabled(WorkTags.Violent)) { candidatesSkipped++; continue; }
+                // 禁用暴力的 Pawn 无法使用任何武器，合并检查（L399-401 已保证 IsRangedWeapon || IsMeleeWeapon）
+                if (Pawn.WorkTagIsDisabled(WorkTags.Violent)) { candidatesSkipped++; continue; }
 
                 candidatesChecked++;
                 // 监测路径：用 WithBreakdown 版本

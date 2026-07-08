@@ -243,10 +243,11 @@ namespace AutoEverything.Allocation
                     var job = JobMaker.MakeJob(JobDefOf.Equip, bestWeapon);
                     pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
 
+                    // 复用 combatValueCache 避免日志中重复调用 ComputeCombatValue（涉及技能/特质查询）
                     if (silent)
-                        AEDebug.Log(() => $"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={CombatEvaluator.ComputeCombatValue(pawn):F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
+                        AEDebug.Log(() => $"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={combatValueCache[pawn]:F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
                     else
-                        Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={CombatEvaluator.ComputeCombatValue(pawn):F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
+                        Log.Message($"[AutoEverything] 全局重配 #{i + 1}: {AEDebug.Label(pawn)} (战斗价值={combatValueCache[pawn]:F1}) ← {bestWeapon.LabelShort} (score={bestScore:F1})");
                 }
                 else
                 {
