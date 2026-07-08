@@ -946,19 +946,18 @@ namespace AutoEverything.AutoWork
 
         /// <summary>
         /// 技能等级保底：相关技能≥12 者 priority 不低于 2，≥8 者不低于 3。
-        /// 仅在 priority 为 0 或 >3 时触发（priority=1/2/3 已在合理范围）。
-        /// 设计意图：高技能无火者仍以 priority=2/3 参与工作，不被完全排除。
+        /// priority=1/2 已满足所有保底不处理；priority=3 仅≥12 时提升到 2（≥8 已满足不降级）。
+        /// 设计意图：高技能无火者即使进了保底也应有更高优先级。
         /// </summary>
         private static int ApplySkillFloor(int priority, Pawn pawn, List<SkillDef> skills)
         {
-            if (priority == 0 || priority > 3)
-            {
-                int skillLevel = GetMaxSkillLevelForSkills(pawn, skills);
-                if (skillLevel >= 12)
-                    return 2;
-                if (skillLevel >= 8)
-                    return 3;
-            }
+            int skillLevel = GetMaxSkillLevelForSkills(pawn, skills);
+            // 技能≥12：priority 不低于 2（0/3/4 → 2，1/2 不变）
+            if (skillLevel >= 12 && (priority == 0 || priority >= 3))
+                return 2;
+            // 技能≥8：priority 不低于 3（0/4 → 3，1/2/3 不变）
+            if (skillLevel >= 8 && (priority == 0 || priority > 3))
+                return 3;
             return priority;
         }
 
