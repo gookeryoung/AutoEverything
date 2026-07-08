@@ -217,7 +217,7 @@ namespace AutoEverything.AutoWork
                 workCount[candidatePawns[i]] = 0;
             }
 
-            AEDebug.Log(() => $"[WorkAllocator] === ReallocateAll start (pawns={candidatePawns.Count}) ===");
+            if (AEDebug.IsActive) AEDebug.Log(() => $"[WorkAllocator] === ReallocateAll start (pawns={candidatePawns.Count}) ===");
 
             // 5. 多遍分配（顺序严格固定，前排分配结果影响后排候选排序）
             // 阶段列表驱动：紧急 → 重要专业 → 普通专业 → 次级专业 → 研究
@@ -234,7 +234,7 @@ namespace AutoEverything.AutoWork
             AssignServiceWorkPriorities();        // 最后一遍：辅助工作（搬运/清洁/非技能）
 
             // 调试：dump 最终 workCount，便于分析硬上限拦截是否影响双火 pawn
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] Final workCount: ");
@@ -346,7 +346,7 @@ namespace AutoEverything.AutoWork
                 skillWorkPhases.Add(new WorkPhase { WorkType = cachedDarkStudyDef, Config = ResearchConfig });
 
             // 调试：dump 阶段列表，确认所有工作类型（如 Mining）被正确纳入
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] Phases(").Append(skillWorkPhases.Count).Append("): ");
@@ -539,11 +539,11 @@ namespace AutoEverything.AutoWork
             bool fallbackRelaxed = workCandidates.Count < config.GuaranteeCount;
             if (workCandidates.Count == 0)
             {
-                AEDebug.Log(() => $"[WorkAllocator] {workType.defName}: SKIP (no candidates, total={candidatePawns.Count})");
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[WorkAllocator] {workType.defName}: SKIP (no candidates, total={candidatePawns.Count})");
                 return;
             }
 
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] ").Append(workType.defName)
@@ -572,7 +572,7 @@ namespace AutoEverything.AutoWork
             }
 
             // 调试：dump 排序后候选清单（passion/skill/workCount）
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] ").Append(workType.defName).Append(" sorted: ");
@@ -629,7 +629,7 @@ namespace AutoEverything.AutoWork
                 pawn.workSettings.SetPriority(workType, priority);
 
                 // 调试：记录每个候选的最终优先级与归类（GM=Guarantee双火/Gi=Guarantee单火/FM=Floor双火/Fi=Floor单火/N=无火）
-                AEDebug.Log(() =>
+                if (AEDebug.IsActive) AEDebug.Log(() =>
                 {
                     int finalIdx = i;
                     string bucket;
@@ -724,11 +724,11 @@ namespace AutoEverything.AutoWork
             bool fallbackRelaxed = workCandidates.Count < config.GuaranteeCount;
             if (workCandidates.Count == 0)
             {
-                AEDebug.Log(() => $"[WorkAllocator] {groupLabel ?? "Group"}: SKIP (no candidates, total={candidatePawns.Count})");
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[WorkAllocator] {groupLabel ?? "Group"}: SKIP (no candidates, total={candidatePawns.Count})");
                 return;
             }
 
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] ").Append(groupLabel)
@@ -742,7 +742,7 @@ namespace AutoEverything.AutoWork
             workCandidates.Sort((a, b) => ComparePawnsByPassionWorkCountSkill(a, b, skills));
 
             // 调试：dump 排序后候选清单
-            AEDebug.Log(() =>
+            if (AEDebug.IsActive) AEDebug.Log(() =>
             {
                 StringBuilder sb = new StringBuilder();
                 sb.Append("[WorkAllocator] ").Append(groupLabel).Append(" sorted: ");
@@ -797,7 +797,7 @@ namespace AutoEverything.AutoWork
                 }
 
                 // 调试：记录每个候选的最终优先级（GM=Guarantee双火/Gi=Guarantee单火/FM=Floor双火/Fi=Floor单火/N=无火）
-                AEDebug.Log(() =>
+                if (AEDebug.IsActive) AEDebug.Log(() =>
                 {
                     int finalIdx = i;
                     string bucket;
