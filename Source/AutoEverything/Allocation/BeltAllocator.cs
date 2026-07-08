@@ -217,7 +217,9 @@ namespace AutoEverything.Allocation
             var job = JobMaker.MakeJob(JobDefOf.Wear, belt);
             pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
 
-            Log.Message($"[AutoEverything] 腰带分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetAutoCombatTier(pawn)}) ← {belt.LabelShort} (reason={reason})");
+            // 决策日志：受 debug 开关控制（与 SidearmAllocator 一致，避免周期触发刷屏）
+            if (AEDebug.IsActive)
+                AEDebug.Log(() => $"[AutoEverything] 腰带分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetAutoCombatTier(pawn)}) ← {belt.LabelShort} (reason={reason})");
         }
 
         // ===================== 判定辅助 =====================

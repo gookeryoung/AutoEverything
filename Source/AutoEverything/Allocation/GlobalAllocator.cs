@@ -303,11 +303,12 @@ namespace AutoEverything.Allocation
                     Pawn pawn = sortedPawns[i];
                     if (pawn.apparel?.WornApparel == null) continue;
 
-                    // 复制一份避免在遍历中修改原列表
-                    List<Apparel> wornCopy = new List<Apparel>(pawn.apparel.WornApparel);
-                    for (int j = 0; j < wornCopy.Count; j++)
+                    // 逆序遍历 + Remove：避免创建临时 List 副本（WornApparel 返回内部列表引用）
+                    // Remove 当前索引元素后，后续元素前移，但逆序遍历已处理过这些索引，安全
+                    List<Apparel> worn = pawn.apparel.WornApparel;
+                    for (int j = worn.Count - 1; j >= 0; j--)
                     {
-                        Apparel ap = wornCopy[j];
+                        Apparel ap = worn[j];
 
                         // 生物编码护甲：个人绑定，跳过
                         if (AESettings.reallocateRespectBiocoded)
