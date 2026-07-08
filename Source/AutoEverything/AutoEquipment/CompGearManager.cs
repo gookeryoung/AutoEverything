@@ -459,11 +459,15 @@ namespace AutoEverything.AutoEquipment
         /// 例外：格斗者特质（Brawler trait）+ 远程武器 → 跳过（拿远程会不开心）。
         /// 设计意图：空手比拿一把不理想的武器更糟；过渡武器在下次评估时会被更好的匹配替换。
         /// 用 ScoreBreakdown.Total 比较（含 Veto 前的技能分），选技能最契合的过渡武器。
+        /// 性能：复用 EvaluateFast 的 fastBreakdown，避免每件候选创建 ScoreBreakdown+List。
         /// </summary>
         private void TryFallbackWeapon(Role role, GearContext context)
         {
             Thing fallbackWeapon = null;
             float fallbackScore = -99999f;
+
+            var pipeline = ScoringPipelineFactory.GetWeaponPipeline();
+            GearWeights weights = GearPolicyEngine.GetWeights();
 
             foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Weapon))
             {
@@ -477,8 +481,8 @@ namespace AutoEverything.AutoEquipment
                 // 格斗者特质+远程=不开心，跳过（用户例外）
                 if (Pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) == true && thing.def.IsRangedWeapon) continue;
 
-                // 用 Total（含 Veto 前的技能分）比较，选技能最契合的过渡武器
-                ScoreBreakdown bd = GearScorer.ScoreWeaponWithBreakdown(Pawn, thing, role, context);
+                // 性能路径：复用 fastBreakdown，读 Total（含 Veto 前的技能分）选最契合的过渡武器
+                ScoreBreakdown bd = pipeline.EvaluateFast(Pawn, thing, role, context, weights);
                 if (bd.Total > fallbackScore)
                 {
                     fallbackScore = bd.Total;
@@ -638,11 +642,15 @@ namespace AutoEverything.AutoEquipment
         /// 仍排除 Veto 的防具（如护盾腰带对非 Brawler——比赤身更糟，会阻挡远程射击）。
         /// 设计意图：赤身受温度/美观惩罚，过渡防具在下次评估时会被更好的匹配替换。
         /// 用 ScoreBreakdown.Total 比较，选评分最高的过渡防具（即使是沾染/低品质也胜过赤身）。
+        /// 性能：复用 EvaluateFast 的 fastBreakdown，避免每件候选创建 ScoreBreakdown+List。
         /// </summary>
         private void TryFallbackApparel(Role role, GearContext context)
         {
             Apparel fallbackApparel = null;
             float fallbackScore = -99999f;
+
+            var pipeline = ScoringPipelineFactory.GetApparelPipeline();
+            GearWeights weights = GearPolicyEngine.GetWeights();
 
             foreach (Thing thing in Pawn.Map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel))
             {
@@ -658,10 +666,9 @@ namespace AutoEverything.AutoEquipment
                     && !Pawn.outfits.CurrentApparelPolicy.filter.Allows(apparel))
                     continue;
 
-                // 过渡防具不检查护甲偏好：赤身时穿任意护甲过渡（比赤身强）
-                // 护甲选择纯评分驱动，由 ApparelArmorScorer 的护甲值评分自然优胜劣汰
-                ScoreBreakdown bd = GearScorer.ScoreApparelWithBreakdown(Pawn, apparel, role, context);
+                // 性能路径：复用 fastBreakdown，读 Vetoed/Total
                 // Veto 的防具（如护盾腰带）仍排除——对远程角色比赤身更糟
+                ScoreBreakdown bd = pipeline.EvaluateFast(Pawn, apparel, role, context, weights);
                 if (bd.Vetoed) continue;
                 if (bd.Total <= fallbackScore) continue;
 
