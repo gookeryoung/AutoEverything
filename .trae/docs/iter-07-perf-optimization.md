@@ -1,5 +1,7 @@
 # iter-07: fallback 装备路径改用 EvaluateFast
 
+> iter-03~05 已归档至 skills/performance-optimization.md
+
 ## 本轮目标
 
 诊断 iter-06 后发现 `TryFallbackWeapon`/`TryFallbackApparel` 在 Tick 路径用

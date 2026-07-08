@@ -1,5 +1,7 @@
 # iter-06: ITab_GearManager 评级识别码缓存
 
+> iter-03~05 已归档至 skills/performance-optimization.md
+
 ## 本轮目标
 
 诊断 iter-05 之后的遗留优化点，发现 ITab_GearManager FillTab 中 L259-261 的
