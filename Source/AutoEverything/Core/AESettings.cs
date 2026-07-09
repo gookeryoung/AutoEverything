@@ -33,6 +33,14 @@ namespace AutoEverything.Core
         public static bool carryMedicine = true;     // 医生/战斗人员携带药品
         public static int medicineCount = 3;          // 携带数量
 
+        // 自动药物（P4.1 新增）
+        // 设计：默认关闭，需玩家主动启用——自动修改 DrugPolicy 与服药涉及 Pawn 行为，谨慎默认关
+        public static bool autoDrugEnabled = false;       // 自动药物总开关（含 3 个子功能）
+        public static bool brawlerCarryMedicine = true;   // 重甲前排也带药（战斗自疗，1 件应急）
+        public static bool autoDrugPolicy = true;          // 按角色自动设置药物政策（Doctor 加 penoxycyline / 战斗员禁成瘾品）
+        public static bool autoTreatment = true;            // 自动安排伤员治疗（找空闲医生走 TendPatient）
+        public static bool autoMedication = true;          // 自动预防性服药（penoxycyline 防疟疾）
+
         // 性能
         public static int evaluateInterval = 500;    // 装备评估间隔（tick）
 
@@ -427,6 +435,12 @@ namespace AutoEverything.Core
             LookCompat(ref autoMeleeSidearm, "autoMeleeSidearm", true);
             LookCompat(ref carryMedicine, "carryMedicine", true);
             LookCompat(ref medicineCount, "medicineCount", 3);
+            // 自动药物（P4.1 新增）：Scribe Key 与字段名一致（含 ae_ 前缀由 LookCompat 自动处理）
+            LookCompat(ref autoDrugEnabled, "autoDrugEnabled", false);
+            LookCompat(ref brawlerCarryMedicine, "brawlerCarryMedicine", true);
+            LookCompat(ref autoDrugPolicy, "autoDrugPolicy", true);
+            LookCompat(ref autoTreatment, "autoTreatment", true);
+            LookCompat(ref autoMedication, "autoMedication", true);
             LookCompat(ref evaluateInterval, "evaluateInterval", 500);
             LookCompat(ref upgradeThreshold, "upgradeThreshold", 0.15f);
             LookCompat(ref tempDangerMargin, "tempDangerMargin", 5f);
@@ -660,6 +674,19 @@ namespace AutoEverything.Core
             {
                 r.Label("AE_MedicineCount".Translate() + ": " + medicineCount);
                 medicineCount = (int)r.Slider(medicineCount, 1, 10);
+            }
+
+            // 自动药物模块（P4.1 新增）
+            // 默认关：自动修改 DrugPolicy 与服药涉及 Pawn 行为，需玩家主动启用
+            r.GapLine();
+            r.Label("AE_AutoDrug".Translate());
+            r.CheckboxLabeled("AE_AutoDrugEnabled".Translate(), ref autoDrugEnabled);
+            if (autoDrugEnabled)
+            {
+                r.CheckboxLabeled("AE_BrawlerCarryMedicine".Translate(), ref brawlerCarryMedicine);
+                r.CheckboxLabeled("AE_AutoDrugPolicy".Translate(), ref autoDrugPolicy);
+                r.CheckboxLabeled("AE_AutoTreatment".Translate(), ref autoTreatment);
+                r.CheckboxLabeled("AE_AutoMedication".Translate(), ref autoMedication);
             }
 
             r.GapLine();

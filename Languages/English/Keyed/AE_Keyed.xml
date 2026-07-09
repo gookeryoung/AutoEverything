@@ -240,4 +240,13 @@ Does not modify any pawn name; pure frontend rendering, safe and reversible; mak
 Checking it counts current targets and shows a message; unchecking stops drawing immediately.</AE_TT_AutoMarkPawn>
   <AE_AutoGearReallocateResult>Auto gear evaluation triggered for {0} colonists</AE_AutoGearReallocateResult>
   <AE_AutoMarkPawnResult>Found {0} high-value non-colonist targets (S+ tier), marked with red star</AE_AutoMarkPawnResult>
+
+  <!-- Auto Drug module (P4.1) -->
+  <AE_AutoDrug>Auto Drug</AE_AutoDrug>
+  <AE_AutoDrugEnabled>Enable Auto Drug</AE_AutoDrugEnabled>
+  <AE_BrawlerCarryMedicine>Brawler Carry Medicine</AE_BrawlerCarryMedicine>
+  <AE_AutoDrugPolicy>Auto Drug Policy</AE_AutoDrugPolicy>
+  <AE_AutoTreatment>Auto Treatment</AE_AutoTreatment>
+  <AE_AutoMedication>Auto Medication</AE_AutoMedication>
+  <AE_AutoDrugResult>Auto drug configuration complete</AE_AutoDrugResult>
 </LanguageData>

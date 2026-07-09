@@ -5,6 +5,7 @@ using Verse;
 using AutoEverything.AutoEquipment;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoDrug;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Core
@@ -48,6 +49,7 @@ namespace AutoEverything.Core
         private static int lastTierTick = -9999;
         private static int lastGearTick = -9999;
         private static int lastMarkTick = -9999;
+        private static int lastDrugTick = -9999;
 
         // 殖民者数量缓存：-1 = 首次只记录不触发，避免存档加载误触发
         private static int lastColonistCount = -1;
@@ -65,6 +67,7 @@ namespace AutoEverything.Core
         private const int TierErrorSalt = 0xA300;
         private const int GearErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
+        private const int DrugErrorSalt = 0xA600;
 
         /// <summary>
         /// 由 CompGearManager.CompTick 每 tick 调用。
@@ -87,6 +90,7 @@ namespace AutoEverything.Core
                 lastTierTick = tick;
                 lastGearTick = tick;
                 lastMarkTick = tick;
+                lastDrugTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 return;
             }
@@ -101,12 +105,13 @@ namespace AutoEverything.Core
             {
                 bool isIncrease = currentCount > lastColonistCount;
                 lastColonistCount = currentCount;
-                // 评级/装备/星标：增加时立即触发（不打断 Job）
+                // 评级/装备/星标/药物：增加时立即触发（不打断 Job）
                 if (isIncrease)
                 {
                     ExecuteTier(tick, showMessage: false);
                     ExecuteGear(tick, showMessage: false);
                     ExecuteMark(tick, showMessage: false);
+                    ExecuteDrug(tick, showMessage: false);
                 }
                 // 工作重配：标记待触发，不立即执行
                 pendingWorkRealloc = true;
@@ -132,6 +137,10 @@ namespace AutoEverything.Core
             if (tick - lastMarkTick >= ExecuteInterval)
             {
                 ExecuteMark(tick, showMessage: false);
+            }
+            if (tick - lastDrugTick >= ExecuteInterval)
+            {
+                ExecuteDrug(tick, showMessage: false);
             }
         }
 
@@ -165,6 +174,14 @@ namespace AutoEverything.Core
         public static void TriggerMarkNow()
         {
             ExecuteMark(Find.TickManager.TicksGame, showMessage: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行自动药物配置并弹消息框反馈。
+        /// </summary>
+        public static void TriggerDrugNow()
+        {
+            ExecuteDrug(Find.TickManager.TicksGame, showMessage: true);
         }
 
         /// <summary>
@@ -321,6 +338,34 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 高价值星标统计失败: " + ex.Message, MarkErrorSalt);
+            }
+        }
+
+        /// <summary>
+        /// 执行自动药物配置：调用 DrugAllocator.ReallocateAll()。
+        /// 受 AESettings.autoDrugEnabled 开关控制，关闭时不执行。
+        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
+        /// 周期自动执行不弹消息（避免刷屏），仅 ITab 触发时弹消息反馈。
+        /// </summary>
+        private static void ExecuteDrug(int tick, bool showMessage)
+        {
+            lastDrugTick = tick;
+            if (!AESettings.autoDrugEnabled) return;
+
+            try
+            {
+                DrugAllocator.ReallocateAll();
+                AEDebug.Log(() => $"[AutoExecutor] 自动药物配置 (tick={tick})");
+                if (showMessage)
+                {
+                    Messages.Message(
+                        "AE_AutoDrugResult".Translate(),
+                        MessageTypeDefOf.TaskCompletion);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 自动药物配置失败: " + ex.Message, DrugErrorSalt);
             }
         }
 

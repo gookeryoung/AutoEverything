@@ -25,13 +25,21 @@ namespace AutoEverything.AutoEquipment
             // 医生与有医疗技能的战斗人员应携带药品
             int medSkill = Pawn.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
             bool shouldCarryMeds = role == Role.Doctor
-                || (medSkill >= 4 && !Pawn.WorkTagIsDisabled(WorkTags.Caring));
+                || (medSkill >= 4 && !Pawn.WorkTagIsDisabled(WorkTags.Caring))
+                // 重甲前排也带药：战斗中自疗，避免医生未到前失血过多
+                || (role == Role.Brawler && AESettings.brawlerCarryMedicine);
 
             if (!shouldCarryMeds)
             {
                 if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 跳过 (role={role}, medSkill={medSkill}, shouldCarry=false)");
                 return;
             }
+
+            // 带药数量区分：Brawler 但非医生且医疗技能<4 → 仅 1 件（应急自疗）；
+            // 医生/有医疗技能者按 AESettings.medicineCount 配置
+            // 设计意图：Brawler 不是医生，1 件药品足够战场应急，避免占用过多负重
+            int targetCount = (role == Role.Brawler && medSkill < 4)
+                ? 1 : AESettings.medicineCount;
 
             // 仅统计库存中的药品（不含手持——手持药品是临时的，
             // 用于治疗或搬运工作，统计会导致反复拾取/丢弃死循环）
@@ -43,10 +51,10 @@ namespace AutoEverything.AutoEquipment
             }
 
             // 携带过多时丢弃多余药品（如搬运时混入）
-            if (medsInInventory > AESettings.medicineCount)
+            if (medsInInventory > targetCount)
             {
-                int excess = medsInInventory - AESettings.medicineCount;
-                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 丢弃 {excess} 件多余药品 (持有 {medsInInventory}, 上限 {AESettings.medicineCount})");
+                int excess = medsInInventory - targetCount;
+                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 丢弃 {excess} 件多余药品 (持有 {medsInInventory}, 上限 {targetCount})");
                 var inv = Pawn.inventory.innerContainer;
                 for (int i = inv.Count - 1; i >= 0 && excess > 0; i--)
                 {
@@ -63,13 +71,13 @@ namespace AutoEverything.AutoEquipment
                 return;
             }
 
-            if (medsInInventory >= AESettings.medicineCount)
+            if (medsInInventory >= targetCount)
             {
-                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 已满 ({medsInInventory}/{AESettings.medicineCount})");
+                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 已满 ({medsInInventory}/{targetCount})");
                 return;
             }
 
-            int needed = AESettings.medicineCount - medsInInventory;
+            int needed = targetCount - medsInInventory;
             if (needed <= 0) return;
 
             // 寻找药品拾取（不在自身库存中）

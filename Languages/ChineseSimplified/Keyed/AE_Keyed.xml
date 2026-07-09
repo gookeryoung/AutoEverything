@@ -241,4 +241,13 @@
 勾选时统计当前数量并弹消息；取消勾选时头顶星标自动消失。</AE_TT_AutoMarkPawn>
   <AE_AutoGearReallocateResult>已自动重配 {0} 个殖民者的装备</AE_AutoGearReallocateResult>
   <AE_AutoMarkPawnResult>当前发现 {0} 个高价值非殖民者目标（S+ 档次），已标记红色星标 ★</AE_AutoMarkPawnResult>
+
+  <!-- 自动药物模块（P4.1） -->
+  <AE_AutoDrug>自动药物</AE_AutoDrug>
+  <AE_AutoDrugEnabled>启用自动药物</AE_AutoDrugEnabled>
+  <AE_BrawlerCarryMedicine>重甲前排带药</AE_BrawlerCarryMedicine>
+  <AE_AutoDrugPolicy>自动药物政策</AE_AutoDrugPolicy>
+  <AE_AutoTreatment>自动治疗安排</AE_AutoTreatment>
+  <AE_AutoMedication>自动预防服药</AE_AutoMedication>
+  <AE_AutoDrugResult>自动药物配置完成</AE_AutoDrugResult>
 </LanguageData>

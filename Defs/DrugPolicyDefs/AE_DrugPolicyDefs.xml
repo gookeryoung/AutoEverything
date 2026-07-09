@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!-- AE 医生药物政策：penoxycyline takeToInventory=1，防疟疾/瘟疫/嗜睡病。
+       allowedForJoy=false 强调医疗用途而非娱乐；drug policy 系统会自动维持库存常备 1 件。 -->
+  <DrugPolicyDef>
+    <defName>AE_Doctor</defName>
+    <label>AE_Doctor</label>
+    <entries>
+      <li>
+        <drug>Penoxycyline</drug>
+        <allowedForJoy>false</allowedForJoy>
+        <takeToInventory>1</takeToInventory>
+      </li>
+    </entries>
+  </DrugPolicyDef>
+
+  <!-- AE 战斗员药物政策：空 entries，禁所有成瘾品。
+       战斗员需要保持清醒，成瘾品戒断会严重影响战斗力。 -->
+  <DrugPolicyDef>
+    <defName>AE_Combat</defName>
+    <label>AE_Combat</label>
+  </DrugPolicyDef>
+
+</Defs>
