@@ -4,9 +4,9 @@
 >
 > packageId: `gookeryoung.autoeverything`
 
-殖民者会根据自身**角色**与**情境**，自动挑选最合适的武器、防具与腰带附件，并按需携带药品与 EMP 手雷。
+殖民者会根据自身**角色**与**情境**，自动挑选最合适的武器、防具与腰带附件，并按需携带药品与 EMP 手雷。扩展模块还提供**自动药物**（DrugPolicy/治疗安排/预防服药）、**自动食物**（行军口粮/喂食伤员/食物限制）、**自动血清**（治愈血清/Anomaly 增益血清）三类自动化能力。
 
-零配置开箱即用，每个殖民者根据技能与特质自动识别角色。
+零配置开箱即用，每个殖民者根据技能与特质自动识别角色。自动药物/食物/血清模块默认关闭，可在 MOD 选项中按需启用。
 
 ## 设计思路
 
@@ -523,10 +523,10 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
 - **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
-- **周期触发**：人员评级/装备重配每 3000 tick（约 50 秒）执行一次（工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行）
+- **周期触发**：人员评级/装备重配每 3000 tick（约 50 秒）执行一次；药物/食物/血清调度由 `CompGearManager.CompTick` 在 `EvaluateInventory` 后触发各模块 `AllocateForPawn`（内部 3000 tick 周期门控，第一个触发的 Pawn 承担全局扫描成本）。工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行
 - **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 待触发（不立即执行）。增加时额外触发评级+装备+星标（这三者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
-- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作、评级、装备重配、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500）
+- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick`/`lastMarkTick`/`lastDrugTick`/`lastFoodTick`/`lastSerumTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
+- **错误隔离**：工作、评级、装备重配、星标、药物、食物、血清各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500 / Drug=0xA600 / Food=0xA700 / Serum=0xA800）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
 ### 装备自动重配（按评级排序升级评估）
@@ -569,6 +569,113 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **取消勾选**：头顶图标由 Harmony 补丁实时检查 `AESettings.autoMarkPawn` 开关，自动停止绘制
 - **Harmony 补丁降级**：`PawnUIOverlay` 类型或 `DrawPawnGUIOverlay` 方法缺失时仅 `Log.Warning`，星标不显示但不崩溃
 - **入口**：殖民者装备面板（ITab）底部 → "高价值标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
+
+## 自动药物（AutoDrug）
+
+`AutoDrug/DrugAllocator.cs` 主调度器（3000 tick 周期，照搬 `BeltAllocator` 静态门控模式）统一调度 4 个子功能。所有子功能共享 `AllocateForPawn`/`ReallocateAll` 双入口，由 `CompGearManager.CompTick` 在 `EvaluateInventory` 后调用。
+
+### 子功能
+
+| 子功能 | 实现 | 说明 |
+|--------|------|------|
+| 扩展药品携带 | `CompGearManager.EvaluateInventory` | 医生/有医疗技能的战斗员/重甲前排（开关开启）携带药品，数量按角色区分（Brawler 非医生 1 件应急，其余按设置数量） |
+| 自动药物政策 | `DrugPolicyManager` | 按角色设置 DrugPolicy：医生→含 penoxycyline（防疟疾/瘟疫/嗜睡病）；战斗员→禁成瘾品（保持清醒）；其他角色保留玩家手动设置 |
+| 自动治疗安排 | `TreatmentAllocator` | 全局扫描需立即治疗的伤员（`HealthAIUtility.ShouldBeTendedNowByPlayer`），按医疗技能降序排序空闲医生，安排 `TendPatient` Job |
+| 自动预防服药 | `MedicationAllocator` | 检测 penoxycyline 药效（`PenoxycylineHigh` hediff），药效过期则安排 `Ingest` Job 服用（库存优先，地图次之） |
+
+### 设置项（MOD 选项 → 自动药物）
+
+| 设置 | 默认 | 说明 |
+|------|------|------|
+| 启用自动药物 | 关 | 总开关（涉及修改 DrugPolicy 与 Pawn 行为，谨慎默认关） |
+| 重甲前排带药 | 开 | Brawler 角色也携带 1 件药品（战场自疗应急） |
+| 自动药物政策 | 开 | 按角色自动设置 DrugPolicy |
+| 自动治疗安排 | 开 | 扫描伤员安排医生治疗 |
+| 自动预防服药 | 开 | penoxycyline 预防服药 |
+
+### 医疗守卫
+
+所有子功能在安排 Job 前检查 `PawnJobGuard.ShouldSkipForMedical`：正在执行治疗（TendPatient/TendEntity）、手术（DoBill+Bill_Medical）、救援（Rescue）、搬手术床（TakeToBedToOperate）、床上休养的 Pawn 跳过，避免 `TryTakeOrderedJob` 取消当前医疗 Job 导致手术死循环。
+
+### 数据驱动的 DrugPolicy
+
+`Defs/DrugPolicyDefs/AE_DrugPolicyDefs.xml` 预定义两个 DrugPolicyDef：
+- `AE_Doctor`：含 penoxycyline（takeToInventory=1）
+- `AE_Combat`：空 entries（禁所有成瘾品）
+
+RimWorld 启动时自动从 def 实例化加入 DrugPolicyDatabase，避免运行时反射私有 `entriesInt`。
+
+## 自动食物（AutoFood）
+
+`AutoFood/FoodAllocator.cs` 主调度器（3000 tick 周期）统一调度 3 个子功能。
+
+### 子功能
+
+| 子功能 | 实现 | 说明 |
+|--------|------|------|
+| 行军口粮携带 | `MealCarrier` | 征召 Pawn 库存无 MealSurvivalPack 时拾取（数量按设置，默认 1 份，2500 tick 冷却） |
+| 自动喂食伤员 | `FeedingAllocator` | 全局扫描卧床饥饿伤员（`CurLevelPercentage < 0.3` + `FeedPatientUtility.ShouldBeFed`），按饥饿度升序排序，找空闲医生走 `FeedPatient` Job 喂食 |
+| 食物限制管理 | `FoodRestrictionManager` | 按角色设置 FoodPolicy（1.6 重命名自 FoodRestriction，但 `FoodRestrictionDatabase` 类名保留） |
+
+### 设置项（MOD 选项 → 自动食物）
+
+| 设置 | 默认 | 说明 |
+|------|------|------|
+| 启用自动食物 | 关 | 总开关（涉及修改 FoodPolicy 与 Pawn 行为，谨慎默认关） |
+| 征召携带行军口粮 | 开 | 征召时拾取 MealSurvivalPack |
+| 携带数量 | 1 | 行军口粮携带数量（1-5） |
+| 自动喂食伤员 | 开 | 扫描卧床饥饿伤员安排医生喂食 |
+| 自动食物限制 | 开 | 按角色设置 FoodPolicy |
+
+### 喂食 Job 结构
+
+`FeedPatient` Job 的 targetA=食物（FoodSourceInd=A），targetB=伤员（DelivereeInd=B）。食物来源：医生库存优先（`FoodUtility.BestFoodInInventory`，仅限 Meal 区间避免 raw），地图次之（`GenClosest` + `FoodSourceNotPlantOrTree` 组）。
+
+### 医疗守卫偏离
+
+喂食对伤员**不应用** `ShouldSkipForMedical`——伤员本身在床上休养（`IsRecoveringInBed=true`），若应用守卫会永真跳过导致无法喂食。`FeedPatient` Job 不移动伤员，伤员维持 `LayDown` Job 不被打断。仅检查医生是否在执行医疗 Job。
+
+## 自动血清（AutoSerum）
+
+`AutoSerum/SerumAllocator.cs` 主调度器（3000 tick 周期）统一调度 3 个子功能。MechSerumHealer 是 Core 血清无需 DLC；增益血清（Metalblood/Juggernaut/MindNumb）需 Anomaly DLC。
+
+### 子功能
+
+| 子功能 | 实现 | 说明 |
+|--------|------|------|
+| 血清库存携带 | `SerumCarrier` | 医生角色或高评级（≥S）战斗员库存携带 MechSerumHealer 1 件备用（2500 tick 冷却） |
+| 治愈血清注射 | `HealerSerumAllocator` | 全局扫描重伤员（`SummaryHealthPercent < 0.3` 且需治疗），库存有 MechSerumHealer 则自注射（UseItem Job） |
+| 增益血清战斗注射 | `BoostSerumAllocator` | Anomaly DLC 战斗情境自动注射增益血清（60000 tick 冷却 ≈ 1 天） |
+
+### 增益血清选择
+
+| Pawn 状态 | 注射血清 | 效果 |
+|-----------|---------|------|
+| 低血量（< 50%） | MindNumb | 防精神崩溃（生存优先） |
+| Brawler 角色 | Metalblood | 减伤增强前排生存（但火抗下降） |
+| 其他战斗员 | Juggernaut | 力量/速度↑增强输出 |
+
+已有对应 hediff 时跳过（避免重复注射浪费）。血清来源：库存优先，地图次之。
+
+### 设置项（MOD 选项 → 自动血清）
+
+| 设置 | 默认 | 说明 |
+|------|------|------|
+| 启用自动血清 | 关 | 总开关（涉及 Pawn 行为与稀有资源消耗，谨慎默认关） |
+| 医生携带治愈血清 | 开 | 医生/高评级战斗员拾取 MechSerumHealer 备用 |
+| 重伤注射治愈血清 | 开 | 重伤员自注射 MechSerumHealer |
+| 战斗注射增益血清 | 开 | Anomaly DLC 战斗情境注射增益血清 |
+
+### 医疗守卫偏离
+
+治愈血清注射对伤员**不应用** `ShouldSkipForMedical`——伤员在床上休养会永真跳过，救命优先。`UseItem` Job 短暂（600 tick ≈ 10 秒），可接受打断 `LayDown`。增益血清注射对 Pawn 应用守卫（Combat 情境的 Pawn 按定义不在床上休养，守卫不会误拦）。
+
+### DLC 兼容
+
+- MechSerumHealer 是 Core 血清，无需 `ModsConfig.AnomalyActive`
+- 增益血清（MetalbloodSerum/JuggernautSerum/MindNumbSerum）是 Anomaly DLC，`BoostSerumAllocator` 内部 `ModsConfig.AnomalyActive` gate
+- 3 个 ThingDef + 3 个 HediffDef 懒加载缓存，`DefDatabase.GetNamed(defName, false)` + null 检查
+- Hediff defName 与 Thing defName 不完全一致：Metalblood 血清的 hediff 是 `Metalblood`（非 MetalbloodSerum），Juggernaut/MindNumb 血清的 hediff 与 Thing 同名
 
 ## 架构模型
 
@@ -626,6 +733,21 @@ Source/AutoEverything/
 │   └── PawnCombatProfile.cs               # Pawn 战斗画像（技能/特质/兴趣聚合）
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
 │   └── PawnMarker.cs                      # 高价值非殖民者标记（S+ 头顶红色星标实时绘制）
+├── AutoDrug/                              # → namespace AutoEverything.AutoDrug
+│   ├── DrugAllocator.cs                   # 自动药物主调度器（3000 tick 周期，4 子功能）
+│   ├── DrugPolicyManager.cs               # 按角色设置 DrugPolicy（数据驱动 DrugPolicyDef）
+│   ├── TreatmentAllocator.cs              # 自动治疗安排（扫描伤员 + TendPatient Job）
+│   └── MedicationAllocator.cs             # 自动预防服药（penoxycyline + Ingest Job）
+├── AutoFood/                              # → namespace AutoEverything.AutoFood
+│   ├── FoodAllocator.cs                   # 自动食物主调度器（3000 tick 周期，3 子功能）
+│   ├── MealCarrier.cs                     # 征召携带行军口粮（MealSurvivalPack）
+│   ├── FeedingAllocator.cs                # 自动喂食伤员（FeedPatient Job）
+│   └── FoodRestrictionManager.cs          # 食物限制管理（FoodPolicy）
+├── AutoSerum/                             # → namespace AutoEverything.AutoSerum
+│   ├── SerumAllocator.cs                  # 自动血清主调度器（3000 tick 周期，3 子功能）
+│   ├── SerumCarrier.cs                    # 医生/高评级战斗员携带 MechSerumHealer
+│   ├── HealerSerumAllocator.cs            # 重伤员治愈血清自注射（UseItem Job）
+│   └── BoostSerumAllocator.cs             # Anomaly DLC 增益血清战斗注射
 └── UI/                                    # → namespace AutoEverything.UI
     ├── ITab_GearManager.cs                # 装备管理面板
     ├── Dialog_GlobalReallocate.cs         # 全局重配规则对话框
@@ -638,9 +760,12 @@ Source/AutoEverything/
 - **AutoEquipment**：装备评分系统（CompTick 协调、评分门面、装备分类、评分管线与各 Scorer）
 - **Allocation**：全局分配策略（全局重配、副武器、腰带附件、Pawn 战斗画像）
 - **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制）
+- **AutoDrug**：自动药物管理（DrugPolicy、治疗安排、预防服药、药品携带扩展）
+- **AutoFood**：自动食物管理（行军口粮携带、喂食伤员、食物限制）
+- **AutoSerum**：自动血清管理（治愈血清携带/注射、Anomaly DLC 增益血清战斗注射）
 - **UI**：玩家界面（ITab 面板、对话框、预设详情窗口）
 
-未来扩展（自动药物/自动食物等）可在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
+未来扩展（自动机械族/自动训练等）可在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。新增模块应照搬 `DrugAllocator` 静态调度器模式（3000 tick 周期门控 + `AllocateForPawn`/`ReallocateAll` 双入口），并接入 `AutoExecutor` 周期触发与 `CompGearManager.CompTick`。
 
 ### 评估周期
 
@@ -650,6 +775,10 @@ Source/AutoEverything/
 | 征召副武器检查 | 30 tick | 战斗紧迫，需快速切近战 |
 | `SidearmAllocator` | 2000 tick | 全局副武器分配 |
 | `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |
+| `DrugAllocator` | 3000 tick | 自动药物主调度器（DrugPolicy/TreatmentAllocator/MedicationAllocator 三子功能） |
+| `FoodAllocator` | 3000 tick | 自动食物主调度器（MealCarrier/FeedingAllocator/FoodRestrictionManager 三子功能） |
+| `SerumAllocator` | 3000 tick | 自动血清主调度器（SerumCarrier/HealerSerumAllocator/BoostSerumAllocator 三子功能） |
+| `BoostSerumAllocator` 增益血清冷却 | 60000 tick（≈1 天） | 增益血清注射 per-pawn 冷却，避免频繁注射 |
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc`；增加时立即触发评级+装备+星标 |
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
@@ -793,6 +922,10 @@ make rebuild-check  # 完整重建后检查
 | `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
 | `WorkAllocator.cs` 奴隶收集/狩猎限制/工作分配规则 | `## 奴隶处理` + `## 自动工作分配（AutoWork）` 分配规则表格与统一四大原则 |
 | `PawnMarker.cs` / `AutoMarkPawn` 模块 | `### 高价值非殖民者标记（AutoMarkPawn）` |
+| `DrugAllocator.cs` / `AutoDrug` 模块 | `## 自动药物（AutoDrug）` + `### 评估周期` 表格 |
+| `FoodAllocator.cs` / `AutoFood` 模块 | `## 自动食物（AutoFood）` + `### 评估周期` 表格 |
+| `SerumAllocator.cs` / `AutoSerum` 模块 | `## 自动血清（AutoSerum）` + `### 评估周期` 表格 |
+| `AE_DrugPolicyDefs.xml` | `## 自动药物（AutoDrug）→ 数据驱动的 DrugPolicy` |
 | `ITab_GearManager.cs` 底部勾选框 | `## 自动执行（AutoExecutor）` 入口章节 |
 | `SGSettings.cs` 排序相关 | `### 殖民者栏默认排序` 表格 |
 | 新增/删除源文件 | `### 目录结构` 代码块 |
