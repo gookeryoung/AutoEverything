@@ -249,4 +249,13 @@ Checking it counts current targets and shows a message; unchecking stops drawing
   <AE_AutoTreatment>Auto Treatment</AE_AutoTreatment>
   <AE_AutoMedication>Auto Medication</AE_AutoMedication>
   <AE_AutoDrugResult>Auto drug configuration complete</AE_AutoDrugResult>
+
+  <!-- Auto Food module (P4.2) -->
+  <AE_AutoFood>Auto Food</AE_AutoFood>
+  <AE_AutoFoodEnabled>Enable Auto Food</AE_AutoFoodEnabled>
+  <AE_AutoCarryMeal>Carry Survival Meal on Draft</AE_AutoCarryMeal>
+  <AE_CarryMealCount>Carry Count</AE_CarryMealCount>
+  <AE_AutoFeeding>Auto Feed Patients</AE_AutoFeeding>
+  <AE_AutoFoodRestriction>Auto Food Restriction</AE_AutoFoodRestriction>
+  <AE_AutoFoodResult>Auto food configuration complete</AE_AutoFoodResult>
 </LanguageData>

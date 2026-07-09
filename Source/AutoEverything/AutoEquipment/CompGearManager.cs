@@ -7,6 +7,7 @@ using Verse.AI;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.Allocation;
 using AutoEverything.AutoDrug;
+using AutoEverything.AutoFood;
 using AutoEverything.Core;
 
 namespace AutoEverything.AutoEquipment
@@ -208,6 +209,14 @@ namespace AutoEverything.AutoEquipment
                 if (AESettings.autoDrugEnabled)
                 {
                     DrugAllocator.AllocateForPawn(Pawn);
+                }
+
+                // 自动食物模块（P4.2）：周期 3000 tick 门控，由 FoodAllocator.AllocateForPawn 内部判断
+                // 第一个触发的 Pawn 承担全局扫描成本，其余跳过
+                // 放在 DrugAllocator 后：与药物逻辑同步触发，且 CompTick 已 try-catch 隔离
+                if (AESettings.autoFoodEnabled)
+                {
+                    FoodAllocator.AllocateForPawn(Pawn);
                 }
 
                 // 副武器仅对殖民者（非奴隶、非未成年）

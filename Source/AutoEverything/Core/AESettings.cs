@@ -41,6 +41,14 @@ namespace AutoEverything.Core
         public static bool autoTreatment = true;            // 自动安排伤员治疗（找空闲医生走 TendPatient）
         public static bool autoMedication = true;          // 自动预防性服药（penoxycyline 防疟疾）
 
+        // 自动食物（P4.2 新增）
+        // 设计：默认关闭，需玩家主动启用——自动修改 FoodPolicy 与拾取食物涉及 Pawn 行为，谨慎默认关
+        public static bool autoFoodEnabled = false;        // 自动食物总开关（含 3 个子功能）
+        public static bool autoCarryMeal = true;             // 征召时携带行军口粮（应急食用）
+        public static int carryMealCount = 1;                // 携带行军口粮数量（默认 1 份）
+        public static bool autoFeeding = true;               // 自动喂食伤员（找空闲医生走 FeedPatient）
+        public static bool autoFoodRestriction = true;       // 自动食物限制管理（伤员/医生切到高营养政策）
+
         // 性能
         public static int evaluateInterval = 500;    // 装备评估间隔（tick）
 
@@ -441,6 +449,12 @@ namespace AutoEverything.Core
             LookCompat(ref autoDrugPolicy, "autoDrugPolicy", true);
             LookCompat(ref autoTreatment, "autoTreatment", true);
             LookCompat(ref autoMedication, "autoMedication", true);
+            // 自动食物（P4.2 新增）：Scribe Key 与字段名一致（含 ae_ 前缀由 LookCompat 自动处理）
+            LookCompat(ref autoFoodEnabled, "autoFoodEnabled", false);
+            LookCompat(ref autoCarryMeal, "autoCarryMeal", true);
+            LookCompat(ref carryMealCount, "carryMealCount", 1);
+            LookCompat(ref autoFeeding, "autoFeeding", true);
+            LookCompat(ref autoFoodRestriction, "autoFoodRestriction", true);
             LookCompat(ref evaluateInterval, "evaluateInterval", 500);
             LookCompat(ref upgradeThreshold, "upgradeThreshold", 0.15f);
             LookCompat(ref tempDangerMargin, "tempDangerMargin", 5f);
@@ -612,7 +626,8 @@ namespace AutoEverything.Core
         {
             // 双列布局：内容压缩到约 460f 高
             // 保留 ScrollView 作为极小窗口的安全兜底
-            float contentHeight = 540f;  // 右列新增排序选项区，预留更多高度
+            // P4.2 新增 autoFood 区块（约 6 行 + slider），高度从 540f 调至 680f 避免频繁滚动
+            float contentHeight = 680f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -687,6 +702,23 @@ namespace AutoEverything.Core
                 r.CheckboxLabeled("AE_AutoDrugPolicy".Translate(), ref autoDrugPolicy);
                 r.CheckboxLabeled("AE_AutoTreatment".Translate(), ref autoTreatment);
                 r.CheckboxLabeled("AE_AutoMedication".Translate(), ref autoMedication);
+            }
+
+            // 自动食物模块（P4.2 新增）
+            // 默认关：自动修改 FoodPolicy 与拾取食物涉及 Pawn 行为，需玩家主动启用
+            r.GapLine();
+            r.Label("AE_AutoFood".Translate());
+            r.CheckboxLabeled("AE_AutoFoodEnabled".Translate(), ref autoFoodEnabled);
+            if (autoFoodEnabled)
+            {
+                r.CheckboxLabeled("AE_AutoCarryMeal".Translate(), ref autoCarryMeal);
+                if (autoCarryMeal)
+                {
+                    r.Label("AE_CarryMealCount".Translate() + ": " + carryMealCount);
+                    carryMealCount = (int)r.Slider(carryMealCount, 1, 5);
+                }
+                r.CheckboxLabeled("AE_AutoFeeding".Translate(), ref autoFeeding);
+                r.CheckboxLabeled("AE_AutoFoodRestriction".Translate(), ref autoFoodRestriction);
             }
 
             r.GapLine();

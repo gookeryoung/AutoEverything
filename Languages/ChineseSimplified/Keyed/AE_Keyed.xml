@@ -250,4 +250,13 @@
   <AE_AutoTreatment>自动治疗安排</AE_AutoTreatment>
   <AE_AutoMedication>自动预防服药</AE_AutoMedication>
   <AE_AutoDrugResult>自动药物配置完成</AE_AutoDrugResult>
+
+  <!-- 自动食物模块（P4.2） -->
+  <AE_AutoFood>自动食物</AE_AutoFood>
+  <AE_AutoFoodEnabled>启用自动食物</AE_AutoFoodEnabled>
+  <AE_AutoCarryMeal>征召携带行军口粮</AE_AutoCarryMeal>
+  <AE_CarryMealCount>携带数量</AE_CarryMealCount>
+  <AE_AutoFeeding>自动喂食伤员</AE_AutoFeeding>
+  <AE_AutoFoodRestriction>自动食物限制</AE_AutoFoodRestriction>
+  <AE_AutoFoodResult>自动食物配置完成</AE_AutoFoodResult>
 </LanguageData>
