@@ -570,6 +570,17 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **Harmony 补丁降级**：`PawnUIOverlay` 类型或 `DrawPawnGUIOverlay` 方法缺失时仅 `Log.Warning`，星标不显示但不崩溃
 - **入口**：殖民者装备面板（ITab）底部 → "高价值标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
 
+### ITab 面板测试控件
+
+为便于在游戏中测试，ITab 底部除原有 4 勾选框（评级/工作/装备/星标）+ 全局重配按钮外，新增 3 勾选框 + 1 即时触发按钮行：
+
+| 控件 | 作用 | 说明 |
+|------|------|------|
+| 自动药物/食物/血清勾选框 | 总开关 | 勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动。与 MOD 选项同步，避免进 MOD 选项开启 |
+| 即时触发按钮行（3 小按钮）| 立即药物/立即食物/立即血清 | 点击立即执行一次对应模块配置（绕过 3000 tick 周期），可反复点击便于测试。需先勾选总开关才会真正执行 |
+
+**测试流程**：勾选对应模块总开关 → 点击即时按钮反复触发 → 观察 Messages 消息反馈与 Pawn 行为变化。面板高度已从 632f 调整为 766f 容纳新增控件。
+
 ## 自动药物（AutoDrug）
 
 `AutoDrug/DrugAllocator.cs` 主调度器（3000 tick 周期，照搬 `BeltAllocator` 静态门控模式）统一调度 4 个子功能。所有子功能共享 `AllocateForPawn`/`ReallocateAll` 双入口，由 `CompGearManager.CompTick` 在 `EvaluateInventory` 后调用。

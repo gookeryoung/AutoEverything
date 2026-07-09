@@ -116,8 +116,9 @@ namespace AutoEverything.UI
         {
             labelKey = "AE_Tab";
 
-            // 高度增加以容纳徽章区与状态摘要 + 底部 4 勾选框
-            size = new Vector2(360f, 632f);
+            // 高度增加以容纳徽章区与状态摘要 + 底部 7 勾选框 + 2 按钮行
+            // 7 勾选框（评级/工作/装备/星标/药物/食物/血清）+ 1 即时触发按钮行 + 1 全局重配按钮
+            size = new Vector2(360f, 766f);
         }
 
         public override bool IsVisible
@@ -141,15 +142,17 @@ namespace AutoEverything.UI
             // 食尸鬼可能没有 comp（被排除注入），仍允许显示评级信息
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：4 勾选框 + 1 按钮 + 5 间隔
+            // 底部区预留高度：7 勾选框 + 2 按钮行 + 9 间隔
+            // 7 勾选框：评级/工作/装备/星标/药物/食物/血清
+            // 2 按钮行：即时触发按钮行（药物/食物/血清 3 小按钮）+ 全局重配按钮
             float buttonHeight = 30f;
             float buttonGap = 8f;
             float checkboxHeight = 24f;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（4 勾选框 + 1 按钮 + 5 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 4 + buttonHeight + buttonGap * 5));
+            // 内容区高度 = 总高 - 底部区（7 勾选框 + 2 按钮行 + 9 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 7 + buttonHeight * 2 + buttonGap * 9));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -417,11 +420,97 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerMarkNow();
             }
 
-            // 5. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
+            // 5. 自动药物勾选框：勾选立即触发 + 启用周期自动；取消勾选仅停止自动（保留当前配置）
+            Rect drugCheckRect = new Rect(
+                rect.x,
+                markCheckRect.yMax + buttonGap,
+                rect.width,
+                checkboxHeight);
+
+            bool prevWrap5 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevDrug = AESettings.autoDrugEnabled;
+            Widgets.CheckboxLabeled(drugCheckRect, "AE_AutoDrugEnabled".Translate(), ref AESettings.autoDrugEnabled);
+            Text.WordWrap = prevWrap5;
+            TooltipHandler.TipRegion(drugCheckRect, "AE_TT_AutoDrugEnabled".Translate());
+            // 状态变化：勾选时立即执行；取消勾选仅停止自动（无副作用）
+            if (AESettings.autoDrugEnabled && AESettings.autoDrugEnabled != prevDrug)
+            {
+                AutoExecutor.TriggerDrugNow();
+            }
+
+            // 6. 自动食物勾选框
+            Rect foodCheckRect = new Rect(
+                rect.x,
+                drugCheckRect.yMax + buttonGap,
+                rect.width,
+                checkboxHeight);
+
+            bool prevWrap6 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevFood = AESettings.autoFoodEnabled;
+            Widgets.CheckboxLabeled(foodCheckRect, "AE_AutoFoodEnabled".Translate(), ref AESettings.autoFoodEnabled);
+            Text.WordWrap = prevWrap6;
+            TooltipHandler.TipRegion(foodCheckRect, "AE_TT_AutoFoodEnabled".Translate());
+            if (AESettings.autoFoodEnabled && AESettings.autoFoodEnabled != prevFood)
+            {
+                AutoExecutor.TriggerFoodNow();
+            }
+
+            // 7. 自动血清勾选框
+            Rect serumCheckRect = new Rect(
+                rect.x,
+                foodCheckRect.yMax + buttonGap,
+                rect.width,
+                checkboxHeight);
+
+            bool prevWrap7 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevSerum = AESettings.autoSerumEnabled;
+            Widgets.CheckboxLabeled(serumCheckRect, "AE_AutoSerumEnabled".Translate(), ref AESettings.autoSerumEnabled);
+            Text.WordWrap = prevWrap7;
+            TooltipHandler.TipRegion(serumCheckRect, "AE_TT_AutoSerumEnabled".Translate());
+            if (AESettings.autoSerumEnabled && AESettings.autoSerumEnabled != prevSerum)
+            {
+                AutoExecutor.TriggerSerumNow();
+            }
+
+            // 8. 即时触发按钮行：3 个小按钮并排，便于反复测试（绕过 3000 tick 周期）
+            // 点击直接调用 TriggerXxxNow；即使总开关关闭也可点击，由内部逻辑决定是否执行
+            float triggerBtnWidth = (rect.width - buttonGap * 2) / 3f;
+            Rect triggerRowRect = new Rect(
+                rect.x,
+                serumCheckRect.yMax + buttonGap,
+                rect.width,
+                buttonHeight);
+
+            Rect drugTriggerRect = new Rect(triggerRowRect.x, triggerRowRect.y, triggerBtnWidth, buttonHeight);
+            Rect foodTriggerRect = new Rect(drugTriggerRect.xMax + buttonGap, triggerRowRect.y, triggerBtnWidth, buttonHeight);
+            Rect serumTriggerRect = new Rect(foodTriggerRect.xMax + buttonGap, triggerRowRect.y, triggerBtnWidth, buttonHeight);
+
+            if (Widgets.ButtonText(drugTriggerRect, "AE_TriggerDrugNow".Translate()))
+            {
+                AutoExecutor.TriggerDrugNow();
+            }
+            TooltipHandler.TipRegion(drugTriggerRect, "AE_TT_TriggerDrugNow".Translate());
+
+            if (Widgets.ButtonText(foodTriggerRect, "AE_TriggerFoodNow".Translate()))
+            {
+                AutoExecutor.TriggerFoodNow();
+            }
+            TooltipHandler.TipRegion(foodTriggerRect, "AE_TT_TriggerFoodNow".Translate());
+
+            if (Widgets.ButtonText(serumTriggerRect, "AE_TriggerSerumNow".Translate()))
+            {
+                AutoExecutor.TriggerSerumNow();
+            }
+            TooltipHandler.TipRegion(serumTriggerRect, "AE_TT_TriggerSerumNow".Translate());
+
+            // 9. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
             // 食尸鬼面板也显示此按钮（统一入口），但 GlobalAllocator 内部会跳过食尸鬼
             Rect buttonRect = new Rect(
                 rect.x,
-                markCheckRect.yMax + buttonGap,
+                triggerRowRect.yMax + buttonGap,
                 rect.width,
                 buttonHeight);
 

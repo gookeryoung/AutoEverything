@@ -250,6 +250,13 @@
   <AE_AutoTreatment>自动治疗安排</AE_AutoTreatment>
   <AE_AutoMedication>自动预防服药</AE_AutoMedication>
   <AE_AutoDrugResult>自动药物配置完成</AE_AutoDrugResult>
+  <AE_TT_AutoDrugEnabled>勾选后自动执行药物配置：每 3000 tick 一次，新增殖民者时立即触发。
+包含 4 子功能：扩展药品携带（医生/医疗技能战斗员/重甲前排带药）、DrugPolicy 自动设置（医生含 penoxycyline、战斗员禁成瘾品）、自动治疗安排（扫描伤员安排医生）、自动预防服药（penoxycyline 防疟疾）。
+勾选时立即执行一次；取消勾选仅停止自动执行，保留当前配置。</AE_TT_AutoDrugEnabled>
+  <AE_TriggerDrugNow>立即药物</AE_TriggerDrugNow>
+  <AE_TT_TriggerDrugNow>立即执行一次自动药物配置（绕过 3000 tick 周期），便于测试。
+需先勾选"启用自动药物"总开关才会真正执行。
+点击后弹消息框反馈执行结果。</AE_TT_TriggerDrugNow>
 
   <!-- 自动食物模块（P4.2） -->
   <AE_AutoFood>自动食物</AE_AutoFood>
@@ -259,6 +266,13 @@
   <AE_AutoFeeding>自动喂食伤员</AE_AutoFeeding>
   <AE_AutoFoodRestriction>自动食物限制</AE_AutoFoodRestriction>
   <AE_AutoFoodResult>自动食物配置完成</AE_AutoFoodResult>
+  <AE_TT_AutoFoodEnabled>勾选后自动执行食物配置：每 3000 tick 一次，新增殖民者时立即触发。
+包含 3 子功能：征召携带行军口粮（MealSurvivalPack）、自动喂食伤员（扫描卧床饥饿伤员安排医生喂食）、食物限制管理（按角色设 FoodPolicy）。
+勾选时立即执行一次；取消勾选仅停止自动执行，保留当前配置。</AE_TT_AutoFoodEnabled>
+  <AE_TriggerFoodNow>立即食物</AE_TriggerFoodNow>
+  <AE_TT_TriggerFoodNow>立即执行一次自动食物配置（绕过 3000 tick 周期），便于测试。
+需先勾选"启用自动食物"总开关才会真正执行。
+点击后弹消息框反馈执行结果。</AE_TT_TriggerFoodNow>
 
   <!-- 自动血清模块（P4.3，Anomaly DLC 功能） -->
   <AE_AutoSerum>自动血清</AE_AutoSerum>
@@ -267,4 +281,11 @@
   <AE_AutoHealerSerum>重伤注射治愈血清</AE_AutoHealerSerum>
   <AE_AutoBoostSerum>战斗注射增益血清</AE_AutoBoostSerum>
   <AE_AutoSerumResult>自动血清配置完成</AE_AutoSerumResult>
+  <AE_TT_AutoSerumEnabled>勾选后自动执行血清配置：每 3000 tick 一次，新增殖民者时立即触发。
+包含 3 子功能：医生/高评级战斗员携带治愈血清（MechSerumHealer）、重伤员自注射治愈血清、Anomaly DLC 战斗情境注射增益血清（Metalblood/Juggernaut/MindNumb）。
+勾选时立即执行一次；取消勾选仅停止自动执行，保留当前配置。</AE_TT_AutoSerumEnabled>
+  <AE_TriggerSerumNow>立即血清</AE_TriggerSerumNow>
+  <AE_TT_TriggerSerumNow>立即执行一次自动血清配置（绕过 3000 tick 周期），便于测试。
+需先勾选"启用自动血清"总开关才会真正执行。
+点击后弹消息框反馈执行结果。</AE_TT_TriggerSerumNow>
 </LanguageData>
