@@ -158,15 +158,20 @@
 
 ## ITab 面板布局
 
-- 面板尺寸 `360f × 632f`（高度容纳底部 4 勾选框 + 1 按钮），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
+- 面板尺寸 `360f × 766f`（高度容纳底部 7 勾选框 + 2 按钮行），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
 - 缓存周期 60 tick：角色/情境/评级/数值摘要避免每帧重算
 - 徽章行 4 列等宽：角色 / 情境 / 评级 / 护甲偏好（食尸鬼用"食尸鬼"徽章替代护甲偏好）
 - **文字防换行强制**：所有 `Widgets.Label` 绘制前 `Text.WordWrap = false`，绘制后恢复
 - **标签宽度动态计算**：用 `Text.CalcSize(labelText).x + 留白`，禁止固定宽度（如 `60f`）
 - 完整信息放 Tooltip，徽章/标签本身只做概览
-- 底部 4 勾选框 + 1 按钮，固定位置不随滚动：
+- 底部 7 勾选框 + 2 按钮行，固定位置不随滚动：
   - 人员自动评级（`autoTierTag`）
   - 工作自动配置（`autoWorkEnabled`）
   - 装备自动重配（`autoGearEnabled`）
   - 高价值标记（`autoMarkPawn`）
+  - 自动药物（`autoDrugEnabled`）
+  - 自动食物（`autoFoodEnabled`）
+  - 自动血清（`autoSerumEnabled`）
+  - 即时触发按钮行（3 小按钮并排，宽度 = `(rect.width - buttonGap * 2) / 3f`）：立即药物 / 立即食物 / 立即血清，点击调用 `AutoExecutor.TriggerXxxNow` 绕过 3000 tick 周期，便于游戏内反复测试
   - 全局装备重配按钮（占满宽度）
+- **测试控件说明**：勾选框勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动（保留当前配置）。即时触发按钮可反复点击绕过 3000 tick 周期，便于游戏内测试观察 Messages 消息反馈与 Pawn 行为变化
