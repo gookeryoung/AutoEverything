@@ -258,4 +258,12 @@ Checking it counts current targets and shows a message; unchecking stops drawing
   <AE_AutoFeeding>Auto Feed Patients</AE_AutoFeeding>
   <AE_AutoFoodRestriction>Auto Food Restriction</AE_AutoFoodRestriction>
   <AE_AutoFoodResult>Auto food configuration complete</AE_AutoFoodResult>
+
+  <!-- Auto Serum module (P4.3, Anomaly DLC feature) -->
+  <AE_AutoSerum>Auto Serum</AE_AutoSerum>
+  <AE_AutoSerumEnabled>Enable Auto Serum</AE_AutoSerumEnabled>
+  <AE_AutoCarryHealerSerum>Carry Healer Serum</AE_AutoCarryHealerSerum>
+  <AE_AutoHealerSerum>Healer Serum for Critical</AE_AutoHealerSerum>
+  <AE_AutoBoostSerum>Boost Serum in Combat</AE_AutoBoostSerum>
+  <AE_AutoSerumResult>Auto serum configuration complete</AE_AutoSerumResult>
 </LanguageData>

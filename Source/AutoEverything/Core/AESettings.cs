@@ -49,6 +49,14 @@ namespace AutoEverything.Core
         public static bool autoFeeding = true;               // 自动喂食伤员（找空闲医生走 FeedPatient）
         public static bool autoFoodRestriction = true;       // 自动食物限制管理（伤员/医生切到高营养政策）
 
+        // 自动血清（P4.3 新增，Anomaly DLC 功能）
+        // 设计：默认关闭，需玩家主动启用——自动注射血清涉及 Pawn 行为与稀有资源消耗，谨慎默认关
+        // MechSerumHealer 是 Core 血清无需 DLC；增益血清（Metalblood/Juggernaut/MindNumb）需 Anomaly DLC
+        public static bool autoSerumEnabled = false;       // 自动血清总开关（含 3 个子功能）
+        public static bool autoCarryHealerSerum = true;    // 医生/高评级战斗员携带治愈血清（备用救命）
+        public static bool autoHealerSerum = true;          // 重伤自动注射治愈血清（MechSerumHealer）
+        public static bool autoBoostSerum = true;            // 战斗自动注射增益血清（Anomaly DLC）
+
         // 性能
         public static int evaluateInterval = 500;    // 装备评估间隔（tick）
 
@@ -455,6 +463,11 @@ namespace AutoEverything.Core
             LookCompat(ref carryMealCount, "carryMealCount", 1);
             LookCompat(ref autoFeeding, "autoFeeding", true);
             LookCompat(ref autoFoodRestriction, "autoFoodRestriction", true);
+            // 自动血清（P4.3 新增）：Scribe Key 与字段名一致（含 ae_ 前缀由 LookCompat 自动处理）
+            LookCompat(ref autoSerumEnabled, "autoSerumEnabled", false);
+            LookCompat(ref autoCarryHealerSerum, "autoCarryHealerSerum", true);
+            LookCompat(ref autoHealerSerum, "autoHealerSerum", true);
+            LookCompat(ref autoBoostSerum, "autoBoostSerum", true);
             LookCompat(ref evaluateInterval, "evaluateInterval", 500);
             LookCompat(ref upgradeThreshold, "upgradeThreshold", 0.15f);
             LookCompat(ref tempDangerMargin, "tempDangerMargin", 5f);
@@ -627,7 +640,8 @@ namespace AutoEverything.Core
             // 双列布局：内容压缩到约 460f 高
             // 保留 ScrollView 作为极小窗口的安全兜底
             // P4.2 新增 autoFood 区块（约 6 行 + slider），高度从 540f 调至 680f 避免频繁滚动
-            float contentHeight = 680f;
+            // P4.3 新增 autoSerum 区块（约 6 行），高度从 680f 调至 820f 避免频繁滚动
+            float contentHeight = 820f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -719,6 +733,18 @@ namespace AutoEverything.Core
                 }
                 r.CheckboxLabeled("AE_AutoFeeding".Translate(), ref autoFeeding);
                 r.CheckboxLabeled("AE_AutoFoodRestriction".Translate(), ref autoFoodRestriction);
+            }
+
+            // 自动血清模块（P4.3 新增，Anomaly DLC 功能）
+            // 默认关：自动注射血清涉及 Pawn 行为与稀有资源消耗，需玩家主动启用
+            r.GapLine();
+            r.Label("AE_AutoSerum".Translate());
+            r.CheckboxLabeled("AE_AutoSerumEnabled".Translate(), ref autoSerumEnabled);
+            if (autoSerumEnabled)
+            {
+                r.CheckboxLabeled("AE_AutoCarryHealerSerum".Translate(), ref autoCarryHealerSerum);
+                r.CheckboxLabeled("AE_AutoHealerSerum".Translate(), ref autoHealerSerum);
+                r.CheckboxLabeled("AE_AutoBoostSerum".Translate(), ref autoBoostSerum);
             }
 
             r.GapLine();

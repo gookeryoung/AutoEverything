@@ -259,4 +259,12 @@
   <AE_AutoFeeding>自动喂食伤员</AE_AutoFeeding>
   <AE_AutoFoodRestriction>自动食物限制</AE_AutoFoodRestriction>
   <AE_AutoFoodResult>自动食物配置完成</AE_AutoFoodResult>
+
+  <!-- 自动血清模块（P4.3，Anomaly DLC 功能） -->
+  <AE_AutoSerum>自动血清</AE_AutoSerum>
+  <AE_AutoSerumEnabled>启用自动血清</AE_AutoSerumEnabled>
+  <AE_AutoCarryHealerSerum>医生携带治愈血清</AE_AutoCarryHealerSerum>
+  <AE_AutoHealerSerum>重伤注射治愈血清</AE_AutoHealerSerum>
+  <AE_AutoBoostSerum>战斗注射增益血清</AE_AutoBoostSerum>
+  <AE_AutoSerumResult>自动血清配置完成</AE_AutoSerumResult>
 </LanguageData>
