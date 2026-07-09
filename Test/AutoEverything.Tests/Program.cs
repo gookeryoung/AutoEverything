@@ -34,6 +34,7 @@ namespace AutoEverything.Tests
                 Console.WriteLine("=== AutoEverything.Tests ===");
                 int failures = 0;
                 failures += ApplySkillFloorCoreTests.RunAll();
+                failures += EvaluateAutoTierCoreTests.RunAll();
 
                 if (failures == 0)
                 {

@@ -245,58 +245,62 @@ namespace AutoEverything.RoleEvaluation
         public static CombatTier GetAutoCombatTier(Pawn pawn)
         {
             if (pawn == null) return CombatTier.X;
-
-            // X：无法从事暴力活动（医疗特质 DisableViolent、未成年限制等）
-            // 先于一切判定：X 档不受降档影响，避免给不能战斗的 Pawn 装武器
             if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return CombatTier.X;
-
             if (pawn.skills == null) return CombatTier.X;
 
-            // 统计所有兴趣的双 Major/Minor 数量（用于 A/B 判定）
-            int majorCount = CountPassions(pawn, Passion.Major);
-            int minorCount = CountPassions(pawn, Passion.Minor);
+            return EvaluateAutoTierCore(CollectTierInput(pawn));
+        }
 
-            // 取关键技能的 Passion 状态
-            bool shootingMajor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Major);
-            bool shootingMinor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Minor);
-            bool meleeMajor = IsPassion(pawn, SkillDefOf.Melee, Passion.Major);
-            bool meleeMinor = IsPassion(pawn, SkillDefOf.Melee, Passion.Minor);
-            bool socialMajor = IsPassion(pawn, SkillDefOf.Social, Passion.Major);
+        /// <summary>
+        /// 评级输入参数（从 Pawn 收集，用于纯逻辑核心 EvaluateAutoTierCore）。
+        /// 提取为 struct 便于单元测试：测试只需构造输入，无需 mock Pawn。
+        /// </summary>
+        internal struct TierEvaluationInput
+        {
+            // 特质状态
+            public bool IsTriggerHappy;   // 乱开枪 ShootingAccuracy degree=-1
+            public bool IsTough;           // 坚韧 Tough
+            public bool IsNimble;          // 敏捷 Nimble
+            public bool IsBrawler;         // 格斗者 Brawler
+            public bool Industrious2;      // 勤奋 Industriousness degree=2
+            public bool Neurotic2;         // 严重神经质 Neurotic degree=2
+            public bool Beauty2;           // 沉鱼落雁 Beauty degree=2
+            public bool HasSpecialTalent;  // 特殊天赋特质之一
+            public bool HasNegativeTrait;  // 负面特质（用于降档）
 
-            // 预计算特质状态（避免重复 DegreeOfTrait 调用）
-            bool hasTraits = pawn.story?.traits != null;
-            bool isTough = hasTraits && TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough);
-            bool isNimble = hasTraits && TraitDefCache.Nimble != null && pawn.story.traits.HasTrait(TraitDefCache.Nimble);
-            bool isBrawler = hasTraits && pawn.story.traits.HasTrait(TraitDefOf.Brawler);
-            bool isTriggerHappy = false;
-            if (hasTraits && TraitDefCache.ShootingAccuracy != null)
-            {
-                isTriggerHappy = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
-            }
-            bool industrious2 = hasTraits && TraitDefCache.Industriousness != null
-                                && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) == 2;
-            bool neurotic2 = hasTraits && TraitDefCache.Neurotic != null
-                             && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) == 2;
-            bool beauty2 = hasTraits && TraitDefCache.Beauty != null
-                           && pawn.story.traits.DegreeOfTrait(TraitDefCache.Beauty) == 2;
+            // 技能兴趣状态
+            public bool ShootingMajor;
+            public bool ShootingMinor;
+            public bool MeleeMajor;
+            public bool MeleeMinor;
+            public bool SocialMajor;
 
-            int workMajors = CountWorkMajors(pawn);
-            bool meleeAnyPassion = meleeMajor || meleeMinor;
+            // 统计计数
+            public int MajorCount;   // 9 大技能 Major 总数
+            public int MinorCount;   // 9 大技能 Minor 总数
+            public int WorkMajors;   // 6 大专业工作技能 Major 数
+        }
 
-            // 三大维度取最高档（MaxTier 累积，不互斥）
+        /// <summary>
+        /// 评级纯逻辑核心（不依赖 Pawn，便于单元测试）。
+        /// 从 C 档开始，按三大维度取最高档，再处理特殊天赋/沉鱼落雁/A-B 判定/负面特质降档。
+        /// X 档（无法从事暴力活动）在 GetAutoCombatTier 入口判定，不在此函数处理。
+        /// </summary>
+        internal static CombatTier EvaluateAutoTierCore(TierEvaluationInput input)
+        {
             CombatTier tier = CombatTier.C;
 
             // 维度1（乱开枪系列）：triggerHappy + shooting
             //   SSS: triggerHappy + tough + shootingMajor
             //   SS:  triggerHappy + shootingMajor
             //   S:   triggerHappy + shootingMinor
-            if (isTriggerHappy)
+            if (input.IsTriggerHappy)
             {
-                if (isTough && shootingMajor)
+                if (input.IsTough && input.ShootingMajor)
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (shootingMajor)
+                else if (input.ShootingMajor)
                     tier = MaxTier(tier, CombatTier.SS);
-                else if (shootingMinor)
+                else if (input.ShootingMinor)
                     tier = MaxTier(tier, CombatTier.S);
             }
 
@@ -304,11 +308,12 @@ namespace AutoEverything.RoleEvaluation
             //   SSS: tough + meleeMajor + (nimble || brawler)
             //   SS:  tough + meleeMajor
             //   S:   tough + meleeAnyPassion
-            if (isTough)
+            bool meleeAnyPassion = input.MeleeMajor || input.MeleeMinor;
+            if (input.IsTough)
             {
-                if (meleeMajor && (isNimble || isBrawler))
+                if (input.MeleeMajor && (input.IsNimble || input.IsBrawler))
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (meleeMajor)
+                else if (input.MeleeMajor)
                     tier = MaxTier(tier, CombatTier.SS);
                 else if (meleeAnyPassion)
                     tier = MaxTier(tier, CombatTier.S);
@@ -318,26 +323,26 @@ namespace AutoEverything.RoleEvaluation
             //   SSS: industrious2 && neurotic2 && workMajors >= 3
             //   SS:  industrious2 && neurotic2 && workMajors >= 2
             //   S:   industrious2 && neurotic2 && workMajors >= 1
-            if (industrious2 && neurotic2)
+            if (input.Industrious2 && input.Neurotic2)
             {
-                if (workMajors >= 3)
+                if (input.WorkMajors >= 3)
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (workMajors >= 2)
+                else if (input.WorkMajors >= 2)
                     tier = MaxTier(tier, CombatTier.SS);
-                else if (workMajors >= 1)
+                else if (input.WorkMajors >= 1)
                     tier = MaxTier(tier, CombatTier.S);
             }
 
             // 原 S 条件 4：拥有特殊天赋特质之一
             //   博闻强识 TooSmart / 开心果 Joyous / 极致体能 BodyMastery
             //   痴迷虚空 VoidFascination / 神秘学者 Occultist / 怪诞不经 Disturbing
-            if (HasSpecialTalentTrait(pawn))
+            if (input.HasSpecialTalent)
             {
                 tier = MaxTier(tier, CombatTier.S);
             }
 
             // 原 S 条件 5：沉鱼落雁（Beauty degree=2）+ Social 双火
-            if (beauty2 && socialMajor)
+            if (input.Beauty2 && input.SocialMajor)
             {
                 tier = MaxTier(tier, CombatTier.S);
             }
@@ -346,12 +351,12 @@ namespace AutoEverything.RoleEvaluation
             if (tier == CombatTier.C)
             {
                 // A：≥ 2 个双 Major + ≥ 1 个单 Minor
-                if (majorCount >= 2 && (majorCount + minorCount) >= 3)
+                if (input.MajorCount >= 2 && (input.MajorCount + input.MinorCount) >= 3)
                 {
                     tier = CombatTier.A;
                 }
                 // B：≥ 1 个双 Major + ≥ 2 个单 Minor（合计 ≥ 3）
-                else if (majorCount >= 1 && (majorCount + minorCount) >= 3)
+                else if (input.MajorCount >= 1 && (input.MajorCount + input.MinorCount) >= 3)
                 {
                     tier = CombatTier.B;
                 }
@@ -361,12 +366,50 @@ namespace AutoEverything.RoleEvaluation
             //   纵火狂 Pyromaniac / 脑子慢 SlowLearner / 脆弱 Wimp
             //   工作懒惰 Industriousness degree=-1 / 工作怠惰 Industriousness degree=-2
             // D 不再降；X 先于一切判定不受影响
-            if (tier > CombatTier.D && HasNegativeTrait(pawn))
+            if (tier > CombatTier.D && input.HasNegativeTrait)
             {
                 tier = (CombatTier)(tier - 1);
             }
 
             return tier;
+        }
+
+        /// <summary>
+        /// 从 Pawn 收集评级所需的所有输入参数。
+        /// </summary>
+        private static TierEvaluationInput CollectTierInput(Pawn pawn)
+        {
+            TierEvaluationInput input = default;
+
+            input.MajorCount = CountPassions(pawn, Passion.Major);
+            input.MinorCount = CountPassions(pawn, Passion.Minor);
+
+            input.ShootingMajor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Major);
+            input.ShootingMinor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Minor);
+            input.MeleeMajor = IsPassion(pawn, SkillDefOf.Melee, Passion.Major);
+            input.MeleeMinor = IsPassion(pawn, SkillDefOf.Melee, Passion.Minor);
+            input.SocialMajor = IsPassion(pawn, SkillDefOf.Social, Passion.Major);
+
+            bool hasTraits = pawn.story?.traits != null;
+            input.IsTough = hasTraits && TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough);
+            input.IsNimble = hasTraits && TraitDefCache.Nimble != null && pawn.story.traits.HasTrait(TraitDefCache.Nimble);
+            input.IsBrawler = hasTraits && pawn.story.traits.HasTrait(TraitDefOf.Brawler);
+            if (hasTraits && TraitDefCache.ShootingAccuracy != null)
+            {
+                input.IsTriggerHappy = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
+            }
+            input.Industrious2 = hasTraits && TraitDefCache.Industriousness != null
+                                 && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) == 2;
+            input.Neurotic2 = hasTraits && TraitDefCache.Neurotic != null
+                              && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) == 2;
+            input.Beauty2 = hasTraits && TraitDefCache.Beauty != null
+                            && pawn.story.traits.DegreeOfTrait(TraitDefCache.Beauty) == 2;
+
+            input.WorkMajors = CountWorkMajors(pawn);
+            input.HasSpecialTalent = HasSpecialTalentTrait(pawn);
+            input.HasNegativeTrait = HasNegativeTrait(pawn);
+
+            return input;
         }
 
         /// <summary>
