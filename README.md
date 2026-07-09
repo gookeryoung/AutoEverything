@@ -848,6 +848,27 @@ Source/AutoEverything/
 - 兼容外星人 MOD（任何 `race.Humanlike` 种族）
 - 支持存档中途添加
 
+### Vanilla Skills Expanded（VSE）兼容
+
+启动时反射检测 VSE 是否加载，构建 passion → tier 映射，运行时 O(1) 查询，无 Tick 路径反射开销。无 VSE 时仅处理原版 3 档（None/Minor/Major），行为与原版完全一致。
+
+VSE 扩展的 6 种 passion 按以下规则统一处理：
+
+| VSE passion | 中文名 | PassionTier | 处理规则 |
+|-------------|--------|-------------|----------|
+| `VSE_Apathy` | 冷漠 | -1 | 视为"无火及以下"：战斗价值乘数 = 无火 × 0.5；不参与评级 Major/Minor 计数；研究型判定满足"无火及以下" |
+| `None` | 无火 | 0 | 原版无火 |
+| `Minor` | 单火 | 1 | 原版单火 |
+| `Major` | 双火 | 2 | 原版双火 |
+| `VSE_Natural` | 自然 | 2 | 等同双火：战斗价值乘数 = 双火；评级 Major 计数；角色检测按双火处理 |
+| `VSE_Critical` | 临界 | 3 | 高于双火：战斗价值乘数 = 双火 × 1.5；评级 Major 计数；装备评分乘数 = 双火 × 1.5 |
+
+设计要点：
+- **Apathy 不加分**：评级兴趣分按 tier 累加（Minor=1, Major=2, Critical=3），Apathy(-1) 与 None(0) 均不加分
+- **Major 计数含 Natural/Critical**：评级判定中 `tier >= Major` 含 Natural/Critical，符合"按双火处理"
+- **Minor 计数不含 Major 及以上**：避免双计数，`tier == Minor` 严格匹配
+- **反射失败降级**：VSE 检测异常时降级为原版 3 档，不阻断主功能
+
 ## 调试
 
 设置界面开启 `debugLogging` 后：

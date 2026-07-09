@@ -196,9 +196,9 @@ namespace AutoEverything.AutoWork
                 if (i < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                 {
                     // 原则 1+2：保证 N 人承担（仅未满载者），双火/单火/无火分别给优先级
-                    if (passionLevel >= (int)Passion.Major)
+                    if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                         priority = config.GuaranteeMajorPriority;
-                    else if (passionLevel >= (int)Passion.Minor)
+                    else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                         priority = config.GuaranteeMinorPriority;
                     else
                         priority = config.GuaranteeNonPassionatePriority;
@@ -206,9 +206,9 @@ namespace AutoEverything.AutoWork
                 else
                 {
                     // 原则 3+4：超出 guarantee 或满载者降级，双火/单火/无火分别给 Floor 保底
-                    if (passionLevel >= (int)Passion.Major)
+                    if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                         priority = config.FloorMajorPriority;
-                    else if (passionLevel >= (int)Passion.Minor)
+                    else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                         priority = config.FloorMinorPriority;
                     else
                         priority = config.FloorNonPassionatePriority;
@@ -226,13 +226,13 @@ namespace AutoEverything.AutoWork
                     string bucket;
                     if (finalIdx < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                     {
-                        bucket = passionLevel >= (int)Passion.Major ? "GM"
-                            : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
+                        bucket = passionLevel >= (int)PassionHelper.PassionTier.Major ? "GM"
+                            : (passionLevel >= (int)PassionHelper.PassionTier.Minor ? "Gi" : "N");
                     }
                     else
                     {
-                        bucket = passionLevel >= (int)Passion.Major ? "FM"
-                            : (passionLevel >= (int)Passion.Minor ? "Fi" : "N");
+                        bucket = passionLevel >= (int)PassionHelper.PassionTier.Major ? "FM"
+                            : (passionLevel >= (int)PassionHelper.PassionTier.Minor ? "Fi" : "N");
                     }
                     int wcBefore = workCount[pawn];
                     return $"[WorkAllocator] {workType.defName}[{finalIdx}] {AEDebug.Label(pawn)} p={passionLevel} s={GetMaxSkillLevelForSkills(pawn, workType.relevantSkills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
@@ -275,9 +275,9 @@ namespace AutoEverything.AutoWork
                 // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给0
                 int passionLevel = GetMaxPassionForSkills(pawn, workType.relevantSkills);
                 int priority;
-                if (passionLevel >= (int)Passion.Major)
+                if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                     priority = config.FloorMajorPriority;
-                else if (passionLevel >= (int)Passion.Minor)
+                else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                     priority = config.FloorMinorPriority;
                 else
                     priority = 0;
@@ -361,18 +361,18 @@ namespace AutoEverything.AutoWork
 
                 if (i < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                 {
-                    if (passionLevel >= (int)Passion.Major)
+                    if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                         priority = config.GuaranteeMajorPriority;
-                    else if (passionLevel >= (int)Passion.Minor)
+                    else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                         priority = config.GuaranteeMinorPriority;
                     else
                         priority = config.GuaranteeNonPassionatePriority;
                 }
                 else
                 {
-                    if (passionLevel >= (int)Passion.Major)
+                    if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                         priority = config.FloorMajorPriority;
-                    else if (passionLevel >= (int)Passion.Minor)
+                    else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                         priority = config.FloorMinorPriority;
                     else
                         priority = config.FloorNonPassionatePriority;
@@ -394,13 +394,13 @@ namespace AutoEverything.AutoWork
                     string bucket;
                     if (finalIdx < config.GuaranteeCount && (!isOverloaded || fallbackRelaxed))
                     {
-                        bucket = passionLevel >= (int)Passion.Major ? "GM"
-                            : (passionLevel >= (int)Passion.Minor ? "Gi" : "N");
+                        bucket = passionLevel >= (int)PassionHelper.PassionTier.Major ? "GM"
+                            : (passionLevel >= (int)PassionHelper.PassionTier.Minor ? "Gi" : "N");
                     }
                     else
                     {
-                        bucket = passionLevel >= (int)Passion.Major ? "FM"
-                            : (passionLevel >= (int)Passion.Minor ? "Fi" : "N");
+                        bucket = passionLevel >= (int)PassionHelper.PassionTier.Major ? "FM"
+                            : (passionLevel >= (int)PassionHelper.PassionTier.Minor ? "Fi" : "N");
                     }
                     int wcBefore = workCount[pawn];
                     return $"[WorkAllocator] {groupLabel}[{finalIdx}] {AEDebug.Label(pawn)} p={passionLevel} s={GetMaxSkillLevelForSkills(pawn, skills)} wc={wcBefore}{(isOverloaded ? "!" : "")} [{bucket}] → prio={priority}{(priority <= 2 ? " (+wc)" : "")}";
@@ -442,9 +442,9 @@ namespace AutoEverything.AutoWork
                 // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给0
                 int passionLevel = GetMaxPassionForSkills(pawn, skills);
                 int priority;
-                if (passionLevel >= (int)Passion.Major)
+                if (passionLevel >= (int)PassionHelper.PassionTier.Major)
                     priority = config.FloorMajorPriority;
-                else if (passionLevel >= (int)Passion.Minor)
+                else if (passionLevel >= (int)PassionHelper.PassionTier.Minor)
                     priority = config.FloorMinorPriority;
                 else
                     priority = 0;

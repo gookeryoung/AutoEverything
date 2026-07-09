@@ -97,11 +97,20 @@ namespace AutoEverything.RoleEvaluation
 
         private static float GetPassionMult(Passion passion)
         {
-            switch (passion)
+            // 兼容 VSE：通过 PassionTier 统一处理 6 种 passion 类型
+            var tier = PassionHelper.GetPassionTier(passion);
+            switch (tier)
             {
-                case Passion.Minor: return AESettings.cvPassionMinorMult;
-                case Passion.Major: return AESettings.cvPassionMajorMult;
-                default: return AESettings.cvPassionNoneMult;
+                case PassionHelper.PassionTier.Apathy:
+                    return AESettings.cvPassionNoneMult * 0.5f;
+                case PassionHelper.PassionTier.Minor:
+                    return AESettings.cvPassionMinorMult;
+                case PassionHelper.PassionTier.Major:
+                    return AESettings.cvPassionMajorMult;
+                case PassionHelper.PassionTier.Critical:
+                    return AESettings.cvPassionMajorMult * 1.5f;
+                default: // None
+                    return AESettings.cvPassionNoneMult;
             }
         }
 
@@ -207,11 +216,14 @@ namespace AutoEverything.RoleEvaluation
         {
             SkillRecord s = pawn.skills?.GetSkill(skillDef);
             if (s == null) return;
-            // 兴趣分
-            switch (s.passion)
+            // 兴趣分：按 tier 累加（兼容 VSE：Natural=2 等同双火；Critical=3 最高；Apathy 不加分）
+            var tier = PassionHelper.GetPassionTier(s.passion);
+            switch (tier)
             {
-                case Passion.Minor: score += 1f; break;
-                case Passion.Major: score += 2f; break;
+                case PassionHelper.PassionTier.Minor: score += 1f; break;
+                case PassionHelper.PassionTier.Major: score += 2f; break;
+                case PassionHelper.PassionTier.Critical: score += 3f; break;
+                    // Apathy 与 None 不加分
             }
             // 等级分
             score += s.Level;
@@ -376,19 +388,21 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 从 Pawn 收集评级所需的所有输入参数。
+        /// VSE 兼容：Major 判定用 tier >= Major（含 Natural/Critical），
+        /// Minor 判定用 tier == Minor（不含 Major 及以上，避免双计数）。
         /// </summary>
         private static TierEvaluationInput CollectTierInput(Pawn pawn)
         {
             TierEvaluationInput input = default;
 
-            input.MajorCount = CountPassions(pawn, Passion.Major);
-            input.MinorCount = CountPassions(pawn, Passion.Minor);
+            input.MajorCount = CountPassionsAtLeast(pawn, PassionHelper.PassionTier.Major);
+            input.MinorCount = CountPassionsExactly(pawn, PassionHelper.PassionTier.Minor);
 
-            input.ShootingMajor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Major);
-            input.ShootingMinor = IsPassion(pawn, SkillDefOf.Shooting, Passion.Minor);
-            input.MeleeMajor = IsPassion(pawn, SkillDefOf.Melee, Passion.Major);
-            input.MeleeMinor = IsPassion(pawn, SkillDefOf.Melee, Passion.Minor);
-            input.SocialMajor = IsPassion(pawn, SkillDefOf.Social, Passion.Major);
+            input.ShootingMajor = IsPassionAtLeast(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Major);
+            input.ShootingMinor = IsPassionExactly(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Minor);
+            input.MeleeMajor = IsPassionAtLeast(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Major);
+            input.MeleeMinor = IsPassionExactly(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Minor);
+            input.SocialMajor = IsPassionAtLeast(pawn, SkillDefOf.Social, PassionHelper.PassionTier.Major);
 
             bool hasTraits = pawn.story?.traits != null;
             input.IsTough = hasTraits && TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough);
@@ -413,29 +427,61 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 统计 Pawn 拥有指定 Passion 等级的技能数量。
-        /// 仅遍历 9 个核心可兴趣技能：射击/近战/社交/手工/建造/艺术/烹饪/种植/采矿
-        /// 避免遍历 pawn.skills.skills 以减少 GC。
+        /// 统计 Pawn 在 9 大核心技能中 tier 达到指定层级的数量（含该层级及以上）。
+        /// 用于 Major 计数：tier >= Major 含 Natural/Critical，符合"按双火处理"。
         /// </summary>
-        private static int CountPassions(Pawn pawn, Passion passion)
+        private static int CountPassionsAtLeast(Pawn pawn, PassionHelper.PassionTier minTier)
         {
             int count = 0;
-            if (IsPassion(pawn, SkillDefOf.Shooting, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Melee, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Social, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Crafting, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Construction, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Artistic, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Cooking, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Plants, passion)) count++;
-            if (IsPassion(pawn, SkillDefOf.Mining, passion)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Shooting, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Melee, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Social, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Crafting, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Construction, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Artistic, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Cooking, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Plants, minTier)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Mining, minTier)) count++;
             return count;
         }
 
-        private static bool IsPassion(Pawn pawn, SkillDef skillDef, Passion passion)
+        /// <summary>
+        /// 统计 Pawn 在 9 大核心技能中 tier 恰好等于指定层级的数量。
+        /// 用于 Minor 计数：tier == Minor，不含 Major 及以上，避免双计数。
+        /// </summary>
+        private static int CountPassionsExactly(Pawn pawn, PassionHelper.PassionTier tier)
+        {
+            int count = 0;
+            if (IsPassionExactly(pawn, SkillDefOf.Shooting, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Melee, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Social, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Crafting, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Construction, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Artistic, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Cooking, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Plants, tier)) count++;
+            if (IsPassionExactly(pawn, SkillDefOf.Mining, tier)) count++;
+            return count;
+        }
+
+        /// <summary>
+        /// 判定技能 tier 是否达到指定层级（含该层级及以上）。
+        /// 用于 Major 判定：tier >= Major 含 Natural/Critical。
+        /// </summary>
+        private static bool IsPassionAtLeast(Pawn pawn, SkillDef skillDef, PassionHelper.PassionTier minTier)
         {
             SkillRecord s = pawn.skills?.GetSkill(skillDef);
-            return s != null && s.passion == passion;
+            return s != null && (int)PassionHelper.GetPassionTier(s.passion) >= (int)minTier;
+        }
+
+        /// <summary>
+        /// 判定技能 tier 是否恰好等于指定层级。
+        /// 用于 Minor 判定：tier == Minor，不含 Major 及以上。
+        /// </summary>
+        private static bool IsPassionExactly(Pawn pawn, SkillDef skillDef, PassionHelper.PassionTier tier)
+        {
+            SkillRecord s = pawn.skills?.GetSkill(skillDef);
+            return s != null && PassionHelper.GetPassionTier(s.passion) == tier;
         }
 
         /// <summary>
@@ -450,16 +496,17 @@ namespace AutoEverything.RoleEvaluation
         /// <summary>
         /// 统计 6 大专业工作技能的双火（Major）数量。
         /// 用于工作狂+神经质系列的 S/SS/SSS 判定。
+        /// VSE 兼容：tier >= Major 含 Natural/Critical。
         /// </summary>
         private static int CountWorkMajors(Pawn pawn)
         {
             int count = 0;
-            if (IsPassion(pawn, SkillDefOf.Crafting, Passion.Major)) count++;
-            if (IsPassion(pawn, SkillDefOf.Construction, Passion.Major)) count++;
-            if (IsPassion(pawn, SkillDefOf.Artistic, Passion.Major)) count++;
-            if (IsPassion(pawn, SkillDefOf.Cooking, Passion.Major)) count++;
-            if (IsPassion(pawn, SkillDefOf.Plants, Passion.Major)) count++;
-            if (IsPassion(pawn, SkillDefOf.Mining, Passion.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Crafting, PassionHelper.PassionTier.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Construction, PassionHelper.PassionTier.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Artistic, PassionHelper.PassionTier.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Cooking, PassionHelper.PassionTier.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Plants, PassionHelper.PassionTier.Major)) count++;
+            if (IsPassionAtLeast(pawn, SkillDefOf.Mining, PassionHelper.PassionTier.Major)) count++;
             return count;
         }
 

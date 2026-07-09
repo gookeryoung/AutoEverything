@@ -54,7 +54,9 @@ namespace AutoEverything.AutoWork
         }
 
         /// <summary>
-        /// 返回该 Pawn 在指定技能集上的最高 Passion 量化值（None=0, Minor=1, Major=2）。
+        /// 返回该 Pawn 在指定技能集上的最高 Passion 量化值。
+        /// VSE 兼容：通过 PassionHelper.GetPassionTier 统一处理 6 种 passion 类型。
+        /// tier：Apathy=-1, None=0, Minor=1, Major=2, Natural=2, Critical=3。
         /// </summary>
         private static int GetMaxPassionForSkills(Pawn pawn, List<SkillDef> skills)
         {
@@ -65,7 +67,7 @@ namespace AutoEverything.AutoWork
             {
                 SkillRecord sr = pawn.skills.GetSkill(skills[i]);
                 if (sr == null) continue;
-                int v = (int)sr.passion;
+                int v = (int)PassionHelper.GetPassionTier(sr.passion);
                 if (v > max) max = v;
             }
             return max;

@@ -130,17 +130,21 @@ namespace AutoEverything.RoleEvaluation
                     Passion shootingPassion = pawn.skills.GetSkill(SkillDefOf.Shooting)?.passion ?? Passion.None;
                     Passion meleePassion = pawn.skills.GetSkill(SkillDefOf.Melee)?.passion ?? Passion.None;
 
+                    // VSE 兼容：用 PassionTier 判定，Apathy 视为无火及以下，Natural/Critical 按 Major 处理
+                    PassionHelper.PassionTier shootingTier = PassionHelper.GetPassionTier(shootingPassion);
+                    PassionHelper.PassionTier meleeTier = PassionHelper.GetPassionTier(meleePassion);
+
                     // 近战有火且射击无火 → Brawler（无论技能等级）
-                    if (meleePassion != Passion.None && shootingPassion == Passion.None)
+                    if (meleeTier > PassionHelper.PassionTier.None && shootingTier == PassionHelper.PassionTier.None)
                     {
                         result = Role.Brawler;
-                        reason = $"近战{(meleePassion == Passion.Major ? "双火" : "单火")}+射击无火 (兴趣优先)";
+                        reason = $"近战{PassionHelper.GetPassionName(meleePassion)}+射击无火 (兴趣优先)";
                     }
                     // 射击有火且近战无火 → Shooter
-                    else if (shootingPassion != Passion.None && meleePassion == Passion.None)
+                    else if (shootingTier > PassionHelper.PassionTier.None && meleeTier == PassionHelper.PassionTier.None)
                     {
                         result = Role.Shooter;
-                        reason = $"射击{(shootingPassion == Passion.Major ? "双火" : "单火")}+近战无火 (兴趣优先)";
+                        reason = $"射击{PassionHelper.GetPassionName(shootingPassion)}+近战无火 (兴趣优先)";
                     }
                     // 医生：医疗是其最佳战斗相关技能且 >= 8
                     else if (medicine >= 8 && medicine >= shooting && medicine >= melee)

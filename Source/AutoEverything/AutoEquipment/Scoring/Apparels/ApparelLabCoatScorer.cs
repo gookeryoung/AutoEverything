@@ -1,5 +1,6 @@
 using RimWorld;
 using Verse;
+using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.AutoEquipment;
 
@@ -7,9 +8,10 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
 {
     /// <summary>
     /// 实验服偏好：研究型殖民者穿实验服时加分。
-    /// 研究型 = 非 Brawler + 近战/射击均无火 + 医疗或研究 ≥ 8。
+    /// 研究型 = 非 Brawler + 近战/射击均无火及以下 + 医疗或研究 ≥ 8。
     /// 设计意图：非战斗型殖民者应优先穿实验服（提供 ResearchSpeed/EntityStudyRate 加成），
     /// 让其在同类防具评分中胜出。加分 +50 参考 WeaponSkillScorer 双修远程偏好分。
+    /// VSE 兼容：Apathy（冷漠）视为无火及以下，仍满足研究型判定。
     /// </summary>
     public class ApparelLabCoatScorer : IScorer<Apparel>
     {
@@ -25,7 +27,8 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
         }
 
         /// <summary>
-        /// 研究型判定：非 Brawler + 近战/射击均无火 + 医疗或研究 ≥ 8。
+        /// 研究型判定：非 Brawler + 近战/射击均无火及以下（tier ≤ None）+ 医疗或研究 ≥ 8。
+        /// VSE 兼容：用 PassionTier 判定，Apathy(-1) ≤ None(0) 满足"无火及以下"。
         /// </summary>
         private static bool IsResearchOriented(Pawn pawn, Role role)
         {
@@ -35,11 +38,13 @@ namespace AutoEverything.AutoEquipment.Scoring.Apparels
             var skills = pawn.skills;
             if (skills == null) return false;
 
-            // 近战和射击均无火（None）—— 非战斗型
+            // 近战和射击均无火及以下（tier ≤ None）—— 非战斗型
             SkillRecord shooting = skills.GetSkill(SkillDefOf.Shooting);
             SkillRecord melee = skills.GetSkill(SkillDefOf.Melee);
             if (shooting == null || melee == null) return false;
-            if (shooting.passion != Passion.None || melee.passion != Passion.None) return false;
+            if ((int)PassionHelper.GetPassionTier(shooting.passion) > (int)PassionHelper.PassionTier.None
+                || (int)PassionHelper.GetPassionTier(melee.passion) > (int)PassionHelper.PassionTier.None)
+                return false;
 
             // 医疗 ≥ 8 或 研究 ≥ 8 —— 有专长可发挥
             SkillRecord medical = skills.GetSkill(SkillDefOf.Medicine);
