@@ -39,7 +39,7 @@ namespace AutoEverything.Allocation
         private static readonly List<Pawn> candidatePawns = new List<Pawn>();
         private static readonly List<Thing> candidateWeapons = new List<Thing>();
 
-        // 评级缓存：排序前预计算，避免 Sort 比较器内 O(n log n) 次重复调用 GetAutoCombatTier
+        // 评级缓存：排序前预计算，避免 Sort 比较器内 O(n log n) 次重复调用 GetSystemTier
         private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
 
         /// <summary>
@@ -77,11 +77,12 @@ namespace AutoEverything.Allocation
 
                 if (candidatePawns.Count == 0 || candidateWeapons.Count == 0) return;
 
-                // 预计算评级缓存：避免 Sort 比较器内重复调用 GetAutoCombatTier（O(n log n) 次技能查询）
+                // 预计算评级缓存：避免 Sort 比较器内重复调用 GetSystemTier（O(n log n) 次技能+配偶查询）
+                // 用 GetSystemTier（含配偶豁免）与评级标签/ITab 显示一致
                 for (int i = 0; i < candidatePawns.Count; i++)
                 {
                     Pawn p = candidatePawns[i];
-                    tierCache[p] = CombatEvaluator.GetAutoCombatTier(p);
+                    tierCache[p] = CombatEvaluator.GetSystemTier(p);
                 }
 
                 // 按 CombatTier 升序排序（评级低者优先）——List.Sort 非 LINQ，Tick 路径允许
@@ -196,7 +197,7 @@ namespace AutoEverything.Allocation
 
             // 决策日志：受 debug 开关控制（低频，受全局周期控制）
             if (AEDebug.IsActive)
-                AEDebug.Log(() => $"[AutoEverything] EMP 手雷分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetAutoCombatTier(pawn)}) ← {weapon.LabelShort} (reason={reason})");
+                AEDebug.Log(() => $"[AutoEverything] EMP 手雷分配: {AEDebug.Label(pawn)} (评级={CombatEvaluator.GetSystemTier(pawn)}) ← {weapon.LabelShort} (reason={reason})");
         }
     }
 }
