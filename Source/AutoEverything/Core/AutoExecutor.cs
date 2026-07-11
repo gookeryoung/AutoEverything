@@ -5,9 +5,6 @@ using Verse;
 using AutoEverything.AutoEquipment;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
-using AutoEverything.AutoDrug;
-using AutoEverything.AutoFood;
-using AutoEverything.AutoSerum;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Core
@@ -51,9 +48,6 @@ namespace AutoEverything.Core
         private static int lastTierTick = -9999;
         private static int lastGearTick = -9999;
         private static int lastMarkTick = -9999;
-        private static int lastDrugTick = -9999;
-        private static int lastFoodTick = -9999;
-        private static int lastSerumTick = -9999;
 
         // 殖民者数量缓存：-1 = 首次只记录不触发，避免存档加载误触发
         private static int lastColonistCount = -1;
@@ -71,9 +65,6 @@ namespace AutoEverything.Core
         private const int TierErrorSalt = 0xA300;
         private const int GearErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
-        private const int DrugErrorSalt = 0xA600;
-        private const int FoodErrorSalt = 0xA700;
-        private const int SerumErrorSalt = 0xA800;
 
         /// <summary>
         /// 由 CompGearManager.CompTick 每 tick 调用。
@@ -96,9 +87,6 @@ namespace AutoEverything.Core
                 lastTierTick = tick;
                 lastGearTick = tick;
                 lastMarkTick = tick;
-                lastDrugTick = tick;
-                lastFoodTick = tick;
-                lastSerumTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 return;
             }
@@ -113,15 +101,12 @@ namespace AutoEverything.Core
             {
                 bool isIncrease = currentCount > lastColonistCount;
                 lastColonistCount = currentCount;
-                // 评级/装备/星标/药物/食物：增加时立即触发（不打断 Job）
+                // 评级/装备/星标：增加时立即触发（不打断 Job）
                 if (isIncrease)
                 {
                     ExecuteTier(tick, showMessage: false);
                     ExecuteGear(tick, showMessage: false);
                     ExecuteMark(tick, showMessage: false);
-                    ExecuteDrug(tick, showMessage: false);
-                    ExecuteFood(tick, showMessage: false);
-                    ExecuteSerum(tick, showMessage: false);
                 }
                 // 工作重配：标记待触发，不立即执行
                 pendingWorkRealloc = true;
@@ -147,18 +132,6 @@ namespace AutoEverything.Core
             if (tick - lastMarkTick >= ExecuteInterval)
             {
                 ExecuteMark(tick, showMessage: false);
-            }
-            if (tick - lastDrugTick >= ExecuteInterval)
-            {
-                ExecuteDrug(tick, showMessage: false);
-            }
-            if (tick - lastFoodTick >= ExecuteInterval)
-            {
-                ExecuteFood(tick, showMessage: false);
-            }
-            if (tick - lastSerumTick >= ExecuteInterval)
-            {
-                ExecuteSerum(tick, showMessage: false);
             }
         }
 
@@ -192,30 +165,6 @@ namespace AutoEverything.Core
         public static void TriggerMarkNow()
         {
             ExecuteMark(Find.TickManager.TicksGame, showMessage: true);
-        }
-
-        /// <summary>
-        /// ITab 勾选时调用：立即执行自动药物配置并弹消息框反馈。
-        /// </summary>
-        public static void TriggerDrugNow()
-        {
-            ExecuteDrug(Find.TickManager.TicksGame, showMessage: true);
-        }
-
-        /// <summary>
-        /// ITab 勾选时调用：立即执行自动食物配置并弹消息框反馈。
-        /// </summary>
-        public static void TriggerFoodNow()
-        {
-            ExecuteFood(Find.TickManager.TicksGame, showMessage: true);
-        }
-
-        /// <summary>
-        /// ITab 勾选时调用：立即执行自动血清配置并弹消息框反馈。
-        /// </summary>
-        public static void TriggerSerumNow()
-        {
-            ExecuteSerum(Find.TickManager.TicksGame, showMessage: true);
         }
 
         /// <summary>
@@ -372,90 +321,6 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 高价值星标统计失败: " + ex.Message, MarkErrorSalt);
-            }
-        }
-
-        /// <summary>
-        /// 执行自动药物配置：调用 DrugAllocator.ReallocateAll()。
-        /// 受 AESettings.autoDrugEnabled 开关控制，关闭时不执行。
-        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
-        /// 周期自动执行不弹消息（避免刷屏），仅 ITab 触发时弹消息反馈。
-        /// </summary>
-        private static void ExecuteDrug(int tick, bool showMessage)
-        {
-            lastDrugTick = tick;
-            if (!AESettings.autoDrugEnabled) return;
-
-            try
-            {
-                DrugAllocator.ReallocateAll();
-                AEDebug.Log(() => $"[AutoExecutor] 自动药物配置 (tick={tick})");
-                if (showMessage)
-                {
-                    Messages.Message(
-                        "AE_AutoDrugResult".Translate(),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorOnce("[AutoEverything] 自动药物配置失败: " + ex.Message, DrugErrorSalt);
-            }
-        }
-
-        /// <summary>
-        /// 执行自动食物配置：调用 FoodAllocator.ReallocateAll()。
-        /// 受 AESettings.autoFoodEnabled 开关控制，关闭时不执行。
-        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
-        /// 周期自动执行不弹消息（避免刷屏），仅 ITab 触发时弹消息反馈。
-        /// </summary>
-        private static void ExecuteFood(int tick, bool showMessage)
-        {
-            lastFoodTick = tick;
-            if (!AESettings.autoFoodEnabled) return;
-
-            try
-            {
-                FoodAllocator.ReallocateAll();
-                AEDebug.Log(() => $"[AutoExecutor] 自动食物配置 (tick={tick})");
-                if (showMessage)
-                {
-                    Messages.Message(
-                        "AE_AutoFoodResult".Translate(),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorOnce("[AutoEverything] 自动食物配置失败: " + ex.Message, FoodErrorSalt);
-            }
-        }
-
-        /// <summary>
-        /// 执行自动血清配置：调用 SerumAllocator.ReallocateAll()。
-        /// 受 AESettings.autoSerumEnabled 开关控制，关闭时不执行。
-        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
-        /// 周期自动执行不弹消息（避免刷屏），仅 ITab 触发时弹消息反馈。
-        /// </summary>
-        private static void ExecuteSerum(int tick, bool showMessage)
-        {
-            lastSerumTick = tick;
-            if (!AESettings.autoSerumEnabled) return;
-
-            try
-            {
-                SerumAllocator.ReallocateAll();
-                AEDebug.Log(() => $"[AutoExecutor] 自动血清配置 (tick={tick})");
-                if (showMessage)
-                {
-                    Messages.Message(
-                        "AE_AutoSerumResult".Translate(),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorOnce("[AutoEverything] 自动血清配置失败: " + ex.Message, SerumErrorSalt);
             }
         }
 

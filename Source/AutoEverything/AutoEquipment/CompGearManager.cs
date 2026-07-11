@@ -6,9 +6,6 @@ using AutoEverything.AutoEquipment.Scoring;
 using Verse.AI;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.Allocation;
-using AutoEverything.AutoDrug;
-using AutoEverything.AutoFood;
-using AutoEverything.AutoSerum;
 using AutoEverything.Core;
 
 namespace AutoEverything.AutoEquipment
@@ -202,30 +199,6 @@ namespace AutoEverything.AutoEquipment
                 {
                     if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 执行 EvaluateInventory");
                     EvaluateInventory(role);
-                }
-
-                // 自动药物模块（P4.1）：周期 3000 tick 门控，由 DrugAllocator.AllocateForPawn 内部判断
-                // 第一个触发的 Pawn 承担全局扫描成本，其余跳过
-                // 放在 EvaluateInventory 后：与药品携带逻辑同步触发，且 CompTick 已 try-catch 隔离
-                if (AESettings.autoDrugEnabled)
-                {
-                    DrugAllocator.AllocateForPawn(Pawn);
-                }
-
-                // 自动食物模块（P4.2）：周期 3000 tick 门控，由 FoodAllocator.AllocateForPawn 内部判断
-                // 第一个触发的 Pawn 承担全局扫描成本，其余跳过
-                // 放在 DrugAllocator 后：与药物逻辑同步触发，且 CompTick 已 try-catch 隔离
-                if (AESettings.autoFoodEnabled)
-                {
-                    FoodAllocator.AllocateForPawn(Pawn);
-                }
-
-                // 自动血清模块（P4.3）：周期 3000 tick 门控，由 SerumAllocator.AllocateForPawn 内部判断
-                // 第一个触发的 Pawn 承担全局扫描成本，其余跳过
-                // 放在 FoodAllocator 后：与食物逻辑同步触发，且 CompTick 已 try-catch 隔离
-                if (AESettings.autoSerumEnabled)
-                {
-                    SerumAllocator.AllocateForPawn(Pawn);
                 }
 
                 // 副武器仅对殖民者（非奴隶、非未成年）

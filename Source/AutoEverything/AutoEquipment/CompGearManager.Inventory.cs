@@ -25,9 +25,7 @@ namespace AutoEverything.AutoEquipment
             // 医生与有医疗技能的战斗人员应携带药品
             int medSkill = Pawn.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0;
             bool shouldCarryMeds = role == Role.Doctor
-                || (medSkill >= 4 && !Pawn.WorkTagIsDisabled(WorkTags.Caring))
-                // 重甲前排也带药：战斗中自疗，避免医生未到前失血过多
-                || (role == Role.Brawler && AESettings.brawlerCarryMedicine);
+                || (medSkill >= 4 && !Pawn.WorkTagIsDisabled(WorkTags.Caring));
 
             if (!shouldCarryMeds)
             {
@@ -35,11 +33,8 @@ namespace AutoEverything.AutoEquipment
                 return;
             }
 
-            // 带药数量区分：Brawler 但非医生且医疗技能<4 → 仅 1 件（应急自疗）；
-            // 医生/有医疗技能者按 AESettings.medicineCount 配置
-            // 设计意图：Brawler 不是医生，1 件药品足够战场应急，避免占用过多负重
-            int targetCount = (role == Role.Brawler && medSkill < 4)
-                ? 1 : AESettings.medicineCount;
+            // 带药数量按 AESettings.medicineCount 配置
+            int targetCount = AESettings.medicineCount;
 
             // 仅统计库存中的药品（不含手持——手持药品是临时的，
             // 用于治疗或搬运工作，统计会导致反复拾取/丢弃死循环）
