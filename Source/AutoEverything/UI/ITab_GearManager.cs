@@ -5,15 +5,11 @@ using Verse;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.AutoEquipment;
-using AutoEverything.AutoEquipment.Scoring;
-using AutoEverything.Allocation;
 
 namespace AutoEverything.UI
 {
     /// <summary>
-    /// Pawn 检视面板的自定义标签页：展示角色、情境、装备状态与自定义评级。
-    /// 全局装备重配规则（战斗价值公式、护甲偏好等）移至 Dialog_GlobalReallocate 对话框，
-    /// 点击"全局装备重配"按钮后弹出对话框，确认后才执行重配。
+    /// Pawn 检视面板的自定义标签页：展示角色、情境、评级与自定义评级识别码。
     ///
     /// UI 设计：使用带颜色底色的徽章（Badge）区分类别——
     ///   角色：蓝/红/绿/橙/灰等按角色类型区分
@@ -55,7 +51,7 @@ namespace AutoEverything.UI
         private static Vector2 scrollPos = Vector2.zero;
         // ScrollView 内容高度：首帧用默认值，之后按上一帧实际绘制高度更新
         // 避免硬编码高度导致新增内容时底部被裁剪
-        private static float cachedContentHeight = 590f;
+        private static float cachedContentHeight = 400f;
 
         // ===================== 徽章图片缓存 =====================
         // 不能用静态字段初始化器调用 ContentFinder：ThingDef.ResolveReferences 在工作线程
@@ -106,19 +102,17 @@ namespace AutoEverything.UI
         private static readonly Color ColorSectionBg = new Color(0.18f, 0.20f, 0.22f, 0.45f);
         private static readonly Color ColorSectionTitle = new Color(0.88f, 0.88f, 0.92f);
         private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
-        private static readonly Color ColorDescGray = new Color(0.62f, 0.62f, 0.62f);
         private static readonly Color ColorWarningBg = new Color(0.55f, 0.18f, 0.15f, 0.55f);
         private static readonly Color ColorWarningBorder = new Color(0.85f, 0.35f, 0.30f);
         private static readonly Color ColorWarningText = new Color(1.0f, 0.65f, 0.55f);
-        private static readonly Color ColorPrimaryBtnBg = new Color(0.22f, 0.45f, 0.65f, 0.85f);
 
         public ITab_GearManager()
         {
             labelKey = "AE_Tab";
 
-            // 高度容纳徽章区与状态摘要 + 底部 4 勾选框 + 1 全局重配按钮
-            // 4 勾选框（评级/工作/装备/星标）+ 1 全局重配按钮
-            size = new Vector2(360f, 632f);
+            // 高度容纳徽章区与状态摘要 + 底部 3 勾选框
+            // 3 勾选框（评级/工作/星标）
+            size = new Vector2(360f, 420f);
         }
 
         public override bool IsVisible
@@ -142,17 +136,15 @@ namespace AutoEverything.UI
             // 食尸鬼可能没有 comp（被排除注入），仍允许显示评级信息
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：4 勾选框 + 1 按钮行 + 5 间隔
-            // 4 勾选框：评级/工作/装备/星标
-            // 1 按钮行：全局重配按钮
-            float buttonHeight = 30f;
+            // 底部区预留高度：3 勾选框 + 4 间隔
+            // 3 勾选框：评级/工作/星标
             float buttonGap = 8f;
             float checkboxHeight = 24f;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（4 勾选框 + 1 按钮行 + 5 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 4 + buttonHeight * 1 + buttonGap * 5));
+            // 内容区高度 = 总高 - 底部区（3 勾选框 + 4 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 3 + buttonGap * 4));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -189,7 +181,7 @@ namespace AutoEverything.UI
 
             // ===================== ScrollView 包裹内容区 =====================
             // 内部 inner rect 从 (0,0) 开始，宽度比 outer 少 16f 预留滚动条
-            // 高度用上一帧实际绘制值，首帧用默认 590f，后续自适应内容增减
+            // 高度用上一帧实际绘制值，首帧用默认 400f，后续自适应内容增减
             Rect innerRect = new Rect(0f, 0f, contentRect.width - 16f, cachedContentHeight);
             Widgets.BeginScrollView(contentRect, ref scrollPos, innerRect);
 
@@ -222,47 +214,6 @@ namespace AutoEverything.UI
             }
 
             EndSection(l);
-
-            // ===================== Section 2: 装备摘要 =====================
-            BeginSection(l, "AE_Section_Equipment".Translate());
-            DrawEquipmentSummary(l, pawn, comp);
-            EndSection(l);
-
-            // ===================== Section 3: 操作（锁定/角色覆盖） =====================
-            if (!isGhoul && comp != null)
-            {
-                BeginSection(l, "AE_Section_Controls".Translate());
-
-                // 锁定 checkbox + Tooltip
-                Rect lockRect = l.GetRect(24f);
-                Widgets.CheckboxLabeled(lockRect, "AE_LockGear".Translate(), ref comp.locked);
-                TooltipHandler.TipRegion(lockRect, "AE_TT_LockGear".Translate());
-
-                // 角色覆盖 checkbox + Tooltip
-                Rect overrideRect = l.GetRect(24f);
-                Widgets.CheckboxLabeled(overrideRect, "AE_OverrideRole".Translate(), ref comp.overrideRole);
-                TooltipHandler.TipRegion(overrideRect, "AE_TT_OverrideRole".Translate());
-
-                if (comp.overrideRole)
-                {
-                    l.Gap(2f);
-                    List<FloatMenuOption> options = new List<FloatMenuOption>();
-                    foreach (Role r in System.Enum.GetValues(typeof(Role)))
-                    {
-                        // 闭包捕获：必须用局部变量，避免循环变量全部指向最后一个枚举值
-                        Role localRole = r;
-                        options.Add(new FloatMenuOption(
-                            ("AE_Role_" + r).Translate(),
-                            () => comp.manualRole = localRole));
-                    }
-                    if (l.ButtonText("AE_Role".Translate() + ": " + ("AE_Role_" + comp.manualRole).Translate()))
-                    {
-                        Find.WindowStack.Add(new FloatMenu(options));
-                    }
-                }
-
-                EndSection(l);
-            }
 
             // ===================== 自定义评级识别码（食尸鬼也显示，玩家可参考） =====================
             // 描述过长，移到 Tooltip，节省垂直空间
@@ -333,7 +284,7 @@ namespace AutoEverything.UI
             cachedContentHeight = l.CurHeight + 20f;
             Widgets.EndScrollView();
 
-            // ===================== 底部区：3 勾选框 + 1 按钮 =====================
+            // ===================== 底部区：3 勾选框 =====================
             // 1. 人员自动评级勾选框：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
             Rect tierCheckRect = new Rect(
                 rect.x,
@@ -382,29 +333,10 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerWorkNow();
             }
 
-            // 3. 装备自动重配勾选框：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前装备）
-            Rect gearCheckRect = new Rect(
-                rect.x,
-                workCheckRect.yMax + buttonGap,
-                rect.width,
-                checkboxHeight);
-
-            bool prevWrap3 = Text.WordWrap;
-            Text.WordWrap = false;
-            bool prevGear = AESettings.autoGearReallocate;
-            Widgets.CheckboxLabeled(gearCheckRect, "AE_AutoGearReallocate".Translate(), ref AESettings.autoGearReallocate);
-            Text.WordWrap = prevWrap3;
-            TooltipHandler.TipRegion(gearCheckRect, "AE_TT_AutoGearReallocate".Translate());
-            // 状态变化检测：勾选时立即执行；取消勾选仅停止自动（无副作用）
-            if (AESettings.autoGearReallocate && AESettings.autoGearReallocate != prevGear)
-            {
-                AutoExecutor.TriggerGearNow();
-            }
-
-            // 4. 高价值非殖民者星标勾选框：勾选时统计+消息提示；取消勾选时头顶图标由 Harmony 补丁实时停止绘制
+            // 3. 高价值非殖民者星标勾选框：勾选时统计+消息提示；取消勾选时头顶图标由 Harmony 补丁实时停止绘制
             Rect markCheckRect = new Rect(
                 rect.x,
-                gearCheckRect.yMax + buttonGap,
+                workCheckRect.yMax + buttonGap,
                 rect.width,
                 checkboxHeight);
 
@@ -419,25 +351,6 @@ namespace AutoEverything.UI
             {
                 AutoExecutor.TriggerMarkNow();
             }
-
-            // 5. 全局装备重配按钮（保留原逻辑，打开 Dialog_GlobalReallocate）
-            // 食尸鬼面板也显示此按钮（统一入口），但 GlobalAllocator 内部会跳过食尸鬼
-            Rect buttonRect = new Rect(
-                rect.x,
-                markCheckRect.yMax + buttonGap,
-                rect.width,
-                buttonHeight);
-
-            // 主操作按钮：先绘制底色，再叠加 ButtonText
-            // ButtonText 默认会用 GUI.backgroundColor，这里临时改色突出主操作
-            Color prevBtnBg = GUI.backgroundColor;
-            GUI.backgroundColor = ColorPrimaryBtnBg;
-            if (Widgets.ButtonText(buttonRect, "AE_GlobalReallocate".Translate()))
-            {
-                Find.WindowStack.Add(new Dialog_GlobalReallocate());
-            }
-            GUI.backgroundColor = prevBtnBg;
-            TooltipHandler.TipRegion(buttonRect, "AE_TT_GlobalReallocate".Translate());
         }
 
         // ===================== Section 卡片绘制 =====================
@@ -760,114 +673,6 @@ namespace AutoEverything.UI
             Text.Font = GameFont.Small;
             Text.WordWrap = prevWrap;
 
-            GUI.color = prev;
-        }
-
-        /// <summary>
-        /// 绘制装备摘要：主武器 → 副武器 → 已穿戴衣物（小标签）。
-        /// 主/副武器用带半透明底色的整行标签；护甲数量用小标签行附在最后。
-        /// </summary>
-        private void DrawEquipmentSummary(Listing_Standard l, Pawn pawn, CompGearManager comp)
-        {
-            // 主武器（整行）
-            string primaryWeapon = pawn.equipment?.Primary?.LabelShort ?? "AE_None".Translate();
-            DrawGearTag(l, "AE_PrimaryWeapon".Translate(), primaryWeapon, new Color(0.25f, 0.35f, 0.50f));
-
-            // 副武器（整行）
-            // C# 7.3 不支持 string 与 TaggedString 之间的条件表达式，先转 string
-            string sidearmLabel = (comp != null && comp.sidearm != null)
-                ? comp.sidearm.LabelShort
-                : "AE_None".Translate().ToString();
-            DrawGearTag(l, "AE_Sidearm".Translate(), sidearmLabel, new Color(0.30f, 0.30f, 0.40f));
-
-            // 已穿戴衣物（小标签，紧贴装备摘要末尾）
-            int wornCount = pawn.apparel?.WornApparel.Count ?? 0;
-            Rect apparelRect = l.GetRect(18f);
-            DrawSmallTag(apparelRect, "AE_WornApparel".Translate(), wornCount.ToString(),
-                new Color(0.35f, 0.35f, 0.4f));
-        }
-
-        /// <summary>
-        /// 绘制小标签：高度更矮、字号 Tiny，用于辅助信息（如护甲数量）。
-        /// 与主装备标签视觉区分，避免抢占主武器视觉焦点。
-        /// 关闭 WordWrap；labelWidth 用 Text.CalcSize 动态计算，确保中文标签完整显示。
-        /// </summary>
-        private void DrawSmallTag(Rect rect, string label, string value, Color bgColor)
-        {
-            Color bg = bgColor;
-            bg.a = 0.5f;
-            Widgets.DrawBoxSolid(rect, bg);
-
-            Color prev = GUI.color;
-            bool prevWrap = Text.WordWrap;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Text.Font = GameFont.Tiny;
-            Text.WordWrap = false;
-
-            // 动态计算标签宽度（+冒号+留白），避免固定 70f 截断中文标签
-            string labelText = label + ":";
-            Vector2 labelSize = Text.CalcSize(labelText);
-            float labelWidth = labelSize.x + 4f;
-            float padLeft = 6f;
-
-            GUI.color = ColorLabelGray;
-            Widgets.Label(new Rect(rect.x + padLeft, rect.y, labelWidth, rect.height), labelText);
-            GUI.color = Color.white;
-            Widgets.Label(new Rect(rect.x + padLeft + labelWidth, rect.y, rect.width - padLeft - labelWidth - 4f, rect.height), value);
-
-            Text.Anchor = TextAnchor.UpperLeft;
-            Text.Font = GameFont.Small;
-            Text.WordWrap = prevWrap;
-            GUI.color = prev;
-        }
-
-        /// <summary>
-        /// 绘制带半透明底色的装备标签行（通过 Listing_Standard 取行）。
-        /// 标签与值都左对齐，避免居中/左对齐混用造成视觉混乱。
-        /// 底色让武器名称更显眼，便于玩家快速识别装备。
-        /// </summary>
-        private void DrawGearTag(Listing_Standard l, string label, string value, Color bgColor)
-        {
-            Rect rect = l.GetRect(24f);
-            DrawGearTagOnRect(rect, label, value, bgColor);
-        }
-
-        /// <summary>
-        /// 在指定 Rect 绘制带半透明底色的装备标签。
-        /// 布局：[标签:] [值]，全部左对齐，底色半透明。
-        /// 关闭 WordWrap；labelWidth 用 Text.CalcSize 动态计算，避免固定 60f 截断中文标签。
-        /// </summary>
-        private void DrawGearTagOnRect(Rect rect, string label, string value, Color bgColor)
-        {
-            // 半透明底色
-            Color bg = bgColor;
-            bg.a = 0.55f;
-            Widgets.DrawBoxSolid(rect, bg);
-
-            // 左对齐绘制标签+值
-            Color prev = GUI.color;
-            bool prevWrap = Text.WordWrap;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            Text.Font = GameFont.Small;
-            Text.WordWrap = false;
-
-            // 动态计算标签宽度（原固定 60f 会截断"已穿戴的衣物"等长标签）
-            string labelText = label + ":";
-            Vector2 labelSize = Text.CalcSize(labelText);
-            float labelWidth = labelSize.x + 4f;
-            float padLeft = 6f;
-
-            // 标签（灰色）
-            GUI.color = ColorLabelGray;
-            Widgets.Label(new Rect(rect.x + padLeft, rect.y, labelWidth, rect.height), labelText);
-
-            // 值（白色）
-            GUI.color = Color.white;
-            Widgets.Label(new Rect(rect.x + padLeft + labelWidth, rect.y, rect.width - padLeft - labelWidth - 6f, rect.height), value);
-
-            Text.Anchor = TextAnchor.UpperLeft;
-            Text.Font = GameFont.Small;
-            Text.WordWrap = prevWrap;
             GUI.color = prev;
         }
 

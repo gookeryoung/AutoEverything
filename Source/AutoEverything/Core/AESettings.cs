@@ -3,9 +3,6 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using AutoEverything.RoleEvaluation;
-using AutoEverything.AutoEquipment;
-using AutoEverything.AutoEquipment.Scoring;
-using AutoEverything.UI;
 
 namespace AutoEverything.Core
 {
@@ -13,39 +10,9 @@ namespace AutoEverything.Core
     {
         // 主开关
         public static bool enabled = true;
-        public static bool autoWeapons = true;
-        public static bool autoApparel = true;
-        public static bool autoInventory = true;
-        public static bool sidearms = true;
         public static bool autoWorkEnabled = true;  // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;       // 人员自动评级（周期触发 + 新增人员触发）
-        public static bool autoGearReallocate = true;  // 自动装备重配主开关（轻量升级检查，周期触发）
         public static bool autoMarkPawn = true;       // 高价值殖民者星标标记（S+ 追加 ★，周期触发 + 新增人员触发）
-
-        // 情境切换
-        public static bool combatSwitch = true;      // 征召/取消征召时切换装备
-        public static bool huntingWeapon = true;     // 狩猎工作时装备狩猎武器
-        public static bool temperatureAware = true;  // 季节性服装切换
-        public static bool jobAwareApparel = true;   // 按工作切换工作属性服装
-
-        // 副武器
-        public static bool autoMeleeSidearm = true;  // 受近战攻击时自动切出近战武器
-        public static bool carryMedicine = true;     // 医生/战斗人员携带药品
-        public static int medicineCount = 3;          // 携带数量
-
-        // 性能
-        public static int evaluateInterval = 500;    // 装备评估间隔（tick）
-
-        // 阈值
-        public static float upgradeThreshold = 0.15f; // 评分需提升 15% 才触发换装
-        public static float tempDangerMargin = 5f;    // 超出舒适温度范围多少度才触发换装
-
-        // 全局重配规则
-        // 设计为玩家可调：不同玩家偏好不同——有的希望彻底重配，有的希望尊重锁定/征召
-        public static bool reallocateDropWeapons = true;     // 重配前先放下当前武器，让无火小人的好武器可被双火小人拾取
-        public static bool reallocateRespectDrafted = true;  // 跳过征召中的殖民者（不打断战斗）
-        public static bool reallocateRespectLocked = true;  // 跳过已锁定的殖民者
-        public static bool reallocateRespectBiocoded = true; // 跳过生物编码武器（个人绑定，无法转交）
 
         // 战斗价值公式可调权重（用于"高价值殖民者"判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
@@ -60,15 +27,6 @@ namespace AutoEverything.Core
         public static float cvToughBonus = 30f;              // 坚韧 Tough：减伤 50%
         public static float cvTriggerHappyPenalty = -15f;    // 乱开枪 ShootingAccuracy degree=-1：精度大幅下降
         public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
-
-        // 全局重配护甲分配
-        // 护甲选择已改为纯评分驱动，不再使用 Heavy/Light 类别判定
-        // 以下字段保留 Scribe 读取以兼容旧存档，但代码中不再使用
-        public static bool reallocateApparel = true;            // 是否同时重配护甲（默认开启）
-        public static float heavyArmorSharpThreshold = 0.4f;  // 已废弃：纯评分驱动，保留存档兼容
-        public static float heavyArmorPenaltyForLight = -1000f; // 已废弃：纯评分驱动，保留存档兼容
-        public static float lightArmorPenaltyForHeavy = -1000f; // 已废弃：纯评分驱动，保留存档兼容
-        public static float heavyArmorMatchBonus = 500f;        // 已废弃：纯评分驱动，保留存档兼容
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -403,10 +361,6 @@ namespace AutoEverything.Core
             return TierTagHelper.HasPrefix(label);
         }
 
-        // 预设方案（重构后新增）
-        // 由 GearPolicyEngine 维护，此处仅作存档载体
-        // 实际值通过 GearPolicyEngine.SwitchPreset 设置
-
         // 设置窗口滚动位置：内容超出窗口高度时使用
         private static Vector2 settingsScrollPos = Vector2.zero;
 
@@ -416,24 +370,6 @@ namespace AutoEverything.Core
             // 兼容旧存档：加载时先读无前缀旧键，再读 ae_ 新键（若存在则覆盖）
             // 保存时只写 ae_ 新键，旧存档升级后自动迁移
             LookCompat(ref enabled, "enabled", true);
-            LookCompat(ref autoWeapons, "autoWeapons", true);
-            LookCompat(ref autoApparel, "autoApparel", true);
-            LookCompat(ref autoInventory, "autoInventory", true);
-            LookCompat(ref sidearms, "sidearms", true);
-            LookCompat(ref combatSwitch, "combatSwitch", true);
-            LookCompat(ref huntingWeapon, "huntingWeapon", true);
-            LookCompat(ref temperatureAware, "temperatureAware", true);
-            LookCompat(ref jobAwareApparel, "jobAwareApparel", true);
-            LookCompat(ref autoMeleeSidearm, "autoMeleeSidearm", true);
-            LookCompat(ref carryMedicine, "carryMedicine", true);
-            LookCompat(ref medicineCount, "medicineCount", 3);
-            LookCompat(ref evaluateInterval, "evaluateInterval", 500);
-            LookCompat(ref upgradeThreshold, "upgradeThreshold", 0.15f);
-            LookCompat(ref tempDangerMargin, "tempDangerMargin", 5f);
-            LookCompat(ref reallocateDropWeapons, "reallocateDropWeapons", true);
-            LookCompat(ref reallocateRespectDrafted, "reallocateRespectDrafted", true);
-            LookCompat(ref reallocateRespectLocked, "reallocateRespectLocked", true);
-            LookCompat(ref reallocateRespectBiocoded, "reallocateRespectBiocoded", true);
             LookCompat(ref cvSkillWeight, "cvSkillWeight", 1.0f);
             LookCompat(ref cvPassionNoneMult, "cvPassionNoneMult", 1.0f);
             LookCompat(ref cvPassionMinorMult, "cvPassionMinorMult", 1.5f);
@@ -441,15 +377,9 @@ namespace AutoEverything.Core
             LookCompat(ref cvToughBonus, "cvToughBonus", 30f);
             LookCompat(ref cvTriggerHappyPenalty, "cvTriggerHappyPenalty", -15f);
             LookCompat(ref cvCarefulShooterBonus, "cvCarefulShooterBonus", 15f);
-            LookCompat(ref reallocateApparel, "reallocateApparel", true);
-            LookCompat(ref heavyArmorSharpThreshold, "heavyArmorSharpThreshold", 0.4f);
-            LookCompat(ref heavyArmorPenaltyForLight, "heavyArmorPenaltyForLight", -1000f);
-            LookCompat(ref lightArmorPenaltyForHeavy, "lightArmorPenaltyForHeavy", -1000f);
-            LookCompat(ref heavyArmorMatchBonus, "heavyArmorMatchBonus", 500f);
             LookCompat(ref debugLogging, "debugLogging", false);
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
-            LookCompat(ref autoGearReallocate, "autoGearReallocate", true);
             LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
@@ -478,11 +408,6 @@ namespace AutoEverything.Core
                     tierTagOriginals[pid] = origNick;
                 }
             }
-
-            // 预设方案与监测开关由 GearPolicyEngine/DebugMonitor 持久化
-            // 此处委托其存档
-            GearPolicyEngine.ExposeData();
-            DebugMonitor.ExposeData();
 
             base.ExposeData();
         }
@@ -596,84 +521,51 @@ namespace AutoEverything.Core
 
         public static void DrawSettings(Rect inRect)
         {
-            // 双列布局：内容压缩到约 460f 高
-            // 保留 ScrollView 作为极小窗口的安全兜底
-            float contentHeight = 540f;
+            // 单列布局：内容较少，无需双列
+            float contentHeight = 460f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
             Widgets.BeginScrollView(scrollRect, ref settingsScrollPos, viewRect);
 
-            // 分左右两列：左列放主要开关，右列放副武器/阈值/调试
-            float colWidth = (viewRect.width - 12f) * 0.5f;
-            Rect leftCol = new Rect(0f, 0f, colWidth, contentHeight);
-            Rect rightCol = new Rect(colWidth + 12f, 0f, colWidth, contentHeight);
-
-            // ===================== 左列 =====================
             Listing_Standard l = new Listing_Standard();
-            l.Begin(leftCol);
+            l.Begin(viewRect);
 
             l.CheckboxLabeled("AE_Enabled".Translate(), ref enabled);
             if (!enabled) { l.End(); Widgets.EndScrollView(); return; }
 
             l.GapLine();
             l.Label("AE_AutoSystems".Translate());
-            l.CheckboxLabeled("AE_AutoWeapons".Translate(), ref autoWeapons);
-            l.CheckboxLabeled("AE_AutoApparel".Translate(), ref autoApparel);
-            l.CheckboxLabeled("AE_AutoInventory".Translate(), ref autoInventory);
-            l.CheckboxLabeled("AE_Sidearms".Translate(), ref sidearms);
             l.CheckboxLabeled("AE_AutoWork".Translate(), ref autoWorkEnabled);
+            l.CheckboxLabeled("AE_AutoTierTag".Translate(), ref autoTierTag);
+            l.CheckboxLabeled("AE_AutoMarkPawn".Translate(), ref autoMarkPawn);
 
+            // 战斗价值公式权重
             l.GapLine();
-            l.Label("AE_Context".Translate());
-            l.CheckboxLabeled("AE_CombatSwitch".Translate(), ref combatSwitch);
-            l.CheckboxLabeled("AE_HuntingWeapon".Translate(), ref huntingWeapon);
-            l.CheckboxLabeled("AE_TemperatureAware".Translate(), ref temperatureAware);
-            l.CheckboxLabeled("AE_JobAwareApparel".Translate(), ref jobAwareApparel);
+            l.Label("AE_CombatValueWeights".Translate());
+            l.Label("AE_cvSkillWeight".Translate() + ": " + cvSkillWeight.ToString("F2"));
+            cvSkillWeight = l.Slider(cvSkillWeight, 0.1f, 3.0f);
+            l.Label("AE_cvPassionNoneMult".Translate() + ": " + cvPassionNoneMult.ToString("F2"));
+            cvPassionNoneMult = l.Slider(cvPassionNoneMult, 0.1f, 3.0f);
+            l.Label("AE_cvPassionMinorMult".Translate() + ": " + cvPassionMinorMult.ToString("F2"));
+            cvPassionMinorMult = l.Slider(cvPassionMinorMult, 0.1f, 3.0f);
+            l.Label("AE_cvPassionMajorMult".Translate() + ": " + cvPassionMajorMult.ToString("F2"));
+            cvPassionMajorMult = l.Slider(cvPassionMajorMult, 0.1f, 3.0f);
+            l.Label("AE_cvToughBonus".Translate() + ": " + cvToughBonus.ToString("F0"));
+            cvToughBonus = l.Slider(cvToughBonus, 0f, 100f);
+            l.Label("AE_cvTriggerHappyPenalty".Translate() + ": " + cvTriggerHappyPenalty.ToString("F0"));
+            cvTriggerHappyPenalty = l.Slider(cvTriggerHappyPenalty, -50f, 0f);
+            l.Label("AE_cvCarefulShooterBonus".Translate() + ": " + cvCarefulShooterBonus.ToString("F0"));
+            cvCarefulShooterBonus = l.Slider(cvCarefulShooterBonus, 0f, 50f);
 
-            // 预设方案选择（重构新增）
+            // 调试
             l.GapLine();
-            l.Label("AE_Preset".Translate() + ": " + ("AE_Preset_" + GearPolicyEngine.ActivePreset).Translate());
-            Rect presetRect = l.GetRect(30f);
-            float presetBtnWidth = (presetRect.width - 8f) * 0.5f;
-            if (Widgets.ButtonText(new Rect(presetRect.x, presetRect.y, presetBtnWidth, 30f), "AE_Preset_Cycle".Translate()))
-            {
-                // 循环切换预设：Standard → Aggressive → Economic → Hunting → Standard
-                int next = ((int)GearPolicyEngine.ActivePreset + 1) % 4;
-                GearPolicyEngine.SwitchPreset((GearPreset)next);
-            }
-            if (Widgets.ButtonText(new Rect(presetRect.x + presetBtnWidth + 8f, presetRect.y, presetBtnWidth, 30f), "AE_Preset_Details".Translate()))
-            {
-                Find.WindowStack.Add(new PresetDetailsWindow());
-            }
-
-            l.End();
-
-            // ===================== 右列 =====================
-            Listing_Standard r = new Listing_Standard();
-            r.Begin(rightCol);
-
-            r.Label("AE_SidearmSettings".Translate());
-            r.CheckboxLabeled("AE_AutoMelee".Translate(), ref autoMeleeSidearm);
-            r.CheckboxLabeled("AE_CarryMedicine".Translate(), ref carryMedicine);
-            if (carryMedicine)
-            {
-                r.Label("AE_MedicineCount".Translate() + ": " + medicineCount);
-                medicineCount = (int)r.Slider(medicineCount, 1, 10);
-            }
-
-            r.GapLine();
-            r.Label("AE_UpgradeThreshold".Translate() + ": " + (upgradeThreshold * 100f).ToString("F0") + "%");
-            upgradeThreshold = r.Slider(upgradeThreshold, 0.05f, 0.50f);
-
-            r.GapLine();
-            r.CheckboxLabeled("AE_DebugLogging".Translate(), ref debugLogging, "AE_DebugLogging_Desc".Translate());
+            l.CheckboxLabeled("AE_DebugLogging".Translate(), ref debugLogging, "AE_DebugLogging_Desc".Translate());
 
             // 殖民者栏默认排序方式：点击按钮弹 FloatMenu 选择
-            // 设计：玩家配置好默认排序后，ITab "全局人物评级"按钮一键应用
-            r.GapLine();
-            r.Label("AE_DefaultSortMode".Translate());
-            Rect sortBtnRect = r.GetRect(28f);
+            l.GapLine();
+            l.Label("AE_DefaultSortMode".Translate());
+            Rect sortBtnRect = l.GetRect(28f);
             if (Widgets.ButtonText(sortBtnRect, GetSortModeLabel(defaultSortMode)))
             {
                 var sortOptions = new List<FloatMenuOption>
@@ -691,34 +583,7 @@ namespace AutoEverything.Core
             }
             TooltipHandler.TipRegion(sortBtnRect, "AE_TT_DefaultSortMode".Translate());
 
-            // 监测开关（重构新增）
-            r.GapLine();
-            r.Label("AE_Monitor".Translate());
-            r.CheckboxLabeled("AE_Monitor_Enabled".Translate(), ref DebugMonitor.monitorEnabled);
-            if (DebugMonitor.monitorEnabled)
-            {
-                r.CheckboxLabeled("AE_Monitor_SwapEvents".Translate(), ref DebugMonitor.monitorSwapEvents);
-                r.CheckboxLabeled("AE_Monitor_WeaponScore".Translate(), ref DebugMonitor.monitorWeaponScore);
-                r.CheckboxLabeled("AE_Monitor_ApparelScore".Translate(), ref DebugMonitor.monitorApparelScore);
-                r.CheckboxLabeled("AE_Monitor_Breakdown".Translate(), ref DebugMonitor.monitorBreakdown);
-                r.CheckboxLabeled("AE_Monitor_Comparison".Translate(), ref DebugMonitor.monitorComparison);
-            }
-
-            // 调试工具：仅保留一键换装，食尸鬼清理已由 CompTick 自动处理
-            r.GapLine();
-            r.Label("AE_DebugTools".Translate());
-
-            Rect btnRect = r.GetRect(30f);
-            if (Widgets.ButtonText(btnRect, "AE_DebugReload".Translate()))
-            {
-                // 立即触发所有玩家阵营 Pawn 的全装备评估
-                int triggered = CompGearManager.ReloadAllColonists();
-                Messages.Message(
-                    "AE_DebugReloadResultSimple".Translate(triggered),
-                    MessageTypeDefOf.TaskCompletion);
-            }
-
-            r.End();
+            l.End();
 
             Widgets.EndScrollView();
         }

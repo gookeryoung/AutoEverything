@@ -2,35 +2,31 @@ using System;
 using System.Collections.Generic;
 using RimWorld;
 using Verse;
-using AutoEverything.AutoEquipment;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
-using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 全局自动执行器：事件驱动工作重配、周期触发人员评级与装备重配。
+    /// 全局自动执行器：事件驱动工作重配、周期触发人员评级与星标标记。
     ///
-    /// 设计模式：复用 SidearmAllocator/BeltAllocator 的静态门控模式，
+    /// 设计模式：静态门控模式，
     /// 由 CompGearManager.CompTick 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
     /// 不新增 MapComponent/GameComponent，KISS 原则——CompTick 已是现成的每 tick 入口。
     ///
     /// 触发条件：
     /// - 工作重配（事件驱动）：殖民者数量增加或减少时立即触发（不弹消息框）；ITab 勾选时立即触发（弹消息框）
     ///   工作重配不再周期触发，避免频繁变更优先级触发 RimWorld Job 重评估，从而中断手术/进食等长 Job
-    /// - 评级/装备/星标（周期 + 事件）：每 3000 tick（约 50 秒）周期触发；殖民者数量增加时立即触发
+    /// - 评级/星标（周期 + 事件）：每 3000 tick（约 50 秒）周期触发；殖民者数量增加时立即触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈）
     ///
-    /// 装备重配采用轻量升级检查（ForceEvaluate），不放下当前装备，不打断征召战斗。
-    ///
-    /// 首次初始化守卫：lastWorkTick/lastTierTick/lastGearTick &lt; 0 时设为当前 tick，不触发执行，
+    /// 首次初始化守卫：lastWorkTick/lastTierTick &lt; 0 时设为当前 tick，不触发执行，
     /// 避免存档加载后立即执行造成卡顿。
     /// </summary>
     internal static class AutoExecutor
     {
         // 周期触发间隔：3000 tick ≈ 50 秒
-        // 人员评级/装备重配/星标均为非紧急操作，延迟可接受
+        // 人员评级/星标均为非紧急操作，延迟可接受
         // 注：工作重配改为事件驱动（殖民者增减 + ITab 手动触发），不再周期触发
         private const int ExecuteInterval = 3000;
 
@@ -46,7 +42,6 @@ namespace AutoEverything.Core
         private static int lastCheckTick = -9999;
         private static int lastWorkTick = -9999;
         private static int lastTierTick = -9999;
-        private static int lastGearTick = -9999;
         private static int lastMarkTick = -9999;
 
         // 殖民者数量缓存：-1 = 首次只记录不触发，避免存档加载误触发
@@ -56,14 +51,9 @@ namespace AutoEverything.Core
         // 避免战斗中死亡立即触发 ReallocateAll 打断医生手术
         private static bool pendingWorkRealloc = false;
 
-        // 装备重配候选缓存：按战斗价值降序排序后逐个 ForceEvaluate，避免 GC
-        private static readonly List<Pawn> gearCandidates = new List<Pawn>();
-        private static readonly Dictionary<Pawn, float> gearCombatValueCache = new Dictionary<Pawn, float>();
-
         // 错误去重 salt：每个错误点独立，避免跨方法冲突
         private const int WorkErrorSalt = 0xA200;
         private const int TierErrorSalt = 0xA300;
-        private const int GearErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
 
         /// <summary>
@@ -85,7 +75,6 @@ namespace AutoEverything.Core
             {
                 lastWorkTick = tick;
                 lastTierTick = tick;
-                lastGearTick = tick;
                 lastMarkTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 return;
@@ -95,17 +84,16 @@ namespace AutoEverything.Core
             // 工作重配改为事件驱动 + 冷却 + 战斗过滤：
             //   - 战斗中死亡立即触发会打断医生手术（SetPriority 取消 TendPatient/DoBill）
             //   - 标记 pendingWorkRealloc，冷却结束且非战斗中才真正触发
-            // 评级/装备/星标：增加时立即触发（不打断 Job——评级只改 Nick，装备走 ForceEvaluate 有医疗守卫）
+            // 评级/星标：增加时立即触发（不打断 Job——评级只改 Nick）
             int currentCount = PawnsFinder.AllMaps_FreeColonists.Count;
             if (currentCount != lastColonistCount)
             {
                 bool isIncrease = currentCount > lastColonistCount;
                 lastColonistCount = currentCount;
-                // 评级/装备/星标：增加时立即触发（不打断 Job）
+                // 评级/星标：增加时立即触发（不打断 Job）
                 if (isIncrease)
                 {
                     ExecuteTier(tick, showMessage: false);
-                    ExecuteGear(tick, showMessage: false);
                     ExecuteMark(tick, showMessage: false);
                 }
                 // 工作重配：标记待触发，不立即执行
@@ -120,14 +108,10 @@ namespace AutoEverything.Core
                 ExecuteWork(tick, showMessage: false);
             }
 
-            // 周期触发：评级/装备/星标 3000 tick（工作重配已改为事件驱动，无周期触发）
+            // 周期触发：评级/星标 3000 tick（工作重配已改为事件驱动，无周期触发）
             if (tick - lastTierTick >= ExecuteInterval)
             {
                 ExecuteTier(tick, showMessage: false);
-            }
-            if (tick - lastGearTick >= ExecuteInterval)
-            {
-                ExecuteGear(tick, showMessage: false);
             }
             if (tick - lastMarkTick >= ExecuteInterval)
             {
@@ -149,14 +133,6 @@ namespace AutoEverything.Core
         public static void TriggerTierNow()
         {
             ExecuteTier(Find.TickManager.TicksGame, showMessage: true);
-        }
-
-        /// <summary>
-        /// ITab 勾选时调用：立即执行装备重配并弹消息框反馈。
-        /// </summary>
-        public static void TriggerGearNow()
-        {
-            ExecuteGear(Find.TickManager.TicksGame, showMessage: true);
         }
 
         /// <summary>
@@ -218,82 +194,6 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 人员自动评级失败: " + ex.Message, TierErrorSalt);
-            }
-        }
-
-        /// <summary>
-        /// 执行装备重配：按战斗价值降序逐个调用 ForceEvaluate（升级阈值检查，不主动脱光）。
-        ///
-        /// 设计权衡：
-        /// - 周期自动重配不做"放下所有重配"（ReallocateAll），避免频繁脱穿导致殖民者心情差
-        /// - 按战斗价值降序处理：高评级殖民者优先评估，通过升级阈值拾取地图上的更好装备
-        /// - 低评分殖民者手里的好装备不会主动让出（仅手动"全局重配"按钮触发 ReallocateAll 时才让出）
-        /// - 受 AESettings.autoGearReallocate 开关控制，关闭时不执行
-        /// - 过滤链与 CompGearManager.CompTick 一致：食尸鬼/不适用/Dead/Downed/奴隶/锁定/征召 均排除
-        /// - 未成年仅评估防具（与 CompTick 守卫一致）
-        /// try-catch 隔离：失败时 Log.ErrorOnce 记录，不影响其他逻辑。
-        /// </summary>
-        private static void ExecuteGear(int tick, bool showMessage)
-        {
-            lastGearTick = tick;
-            if (!AESettings.autoGearReallocate) return;
-
-            try
-            {
-                gearCandidates.Clear();
-                gearCombatValueCache.Clear();
-
-                foreach (Map map in Find.Maps)
-                {
-                    foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
-                    {
-                        if (DLCCompat.IsGhoul(pawn)) continue;
-                        if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
-                        if (pawn.Dead || pawn.Downed) continue;
-                        if (DLCCompat.IsSlave(pawn)) continue;   // 奴隶未征召不参与自动装备
-                        if (pawn.Drafted) continue;              // 不打断征召战斗
-                        CompGearManager comp = pawn.GetComp<CompGearManager>();
-                        if (comp == null) continue;
-                        if (comp.locked) continue;               // 尊重玩家锁定
-
-                        gearCandidates.Add(pawn);
-                        gearCombatValueCache[pawn] = CombatEvaluator.ComputeCombatValue(pawn);
-                    }
-                }
-
-                // 按战斗价值降序排序：高评级殖民者优先评估选装备
-                gearCandidates.Sort((a, b) => gearCombatValueCache[b].CompareTo(gearCombatValueCache[a]));
-
-                int n = 0;
-                for (int i = 0; i < gearCandidates.Count; i++)
-                {
-                    Pawn pawn = gearCandidates[i];
-                    CompGearManager comp = pawn.GetComp<CompGearManager>();
-                    if (comp == null) continue;
-
-                    // 未成年仅评估防具，跳过武器/副武器/库存（与 CompGearManager.CompTick 守卫一致）
-                    if (DLCCompat.IsChild(pawn))
-                    {
-                        comp.ForceEvaluate(CompGearManager.ReloadTarget.Apparel);
-                    }
-                    else
-                    {
-                        comp.ForceEvaluate(CompGearManager.ReloadTarget.All);
-                    }
-                    n++;
-                }
-
-                AEDebug.Log(() => $"[AutoExecutor] 自动装备重配: {n} 个殖民者 (tick={tick})");
-                if (showMessage)
-                {
-                    Messages.Message(
-                        "AE_AutoGearReallocateResult".Translate(n),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorOnce("[AutoEverything] 自动装备重配失败: " + ex.Message, GearErrorSalt);
             }
         }
 

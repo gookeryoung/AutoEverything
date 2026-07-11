@@ -22,93 +22,33 @@
   <AE_Context_Hunting>Hunting</AE_Context_Hunting>
   <AE_Context_Cold>Cold</AE_Context_Cold>
   <AE_Context_Hot>Hot</AE_Context_Hot>
+  <AE_Context_Idle>Idle</AE_Context_Idle>
 
-  <!-- ITab labels -->
-  <AE_CurrentRole>Current Role</AE_CurrentRole>
-  <AE_CurrentContext>Current Context</AE_CurrentContext>
-  <AE_LockGear>Lock Gear</AE_LockGear>
-  <AE_LockGear_Desc>Prevents Auto Everything from managing this pawn's gear.</AE_LockGear_Desc>
-  <AE_OverrideRole>Override Role</AE_OverrideRole>
-  <AE_PrimaryWeapon>Primary Weapon</AE_PrimaryWeapon>
-  <AE_Sidearm>Sidearm</AE_Sidearm>
-  <AE_WornApparel>Worn Apparel</AE_WornApparel>
-  <AE_None>None</AE_None>
+  <!-- Common labels -->
   <AE_Role>Role</AE_Role>
 
   <!-- Settings -->
   <AE_Enabled>Enable Auto Everything</AE_Enabled>
   <AE_AutoSystems>Automatic Systems</AE_AutoSystems>
-  <AE_AutoWeapons>Auto-manage weapons</AE_AutoWeapons>
-  <AE_AutoApparel>Auto-manage apparel</AE_AutoApparel>
-  <AE_AutoInventory>Auto-manage inventory (medicine)</AE_AutoInventory>
-  <AE_Sidearms>Carry sidearms</AE_Sidearms>
-  <AE_Context>Context Switching</AE_Context>
-  <AE_CombatSwitch>Swap gear on draft/undraft</AE_CombatSwitch>
-  <AE_HuntingWeapon>Equip hunting weapon for hunting</AE_HuntingWeapon>
-  <AE_TemperatureAware>Temperature-aware apparel</AE_TemperatureAware>
-  <AE_JobAwareApparel>Job-aware apparel</AE_JobAwareApparel>
-  <AE_SidearmSettings>Sidearm Settings</AE_SidearmSettings>
-  <AE_AutoMelee>Auto-draw melee when attacked in melee</AE_AutoMelee>
-  <AE_CarryMedicine>Carry medicine</AE_CarryMedicine>
-  <AE_MedicineCount>Medicine count</AE_MedicineCount>
-  <AE_UpgradeThreshold>Upgrade threshold (swap if better by)</AE_UpgradeThreshold>
+  <AE_AutoWork>Auto Work Config</AE_AutoWork>
+  <AE_AutoTierTag>Auto Tier Tag</AE_AutoTierTag>
+  <AE_AutoMarkPawn>High-Value Marker</AE_AutoMarkPawn>
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
-  <AE_DebugTools>Debug Tools</AE_DebugTools>
-  <AE_DebugReload>Reload all colonists now</AE_DebugReload>
-  <AE_DebugReloadResultSimple>Triggered gear evaluation for {0} colonists</AE_DebugReloadResultSimple>
 
-  <!-- Presets -->
-  <AE_Preset>Preset</AE_Preset>
-  <AE_Preset_Standard>Standard</AE_Preset_Standard>
-  <AE_Preset_Aggressive>Aggressive</AE_Preset_Aggressive>
-  <AE_Preset_Economic>Economic</AE_Preset_Economic>
-  <AE_Preset_Hunting>Hunting</AE_Preset_Hunting>
-  <AE_Preset_Cycle>Cycle</AE_Preset_Cycle>
-  <AE_Preset_Details>Preset Details</AE_Preset_Details>
-  <AE_Preset_DefaultWeights>Default Weights</AE_Preset_DefaultWeights>
-
-  <!-- Weight names -->
-  <AE_Weight_Skill>Skill</AE_Weight_Skill>
-  <AE_Weight_DPS>DPS</AE_Weight_DPS>
-  <AE_Weight_Range>Range</AE_Weight_Range>
-  <AE_Weight_Quality>Quality</AE_Weight_Quality>
-  <AE_Weight_Armor>Armor</AE_Weight_Armor>
-  <AE_Weight_Insulation>Insulation</AE_Weight_Insulation>
-  <AE_Weight_MoveSpeed>Move Speed</AE_Weight_MoveSpeed>
-  <AE_Weight_WorkSpeed>Work Speed</AE_Weight_WorkSpeed>
-
-  <!-- Monitor -->
-  <AE_Monitor>Monitor</AE_Monitor>
-  <AE_Monitor_Enabled>Enable monitor</AE_Monitor_Enabled>
-  <AE_Monitor_SwapEvents>Swap events</AE_Monitor_SwapEvents>
-  <AE_Monitor_WeaponScore>Weapon score</AE_Monitor_WeaponScore>
-  <AE_Monitor_ApparelScore>Apparel score</AE_Monitor_ApparelScore>
-  <AE_Monitor_Breakdown>Score breakdown</AE_Monitor_Breakdown>
-  <AE_Monitor_Comparison>Score comparison</AE_Monitor_Comparison>
-  <AE_Slot_Weapon>Weapon</AE_Slot_Weapon>
-  <AE_Slot_Apparel>Apparel</AE_Slot_Apparel>
-  <AE_Swap_Removed>Removed</AE_Swap_Removed>
-  <AE_Swap_Equipped>Equipped</AE_Swap_Equipped>
-
-  <!-- Global gear reallocate -->
-  <AE_GlobalReallocate>Global Gear Reallocate</AE_GlobalReallocate>
-  <AE_GlobalReallocateResult>Triggered global gear reallocation for {0} colonists by combat value</AE_GlobalReallocateResult>
-
-  <!-- Global tier tag on pawn names -->
-  <AE_GlobalTierTag>Global Tier Tag</AE_GlobalTierTag>
-  <AE_TierTag_Apply>Apply tier prefix to names (e.g. S#John)</AE_TierTag_Apply>
-  <AE_TierTag_Clear>Clear tier prefix, restore names</AE_TierTag_Clear>
-  <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
-  <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
-  <AE_TT_GlobalTierTag>Applies tier prefix to colonist Nick and reorders the colonist bar by the default sort mode configured in Mod settings.
-Clear restores original names and keeps the current colonist bar order.
-"Global Gear Reallocate" does NOT change the colonist bar order.
-Sort mode is configured in Mod settings under "Default Sort".</AE_TT_GlobalTierTag>
+  <!-- Combat value formula weights -->
+  <AE_CombatValueWeights>Combat Value Formula Weights</AE_CombatValueWeights>
+  <AE_cvSkillWeight>Skill weight</AE_cvSkillWeight>
+  <AE_cvPassionNoneMult>None passion multiplier</AE_cvPassionNoneMult>
+  <AE_cvPassionMinorMult>Minor passion multiplier</AE_cvPassionMinorMult>
+  <AE_cvPassionMajorMult>Major passion multiplier</AE_cvPassionMajorMult>
+  <AE_cvToughBonus>Tough bonus</AE_cvToughBonus>
+  <AE_cvTriggerHappyPenalty>Trigger-happy penalty</AE_cvTriggerHappyPenalty>
+  <AE_cvCarefulShooterBonus>Careful shooter bonus</AE_cvCarefulShooterBonus>
 
   <!-- Colonist bar default sort mode (Mod settings) -->
   <AE_DefaultSortMode>Default Sort</AE_DefaultSortMode>
-  <AE_TT_DefaultSortMode>Configures how the "Global Tier Tag" button reorders the colonist bar after applying tier prefix.
+  <AE_TT_DefaultSortMode>Configures how the "Auto Tier Tag" reorders the colonist bar after applying tier prefix.
 None: only apply prefix, keep original order.
 By Tier+Value: S->A->B->C->D->X left to right, within tier by combat value desc (recommended).
 By Role+Tier: Brawler -> Shooter -> Doctor -> Worker -> Pacifist -> Hunter -> Leader, within role by tier desc.
@@ -118,48 +58,14 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_SortMode_ByRoleThenTier>By Role+Tier</AE_SortMode_ByRoleThenTier>
   <AE_SortMode_ByCombatValue>By Combat Value</AE_SortMode_ByCombatValue>
 
-  <!-- Global reallocate rules (inlined in panel) -->
-  <AE_ReallocRules_Title>Global Reallocate Rules</AE_ReallocRules_Title>
-  <AE_ReallocRules_CombatValue>Combat Value Formula (eval order)</AE_ReallocRules_CombatValue>
-  <AE_ReallocRules_CombatValue_Formula>Formula = (Shooting lv × passion mult + Melee lv × passion mult) × skill weight + trait bonus</AE_ReallocRules_CombatValue_Formula>
-  <AE_ReallocRules_PassionMult>Passion Multipliers</AE_ReallocRules_PassionMult>
-  <AE_ReallocRules_PassionNone>None</AE_ReallocRules_PassionNone>
-  <AE_ReallocRules_PassionMinor>Minor</AE_ReallocRules_PassionMinor>
-  <AE_ReallocRules_PassionMajor>Major</AE_ReallocRules_PassionMajor>
-  <AE_ReallocRules_SkillWeight>Skill weight</AE_ReallocRules_SkillWeight>
-  <AE_ReallocRules_TraitBonus>Trait Bonus</AE_ReallocRules_TraitBonus>
-  <AE_ReallocRules_TraitBonus_Desc>Positive raises priority, negative lowers it</AE_ReallocRules_TraitBonus_Desc>
-  <AE_ReallocRules_Tough>Tough (50% damage reduction)</AE_ReallocRules_Tough>
-  <AE_ReallocRules_TriggerHappy>Trigger-happy (accuracy drop)</AE_ReallocRules_TriggerHappy>
-  <AE_ReallocRules_CarefulShooter>Careful shooter (accuracy up, cooldown up)</AE_ReallocRules_CarefulShooter>
-  <AE_ReallocRules_ProtectSection>Protection Rules</AE_ReallocRules_ProtectSection>
-  <AE_ReallocRules_DropWeapons>Drop current weapons before reallocating</AE_ReallocRules_DropWeapons>
-  <AE_ReallocRules_RespectDrafted>Skip drafted colonists</AE_ReallocRules_RespectDrafted>
-  <AE_ReallocRules_RespectLocked>Skip locked colonists</AE_ReallocRules_RespectLocked>
-  <AE_ReallocRules_RespectBiocoded>Skip biocoded weapons</AE_ReallocRules_RespectBiocoded>
-
-  <!-- Armor allocation rules -->
-  <AE_ReallocRules_ArmorPrefSection>Armor Allocation Rules</AE_ReallocRules_ArmorPrefSection>
-  <AE_ReallocRules_ArmorPref_Desc>Score-driven by armor value: all armor scored by protection, high-tier colonists get high-armor gear first</AE_ReallocRules_ArmorPref_Desc>
-  <AE_ReallocRules_CurrentArmorPref>Current role armor preference</AE_ReallocRules_CurrentArmorPref>
-  <AE_ArmorPref_Heavy>Heavy[front]</AE_ArmorPref_Heavy>
-  <AE_ArmorPref_Flexible>Flex[back]</AE_ArmorPref_Flexible>
-  <AE_ArmorPref_Light>Light[worker]</AE_ArmorPref_Light>
-  <AE_ReallocRules_ReallocApparel>Also reallocate apparel</AE_ReallocRules_ReallocApparel>
-  <AE_ReallocRules_HeavyThreshold>Heavy armor threshold (ArmorRating_Sharp >=)</AE_ReallocRules_HeavyThreshold>
-  <AE_ReallocRules_HeavyPenaltyForLight>Heavy-pref role penalty on light armor</AE_ReallocRules_HeavyPenaltyForLight>
-  <AE_ReallocRules_LightPenaltyForHeavy>Light-pref role penalty on heavy armor</AE_ReallocRules_LightPenaltyForHeavy>
-
   <!-- Custom tier override -->
   <AE_ReallocRules_CustomTier>Custom Tier Code</AE_ReallocRules_CustomTier>
-  <AE_ReallocRules_CustomTier_Desc>Manually assign a tier for this colonist, bypassing auto formula and assigning high-value gear by tier. In DEBUG mode the label shows the code (e.g. S#John).</AE_ReallocRules_CustomTier_Desc>
+  <AE_ReallocRules_CustomTier_Desc>Manually assign a tier for this colonist, bypassing auto formula. In DEBUG mode the label shows the code (e.g. S#John).</AE_ReallocRules_CustomTier_Desc>
   <AE_ReallocRules_CurrentTier>Current tier</AE_ReallocRules_CurrentTier>
-  <AE_ReallocRules_AutoTier>Auto</AE_ReallocRules_AutoTier>
   <AE_ReallocRules_SetCustomTier>Set Custom Tier</AE_ReallocRules_SetCustomTier>
   <AE_ReallocRules_ClearCustomTier>Clear Custom</AE_ReallocRules_ClearCustomTier>
-  <AE_ReallocRules_ConfirmDesc>Adjust rules then click "Confirm Reallocate" to execute. Click outside or Cancel to abort.</AE_ReallocRules_ConfirmDesc>
-  <AE_ReallocRules_Confirm>Confirm Reallocate</AE_ReallocRules_Confirm>
-  <AE_ReallocRules_Cancel>Cancel</AE_ReallocRules_Cancel>
+
+  <!-- Tier descriptions -->
   <AE_Tier_SSS>SSS: TriggerHappy+Tough+Shooting Major / Tough+Melee Major+Nimble/Brawler / Industrious+Neurotic+3 work Majors</AE_Tier_SSS>
   <AE_Tier_SS>SS: TriggerHappy+Shooting Major / Tough+Melee Major / Industrious+Neurotic+2 work Majors</AE_Tier_SS>
   <AE_Tier_S>S: TriggerHappy+Shooting Minor / Tough+Melee passion / Industrious+Neurotic+1 work Major / Special talent / Beauty+Social Major</AE_Tier_S>
@@ -172,23 +78,16 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <!-- Panel status badges -->
   <AE_Badge_CombatValue>Combat Value</AE_Badge_CombatValue>
   <AE_Badge_PawnValue>Pawn Value</AE_Badge_PawnValue>
-  <AE_Badge_ArmorPref>Armor Pref</AE_Badge_ArmorPref>
-  <AE_Badge_Tier>Tier</AE_Badge_Tier>
-  <AE_Badge_Role>Role</AE_Badge_Role>
-  <AE_Badge_Context>Context</AE_Badge_Context>
-  <AE_Badge_Weapon>Weapon</AE_Badge_Weapon>
-  <AE_Badge_Apparel>Apparel</AE_Badge_Apparel>
-  <AE_Badge_Status>Status</AE_Badge_Status>
-  <AE_Badge_Locked>Locked</AE_Badge_Locked>
-  <AE_Badge_Unlocked>Unlocked</AE_Badge_Unlocked>
   <AE_Badge_Ghoul>Ghoul</AE_Badge_Ghoul>
-  <AE_Badge_NoAutoEquip>No Auto-Equip</AE_Badge_NoAutoEquip>
-  <AE_GhoulHint>Ghouls cannot use gear. Tier shown for player reference only. "Global Gear Reallocate" will skip ghouls.</AE_GhoulHint>
+  <AE_GhoulHint>Ghouls cannot use gear. Tier shown for player reference only.</AE_GhoulHint>
+
+  <!-- Armor preference badges -->
+  <AE_ArmorPref_Heavy>Heavy[front]</AE_ArmorPref_Heavy>
+  <AE_ArmorPref_Flexible>Flex[back]</AE_ArmorPref_Flexible>
+  <AE_ArmorPref_Light>Light[worker]</AE_ArmorPref_Light>
 
   <!-- Panel section titles -->
   <AE_Section_PawnStatus>Pawn Status</AE_Section_PawnStatus>
-  <AE_Section_Equipment>Equipment Summary</AE_Section_Equipment>
-  <AE_Section_Controls>Controls</AE_Section_Controls>
 
   <!-- Tooltip descriptions -->
   <AE_TT_Role_Default>Default: no significant combat skill tendency</AE_TT_Role_Default>
@@ -200,45 +99,34 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_TT_Role_Pacifist>Pacifist: incapable of violent work</AE_TT_Role_Pacifist>
   <AE_TT_Role_Leader>Ideo Leader: has ideology role (label only)</AE_TT_Role_Leader>
   <AE_TT_Context_Normal>Normal: no special context</AE_TT_Context_Normal>
-  <AE_Context_Idle>Idle</AE_Context_Idle>
   <AE_TT_Context_Idle>Idle: ghoul does not participate in context detection</AE_TT_Context_Idle>
   <AE_TT_Context_Combat>Combat: drafted or fleeing</AE_TT_Context_Combat>
   <AE_TT_Context_Work>Working: performing non-combat job</AE_TT_Context_Work>
   <AE_TT_Context_Hunting>Hunting: performing hunting job</AE_TT_Context_Hunting>
   <AE_TT_Context_Cold>Cold: ambient temp below comfort range for 2500 ticks</AE_TT_Context_Cold>
   <AE_TT_Context_Hot>Hot: ambient temp above comfort range for 2500 ticks</AE_TT_Context_Hot>
-  <AE_TT_Tier>Tier S/A/B/C/D/X discretized from combat value, decides global realloc priority</AE_TT_Tier>
+  <AE_TT_Tier>Tier S/A/B/C/D/X discretized from combat value, decides colonist bar sort priority</AE_TT_Tier>
   <AE_TT_CombatValue>Combat Value = (Shooting*passion + Melee*passion) * skill weight + trait bonus</AE_TT_CombatValue>
   <AE_TT_PawnValue>Pawn Value: comprehensive evaluation of skills, traits, health</AE_TT_PawnValue>
-  <AE_TT_ArmorPref_Heavy>Heavy[front]: forced heavy armor, only downgrades when no heavy available</AE_TT_ArmorPref_Heavy>
-  <AE_TT_ArmorPref_Flexible>Flex[back]: free choice by score, considers heavy if surplus</AE_TT_ArmorPref_Flexible>
-  <AE_TT_ArmorPref_Light>Light[worker]: forced light armor for work efficiency</AE_TT_ArmorPref_Light>
-  <AE_TT_LockGear>When checked, this colonist's gear is not auto-managed</AE_TT_LockGear>
-  <AE_TT_OverrideRole>When checked, manually set role overrides auto detection</AE_TT_OverrideRole>
-  <AE_TT_GlobalReallocate>Drop all colonist weapons and apparel, reallocate by combat value desc. Ghouls are skipped.</AE_TT_GlobalReallocate>
+  <AE_TT_ArmorPref_Heavy>Heavy[front]: prefers heavy armor to absorb frontline damage (display only, no auto-allocation)</AE_TT_ArmorPref_Heavy>
+  <AE_TT_ArmorPref_Flexible>Flex[back]: free choice by score (display only, no auto-allocation)</AE_TT_ArmorPref_Flexible>
+  <AE_TT_ArmorPref_Light>Light[worker]: prefers light armor for work efficiency (display only, no auto-allocation)</AE_TT_ArmorPref_Light>
 
   <!-- AutoWork -->
-  <AE_AutoWork>Auto Work Config</AE_AutoWork>
-  <AE_GlobalWorkReallocate>Global Work Reallocate</AE_GlobalWorkReallocate>
-  <AE_GlobalWorkReallocateResult>Reassigned work priorities for {0} colonists</AE_GlobalWorkReallocateResult>
-  <AE_TT_GlobalWorkReallocate>Reassign all colonists' work priorities via multi-pass coordinated allocation by work category. Emergency=1; key work (Doctor/Warden/Childcare) passionate top2=1 with >= 2 guaranteed; Hunting max 2 with back-row priority; Research guarantees 1; other skill work guarantees 2, sorted by passion -> skill -> work count; passionate pawns beyond guaranteed count are set to 4 (backup), unpassionate to 0 (disabled); hauling/cleaning by tier=1/3/4.</AE_TT_GlobalWorkReallocate>
-
-  <!-- ITab bottom checkboxes (auto execution) -->
-  <AE_AutoTierTag>Auto Tier Rating</AE_AutoTierTag>
   <AE_AutoWorkConfig>Auto Work Config</AE_AutoWorkConfig>
-  <AE_AutoGearReallocate>Auto Gear Reallocate</AE_AutoGearReallocate>
-  <AE_AutoMarkPawn>High-Value Marker</AE_AutoMarkPawn>
-  <AE_TT_AutoTierTag>When enabled, automatically applies tier rating: every 3000 ticks and immediately when new colonists arrive.
-Checking it triggers one immediate execution; unchecking clears all tier tags and restores original names.</AE_TT_AutoTierTag>
-  <AE_TT_AutoWorkConfig>When enabled, automatically reallocates work priorities: every 3000 ticks and immediately when new colonists arrive.
-Checking it triggers one immediate execution; unchecking only stops auto execution, current work priorities are retained.</AE_TT_AutoWorkConfig>
-  <AE_TT_AutoGearReallocate>When enabled, automatically evaluates gear upgrades (lightweight check): every 3000 ticks and immediately when new colonists arrive.
-Does not interrupt drafted pawns; slaves and locked pawns are excluded; does not drop current gear, only swaps when better gear is available.
-Checking it triggers one immediate execution; unchecking only stops auto execution, current gear is retained.</AE_TT_AutoGearReallocate>
-  <AE_TT_AutoMarkPawn>When enabled, draws a bright red star marker above the head of S+ tier (S/SS/SSS) non-colonist humans (enemies/visitors/traders/wild humans) in real time.
-Does not modify any pawn name; pure frontend rendering, safe and reversible; makes high-value targets easy to spot at a glance for priority capture or vigilance.
-Checking it counts current targets and shows a message; unchecking stops drawing immediately.</AE_TT_AutoMarkPawn>
-  <AE_AutoGearReallocateResult>Auto gear evaluation triggered for {0} colonists</AE_AutoGearReallocateResult>
+  <AE_GlobalWorkReallocateResult>Reassigned work priorities for {0} colonists</AE_GlobalWorkReallocateResult>
+  <AE_TT_GlobalWorkReallocate>Reassign all colonists' work priorities via multi-pass coordinated allocation by work category. Emergency=1; key work (Doctor/Warden/Childcare) passionate top2=1 and guarantee >=2; Hunting max 2, back row first; Research guarantee 1; other skill work guarantee 2, sorted by passion->skill->work count; beyond guarantee passionate=4 backup, non-passionate=0 disabled; Hauling/Cleaning by tier=1/3/4.</AE_TT_GlobalWorkReallocate>
+
+  <!-- ITab bottom checkboxes (auto-execute) -->
+  <AE_TT_AutoTierTag>When checked, auto-executes tier tagging: every 3000 ticks, and immediately on new colonist.
+Executes once immediately when checked; when unchecked, clears all tier tags and restores original names.</AE_TT_AutoTierTag>
+  <AE_TT_AutoWorkConfig>When checked, auto-executes work reallocation: every 3000 ticks, and immediately on new colonist.
+Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current work assignment.</AE_TT_AutoWorkConfig>
+  <AE_TT_AutoMarkPawn>When checked, draws a vivid red star marker above non-colonist humans (enemies/visitors/traders/wild humans) of S+ tier (S/SS/SSS) in real time.
+Does not modify any object name, pure frontend drawing, safe and reversible; for quick identification of high-value targets to prioritize capture or vigilance.
+When checked, counts current targets and pops a message; when unchecked, the star disappears automatically.</AE_TT_AutoMarkPawn>
   <AE_AutoMarkPawnResult>Found {0} high-value non-colonist targets (S+ tier), marked with red star</AE_AutoMarkPawnResult>
+  <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
+  <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
 
 </LanguageData>

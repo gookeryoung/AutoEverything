@@ -57,6 +57,7 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 判定 Pawn 当前的装备情境。
+        /// 注：装备评估功能已移除，此方法仅用于 ITab 情境徽章显示。
         /// </summary>
         public static GearContext GetContext(Pawn pawn)
         {
@@ -71,25 +72,26 @@ namespace AutoEverything.RoleEvaluation
                 return LogContextIfChanged(pawn, GearContext.Combat, "已征召");
 
             // 狩猎工作
-            if (AESettings.huntingWeapon && IsHunting(pawn))
+            if (IsHunting(pawn))
                 return LogContextIfChanged(pawn, GearContext.Hunting, "狩猎工作中");
 
             // 战斗 Job（未征召反击）：AttackStatic/AttackMelee/UseVerbOnThing/Wait_Combat 等
-            // alwaysShowWeapon=true 的 Job（非狩猎）都是战斗相关，应归为 Combat 情境用战斗权重评估
-            // 修复 BUG：原代码 L129 把 alwaysShowWeapon=true 的 Job 跳过落到 Normal，导致反击时用普通权重
+            // alwaysShowWeapon=true 的 Job（非狩猎）都是战斗相关，应归为 Combat 情境
             if (pawn.CurJob != null && pawn.CurJob.def.alwaysShowWeapon)
                 return LogContextIfChanged(pawn, GearContext.Combat, $"战斗={pawn.CurJob.def.defName}");
 
             // 温度检测：仅在持续暴露后才触发
-            if (AESettings.temperatureAware && pawn.Map != null)
+            // 温度判定常量硬编码（原 AESettings.tempDangerMargin 已随装备模块移除）
+            if (pawn.Map != null)
             {
                 float ambientTemp = pawn.AmbientTemperature;
                 FloatRange comfortRange = pawn.ComfortableTemperatureRange();
                 int tick = Find.TickManager.TicksGame;
                 int pawnId = pawn.thingIDNumber;
 
-                bool isCold = ambientTemp < comfortRange.min - AESettings.tempDangerMargin;
-                bool isHot = ambientTemp > comfortRange.max + AESettings.tempDangerMargin;
+                float tempDangerMargin = 5f;
+                bool isCold = ambientTemp < comfortRange.min - tempDangerMargin;
+                bool isHot = ambientTemp > comfortRange.max + tempDangerMargin;
 
                 if (isCold)
                 {
@@ -167,37 +169,6 @@ namespace AutoEverything.RoleEvaluation
             if (pawn?.CurJob == null) return false;
             return pawn.CurJob.def == JobDefOf.Hunt
                 || pawn.CurJob.def == JobDefOf.PredatorHunt;
-        }
-
-        /// <summary>
-        /// 检测 Pawn 是否受到近战威胁（用于副武器切出判断）。
-        /// 返回 true 的条件：敌方相邻且正在近战攻击，
-        /// 或仅有近战能力的敌方接近至 3 格以内。
-        /// </summary>
-        public static bool IsUnderMeleeAttack(Pawn pawn)
-        {
-            if (pawn?.Map == null) return false;
-
-            foreach (var threat in pawn.Map.attackTargetsCache.GetPotentialTargetsFor(pawn))
-            {
-                if (!(threat.Thing is Pawn attacker) || attacker.Dead || attacker.Downed) continue;
-                if (!attacker.HostileTo(pawn)) continue;
-
-                float dist = attacker.Position.DistanceTo(pawn.Position);
-
-                // 相邻且正在近战攻击：立即威胁
-                if (dist <= 1.5f && attacker.CurrentEffectiveVerb?.IsMeleeAttack == true)
-                    return true;
-
-                // 接近至 3 格内且无远程武器：即将近战
-                if (dist <= 3f)
-                {
-                    bool attackerHasRanged = attacker.equipment?.Primary?.def.IsRangedWeapon == true;
-                    if (!attackerHasRanged)
-                        return true;
-                }
-            }
-            return false;
         }
     }
 }

@@ -4,19 +4,25 @@
 >
 > packageId: `gookeryoung.autoeverything`
 
-殖民者会根据自身**角色**与**情境**，自动挑选最合适的武器、防具与腰带附件，并按需携带药品与 EMP 手雷。
+为殖民者自动执行**人员评级**、**工作优先级分配**与**高价值目标标记**，让玩家从繁琐的微调中解放出来。
 
-零配置开箱即用，每个殖民者根据技能与特质自动识别角色。
+零配置开箱即用，每个殖民者根据技能与特质自动识别角色与评级。
+
+## 功能概览
+
+| 模块 | 功能 | 触发方式 |
+|------|------|----------|
+| **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
+| **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
+| **AutoMarkPawn**（高价值标记） | 为 S+ 档次非殖民者人类头顶实时绘制红色星标 ★ | 实时绘制（Harmony 补丁）+ ITab 勾选 |
 
 ## 设计思路
 
-传统的"自动装备"MOD 常常陷入两个极端：要么把所有殖民者一视同仁（按 DPS 排序随便塞），要么要求玩家手动配置每个殖民者的偏好。本 MOD 的设计原则是：
-
-1. **角色驱动**：殖民者不是无差别的劳动力，而是有专长的个体。射击等级 12 双火的角色应当优先拿狙击枪，医疗等级 10 的角色应当带药品、穿医疗属性服装。
-2. **情境感知**：同一把武器在不同情境下价值不同。征召战斗时优先 DPS，狩猎时优先射程，低温环境下优先保温服装。
-3. **评分模型**：每个候选装备按多维评分累加，分数最高的胜出。评分维度独立封装，可单独替换或扩展。
-4. **逻辑杜绝而非事后清理**：食尸鬼、动物等不适用类别在入口（Pawn 生成、CompTick）就被排除，绝不进入装备管理流程，玩家手动给食尸鬼装备由玩家自行负责。
-5. **EMP 手雷全局分配**：每人只选最适合自己的主武器，不再自动分配反向类型副武器；EMP 手雷作为库存携带的副武器特例，按 `CombatTier` 升序（评级低者优先）为 Flexible 后排前 2 人分配。
+1. **角色驱动**：殖民者不是无差别的劳动力，而是有专长的个体。评级系统综合射击、近战、工作、社交、特质等维度评判全局价值，让玩家一眼分辨主力与辅助。
+2. **情境感知**：同一殖民者在不同情境下角色不同。情境检测器识别战斗/工作/狩猎/寒冷/炎热等状态，供面板展示与工作分配参考。
+3. **工作均衡**：工作分配按兴趣 → 技能 → 工作计数三因子排序，保证关键工作有人做、专业工作兴趣者优先、辅助工作按评级分档，避免高价值殖民者被杂务拖累。
+4. **逻辑杜绝而非事后清理**：食尸鬼、动物等不适用类别在入口（Pawn 生成、CompTick）就被排除，绝不进入自动管理流程。
+5. **安全可逆**：评级标签与星标均为纯前端展示，不修改 Pawn 核心数据；工作优先级可随时手动调整。
 
 ## 角色检测规则
 
@@ -34,244 +40,24 @@
 | 8 | `Worker`（工人）| 射击与近战均 < 5 |
 | 9 | `Shooter`/`Brawler` | 中等技能按高低判定 |
 
-**关键约束**：
-
-1. **Brawler 角色拒绝远程**：`Brawler` 角色（基于 `Brawler` 特质、或兴趣组合判定、或技能等级判定）会被 `Veto(-9000f)` 拒绝远程武器。近战定位的小人不配备远程武器，无论是否有 `Brawler` 特质。
-2. **非格斗者拒绝近战**：`WeaponTraitScorer` 在评分开头检查 Role，仅 `Brawler` 角色（基于特质或兴趣/技能判定）允许装备近战武器；`Worker`/`Doctor`/`Pacifist`/`Default`（Light）与 `Shooter`/`Hunter`/`Leader`（Flexible）在武器评分时会触发 `Veto(-9000f)` 拒绝近战武器。设计意图：轻甲无防护不宜近战，后排应优先远程输出。
-
-## 主武器选择规则
-
-每人只选最适合自己的主武器，不再自动分配反向类型副武器。EMP 手雷作为库存携带的副武器特例，见下方 [EMP 手雷全局分配](#emp-手雷全局分配库存携带)。
-
-| 殖民者类型 | 主武器 | 说明 |
-|-----------|--------|------|
-| `Brawler` 角色 | 近战 | Veto 远程武器（`WeaponTraitScorer` -9000f） |
-| 纯远程（近战无火） | 远程 | 按评分自然选择 |
-| 双修（射击+近战均有火） | 按技能等级 | 射击 ≥ 近战 → Shooter（远程）；近战 > 射击 → Brawler（近战） |
-
-**贴身切换**：当殖民者持远程武器受近战攻击时，`CheckMeleeSidearm`（30 tick 周期）检测库存近战副武器并自动切换；取消征召时 `OnUndraft` 恢复主武器。该功能仅应对玩家手动给 Shooter 角色的近战副武器，自动分配已取消反向类型副武器。
-
-**护盾腰带约束**：护盾腰带会阻挡所有远程武器射击。护盾腰带仅属于近战角色（Brawler），通过三重保险确保不误配：分配 gate（`BeltAllocator`，`role != Role.Brawler` 过滤）+ 评分 Veto（`ApparelShieldBeltScorer`，非 Brawler → `-9999f`）+ 已穿纠错（`RemoveWrongShieldBelt` 自动卸下）。远程角色不参与腰带分配（见下方 [腰带附件全局分配](#腰带附件全局分配)）。
-
-**护甲选择：纯评分驱动**：所有护甲按防护能力评分，不区分重甲/轻甲类别。`ApparelArmorScorer` 使用实例 API `gear.GetStatValue(StatDefOf.ArmorRating_Sharp)`（含 stuff + 品质 + HP 修正）计算护甲分，高护甲装备自然胜出。关键角色（高 `CombatTier`）通过评级权重加分优先获得高护甲装备。
-
-**过渡兜底**：
-- `CompGearManager.TryFallbackApparel`：赤身时穿任意防具过渡（比赤身强），由护甲评分在下次评估时自然替换为更优装备
-
-### 禁止类装备
-
-部分装备因机制或定位不适合自动穿戴，通过评分管线 Veto 拒绝（不主动拾取）：
-
-| 装备类别 | 识别方式 | 处理 | Scorer |
-|---------|---------|------|--------|
-| 奴隶项圈 | `apparel.slaveApparel == true`（RimWorld 原生标志位）| 非奴隶角色 Veto `-9999f` + 已穿纠错 `RemoveSlaveCollar` 自动卸下 | `ApparelForbiddenScorer` |
-| 死气背包 | defName 含 `DEADLIFE`（释放毒云伤友军）| Veto `-9999f`（不主动穿，玩家手动给的保留） | `ApparelForbiddenScorer` |
-| 手榴弹 | defName/label 含 `GRENADE`（破片/燃烧瓶/毒气手雷）| Veto `-9000f`（单次消耗品，不适合持续主武器） | `WeaponForbiddenScorer` |
-| 火箭发射器 | label 含 `rocket launcher`（末日/三连火箭）| Veto `-9000f`（单次消耗品） | `WeaponForbiddenScorer` |
-
-**例外**：EMP 手雷作为库存携带特例由 `SidearmAllocator` 分配，不经过武器评分管线。`TryFallbackApparel` 兜底排除 Veto 的防具（奴隶项圈/死气背包/护盾腰带）——这些比赤身更糟；不排除其他防具（赤身时穿任意护甲过渡）。
-
-### 研究型殖民者偏好
-
-非战斗型殖民者（近战远程均无火）若医疗或研究技能高，优先穿实验服（`Apparel_LabCoat`，提供 `ResearchSpeed +0.05`、`EntityStudyRate +0.1`）。
-
-**研究型判定**（`ApparelLabCoatScorer.IsResearchOriented`）：
-- 角色 ≠ `Brawler`（轻甲工人/自由后排/医生等）
-- 射击与近战 passion 均为 `None`（非战斗型）
-- 医疗 ≥ 8 **或** 研究 ≥ 8（有专长可发挥）
-
-**加分**：+50（让实验服在同类防具评分中显著领先，确保研究型殖民者优先穿戴）。
-
-### 过渡装备兜底
-
-当殖民者空手或赤身、且评分管线找不到匹配装备时，`CompGearManager` 会兜底拾取"最不差"的过渡装备，避免空手/赤身状态持续。过渡装备在下次评估周期会被更匹配的装备替换。
-
-| 兜底场景 | 触发条件 | 候选选择规则 | 例外 |
-|---------|---------|-------------|------|
-| 武器兜底（`TryFallbackWeapon`）| `EvaluateWeapon` 末尾 + `currentWeapon == null` | 扫描地图所有武器，跳过 Forbidden/无法到达/非暴力禁用，用 `ScoreBreakdown.Total`（含 Veto 前的技能分）选技能最契合者 | 格斗者特质（`TraitDefOf.Brawler`）+ 远程武器 → 跳过（拿远程会不开心） |
-| 防具兜底（`TryFallbackApparel`）| `EvaluateApparel` 末尾 + `Pawn.apparel.WornApparel.Count == 0` | 扫描地图所有防具，跳过 Forbidden/无法到达/部位不匹配/性别不符/生物编码不匹配/玩家 outfit 策略不允许，用 `ScoreBreakdown.Total` 选评分最高者（沾染/低品质也胜过赤身） | Veto 的防具（如护盾腰带对非 Brawler）仍排除——比赤身更糟，会阻挡远程射击 |
-
-**设计意图**：
-- 空手比拿一把不理想的武器更糟；过渡武器在下次评估时会被更好的匹配替换
-- 赤身受温度/美观惩罚；过渡防具即使沾染/低品质也胜过赤身
-- `Total` 而非最终分比较：含 Veto 前的技能分，让过渡装备选技能最契合的（即使因角色/特质被 Veto，技能分仍可用于排序）
-
-## 腰带附件全局分配
-
-`BeltAllocator.cs` 为近战角色（Brawler）分配腰带附件（护盾腰带 / 消防背包）：
-
-- **周期**：3000 tick（约 50 秒）全局扫描一次
-- **候选**：仅近战角色（`role == Role.Brawler`）+ belt 层空缺；地图上所有 belt 类附件
-- **排序**：按 `CombatTier` 升序（评级低者优先）
-- **分配规则**：前 2 人强制分配消防背包（若库存有），其余配护盾腰带
-- **评分**：护盾腰带对 Brawler +100；消防背包对所有候选 +60；品质 ×5 加分
-
-| 腰带类型 | 评分 | 适用对象 |
-|---------|------|---------|
-| 护盾腰带 | +100 | 近战角色（Brawler），贴身近战免疫远程射击 |
-| 消防背包 | +60 | 近战角色（Brawler），应对火灾/机械族，优先给评级较低者 |
-
-**消防背包优先级**：近战角色至少 2 人配备消防背包，优先给评级较低者。评级低的近战角色承担伤害能力较弱，更需要消防背包增强生存。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得消防背包。
-
-**护盾腰带分配规则**：护盾腰带会阻挡所有远程射击，远程角色（Shooter/Hunter/Leader）需远程输出，不适用护盾；近战角色（Brawler）以近战为主，护盾提供远程免疫最为契合。已穿护盾腰带的 Pawn 在武器评分时会触发 Veto（见下方）。
-
-**护盾腰带三重保险**：护盾腰带仅属于近战角色（Brawler），通过三层约束确保不误配：
-1. **分配 gate**：`BeltAllocator` 候选收集时 `role != Role.Brawler` 直接过滤，远程角色不进入分配池。
-2. **评分 Veto**：`ApparelShieldBeltScorer`（防具评分管线首位）检测非 Brawler 角色 + 护盾腰带 → `Veto(-9999f)`，即使因角色瞬变/玩家手动操作进入评分路径也会被拒绝。
-3. **已穿纠错**：`CompGearManager.EvaluateApparel` 周期调用 `RemoveWrongShieldBelt(role)`，检测已穿护盾腰带的非 Brawler 角色，卸下并丢到脚下（复用 `GlobalAllocator` 的 `pawn.apparel.Remove` + `GenDrop.TryDropSpawn` 模式）。
-
-**护盾腰带武器 Veto**：`WeaponTraitScorer` 在武器评分开头检查 Pawn 是否穿戴护盾腰带，若候选武器为远程武器则直接 `Veto(-9000f)`，确保持盾者不会被分配远程武器。
+**护甲偏好（`ArmorPreference`）**：角色检测同时输出护甲偏好（`Heavy`/`Flexible`/`Light`），仅用于 ITab 面板徽章展示与工作分配中的"后排角色"判定（`IsBackRow` = Shooter/Hunter/Leader），不再驱动装备分配。
 
 ## 情境检测规则
 
-`GearContext.cs` 中的 `ContextDetector.GetContext(pawn)` 判定以下情境：
+`GearContext.cs` 中的 `ContextDetector.GetContext(pawn)` 判定以下情境，仅用于 ITab 面板徽章展示：
 
 | 情境 | 触发条件 |
 |------|----------|
-| `Combat` | 已征召，或当前 Job 为战斗类（`AttackStatic`/`AttackMelee`/`Wait_Combat` 等非狩猎的 `alwaysShowWeapon` Job，捕获未征召反击） |
+| `Combat` | 已征召，或当前 Job 为战斗类（`AttackStatic`/`AttackMelee`/`Wait_Combat` 等非狩猎的 `alwaysShowWeapon` Job） |
 | `Hunting` | 当前工作为 `Hunt` 或 `PredatorHunt` |
-| `Cold` | 环境温度低于舒适下限 + `tempDangerMargin`，持续 2500 tick（约 42 秒） |
-| `Hot` | 环境温度高于舒适上限 + `tempDangerMargin`，持续 2500 tick |
+| `Cold` | 环境温度低于舒适下限 + 5℃，持续 2500 tick（约 42 秒） |
+| `Hot` | 环境温度高于舒适上限 + 5℃，持续 2500 tick |
 | `Work` | 正在执行非战斗工作 |
 | `Normal` | 默认 |
 
-情境变化触发立即装备评估；温度情境需持续暴露，避免频繁切换。
+温度情境需持续暴露，避免频繁切换。
 
-## 评分模型
-
-### 总分公式
-
-```
-装备总分 = Σ(各评分维度加分) × 耐久修正
-```
-
-若任一硬性约束被触发（如生物编码不匹配、格斗者持远程），直接 `Veto(-9000f)`，管线短路。
-
-**意识形态惩罚**：文化鄙夷（Despised）武器施加 `-w_ideology_despised`（默认 -300）大额负分，但不触发 Veto。与硬约束 Veto（-9000）区分：文化鄙夷是强烈负面偏好，玩家应保留选择权（如战利品中只有该武器时仍可拾取过渡）。文化尊崇（Noble）武器施加 `+w_ideology_noble`（默认 +200）加分。
-
-### 权重预设方案
-
-`GearWeights` 结构包含 16 个权重字段（含意识形态尊崇/鄙夷、护甲穿透）。提供 4 个预设方案：
-
-| 方案 | 特点 | 适用场景 |
-|------|------|----------|
-| `Standard` | 平衡护甲/DPS/工作 | 日常殖民 |
-| `Aggressive` | 护甲与 DPS 优先，移速次要 | 高强度战斗 |
-| `Economic` | 耐久与品质优先，避免浪费 | 资源紧张 |
-| `Hunting` | 远程射程与精准优先 | 狩猎为主 |
-
-玩家可在设置界面循环切换，存档持久化。
-
-**武器核心权重**：
-- `w_dps`：近战 DPS 权重（Standard=5, Aggressive=8, Economic=3, Hunting=4）
-- `w_armorPenetration`：近战护甲穿透权重（0~1 小数 × 权重，Standard=50, Aggressive=60, Economic=40, Hunting=30）——解决单分子剑问题：DPS 不高但穿透极高（0.83），对高护甲敌人有奇效
-- `w_dmg`：远程伤害倍率权重（Standard=30, Aggressive=40, Economic=20, Hunting=25）
-
-**防具核心权重**：
-- `w_armor`：护甲权重（Standard=300, Aggressive=400, Economic=250, Hunting=200）——高权重确保超织物等高护甲材质压过低护甲材质（如人皮）的品质加分
-- `w_insulation`：保温权重（Standard=50, Aggressive=30, Economic=50, Hunting=50）——确保隔温优势能体现
-
-**意识形态权重**（需 Ideology DLC）：
-- `w_ideology_noble`：文化尊崇武器加分（Standard=200, Aggressive=250, Economic=150, Hunting=200）
-- `w_ideology_despised`：文化鄙夷武器惩罚（取负值，Standard=300, Aggressive=400, Economic=200, Hunting=300）
-
-鄙夷武器使用大额负分（-300）而非 Veto，与硬约束（如非 Brawler Veto 近战）语义区分：文化鄙夷是强烈负面偏好，玩家应保留选择权（如战利品中只有该武器时仍可拾取过渡）。
-
-### 武器评分管线
-
-`ScoringPipelineFactory.GetWeaponPipeline()` 按以下顺序执行 10 个 Scorer：
-
-| 顺序 | Scorer | 说明 |
-|------|--------|------|
-| 1 | `WeaponBiocodedScorer` | 生物编码检查，不匹配直接 Veto |
-| 2 | `WeaponForbiddenScorer` | 禁止类武器（手榴弹/火箭发射器）Veto `-9000f`，单次消耗品不适合持续主武器 |
-| 3 | `WeaponTraitScorer` | 角色硬约束：`Brawler` 角色 Veto 远程武器（`-9000f`）；非 Brawler 角色 Veto 近战武器；护盾腰带 Veto 远程；格斗者/敏捷/嗜血/强健特质加分 |
-| 4 | `WeaponSkillScorer` | 技能等级 × 兴趣乘数（无火 1.0 / 单火 1.5 / 双火 2.0） |
-| 5 | `WeaponContextScorer` | 情境加成（战斗 +DPS / 狩猎 +射程） |
-| 6 | `WeaponDpsScorer` | 近战：DPS + 护甲穿透（0~1 × `w_armorPenetration`）；远程：伤害倍率 + 射速。战斗情境 ×1.5 |
-| 7 | `WeaponRangeScorer` | 射程 |
-| 8 | `WeaponQualityScorer` | 品质 |
-| 9 | `WeaponIdeologyScorer` | 意识形态武器偏好（Noble +w_ideology_noble / Despised -w_ideology_despised，需 Ideology DLC） |
-| 10 | `WeaponDurabilityScorer` | 耐久修正（乘法） |
-
-### 防具评分管线
-
-`ScoringPipelineFactory.GetApparelPipeline()` 按以下顺序执行 15 个 Scorer：
-
-| 顺序 | Scorer | 说明 |
-|------|--------|------|
-| 1 | `ApparelShieldBeltScorer` | 护盾腰带硬约束（非 Brawler 角色 + 护盾腰带 → Veto `-9999f`） |
-| 2 | `ApparelForbiddenScorer` | 禁止类防具（奴隶项圈非奴隶 / 死气背包）Veto `-9999f` |
-| 3 | `ApparelTaintedScorer` | 沾染惩罚 |
-| 4 | `ApparelTraitScorer` | 特质偏好 |
-| 5 | `ApparelWorkScorer` | 工作属性加成 |
-| 6 | `ApparelLabCoatScorer` | 实验服偏好（研究型殖民者 +50，见下方研究型殖民者偏好） |
-| 7 | `ApparelContextScorer` | 温度情境 |
-| 8 | `ApparelArmorScorer` | 护甲值 |
-| 9 | `ApparelInsulationScorer` | 保温 |
-| 10 | `ApparelMoveSpeedScorer` | 移速影响 |
-| 11 | `ApparelQualityScorer` | 品质 |
-| 12 | `ApparelRoyaltyScorer` | 皇家头衔需求 |
-| 13 | `ApparelIdeologyScorer` | 意识形态服装 |
-| 14 | `ApparelDurabilityScorer` | 耐久修正（按 HP 比例乘法） |
-| 15 | `ApparelCurrentWornScorer` | 平局决胜（当前穿戴小幅加分） |
-
-### 副武器评分
-
-`GearScorer.ScoreSidearm()` 独立于管线，逻辑较简单：
-
-- 副武器应为主武器的相反类型（射手配近战副武器，格斗者配远程副武器）
-- 近战副武器：偏好高 DPS、轻便（低重量）
-- 远程副武器：偏好短冷却、轻便
-- 品质加分
-
-> 注：自动分配已取消反向类型副武器，每人只选主武器。`GearScorer.ScoreSidearm()` 仅保留供 `CheckMeleeSidearm` 等历史路径与玩家手动操作场景使用。
-
-### EMP 手雷全局分配（库存携带）
-
-`SidearmAllocator.cs` 实现为 Flexible 后排评级较低者分配 EMP 手雷（库存携带，副武器特例）：
-
-- **周期**：2000 tick（约 33 秒）全局扫描一次
-- **候选**：仅 Flexible 后排（`IsBackRow` = Shooter/Hunter/Leader）+ 有主武器 + 库存无 EMP 武器
-- **排序**：按 `CombatTier` 升序（评级低者优先）
-- **分配规则**：前 2 人分配 EMP 武器（库存携带），其余不分配
-- **EMP 识别**：`GearDefClassifier.IsEmpWeapon` 通过 `defName`/`label` 启发式识别（包含 "EMP"）
-
-**设计意图**：
-
-- 取消携带多个装备：每人只选最适合自己的主武器，不再自动分配反向类型副武器
-- EMP 手雷特例：评级较低的 Flexible 后排至少 2 人持有 EMP 手雷，应对机械族/护盾等需要 EMP 的战术场景
-- 评级低者优先：近战角色承担前排，评级低的后排承担 EMP 战术支援。`CombatTier` 升序排序确保 D/C 档优先于 S/SS/SSS 档获得 EMP 手雷
-
-### 副武器类型选择规则
-
-| 主武器类型 | 副武器类型 | 特殊规则 |
-|-----------|-----------|----------|
-| 远程 | 近战 | 仅玩家手动给副武器时生效，`CheckMeleeSidearm` 贴身时自动切换 |
-| 近战 | 远程 | 仅玩家手动给副武器时生效 |
-
-**EMP 手雷特例**：Flexible 后排（Shooter/Hunter/Leader）评级较低者前 2 人自动分配 EMP 手雷（库存携带），不依赖主武器类型。EMP 武器通过 `defName`/`label` 启发式识别（包含 "EMP"）。
-
-## 全局重配
-
-`GlobalAllocator.cs` 提供手动触发的全局装备重分配：
-
-- **入口**：殖民者检视面板 `ITab_GearManager` 最下方"全局重配"按钮（占满宽度）
-- **规则面板**：直接展开在 `ITab_GearManager` 滚动区内，无需另开窗口，所有规则可见即可调
-- **流程**：
-  1. 收集所有非征召、非锁定殖民者，按战斗价值降序排序
-  2. **第一遍**：所有殖民者放下当前武器到地上（进入地图候选池），释放无火小人手里的好武器
-     - 跳过征召中（正在战斗）、生物编码武器（个人绑定不可释放）
-  3. 收集地图候选武器池（含刚放下的武器）
-  4. **第二遍**：按战斗价值降序，为每个殖民者从候选池评分选最佳武器
-     - 已分配武器从候选池移除，避免重复抢占
-     - 直接 `MakeJob(Equip)`，不依赖 `EvaluateWeapon` 的 job 流程
-  5. 服装/副武器/库存仍用 `ForceEvaluate` 评估
-- **效果**：无火小人手里的好武器会释放给双火小人，实现"高价值装备优先分配给高价值殖民者"
-- **过滤**：跳过食尸鬼、动物、奴隶、未成年、已倒下、征召中、已锁定的殖民者
-- **自动触发**：`AutoExecutor.ExecuteGear` 周期按评级排序调用 `ForceEvaluate`（不脱光），与手动触发语义不同（见 [装备自动重配](#装备自动重配按评级排序升级评估)）
-
-### 全局价值评级档次（CombatTier）
+## 全局价值评级档次（CombatTier）
 
 殖民者**全局价值**按 `CombatTier` 枚举离散化为 8 档，DEBUG 模式下在面板角色行与日志中以 `S#王五` 格式显示（自定义评级则显示 `S(A)#王五`，括号内为玩家指定档）。
 
@@ -303,50 +89,19 @@
 - 异象（Anomaly DLC）：`Joyous`（开心果）、`BodyMastery`（极致体能）、`VoidFascination`（痴迷虚空）、`Occultist`（神秘学者）、`Disturbing`（怪诞不经）
 - 未加载 Anomaly DLC 时这些特质查询返回 null 自动跳过，不影响判定。
 
-### 武器与护甲分配的评级使用
+### 评级方法分层
 
-- **武器分配**：沿用原战斗维度评分 `SidearmAllocator.ComputeCombatValue`（射击/格斗等级 × 兴趣乘数 + 战斗特质加分），武器评分体系完全不变。
-- **护甲分配**：在 `GlobalAllocator.ReallocateApparel` 入口处按 `CombatTier` 降序重排 `sortedPawns`，让 S 档殖民者优先获得价值最高的护甲；同档内再用 `ComputePawnValueScore` 精排，让同档中培养更深的殖民者优先。
+`CombatEvaluator` 提供三个评级查询入口，按用途区分：
 
-### 护甲分配算法（纯评分驱动）
-
-护甲分配采用"逐件分配"算法：每件护甲按内在价值降序进入分配流程，分配给"评分最高"的殖民者。
-
-评分公式：
-```
-护甲评分 = GearScorer.ScoreApparel(基础分) + 评级权重
-```
-
-**评级权重**：`+CombatTier × 0.5`（最大 7 档 × 0.5 = 3.5），让高评级殖民者在同分时优先获得高护甲装备。
-
-**设计意图**：纯护甲值评分驱动，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正。高护甲装备（如超织物衬衫）自然胜过低护甲装备（如人皮衬衫）。高 `CombatTier` 殖民者通过评级权重 + 降序排序优先获得高护甲装备。
-
-> 注：`heavyArmorSharpThreshold` / `heavyArmorPenaltyForLight` / `lightArmorPenaltyForHeavy` / `heavyArmorMatchBonus` 设置字段保留 Scribe 读取以兼容旧存档，但代码中不再使用。
-
-### 同档精排评分（ComputePawnValueScore）
-
-用于同 `CombatTier` 档内的精细排序。评分公式：
-
-```
-综合价值分 = 特质数量 × 5 + Σ(兴趣分) + Σ(技能等级)
-```
-
-| 维度 | 计分 | 说明 |
-|------|------|------|
-| 特质数量 | 每条 +5 分 | 玩家培养投入越多价值越高，原生上限 3 条 = 15 分 |
-| 兴趣分 | Major=2, Minor=1, None=0 | 9 大核心技能求和：射击/近战/社交/手工/建造/艺术/烹饪/种植/采矿 |
-| 技能等级 | 直接加 Level（0-20） | 9 大核心技能求和，最高 9×20=180 分 |
-
-**典型分数范围**：
-- 全满级全双火满特质殖民者：15 + 18 + 180 ≈ 213 分
-- 新手殖民者（无火无技能无特质）：0 分
-- 命中自定义评级：采用档位代表分（D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110）+0.5 微量偏向，让同档自定义略优先于同档自动
-
-**使用范围**：仅护甲分配的档内精排；武器分配不使用此分数，仍用 `ComputeCombatValue`（仅战斗维度）。
+| 方法 | 自定义评级 | 配偶豁免 | 用途 |
+|------|-----------|---------|------|
+| `GetCombatTier` | 优先 | 含 | 全局重配排序、工作分配评级分档（自定义优先，与面板标签一致） |
+| `GetSystemTier` | 不含 | 含 | 评级标签 Nick 前缀、ITab 面板"当前档次"显示、AEDebug.Label、腰带/副武器排序 |
+| `GetAutoCombatTier` | 不含 | 不含 | 配偶豁免内部递归调用，避免无限递归 |
 
 ### 自定义评级识别码（玩家可调）
 
-玩家可在殖民者装备面板（ITab）"全局重配规则"区为指定殖民者手动指定档次，**跳过自动公式计算**，直接按对应等级优先分配高价值装备。
+玩家可在殖民者装备面板（ITab）"自定义评级识别码"区为指定殖民者手动指定档次，**跳过自动公式计算**。
 
 | 操作 | 入口 | 说明 |
 |------|------|------|
@@ -372,7 +127,7 @@
 | 勾选 → 自动执行 | 所有殖民者 Nick 变为 `S#王五` `A#李四` 格式，并按 Mod 选项配置的默认排序重排殖民者栏 |
 | 取消勾选 | 恢复原 Nick，从字典取原名或按前缀解析剥离；保留殖民者栏当前顺序不重置 |
 
-**覆盖范围**：殖民者 + 食尸鬼（Anomaly DLC）。食尸鬼也按相同规则评级，但不参与装备分配——玩家可一眼分辨其价值。排序仅作用于 `PawnsFinder.AllMaps_FreeColonists`（不含食尸鬼），通过 `pawn.playerSettings.displayOrder` 写入并 `Find.ColonistBar.MarkColonistsDirty()` 刷新。
+**覆盖范围**：殖民者 + 食尸鬼（Anomaly DLC）。食尸鬼也按相同规则评级，玩家可一眼分辨其价值。排序仅作用于 `PawnsFinder.AllMaps_FreeColonists`（不含食尸鬼），通过 `pawn.playerSettings.displayOrder` 写入并 `Find.ColonistBar.MarkColonistsDirty()` 刷新。
 
 ### 殖民者栏默认排序（Mod 选项）
 
@@ -387,7 +142,7 @@
 
 **按评级+价值的设计意图**：和平主义者（X 档）即使技能高也排在最右，避免挤占 S/A 档位置。
 
-**角色排序优先级**（`SGSettings.GetRoleOrder`，用于"按角色+评级"模式）：
+**角色排序优先级**（`GetRoleOrder`，用于"按角色+评级"模式）：
 
 | 顺序 | 角色 | 说明 |
 |------|------|------|
@@ -400,14 +155,9 @@
 | 6 | Leader | 意识形态领袖 |
 | 99 | Default | 未分类 |
 
-**全局装备重配不改变殖民者栏顺序**：`GlobalAllocator.ReallocateAll` 仅影响装备分配，不修改 `displayOrder`，玩家可放心使用。
-
 **防双重前缀**：
-- `SidearmAllocator.GetPawnLookupName` 会自动剥离 Nick 上的评级前缀返回纯净名，确保：
-  - 自定义评级查询仍能命中（玩家设置时用的是原名）
-  - 面板"当前档次"行拼接出 `S#王五` 而非 `S#S#王五`
+- `CombatEvaluator.GetPawnLookupName` 会自动剥离 Nick 上的评级前缀返回纯净名，确保自定义评级查询仍能命中（玩家设置时用的是原名），面板"当前档次"行拼接出 `S#王五` 而非 `S#S#王五`
 - `AEDebug.Label` 在 Nick 已带前缀时直接返回 LabelShort，不再拼接
-- 面板"当前角色"行在 Nick 已带前缀时不显示额外 `[S#王五]` 后缀
 
 **持久化**：原名字典 `tierTagOriginals` 通过 `ae_tierTagOriginals` 存档（`List<string>` 格式 `thingIDNumber|原Nick`），重启后仍能恢复原名，避免误剥离玩家手动改的 Nick。
 
@@ -417,26 +167,36 @@
 战斗价值 = (射击等级 × 射击兴趣乘数 + 近战等级 × 近战兴趣乘数) × 技能权重 + Σ特质加分
 ```
 
-所有参数均可在面板内通过滑块调整，存档保存：
+所有参数均可在 Mod 选项内通过滑块调整，存档保存：
 
 | 参数 | 默认 | 范围 | 含义 |
 |------|------|------|------|
-| 无火兴趣乘数 | 1.0 | 0.5 ~ 3.0 | 无火焰时技能等级权重 |
-| 单火兴趣乘数 | 1.5 | 0.5 ~ 3.0 | Minor 兴趣时技能等级权重 |
-| 双火兴趣乘数 | 2.0 | 0.5 ~ 3.0 | Major 兴趣时技能等级权重 |
-| 技能整体权重 | 1.00 | 0.50 ~ 2.00 | 技能分整体缩放 |
-| 坚韧（Tough）加分 | +30 | -50 ~ +100 | Tough 特质加分 |
-| 乱开枪加分 | -15 | -50 ~ +50 | ShootingAccuracy degree=-1 |
-| 冷枪手加分 | +15 | -50 ~ +100 | ShootingAccuracy degree=+1 |
+| 无火兴趣乘数 | 1.0 | 0.1 ~ 3.0 | 无火焰时技能等级权重 |
+| 单火兴趣乘数 | 1.5 | 0.1 ~ 3.0 | Minor 兴趣时技能等级权重 |
+| 双火兴趣乘数 | 2.0 | 0.1 ~ 3.0 | Major 兴趣时技能等级权重 |
+| 技能整体权重 | 1.0 | 0.1 ~ 3.0 | 技能分整体缩放 |
+| 坚韧（Tough）加分 | +30 | 0 ~ 100 | Tough 特质加分 |
+| 乱开枪加分 | -15 | -50 ~ 0 | ShootingAccuracy degree=-1 |
+| 冷枪手加分 | +15 | 0 ~ 50 | ShootingAccuracy degree=+1 |
 
-### 保护规则（玩家可调）
+### 价值评分（ComputePawnValueScore）
 
-| 规则 | 默认 | 关闭后果 |
-|------|------|---------|
-| 重配前先放下当前武器 | 开 | 仅评估地图上已有的武器，无火小人手里的好武器不会被释放 |
-| 跳过征召中的殖民者 | 开 | 强制重配征召中的殖民者（打断战斗） |
-| 跳过已锁定的殖民者 | 开 | 无视玩家在面板上勾选的锁定开关，强制重配 |
-| 跳过生物编码武器 | 开 | 仍尝试放下生物编码武器（但游戏原生会拒绝他人拾取） |
+用于 ITab 面板"价值评分"徽章展示，综合反映殖民者培养深度。评分公式：
+
+```
+综合价值分 = 特质数量 × 5 + Σ(兴趣分) + Σ(技能等级)
+```
+
+| 维度 | 计分 | 说明 |
+|------|------|------|
+| 特质数量 | 每条 +5 分 | 玩家培养投入越多价值越高，原生上限 3 条 = 15 分 |
+| 兴趣分 | Major=2, Minor=1, None=0 | 9 大核心技能求和：射击/近战/社交/手工/建造/艺术/烹饪/种植/采矿 |
+| 技能等级 | 直接加 Level（0-20） | 9 大核心技能求和，最高 9×20=180 分 |
+
+**典型分数范围**：
+- 全满级全双火满特质殖民者：15 + 18 + 180 ≈ 213 分
+- 新手殖民者（无火无技能无特质）：0 分
+- 命中自定义评级：采用档位代表分（D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110）+0.5 微量偏向
 
 ## 自动工作分配（AutoWork）
 
@@ -505,6 +265,8 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 辅助工作不计入 workCount（避免污染技能工作的均衡负载计算）。
 
+**奴隶处理**：奴隶辅助工作固定 priority=1（奴隶作为劳动力主要承担搬运/清洁），专业工作按上述标准规则分配。
+
 ### 自定义优先级自动启用
 
 执行全局工作重配时，若 `Find.PlaySettings.useWorkPriorities` 未启用，自动启用为 true，否则 1-4 优先级系统不生效。
@@ -519,31 +281,22 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ## 自动执行（AutoExecutor）
 
-`Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级与装备重配（周期触发）的自动执行，以及高价值非殖民者标记的 ITab 勾选消息提示。
+`Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级（周期触发）的自动执行，以及高价值非殖民者标记的 ITab 勾选消息提示。
 
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
 - **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
-- **周期触发**：人员评级/装备重配每 3000 tick（约 50 秒）执行一次；药物/食物/血清调度由 `CompGearManager.CompTick` 在 `EvaluateInventory` 后触发各模块 `AllocateForPawn`（内部 3000 tick 周期门控，第一个触发的 Pawn 承担全局扫描成本）。工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行
-- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 待触发（不立即执行）。增加时额外触发评级+装备+星标（这三者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
-- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastGearTick`/`lastMarkTick`/`lastDrugTick`/`lastFoodTick`/`lastSerumTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作、评级、装备重配、星标、药物、食物、血清各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Gear=0xA400 / Mark=0xA500 / Drug=0xA600 / Food=0xA700 / Serum=0xA800）
+- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行
+- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 待触发（不立即执行）。增加时额外触发评级+星标（这两者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
+- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
+- **错误隔离**：工作、评级、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
-### 装备自动重配（按评级排序升级评估）
+### 人员自动评级
 
 - **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
-- **机制**：按战斗价值降序逐个调用 `CompGearManager.ForceEvaluate(ReloadTarget.All)`，通过升级阈值检查是否有更优装备可换（不主动脱光当前装备）
-- **高评级优先**：高战斗价值殖民者优先评估，通过升级阈值拾取地图上的更好装备
-- **护甲纯评分驱动**：所有护甲按防护能力评分，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正，高护甲装备自然胜出
-- **不打断战斗**：征召中（`Drafted`）的殖民者跳过
-- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过所有全局重配入口（`CompTick`/`ForceEvaluate`/`EvaluateInventory`/`GlobalAllocator.ReallocateAll`/`WorkAllocator.ReallocateAll`/`SidearmAllocator`/`BeltAllocator`），避免 `TryTakeOrderedJob`/`SetPriority`/`apparel.Remove`/`TryDropEquipment` 取消手术 Job 导致手术死循环
-- **不打断休养**：受伤/患病卧床休养的殖民者（`Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest`）跳过所有全局重配入口，避免换装 `TryTakeOrderedJob` 取消 `LayDown` Job 打断免疫力/治疗进度导致重伤者死亡
-- **守卫统一**：医疗/休养守卫逻辑集中在 `Core/PawnJobGuard.cs` 的 `ShouldSkipForMedical(Pawn)`，所有全局重配入口复用同一判断
-- **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）
-- **未成年**：仅评估防具（`ForceEvaluate(Apparel)`），跳过武器/副武器/库存
-- **尊重锁定**：`comp.locked` 为 true 的殖民者跳过
-- **与手动"全局重配"区别**：自动重配不放下当前装备（避免频繁脱穿导致心情差），低评分殖民者手里的好装备不会主动让出；手动"全局重配"按钮触发 `ReallocateAll` 放下所有装备重新分配
-- **入口**：殖民者装备面板（ITab）底部 → "装备自动重配"勾选框（`AESettings.autoGearReallocate`，默认勾选）
+- **机制**：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上系统评级前缀（格式 `S#王五`），并按 Mod 选项配置的默认排序重排殖民者栏
+- **取消勾选**：调用 `ClearTierTagsFromAllPawns()`，清除所有评级前缀恢复原名
+- **入口**：殖民者装备面板（ITab）底部 → "人员自动评级"勾选框（`AESettings.autoTierTag`，默认勾选）
 
 ### 高价值非殖民者标记（AutoMarkPawn）
 
@@ -570,29 +323,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **Harmony 补丁降级**：`PawnUIOverlay` 类型或 `DrawPawnGUIOverlay` 方法缺失时仅 `Log.Warning`，星标不显示但不崩溃
 - **入口**：殖民者装备面板（ITab）底部 → "高价值标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
 
-### ITab 面板测试控件
-
-ITab 底部提供 4 勾选框（评级/工作/装备/星标）+ 全局重配按钮：
-
-| 控件 | 作用 | 说明 |
-|------|------|------|
-| 评级/工作/装备/星标勾选框 | 总开关 | 勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动。与 MOD 选项同步，避免进 MOD 选项开启 |
-
-**测试流程**：勾选对应总开关 → 观察 Messages 消息反馈与 Pawn 行为变化。
-
 ## 架构模型
-
-### 设计模式
-
-| 模式 | 实现 | 职责 |
-|------|------|------|
-| 策略模式 | `IScorer<TThing>` | 每个评分维度独立封装，可替换 |
-| 责任链/管线 | `ScoringPipeline<T>` | 按顺序执行 Scorer，Veto 短路 |
-| 工厂模式 | `ScoringPipelineFactory` | 静态缓存管线实例 |
-| 建造者模式 | `ScoreBreakdown` | 累积评分项，生成调试明细 |
-| 策略调度 | `GearPolicyEngine` | 全局预设方案切换 |
-| 门面模式 | `GearScorer` | 简化外部调用 |
-| 观察者模式 | `DebugMonitor` | 调试事件监测 |
 
 ### 目录结构
 
@@ -601,102 +332,77 @@ Source/AutoEverything/
 ├── AutoEverything.csproj                  # C# 7.3 项目文件
 ├── Core/                                  # → namespace AutoEverything.Core
 │   ├── ModController.cs                   # MOD 入口，StaticConstructorOnStartup
-│   ├── HarmonyPatches.cs                  # Harmony 补丁：Comp 注入 + 取消征召恢复
-│   ├── AutoEverythingMod.cs               # Mod 设置入口（从 SGSettings 拆分）
-│   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（从 SGSettings 拆分）
-│   ├── ColonistBarSortMode.cs             # 殖民者栏排序枚举（从 SGSettings 拆分）
+│   ├── HarmonyPatches.cs                  # Harmony 补丁：Comp 注入 + 星标绘制
+│   ├── AutoEverythingMod.cs               # Mod 设置入口
+│   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口
+│   ├── ColonistBarSortMode.cs             # 殖民者栏排序枚举
 │   ├── DLCCompat.cs                       # DLC API 安全包装
-│   ├── AEDebug.cs                         # AEDebug 日志工具（原 DebugHelper.cs 重命名）
-│   ├── DebugMonitor.cs                    # 调试监测
+│   ├── AEDebug.cs                         # AEDebug 日志工具
 │   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤
+│   ├── PawnJobGuard.cs                    # 医疗/休养守卫（避免打断手术/休养）
+│   ├── AutoExecutor.cs                    # 自动执行调度器（评级/工作/星标）
 │   └── CombatTier.cs                      # 战斗价值档次枚举
 ├── RoleEvaluation/                        # → namespace AutoEverything.RoleEvaluation
-│   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎/EMP 分配）
-│   ├── GearContext.cs                    # 情境检测
+│   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎判定）
+│   ├── GearContext.cs                    # 情境检测（仅 ITab 徽章展示）
 │   ├── PawnStateCleaner.cs                # Pawn 状态清理工具
-│   └── CombatEvaluator.cs                 # 战斗价值/评级计算（从 SidearmAllocator 拆分）
+│   ├── CombatEvaluator.cs                 # 战斗价值/评级计算
+│   └── PassionHelper.cs                  # VSE 兼容 passion tier 映射
 ├── AutoEquipment/                         # → namespace AutoEverything.AutoEquipment
-│   ├── CompGearManager.cs                # ThingComp，Tick 入口与评估协调
-│   ├── GearScorer.cs                      # 评分门面
-│   ├── GearDefClassifier.cs               # 装备 Def 分类工具（武器/防具/腰带识别）
-│   └── Scoring/                           # → namespace AutoEverything.AutoEquipment.Scoring
-│       ├── IScorer.cs                     # 评分策略接口
-│       ├── ScoringPipeline.cs             # 评分管线
-│       ├── ScoringPipelineFactory.cs      # 管线工厂
-│       ├── ScoreBreakdown.cs              # 评分明细
-│       ├── GearWeights.cs                 # 权重结构 + 4 预设
-│       ├── GearPreset.cs                  # 预设枚举
-│       ├── GearPolicyEngine.cs            # 策略调度
-│       ├── Weapon/                        # → ...AutoEquipment.Scoring.Weapon（10 个文件）
-│       └── Apparels/                      # → ...AutoEquipment.Scoring.Apparels（12 个文件）
-├── Allocation/                            # → namespace AutoEverything.Allocation
-│   ├── GlobalAllocator.cs                 # 全局装备重配（手动触发）
-│   ├── SidearmAllocator.cs                # 副武器全局分配
-│   ├── BeltAllocator.cs                   # 腰带附件全局分配（护盾腰带/消防背包）
-│   └── PawnCombatProfile.cs               # Pawn 战斗画像（技能/特质/兴趣聚合）
+│   └── CompGearManager.cs                # ThingComp 薄壳，Tick 入口（仅角色缓存 + AutoExecutor 调度）
+├── AutoWork/                              # → namespace AutoEverything.AutoWork
+│   ├── WorkAllocator.cs                   # 工作优先级自动分配
+│   └── WorkAllocationConfig.cs            # 分配配置结构
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
 │   └── PawnMarker.cs                      # 高价值非殖民者标记（S+ 头顶红色星标实时绘制）
 └── UI/                                    # → namespace AutoEverything.UI
-    ├── ITab_GearManager.cs                # 装备管理面板
-    ├── Dialog_GlobalReallocate.cs         # 全局重配规则对话框
-    └── PresetDetailsWindow.cs             # 预设方案详情窗口（从 SGSettings 拆分）
+    └── ITab_GearManager.cs                # 殖民者检视面板（角色/情境/评级徽章 + 自定义评级 + 勾选框）
 ```
 
 **模块职责说明：**
-- **Core**：基础工具与全局状态（MOD 入口、设置、调试、DLC 兼容、Pawn 适配性、战斗价值档次）
-- **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估、状态清理）
-- **AutoEquipment**：装备评分系统（CompTick 协调、评分门面、装备分类、评分管线与各 Scorer）
-- **Allocation**：全局分配策略（全局重配、副武器、腰带附件、Pawn 战斗画像）
+- **Core**：基础工具与全局状态（MOD 入口、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、自动执行调度、战斗价值档次）
+- **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估、状态清理、VSE 兼容）
+- **AutoEquipment**：Tick 入口薄壳（CompGearManager 仅承担 AutoExecutor.TryTick 调用与角色缓存）
+- **AutoWork**：工作优先级自动分配
 - **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制）
-- **UI**：玩家界面（ITab 面板、对话框、预设详情窗口）
+- **UI**：玩家界面（ITab 面板）
 
-未来扩展（自动机械族/自动训练等）可在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。新增模块应照搬 `BeltAllocator` 静态调度器模式（周期门控 + 全局扫描入口），并接入 `AutoExecutor` 周期触发与 `CompGearManager.CompTick`。
+未来扩展（自动机械族/自动训练等）可在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
 
 ### 评估周期
 
 | 路径 | 周期 | 说明 |
 |------|------|------|
-| `CompTick` 主评估 | `evaluateInterval`（默认 500 tick ≈ 8 秒） | 武器/防具/药品/副武器；医疗工作/受伤休养中跳过 |
-| 征召副武器检查 | 30 tick | 战斗紧迫，需快速切近战 |
-| `SidearmAllocator` | 2000 tick | 全局副武器分配 |
-| `BeltAllocator` | 3000 tick | 全局腰带附件分配（护盾腰带/消防背包） |
-| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc`；增加时立即触发评级+装备+星标 |
+| `CompTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；食尸鬼/不适用类别自移除 Comp |
+| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc`；增加时立即触发评级+星标 |
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
-| `AutoExecutor` 装备重配 | 3000 tick | 按评级排序 `ForceEvaluate`（不脱光）；周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 高价值标记 | 实时（Harmony 补丁） | S+ 档次非殖民者人类头顶绘制红色星标；ITab 勾选时统计数量弹消息，取消勾选自动停止绘制 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
 | 死亡 Pawn 字典清理 | 60000 tick | `RoleDetector`/`ContextDetector` 残留条目清理 |
 
-所有周期都通过 `(TicksGame + thingIDNumber) % interval` 分散，避免所有 Pawn 同 tick 触发卡顿。
-
 ## 设计原则：逻辑杜绝而非事后清理
 
-食尸鬼（Anomaly DLC 变异体）、动物、机械族等不适用类别**绝不进入**装备管理流程：
+食尸鬼（Anomaly DLC 变异体）、动物、机械族等不适用类别**绝不进入**自动管理流程：
 
 | 入口 | 防御 |
 |------|------|
 | `PawnSuitabilityChecker.CanManageGearDef` | 注入 ThingDef 前过滤，仅 `race.Humanlike` 通过 |
 | `Pawn_SpawnSetup_Patch` | 运行时注入前检查 `IsGhoul` + `CanManageGear` |
 | `CompTick` 入口 | 兜底：旧存档已注入的不适用 Pawn 静默 `AllComps.Remove(this)` |
-| `ForceEvaluate` / `ReloadAllColonists` | 入口防御：食尸鬼/不适用类别跳过 |
 
-**玩家手动给食尸鬼装备的物品由玩家自行负责，MOD 不干预、不清理。**
+**医疗/休养守卫**：所有全局重配入口（`CompGearManager.CompTick`、`WorkAllocator.ReallocateAll`）统一调用 `PawnJobGuard.ShouldSkipForMedical(pawn)` 跳过正在执行医疗工作（治疗/手术/救援）或卧床休养的殖民者，避免 `SetPriority`/`TryTakeOrderedJob` 取消手术 Job 导致手术死循环或重伤者死亡。
 
 ## 奴隶处理
 
-奴隶（Ideology DLC）不参与自动装备管理，但**参与自动工作分配**（作为殖民地劳动力）：
+奴隶（Ideology DLC）参与自动工作分配（作为殖民地劳动力）：
 
 | 流程 | 奴隶处理 |
 |------|---------|
-| `CompGearManager.CompTick` 日常评估 | 未征召时直接 return，不主动找武器/防具/药品 |
-| `GlobalAllocator.ReallocateAll` 全局重配 | 候选收集时跳过奴隶 |
-| `AutoExecutor.ExecuteGear` 自动装备重配 | 按评级排序调用 `ForceEvaluate`，候选收集时跳过奴隶（与 `CompTick` 一致） |
-| `SidearmAllocator` / `BeltAllocator` 全局分配 | 候选收集时跳过奴隶 |
 | `WorkAllocator.ReallocateAll` 工作重配 | **奴隶参与分配**（通过 `map.mapPawns.SlavesOfColonySpawned` 收集） |
-
-**设计意图**：奴隶的装备由玩家完全控制，MOD 不干预；但奴隶作为殖民地劳动力，应参与工作优先级自动分配（紧急工作、搬运、清洁等）。征召时的副武器切换逻辑保留（奴隶无副武器本就跳过）。
+| 辅助工作 | 奴隶固定 priority=1（承担搬运/清洁） |
+| 专业工作 | 按兴趣/技能标准规则分配 |
 
 **奴隶收集**：`mapPawns.FreeColonistsSpawned` 不含奴隶，需单独遍历 `mapPawns.SlavesOfColonySpawned`。无 Biotech DLC 时该方法返回空列表，不影响无 DLC 环境。
 
@@ -705,9 +411,8 @@ Source/AutoEverything/
 遵循 RimWorld MOD 开发的高性能约定：
 
 - Tick 路径禁止 LINQ、禁止 `new List<>()`、禁止 `OrderBy`
-- 集合用静态缓存或实例字段复用（如 `SidearmAllocator` 的 `candidatePawns`/`candidateWeapons`）
+- 集合用静态缓存或实例字段复用
 - 评估日志走 `AEDebug.Log`，受 `debugLogging` 开关短路
-- 决策日志（换装结果）：手动触发保留 `Log.Message`（玩家可见），周期触发走 `AEDebug.Log`（避免刷屏）；`SidearmAllocator` 仅有周期触发，统一走 `AEDebug.Log`
 - 可疑评分日志用 `Log.WarningOnce` 防刷屏
 
 ## 兼容性
@@ -739,22 +444,6 @@ VSE 扩展的 6 种 passion 按以下规则统一处理：
 - **Minor 计数不含 Major 及以上**：避免双计数，`tier == Minor` 严格匹配
 - **反射失败降级**：VSE 检测异常时降级为原版 3 档，不阻断主功能
 
-## 调试
-
-设置界面开启 `debugLogging` 后：
-
-- 评估过程日志（每个 Pawn 每 500 tick 一次）
-- 评分明细（可疑评分时输出完整 breakdown）
-- 装备管理面板显示当前评分
-
-监测开关可单独控制：
-
-- 换装事件
-- 武器评分
-- 防具评分
-- 评分明细
-- 候选对比
-
 ## 本地化
 
 中英文双语，面向玩家的字符串均通过 `"Key".Translate()` 获取，禁止硬编码。
@@ -765,20 +454,14 @@ VSE 扩展的 6 种 passion 按以下规则统一处理：
 |------|------|------|
 | Preview | `About/Preview.png` | Steam Workshop 预览图 |
 | ModIcon | `Textures/UI/Icons/ModIcon.png` | Mod 列表图标（`About.xml` 的 `modIconPath`） |
-| 标题图标 | `Textures/UI/Icons/AutoEverythingTitle.png` | 面板/文档标题装饰 |
 | 评级徽章 | `Textures/UI/Icons/Tier/Tier_{SSS,SS,S,A,B,C,D,X}.png` | ITab 评级徽章，替代纯色块（SS/SSS 暂无图，回退纯色块） |
 | 角色徽章 | `Textures/UI/Icons/Role/Role_{Brawler,Shooter,Doctor,Hunter,Worker,Pacifist,Leader,Default}.png` | ITab 角色徽章，左侧图标 + 右侧角色名 |
 
 ### 资源加载时机
 
-`ITab_GearManager` 标记 `[StaticConstructorOnStartup]`，纹理在主线程启动阶段加载：
-
-```
-ContentFinder<Texture2D>.Get("UI/Icons/Tier/Tier_S", false)  // reportFailure=false
-```
+`ITab_GearManager` 标记 `[StaticConstructorOnStartup]`，纹理通过 `LongEventHandler.ExecuteWhenFinished` 延迟到主线程加载完成后填充，避免跨线程 `ContentFinder` 访问崩溃：
 
 - **禁止**在普通类的静态字段初始化器中调用 `ContentFinder`——类型首次访问可能在非主线程（DefDatabase 扫描、Harmony 反射），触发 `Tried to get a resource from a different thread` 异常
-- `[StaticConstructorOnStartup]` 让 RimWorld 在主线程启动时主动触发静态构造，抢占其他线程
 - `reportFailure=false` 时未找到返回 null，调用方处理 null 回退纯色块 + 文字
 - 角色徽章因图标内无文字，绘制时在图标右侧显示中文角色名（`DrawRoleBadgeWithIcon`）
 
@@ -809,23 +492,20 @@ make rebuild-check  # 完整重建后检查
 |-----------|-------------------|
 | `PawnRole.cs` / `RoleDetector` | `## 角色检测规则` 表格 |
 | `GearContext.cs` / `ContextDetector` | `## 情境检测规则` 表格 |
-| `GearWeights.cs` | `## 评分模型 → 权重预设方案` |
-| `ScoringPipelineFactory.cs` | `## 武器评分管线` / `## 防具评分管线` 表格 |
-| 任一 `IScorer` 实现的加分公式 | 对应 Scorer 的"说明"列与 `## 总分公式` |
-| `SidearmAllocator.cs` | `## 副武器全局分配` 与公式块 |
-| `BeltAllocator.cs` | `## 腰带附件全局分配` |
-| `GearPreset.cs` / `GearPolicyEngine.cs` | `## 权重预设方案` 表格 |
-| `CompGearManager.cs` Tick 路径 | `## 评估周期` 表格 |
-| `WeaponSkillScorer.cs` / `WeaponTraitScorer.cs` | `## 主武器选择规则` 表格 |
-| `PawnRole.cs` / `GetArmorPreference` | `## 护甲选择` 章节（纯评分驱动，ArmorPreference 仅用于 IsBackRow） |
-| 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
-| `GlobalAllocator.cs` / `Dialog_GlobalReallocate.cs` | `## 全局重配` 与 `### 保护规则` |
-| `GlobalAllocator.cs` 护甲分配 | `### 护甲分配算法（纯评分驱动）` |
+| `CombatEvaluator.cs` 评级规则 | `## 全局价值评级档次（CombatTier）` 表格 |
+| `CombatEvaluator.cs` 评级方法分层 | `### 评级方法分层` 表格 |
+| `AESettings.cs` 自定义评级 | `### 自定义评级识别码` |
+| `AESettings.cs` 评级标签 | `### 全局人物评级标签` |
+| `AESettings.cs` 排序 | `### 殖民者栏默认排序` 表格 |
+| `AESettings.cs` 战斗价值公式权重 | `### 战斗价值公式` 表格 |
+| `CombatEvaluator.cs` ComputePawnValueScore | `### 价值评分` |
+| `WorkAllocator.cs` 分配规则 | `## 自动工作分配` 分配规则表格与统一四大原则 |
+| `WorkAllocator.cs` 奴隶收集/狩猎限制 | `## 奴隶处理` |
 | `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
-| `WorkAllocator.cs` 奴隶收集/狩猎限制/工作分配规则 | `## 奴隶处理` + `## 自动工作分配（AutoWork）` 分配规则表格与统一四大原则 |
 | `PawnMarker.cs` / `AutoMarkPawn` 模块 | `### 高价值非殖民者标记（AutoMarkPawn）` |
 | `ITab_GearManager.cs` 底部勾选框 | `## 自动执行（AutoExecutor）` 入口章节 |
-| `SGSettings.cs` 排序相关 | `### 殖民者栏默认排序` 表格 |
+| `CompGearManager.cs` Tick 路径 | `### 评估周期` 表格 |
+| 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
 | 新增/删除源文件 | `### 目录结构` 代码块 |
 | 新增/修改图片资源 | `## 图片资源` 表格与 `### 资源加载时机` |
 | `ITab_GearManager.cs` 静态资源加载 | `### 资源加载时机` |

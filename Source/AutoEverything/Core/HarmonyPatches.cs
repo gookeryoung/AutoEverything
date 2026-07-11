@@ -14,7 +14,7 @@ namespace AutoEverything.Core
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
     /// 1) 游戏加载时为所有 Pawn 注入 CompGearManager 组件
-    /// 2) 取消征召时恢复 Pawn 的主武器
+    /// 2) 在非殖民者高价值 Pawn 头顶绘制红色星标
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
     /// </summary>
     public static class HarmonyPatches
@@ -29,9 +29,6 @@ namespace AutoEverything.Core
             harmony.Patch(
                 AccessTools.Method(typeof(Pawn), "SpawnSetup"),
                 postfix: new HarmonyMethod(typeof(Pawn_SpawnSetup_Patch), nameof(Pawn_SpawnSetup_Patch.Postfix)));
-            harmony.Patch(
-                AccessTools.Method(typeof(Pawn_DraftController), "set_Drafted"),
-                postfix: new HarmonyMethod(typeof(DraftController_SetDrafted_Patch), nameof(DraftController_SetDrafted_Patch.Postfix)));
             // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在非殖民者高价值 Pawn 头顶绘制红色星标
             // 类型/方法名可能因 RimWorld 版本差异变化，用 try-catch + null 检查降级
             try
@@ -163,37 +160,6 @@ namespace AutoEverything.Core
                 }
             }
             Log.Message($"[AutoEverything] ThingComp 注入完成: 新增={injected}, 已存在跳过={skipped}, 不适用类别跳过={skippedUnsuitable}");
-        }
-
-        /// <summary>
-        /// 取消征召时的 Postfix：若 Pawn 此前为应对近战切出了副武器，
-        /// 则恢复其主武器。食尸鬼不使用装备管理，直接跳过。
-        /// RimWorld 1.6 起 Pawn_DraftController.SetDrafted 已改为 Drafted 属性，
-        /// 改用 MethodType.Setter patch 属性 setter。
-        /// </summary>
-        public static class DraftController_SetDrafted_Patch
-        {
-            public static void Postfix(Pawn_DraftController __instance, bool value)
-            {
-                // 仅处理「取消征召」事件（value=false 时为取消征召）
-                if (value) return;
-                Pawn pawn = __instance.pawn;
-                if (pawn == null) return;
-
-                // 食尸鬼不使用 CompGearManager，跳过取消征召时的副武器恢复
-                if (DLCCompat.IsGhoul(pawn)) return;
-
-                var comp = pawn.GetComp<CompGearManager>();
-                if (comp != null)
-                {
-                    // 异常隔离：单个 Pawn 取消征召失败不应影响其他 Pawn
-                    try { comp.OnUndraft(); }
-                    catch (Exception ex)
-                    {
-                        Log.Warning("[AutoEverything] " + pawn.LabelShort + " 取消征召恢复失败: " + ex.Message);
-                    }
-                }
-            }
         }
 
         /// <summary>
