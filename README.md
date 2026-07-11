@@ -536,7 +536,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **高评级优先**：高战斗价值殖民者优先评估，通过升级阈值拾取地图上的更好装备
 - **护甲纯评分驱动**：所有护甲按防护能力评分，`ApparelArmorScorer` 使用实例 API `gear.GetStatValue()` 正确反映 stuff + 品质 + HP 修正，高护甲装备自然胜出
 - **不打断战斗**：征召中（`Drafted`）的殖民者跳过
-- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过所有全局重配入口（`CompTick`/`ForceEvaluate`/`EvaluateInventory`/`GlobalAllocator.ReallocateAll`/`WorkAllocator.ReallocateAll`），避免 `TryTakeOrderedJob`/`SetPriority`/`apparel.Remove`/`TryDropEquipment` 取消手术 Job 导致手术死循环
+- **不打断医疗**：正在执行医疗工作（治疗 `TendPatient`/`TendEntity`、救援 `Rescue`、搬手术床 `TakeToBedToOperate`、手术 `DoBill`+`Bill_Medical`）的殖民者跳过所有全局重配入口（`CompTick`/`ForceEvaluate`/`EvaluateInventory`/`GlobalAllocator.ReallocateAll`/`WorkAllocator.ReallocateAll`/`SidearmAllocator`/`BeltAllocator`），避免 `TryTakeOrderedJob`/`SetPriority`/`apparel.Remove`/`TryDropEquipment` 取消手术 Job 导致手术死循环
 - **不打断休养**：受伤/患病卧床休养的殖民者（`Pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest`）跳过所有全局重配入口，避免换装 `TryTakeOrderedJob` 取消 `LayDown` Job 打断免疫力/治疗进度导致重伤者死亡
 - **守卫统一**：医疗/休养守卫逻辑集中在 `Core/PawnJobGuard.cs` 的 `ShouldSkipForMedical(Pawn)`，所有全局重配入口复用同一判断
 - **奴隶排除**：未征召奴隶不参与自动装备重配（与 `CompTick` 一致）

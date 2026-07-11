@@ -158,6 +158,9 @@ namespace AutoEverything.Allocation
                 CompGearManager comp = pawn.GetComp<CompGearManager>();
                 if (comp == null || comp.locked) continue;
 
+                // 医疗守卫：跳过正在执行医疗 Job/休养的 Pawn——AssignBelt 会 TryTakeOrderedJob 取消当前 Job
+                if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
+
                 // 仅近战角色（Brawler）参与 belt 分配
                 // 设计意图：护盾腰带阻挡远程射击，仅适合近战角色；
                 // 消防背包也优先给前排承担伤害的近战单位

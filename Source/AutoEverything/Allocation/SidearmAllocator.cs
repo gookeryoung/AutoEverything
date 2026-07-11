@@ -137,6 +137,9 @@ namespace AutoEverything.Allocation
                 CompGearManager comp = pawn.GetComp<CompGearManager>();
                 if (comp == null || comp.locked) continue;
 
+                // 医疗守卫：跳过正在执行医疗 Job/休养的 Pawn——AssignSidearm 会 TryTakeOrderedJob 取消当前 Job
+                if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
+
                 // 仅 Flexible 后排（Shooter/Hunter/Leader）参与 EMP 手雷分配
                 // 设计意图：后排远程角色评级较低者需要 EMP 手雷应对机械族/护盾
                 Role role = RoleDetector.DetectRole(pawn);
