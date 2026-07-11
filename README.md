@@ -4,7 +4,7 @@
 >
 > packageId: `gookeryoung.autoeverything`
 
-为殖民者自动执行**人员评级**、**工作优先级分配**与**高价值目标标记**，让玩家从繁琐的微调中解放出来。
+为殖民者自动执行**人员评级**、**工作优先级分配**、**食物/用药方案配置**与**高价值目标标记**，让玩家从繁琐的微调中解放出来。
 
 零配置开箱即用，每个殖民者根据技能与特质自动识别角色与评级。
 
@@ -14,6 +14,8 @@
 |------|------|----------|
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
+| **AutoFood**（自动食物方案） | 按特质/信仰自动配置殖民者食物方案（AE_常规/AE_人肉/AE_虫肉） | 事件驱动（殖民者增减 + 信仰变化）+ 冷却 2500 tick + ITab 勾选 |
+| **AutoDrug**（自动用药方案） | 按特质/信仰自动配置殖民者用药方案（AE_常规/AE_禁药） | 事件驱动（殖民者增减 + 信仰变化）+ 冷却 2500 tick + ITab 勾选 |
 | **AutoMarkPawn**（高价值标记） | 为 S+ 档次非殖民者人类头顶实时绘制红色星标 ★ | 实时绘制（Harmony 补丁）+ ITab 勾选 |
 
 ## 设计思路
@@ -281,14 +283,15 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ## 自动执行（AutoExecutor）
 
-`Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级（周期触发）的自动执行，以及高价值非殖民者标记的 ITab 勾选消息提示。
+`Core/AutoExecutor.cs` 静态类负责工作重配、食物/用药方案分配（均事件驱动）、人员评级（周期触发）的自动执行，以及高价值非殖民者标记的 ITab 勾选消息提示。
 
 - **入口**：由 `CompGearManager.CompTick` 每 tick 调用 `AutoExecutor.TryTick()`
-- **静态门控**：每 60 tick 检查一次殖民者数量变化与周期触发
-- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行
-- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 待触发（不立即执行）。增加时额外触发评级+星标（这两者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
-- **首次初始化守卫**：`lastWorkTick`/`lastTierTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作、评级、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
+- **静态门控**：每 60 tick 检查一次殖民者数量变化、信仰变化与周期触发
+- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配与食物/用药方案已改为事件驱动，无周期触发；高价值标记为实时绘制，无周期执行
+- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `pendingWorkRealloc` 与 `pendingFoodDrugRealloc` 待触发（不立即执行）。增加时额外触发评级+星标（这两者不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
+- **信仰变化检测**：每 60 tick 比对 `pawn.Ideo?.def?.defName`，变化时（被传教成功）标记 `pendingFoodDrugRealloc`。食物/用药方案重配无需战斗过滤（修改 `CurrentFoodPolicy`/`CurrentPolicy` 不取消当前 Job），仅受冷却 2500 tick 限制。ITab 手动勾选（`TriggerFoodPolicyNow`/`TriggerDrugPolicyNow`）不受冷却限制，立即执行
+- **首次初始化守卫**：`lastWorkTick`/`lastFoodDrugTick`/`lastTierTick`/`lastMarkTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
+- **错误隔离**：工作、食物、用药、评级、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Food=0xA400 / Drug=0xA600 / Tier=0xA300 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
 ### 人员自动评级
@@ -297,6 +300,59 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **机制**：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上系统评级前缀（格式 `S#王五`），并按 Mod 选项配置的默认排序重排殖民者栏
 - **取消勾选**：调用 `ClearTierTagsFromAllPawns()`，清除所有评级前缀恢复原名
 - **入口**：殖民者装备面板（ITab）底部 → "人员自动评级"勾选框（`AESettings.autoTierTag`，默认勾选）
+
+### 自动食物方案（AutoFood）
+
+`AutoFood/FoodPolicyAllocator.cs` 静态类按殖民者**特质**与**信仰信条**自动配置食物方案（`FoodPolicy`）。
+
+**方案定义**（首次执行时自动创建到 `Current.Game.foodRestrictionDatabase`）：
+
+| 方案 label | 内容 | 适用对象 |
+|-----------|------|---------|
+| `AE_常规` | 复制游戏默认方案（`DefaultFoodRestriction`） | 无食人特质/信条、无虫肉信条的殖民者 |
+| `AE_人肉` | `AE_常规` + 允许人肉（`SpecialThingFilterDefOf.AllowCannibal` = true） | 食人族特质 或 食人主义信条 |
+| `AE_虫肉` | `AE_常规` + 允许虫肉（`SpecialThingFilterDefOf.AllowInsectMeat` = true） | 虫肉爱好者信条 |
+
+**判定规则**（按优先级，命中即停）：
+
+| 优先级 | 条件 | 分配方案 |
+|--------|------|---------|
+| 1 | 拥有食人族特质（`TraitDef "Cannibal"`） | `AE_人肉` |
+| 2 | 信仰含食人信条：`Cannibalism_Preferred` / `Cannibalism_RequiredRavenous` / `Cannibalism_RequiredStrong` | `AE_人肉` |
+| 3 | 信仰含虫肉信条：`InsectMeatEating_Loved` | `AE_虫肉` |
+| 4 | 其他 | `AE_常规` |
+
+**设计要点**：
+- **人肉/虫肉是"允许"而非"仅含"**：方案在 `AE_常规` 基础上 `SetAllow(filter, true)`，殖民者仍可吃普通食物，只是不再排斥人肉/虫肉
+- **方案复用**：已存在的方案（按 label 匹配）不重复创建，每次执行时重新同步 `AE_常规` 的 filter 为默认方案，再在此基础上叠加人肉/虫肉允许
+- **无意识形态 DLC**：信仰检测自动跳过，仅按特质判定（食人族特质 → `AE_人肉`）
+- **食人族特质查询**：`Cannibal` 不在 `TraitDefOf` 中，用 `DefDatabase<TraitDef>.GetNamed("Cannibal", false)` 查询，缺失时 `Log.WarningOnce` 并仅依赖信仰信条
+- **入口**：殖民者装备面板（ITab）底部 → "自动食物方案"勾选框（`AESettings.autoFoodPolicyEnabled`，默认勾选）
+
+### 自动用药方案（AutoDrug）
+
+`AutoDrug/DrugPolicyAllocator.cs` 静态类按殖民者**特质**与**信仰信条**自动配置用药方案（`DrugPolicy`）。
+
+**方案定义**（首次执行时自动创建到 `Current.Game.drugPolicyDatabase`）：
+
+| 方案 label | 模板来源 | 适用对象 |
+|-----------|---------|---------|
+| `AE_常规` | `SocialDrugs`（社交用药：啤酒 + 烟叶，允许娱乐使用） | 无禁药特质/信条的殖民者 |
+| `AE_禁药` | `NoDrugs`（完全禁药） | 禁酒主义特质 或 禁药/憎恶药品信条 |
+
+**判定规则**（按优先级，命中即停）：
+
+| 优先级 | 条件 | 分配方案 |
+|--------|------|---------|
+| 1 | 拥有禁酒主义特质（`TraitDefOf.DrugDesire` degree=-1） | `AE_禁药` |
+| 2 | 信仰含禁药信条：`DrugUse_Prohibited` / `DrugUse_Abhorrent` | `AE_禁药` |
+| 3 | 其他 | `AE_常规` |
+
+**设计要点**：
+- **方案模板初始化**：`AE_常规` 用 `SocialDrugs` 模板（`sourceDef` + `InitializeIfNeeded(true)`），`AE_禁药` 用 `NoDrugs` 模板。模板缺失时 `Log.WarningOnce`，方案仍创建但内容为空
+- **DrugDesire 特质 degree**：-1=禁酒主义（Teetotaler），1=化学兴趣（ChemicalInterest），2=化学迷恋（ChemicalFascination）。仅 -1 触发 `AE_禁药`；1/2 仍用 `AE_常规`（社交用药允许娱乐，不与化学兴趣冲突）
+- **无意识形态 DLC**：信仰检测自动跳过，仅按特质判定
+- **入口**：殖民者装备面板（ITab）底部 → "自动用药方案"勾选框（`AESettings.autoDrugPolicyEnabled`，默认勾选）
 
 ### 高价值非殖民者标记（AutoMarkPawn）
 
@@ -353,6 +409,10 @@ Source/AutoEverything/
 ├── AutoWork/                              # → namespace AutoEverything.AutoWork
 │   ├── WorkAllocator.cs                   # 工作优先级自动分配
 │   └── WorkAllocationConfig.cs            # 分配配置结构
+├── AutoFood/                              # → namespace AutoEverything.AutoFood
+│   └── FoodPolicyAllocator.cs             # 食物方案自动分配（按特质/信仰）
+├── AutoDrug/                              # → namespace AutoEverything.AutoDrug
+│   └── DrugPolicyAllocator.cs             # 用药方案自动分配（按特质/信仰）
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
 │   └── PawnMarker.cs                      # 高价值非殖民者标记（S+ 头顶红色星标实时绘制）
 └── UI/                                    # → namespace AutoEverything.UI
@@ -364,6 +424,8 @@ Source/AutoEverything/
 - **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估、状态清理、VSE 兼容）
 - **AutoEquipment**：Tick 入口薄壳（CompGearManager 仅承担 AutoExecutor.TryTick 调用与角色缓存）
 - **AutoWork**：工作优先级自动分配
+- **AutoFood**：食物方案自动分配（按特质/信仰配置 AE_常规/AE_人肉/AE_虫肉）
+- **AutoDrug**：用药方案自动分配（按特质/信仰配置 AE_常规/AE_禁药）
 - **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制）
 - **UI**：玩家界面（ITab 面板）
 
@@ -374,8 +436,10 @@ Source/AutoEverything/
 | 路径 | 周期 | 说明 |
 |------|------|------|
 | `CompTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；食尸鬼/不适用类别自移除 Comp |
-| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc`；增加时立即触发评级+星标 |
+| `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `pendingWorkRealloc` 与 `pendingFoodDrugRealloc`；增加时立即触发评级+星标 |
+| `AutoExecutor` 信仰检查 | 60 tick | 比对 `pawn.Ideo?.def?.defName`，变化时（被传教成功）标记 `pendingFoodDrugRealloc` |
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
+| `AutoExecutor` 食物/用药方案 | 事件驱动 + 冷却 2500 tick | 殖民者增减或信仰变化时标记待触发，冷却结束即执行（无需战斗过滤，改 CurrentPolicy 不取消 Job）；ITab 手动勾选时立即执行 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 高价值标记 | 实时（Harmony 补丁） | S+ 档次非殖民者人类头顶绘制红色星标；ITab 勾选时统计数量弹消息，取消勾选自动停止绘制 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |

@@ -129,4 +129,18 @@ When checked, counts current targets and pops a message; when unchecked, the sta
   <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
 
+  <!-- AutoFood -->
+  <AE_AutoFoodPolicy>Auto Food Policy</AE_AutoFoodPolicy>
+  <AE_FoodPolicyResult>Configured food policy for {0} colonists</AE_FoodPolicyResult>
+  <AE_TT_AutoFoodPolicy>When checked, auto-configures colonist food policies: triggers on colonist count change or ideo change (successful conversion), with 2500 tick cooldown.
+Rules: Cannibal trait or cannibalism precept -> AE_Cannibal (allows human meat); insect meat precept -> AE_Insect (allows insect meat); others -> AE_Normal.
+Executes once immediately when checked; when unchecked, only stops auto, keeps current policy.</AE_TT_AutoFoodPolicy>
+
+  <!-- AutoDrug -->
+  <AE_AutoDrugPolicy>Auto Drug Policy</AE_AutoDrugPolicy>
+  <AE_DrugPolicyResult>Configured drug policy for {0} colonists</AE_DrugPolicyResult>
+  <AE_TT_AutoDrugPolicy>When checked, auto-configures colonist drug policies: triggers on colonist count change or ideo change (successful conversion), with 2500 tick cooldown.
+Rules: Teetotaler trait or drug-prohibited/abhorrent precept -> AE_NoDrugs; others -> AE_Normal (social drugs: beer + smokeleaf).
+Executes once immediately when checked; when unchecked, only stops auto, keeps current policy.</AE_TT_AutoDrugPolicy>
+
 </LanguageData>

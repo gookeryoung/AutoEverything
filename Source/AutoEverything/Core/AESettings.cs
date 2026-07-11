@@ -10,9 +10,11 @@ namespace AutoEverything.Core
     {
         // 主开关
         public static bool enabled = true;
-        public static bool autoWorkEnabled = true;  // AutoWork 自动工作分配主开关
-        public static bool autoTierTag = true;       // 人员自动评级（周期触发 + 新增人员触发）
-        public static bool autoMarkPawn = true;       // 高价值殖民者星标标记（S+ 追加 ★，周期触发 + 新增人员触发）
+        public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
+        public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
+        public static bool autoMarkPawn = true;           // 高价值殖民者星标标记（S+ 追加 ★，周期触发 + 新增人员触发）
+        public static bool autoFoodPolicyEnabled = true; // 自动食物方案（事件驱动：人员增减 + 信仰变化）
+        public static bool autoDrugPolicyEnabled = true; // 自动用药方案（事件驱动：人员增减 + 信仰变化）
 
         // 战斗价值公式可调权重（用于"高价值殖民者"判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
@@ -381,6 +383,8 @@ namespace AutoEverything.Core
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
             LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
+            LookCompat(ref autoFoodPolicyEnabled, "autoFoodPolicyEnabled", true);
+            LookCompat(ref autoDrugPolicyEnabled, "autoDrugPolicyEnabled", true);
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
 
@@ -522,7 +526,7 @@ namespace AutoEverything.Core
         public static void DrawSettings(Rect inRect)
         {
             // 单列布局：内容较少，无需双列
-            float contentHeight = 460f;
+            float contentHeight = 510f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -539,6 +543,8 @@ namespace AutoEverything.Core
             l.CheckboxLabeled("AE_AutoWork".Translate(), ref autoWorkEnabled);
             l.CheckboxLabeled("AE_AutoTierTag".Translate(), ref autoTierTag);
             l.CheckboxLabeled("AE_AutoMarkPawn".Translate(), ref autoMarkPawn);
+            l.CheckboxLabeled("AE_AutoFoodPolicy".Translate(), ref autoFoodPolicyEnabled);
+            l.CheckboxLabeled("AE_AutoDrugPolicy".Translate(), ref autoDrugPolicyEnabled);
 
             // 战斗价值公式权重
             l.GapLine();

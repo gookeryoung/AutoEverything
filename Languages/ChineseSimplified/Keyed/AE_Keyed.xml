@@ -130,4 +130,18 @@
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
 
+  <!-- AutoFood 自动食物方案 -->
+  <AE_AutoFoodPolicy>自动食物方案</AE_AutoFoodPolicy>
+  <AE_FoodPolicyResult>已为 {0} 个殖民者配置食物方案</AE_FoodPolicyResult>
+  <AE_TT_AutoFoodPolicy>勾选后自动配置殖民者食物方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
+方案规则：食人族特质或食人信条 → AE_人肉（允许人肉）；虫肉信条 → AE_虫肉（允许虫肉）；其余 → AE_常规。
+勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoFoodPolicy>
+
+  <!-- AutoDrug 自动用药方案 -->
+  <AE_AutoDrugPolicy>自动用药方案</AE_AutoDrugPolicy>
+  <AE_DrugPolicyResult>已为 {0} 个殖民者配置用药方案</AE_DrugPolicyResult>
+  <AE_TT_AutoDrugPolicy>勾选后自动配置殖民者用药方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
+方案规则：禁酒主义特质或禁药/憎恶药品信条 → AE_禁药；其余 → AE_常规（社交用药：啤酒+烟叶）。
+勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoDrugPolicy>
+
 </LanguageData>
