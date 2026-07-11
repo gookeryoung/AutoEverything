@@ -37,33 +37,12 @@ namespace AutoEverything.AutoEquipment
             int targetCount = AESettings.medicineCount;
 
             // 仅统计库存中的药品（不含手持——手持药品是临时的，
-            // 用于治疗或搬运工作，统计会导致反复拾取/丢弃死循环）
+            // 用于治疗或搬运工作，统计会导致反复拾取死循环）
             int medsInInventory = 0;
             foreach (Thing item in Pawn.inventory.innerContainer)
             {
                 if (item.def.IsMedicine)
                     medsInInventory += item.stackCount;
-            }
-
-            // 携带过多时丢弃多余药品（如搬运时混入）
-            if (medsInInventory > targetCount)
-            {
-                int excess = medsInInventory - targetCount;
-                Log.Message($"[AutoEverything] {AEDebug.Label(Pawn)} EvaluateInventory: 丢弃 {excess} 件多余药品 (持有 {medsInInventory}, 上限 {targetCount})");
-                var inv = Pawn.inventory.innerContainer;
-                for (int i = inv.Count - 1; i >= 0 && excess > 0; i--)
-                {
-                    if (inv[i].def.IsMedicine)
-                    {
-                        int drop = Math.Min(excess, inv[i].stackCount);
-                        if (inv.TryDrop(inv[i], Pawn.Position, Pawn.Map, ThingPlaceMode.Near, drop, out _))
-                        {
-                            if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(Pawn)} 丢弃 {drop}x {inv[i].def.label}");
-                            excess -= drop;
-                        }
-                    }
-                }
-                return;
             }
 
             if (medsInInventory >= targetCount)
