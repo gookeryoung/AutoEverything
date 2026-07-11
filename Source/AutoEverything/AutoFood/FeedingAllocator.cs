@@ -181,7 +181,10 @@ namespace AutoEverything.AutoFood
                 FoodPreferability.MealTerrible, FoodPreferability.MealLavish, 0f, false, false);
 
             // 食物来源2：地图上找最近可食用食物（FoodSourceNotPlantOrTree 组，排除植物/树）
-            // 谓词：未禁用、可储备、有堆叠、伤员愿意吃（WillEat 兼顾 Ideo/特质/头衔）
+            // 谓词：未禁用、可储备、有堆叠、排除药物/成瘾品（preferability != NeverForNutrition，
+            //   FoodSourceNotPlantOrTree 组不排除 NeverForNutrition，WillEat(careIfNotAcceptable=false) 也不拒绝，
+            //   不加此检查会把 Go-juice/Penoxycyline 等药物当作食物喂给伤员，伤员不获营养始终饥饿→反复喂食循环）、
+            //   伤员愿意吃（WillEat 兼顾 Ideo/特质/头衔）
             if (food == null)
             {
                 food = GenClosest.ClosestThingReachable(
@@ -191,6 +194,8 @@ namespace AutoEverything.AutoFood
                     TraverseParms.For(doctor),
                     50f,
                     t => !t.IsForbidden(doctor) && doctor.CanReserve(t) && t.stackCount > 0
+                         && t.def.ingestible != null
+                         && t.def.ingestible.preferability != FoodPreferability.NeverForNutrition
                          && FoodUtility.WillEat(patient, t, doctor, false, false));
             }
 
