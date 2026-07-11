@@ -36,6 +36,10 @@
 
 6. **食人族特质查询**：Cannibal 不在 TraitDefOf 中，用 DefDatabase<TraitDef>.GetNamed("Cannibal", false) 查询，缺失时 WarningOnce 并仅依赖信仰信条。
 
+7. **三种方案共享基础禁止（iter-17 补充）**：AE_常规/AE_人肉/AE_虫肉 均禁止生食（FoodRaw ThingCategoryDef）、尸体（Corpses ThingCategoryDef）、动物饲料（Kibble ThingDef），仅允许熟食等正常食物。人肉/虫肉通过 AllowCannibal/AllowInsectMeat 特殊过滤器覆盖 FoodRaw 类别禁止——特殊过滤器优先于类别过滤。
+
+8. **精神茶定时使用（iter-17 补充）**：AE_常规 方案在 SocialDrugs 模板基础上，通过反射访问 DrugPolicy.entriesInt 私有字段追加 PsychiteTea 条目（allowScheduled=true, daysFrequency=2, takeToInventory=1）。每次 ReallocateAll 确保精神茶条目存在（缺失则追加，已有则不修改参数，尊重玩家手动修改）。
+
 ## 验证结果
 
 - `make check` 通过：0 警告 0 错误

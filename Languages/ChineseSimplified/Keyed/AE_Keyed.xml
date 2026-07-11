@@ -135,13 +135,14 @@
   <AE_FoodPolicyResult>已为 {0} 个殖民者配置食物方案</AE_FoodPolicyResult>
   <AE_TT_AutoFoodPolicy>勾选后自动配置殖民者食物方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
 方案规则：食人族特质或食人信条 → AE_人肉（允许人肉）；虫肉信条 → AE_虫肉（允许虫肉）；其余 → AE_常规。
+三种方案均禁止生食、尸体、动物饲料，仅允许熟食等正常食物；人肉/虫肉方案通过特殊过滤器覆盖生食禁止。
 勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoFoodPolicy>
 
   <!-- AutoDrug 自动用药方案 -->
   <AE_AutoDrugPolicy>自动用药方案</AE_AutoDrugPolicy>
   <AE_DrugPolicyResult>已为 {0} 个殖民者配置用药方案</AE_DrugPolicyResult>
   <AE_TT_AutoDrugPolicy>勾选后自动配置殖民者用药方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
-方案规则：禁酒主义特质或禁药/憎恶药品信条 → AE_禁药；其余 → AE_常规（社交用药：啤酒+烟叶）。
+方案规则：禁酒主义特质或禁药/憎恶药品信条 → AE_禁药；其余 → AE_常规（社交用药：啤酒+烟叶+精神茶按2天1次定时使用）。
 勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoDrugPolicy>
 
 </LanguageData>

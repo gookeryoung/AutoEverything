@@ -309,9 +309,9 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 | 方案 label | 内容 | 适用对象 |
 |-----------|------|---------|
-| `AE_常规` | 复制游戏默认方案（`DefaultFoodRestriction`） | 无食人特质/信条、无虫肉信条的殖民者 |
-| `AE_人肉` | `AE_常规` + 允许人肉（`SpecialThingFilterDefOf.AllowCannibal` = true） | 食人族特质 或 食人主义信条 |
-| `AE_虫肉` | `AE_常规` + 允许虫肉（`SpecialThingFilterDefOf.AllowInsectMeat` = true） | 虫肉爱好者信条 |
+| `AE_常规` | 复制默认方案 + 禁止人肉/虫肉/生食（FoodRaw）/尸体（Corpses）/动物饲料（Kibble） | 无食人特质/信条、无虫肉信条的殖民者 |
+| `AE_人肉` | `AE_常规` + 允许人肉（`AllowCannibal` = true，覆盖 FoodRaw 类别禁止） | 食人族特质 或 食人主义信条 |
+| `AE_虫肉` | `AE_常规` + 允许虫肉（`AllowInsectMeat` = true，覆盖 FoodRaw 类别禁止） | 虫肉爱好者信条 |
 
 **判定规则**（按优先级，命中即停）：
 
@@ -323,8 +323,9 @@ Passion 量化：None=0, Minor=1, Major=2。
 | 4 | 其他 | `AE_常规` |
 
 **设计要点**：
-- **人肉/虫肉是"允许"而非"仅含"**：方案在 `AE_常规` 基础上 `SetAllow(filter, true)`，殖民者仍可吃普通食物，只是不再排斥人肉/虫肉
-- **方案复用**：已存在的方案（按 label 匹配）不重复创建，每次执行时重新同步 `AE_常规` 的 filter 为默认方案，再在此基础上叠加人肉/虫肉允许
+- **人肉/虫肉是"允许"而非"仅含"**：方案在 `AE_常规` 基础上 `SetAllow(filter, true)`，殖民者仍可吃普通食物，只是额外允许人肉/虫肉
+- **三种方案共享基础禁止**：均禁止生食（FoodRaw 类别）、尸体（Corpses 类别）、动物饲料（Kibble 物品），仅允许熟食等正常食物。人肉/虫肉通过 `AllowCannibal`/`AllowInsectMeat` 特殊过滤器覆盖 FoodRaw 类别禁止
+- **方案复用**：已存在的方案（按 label 匹配）不重复创建，每次执行时重新同步 filter 配置
 - **无意识形态 DLC**：信仰检测自动跳过，仅按特质判定（食人族特质 → `AE_人肉`）
 - **食人族特质查询**：`Cannibal` 不在 `TraitDefOf` 中，用 `DefDatabase<TraitDef>.GetNamed("Cannibal", false)` 查询，缺失时 `Log.WarningOnce` 并仅依赖信仰信条
 - **入口**：殖民者装备面板（ITab）底部 → "自动食物方案"勾选框（`AESettings.autoFoodPolicyEnabled`，默认勾选）
@@ -337,7 +338,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 | 方案 label | 模板来源 | 适用对象 |
 |-----------|---------|---------|
-| `AE_常规` | `SocialDrugs`（社交用药：啤酒 + 烟叶，允许娱乐使用） | 无禁药特质/信条的殖民者 |
+| `AE_常规` | `SocialDrugs`（社交用药：啤酒 + 烟叶允许娱乐使用）+ 精神茶（PsychiteTea）按 2 天 1 次定时使用 | 无禁药特质/信条的殖民者 |
 | `AE_禁药` | `NoDrugs`（完全禁药） | 禁酒主义特质 或 禁药/憎恶药品信条 |
 
 **判定规则**（按优先级，命中即停）：
@@ -349,7 +350,8 @@ Passion 量化：None=0, Minor=1, Major=2。
 | 3 | 其他 | `AE_常规` |
 
 **设计要点**：
-- **方案模板初始化**：`AE_常规` 用 `SocialDrugs` 模板（`sourceDef` + `InitializeIfNeeded(true)`），`AE_禁药` 用 `NoDrugs` 模板。模板缺失时 `Log.WarningOnce`，方案仍创建但内容为空
+- **方案模板初始化**：`AE_常规` 用 `NewDrugPolicyFromDef(SocialDrugs)` 创建（内含啤酒+烟叶），然后反射访问 `entriesInt` 私有字段追加精神茶条目（`allowScheduled=true`, `daysFrequency=2`, `takeToInventory=1`）。`AE_禁药` 用 `NoDrugs` 模板。已存在的方案不重新初始化，但每次执行会确保精神茶条目存在（缺失则追加，已有则不修改参数）
+- **DrugPolicy.InitializeIfNeeded 是 private**：不能直接调用，用 `db.NewDrugPolicyFromDef(def)` 间接初始化（内部调用 private InitializeIfNeeded）
 - **DrugDesire 特质 degree**：-1=禁酒主义（Teetotaler），1=化学兴趣（ChemicalInterest），2=化学迷恋（ChemicalFascination）。仅 -1 触发 `AE_禁药`；1/2 仍用 `AE_常规`（社交用药允许娱乐，不与化学兴趣冲突）
 - **无意识形态 DLC**：信仰检测自动跳过，仅按特质判定
 - **入口**：殖民者装备面板（ITab）底部 → "自动用药方案"勾选框（`AESettings.autoDrugPolicyEnabled`，默认勾选）
