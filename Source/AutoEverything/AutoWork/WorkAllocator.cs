@@ -12,7 +12,8 @@ namespace AutoEverything.AutoWork
     /// 全局工作优先级分配器。
     /// 按工作分类（紧急/重要专业/普通专业/次级专业/研究/辅助）多遍协调分配，
     /// 引入工作计数跟踪使「同等兴趣下优先安排其他工作少的」可执行。
-    /// 所有技能类工作复用统一 AssignWorkType + WorkAllocationConfig 四大原则分配。
+    /// 所有技能类工作复用统一 AssignWork + WorkAllocationConfig 四大原则分配，
+    /// 单工作与组分配（手工类 Smithing/Tailoring/Crafting 共享 1 个 workCount）走同一路径。
     /// 触发方式：ITab 底部"全局工作重配"按钮手动调用。
     /// </summary>
     public static partial class WorkAllocator
@@ -30,10 +31,6 @@ namespace AutoEverything.AutoWork
         // 狩猎排序缓存：IsBackRow 结果预计算，避免 Sort 比较器内重复调用 DetectRole
         // 每次狩猎分配前 Clear+重填，仅在该次 Sort 内有效
         private static readonly Dictionary<Pawn, bool> backRowCache = new Dictionary<Pawn, bool>();
-
-        // 辅助工作评级缓存：CombatTier 预计算，避免重复调用 GetCombatTier
-        // 每次辅助工作分配前 Clear+重填
-        private static readonly Dictionary<Pawn, CombatTier> tierCache = new Dictionary<Pawn, CombatTier>();
 
         // 候选标记缓存：末尾清零非候选旧优先级时快速判断 pawn 是否在 workCandidates 内
         // 替代全局清零：只对非候选调用 SetPriority(0)，候选者 SetPriority(intended) 由 RimWorld no-op 优化避免重评估
@@ -123,8 +120,9 @@ namespace AutoEverything.AutoWork
 
         private struct WorkPhase
         {
-            public WorkTypeDef WorkType;            // 单工作类型（WorkTypes 为 null 时使用）
-            public List<WorkTypeDef> WorkTypes;     // 工作类型组（非 null 时组分配：一次排序，同时分配，共享 1 个 workCount）
+            // 工作类型集合：单工作用 1 元素数组，组分配用多元素数组
+            // 统一为数组消除 AssignWorkType/AssignWorkGroup 分支，组分配共享 1 个 workCount
+            public WorkTypeDef[] WorkTypes;
             public WorkAllocationConfig Config;
         }
 
@@ -226,10 +224,7 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < skillWorkPhases.Count; i++)  // 第 2-N 遍：技能工作
             {
                 WorkPhase phase = skillWorkPhases[i];
-                if (phase.WorkTypes != null)
-                    AssignWorkGroup(phase.WorkTypes, phase.Config);
-                else
-                    AssignWorkType(phase.WorkType, phase.Config);
+                AssignWork(phase.WorkTypes, phase.Config);
             }
             AssignServiceWorkPriorities();        // 最后一遍：辅助工作（搬运/清洁/非技能）
 
@@ -309,11 +304,11 @@ namespace AutoEverything.AutoWork
 
             // 1. 重要专业工作（Doctor/Warden/Childcare/Cooking/PlantCutting）：保底2，三因素高者1低者3
             for (int i = 0; i < keyWorkDefs.Count; i++)
-                skillWorkPhases.Add(new WorkPhase { WorkType = keyWorkDefs[i], Config = KeyWorkConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { keyWorkDefs[i] }, Config = KeyWorkConfig });
             if (cachedCookingDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedCookingDef, Config = KeyWorkConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedCookingDef }, Config = KeyWorkConfig });
             if (cachedPlantCuttingDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedPlantCuttingDef, Config = KeyWorkConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedPlantCuttingDef }, Config = KeyWorkConfig });
 
             // 2. 普通专业工作（Construction/Mining/Growing/Smithing/Tailoring/Crafting/Art）：保底2，三因素高者2低者3
             // 手工组（Smithing/Tailoring/Crafting）使用组分配（共享 Crafting 技能 + 1 workCount）
@@ -324,26 +319,26 @@ namespace AutoEverything.AutoWork
                 if (IsCraftingSkillWork(wt))
                     craftingGroup.Add(wt);
                 else
-                    skillWorkPhases.Add(new WorkPhase { WorkType = wt, Config = OtherSkillConfig });
+                    skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { wt }, Config = OtherSkillConfig });
             }
             if (craftingGroup.Count > 0)
-                skillWorkPhases.Add(new WorkPhase { WorkTypes = craftingGroup, Config = OtherSkillConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = craftingGroup.ToArray(), Config = OtherSkillConfig });
 
             // 3. 次级专业工作（Handling/Fishing/Hunting）：保底1，三因素高者2低者4
             // Hunting 需远程武器+后排排序；Handling/Fishing 不需要（Fishing 关联 Animals 技能，非远程武器工作）
             if (cachedHandlingDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedHandlingDef, Config = SecondaryConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedHandlingDef }, Config = SecondaryConfig });
             if (cachedFishingDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedFishingDef, Config = SecondaryConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedFishingDef }, Config = SecondaryConfig });
             if (cachedHuntingDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedHuntingDef, Config = SecondaryRangedConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedHuntingDef }, Config = SecondaryRangedConfig });
 
             // 4. 研究工作（Research/DarkStudy）：保底1，专业工作<3的三因素最高者1，其他有火者3
             // 最后分配，让其他专家先累加 workCount，研究时硬上限拦截
             if (cachedResearchDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedResearchDef, Config = ResearchConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedResearchDef }, Config = ResearchConfig });
             if (cachedDarkStudyDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkType = cachedDarkStudyDef, Config = ResearchConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedDarkStudyDef }, Config = ResearchConfig });
 
             // 调试：dump 阶段列表，确认所有工作类型（如 Mining）被正确纳入
             if (AEDebug.IsActive) AEDebug.Log(() =>
@@ -354,17 +349,10 @@ namespace AutoEverything.AutoWork
                 {
                     if (i > 0) sb.Append(" → ");
                     WorkPhase p = skillWorkPhases[i];
-                    if (p.WorkTypes != null)
+                    for (int j = 0; j < p.WorkTypes.Length; j++)
                     {
-                        for (int j = 0; j < p.WorkTypes.Count; j++)
-                        {
-                            if (j > 0) sb.Append('+');
-                            sb.Append(p.WorkTypes[j].defName);
-                        }
-                    }
-                    else
-                    {
-                        sb.Append(p.WorkType.defName);
+                        if (j > 0) sb.Append('+');
+                        sb.Append(p.WorkTypes[j].defName);
                     }
                 }
                 return sb.ToString();
@@ -391,10 +379,10 @@ namespace AutoEverything.AutoWork
         }
 
         /// <summary>
-        /// 构造工作类型组标签（如 Smithing+Tailoring+Crafting），用于调试日志。
+        /// 构造工作类型组标签（如 Smithing+Tailoring+Crafting，或单工作 Doctor），用于调试日志。
         /// 仅在 debug 开启时调用。
         /// </summary>
-        private static string BuildWorkGroupLabel(List<WorkTypeDef> workTypes)
+        private static string BuildWorkGroupLabel(IReadOnlyList<WorkTypeDef> workTypes)
         {
             StringBuilder lb = new StringBuilder();
             for (int j = 0; j < workTypes.Count; j++)

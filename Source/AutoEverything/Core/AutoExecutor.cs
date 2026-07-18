@@ -10,7 +10,7 @@ using AutoEverything.AutoDrug;
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 全局自动执行器：事件驱动工作重配、食物/用药方案分配、周期触发人员评级与星标标记。
+    /// 全局自动执行器：事件驱动工作重配、食物/用药方案分配、周期触发人员评级。
     ///
     /// 设计模式：静态门控模式，
     /// 由 CompGearManager.CompTick 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
@@ -21,13 +21,17 @@ namespace AutoEverything.Core
     ///   工作重配需战斗过滤：SetPriority 会取消当前 Job，战斗中执行可能打断手术
     /// - 食物/用药方案（事件驱动）：殖民者数量变化或信仰变化时标记待触发；ITab 勾选时立即触发
     ///   食物/用药方案无需战斗过滤：修改 CurrentFoodPolicy/CurrentPolicy 不取消当前 Job
-    /// - 评级/星标（周期 + 事件）：每 3000 tick 周期触发；殖民者数量增加时立即触发
+    /// - 评级（周期 + 事件）：每 3000 tick 周期触发；殖民者数量增加时立即触发
+    ///   周期/事件触发仅更新 Nick 前缀（评级变化时），不重排殖民者栏——避免覆盖玩家手动排序；
+    ///   玩家主动触发（ITab 勾选/点排序按钮）才调 ReorderColonistBar 重排
+    /// - 星标（事件 + 每帧）：殖民者数量增加时弹消息反馈；红星绘制靠 Harmony PawnUIOverlay
+    ///   Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存），无需周期触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈）
     ///
     /// 信仰变化检测：每 60 tick 比对殖民者信仰 def 名，变化时标记待重配食物/用药方案。
     /// 覆盖"被传教成功"场景：殖民者信仰改变后自动重新分配方案。
     ///
-    /// 首次初始化守卫：lastWorkTick 等 &lt; 0 时设为当前 tick，不触发执行，
+    /// 首次初始化守卫：work.lastTick 等 &lt; 0 时设为当前 tick，不触发执行，
     /// 避免存档加载后立即执行造成卡顿。
     /// </summary>
     internal static class AutoExecutor
@@ -42,18 +46,28 @@ namespace AutoEverything.Core
         // 殖民者数量变化后延迟触发，避免战斗中连续死亡连锁触发工作重配打断医疗 Job
         private const int ReallocCooldown = 2500;
 
-        private static int lastCheckTick = -9999;
-        private static int lastWorkTick = -9999;
-        private static int lastFoodDrugTick = -9999;
+        // 阶段状态：把 lastTick + pending 打包为 struct，集中管理各自动阶段的状态
+        // work：工作重配（需战斗过滤，ReallocCooldown 冷却）
+        // foodDrug：食物/用药方案（无战斗过滤，ReallocCooldown 冷却；ExecuteFoodPolicy 更新 lastTick，ExecuteDrugPolicy 共享冷却不更新）
+        // tier：评级（周期 ExecuteInterval 触发，无 pending——非事件驱动）
+        private struct PhaseState
+        {
+            public int lastTick;
+            public bool pending;
+        }
+
+        private static PhaseState work = new PhaseState { lastTick = -9999 };
+        private static PhaseState foodDrug = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
-        private static int lastMarkTick = -9999;
+        private static int lastCheckTick = -9999;
+        // 注：Mark（红星标注）无需 lastXxxTick——ExecuteMark(showMessage:false) 是空操作，
+        // 红星绘制完全靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存）。
+        // Mark 仅靠"殖民者数量增加"事件 + ITab 勾选触发，不需周期触发。
 
         // 殖民者数量缓存：-1 = 首次只记录不触发
         private static int lastColonistCount = -1;
 
-        // 待重配标志：事件标记，冷却到期后执行
-        private static bool pendingWorkRealloc = false;
-        private static bool pendingFoodDrugRealloc = false;
+        // 待重配标志已合并到 PhaseState.pending（work.pending / foodDrug.pending）
 
         // 信仰快照：记录每个殖民者的信仰 id，用于检测信仰变化（被传教）
         private static readonly Dictionary<int, int> ideoSnapshot = new Dictionary<int, int>();
@@ -77,12 +91,11 @@ namespace AutoEverything.Core
             lastCheckTick = tick;
 
             // 首次初始化守卫
-            if (lastWorkTick < 0)
+            if (work.lastTick < 0)
             {
-                lastWorkTick = tick;
-                lastFoodDrugTick = tick;
+                work.lastTick = tick;
+                foodDrug.lastTick = tick;
                 lastTierTick = tick;
-                lastMarkTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 SnapshotIdeos();
                 return;
@@ -96,11 +109,13 @@ namespace AutoEverything.Core
                 lastColonistCount = currentCount;
                 if (isIncrease)
                 {
+                    // 评级立即触发：Nick 前缀更新（仅编辑 Nick 不取消 Job，安全）
                     ExecuteTier(tick, showMessage: false);
-                    ExecuteMark(tick, showMessage: false);
+                    // Mark 不在此触发——红星绘制靠 Harmony Postfix 每帧自检 IsHighValue（带 2500 tick 缓存），
+                    // 新增殖民者本身属于 OfPlayer 不会被标记，仅新增的非殖民者高价值目标会在 Postfix 自动识别
                 }
-                pendingWorkRealloc = true;
-                pendingFoodDrugRealloc = true;
+                work.pending = true;
+                foodDrug.pending = true;
                 SnapshotIdeos();
             }
             else
@@ -108,31 +123,29 @@ namespace AutoEverything.Core
                 // 信仰变化检测（被传教成功）：比对信仰 def 名
                 if (DetectIdeoChange())
                 {
-                    pendingFoodDrugRealloc = true;
+                    foodDrug.pending = true;
                     SnapshotIdeos();
                 }
             }
 
             // 待重配触发：工作重配需战斗过滤（SetPriority 取消 Job）
-            if (pendingWorkRealloc && tick - lastWorkTick >= ReallocCooldown && !AnyCombatActive())
+            if (work.pending && tick - work.lastTick >= ReallocCooldown && !AnyCombatActive())
             {
-                pendingWorkRealloc = false;
+                work.pending = false;
                 ExecuteWork(tick, showMessage: false);
             }
 
             // 待重配触发：食物/用药方案无需战斗过滤（改 CurrentPolicy 不取消 Job）
-            if (pendingFoodDrugRealloc && tick - lastFoodDrugTick >= ReallocCooldown)
+            if (foodDrug.pending && tick - foodDrug.lastTick >= ReallocCooldown)
             {
-                pendingFoodDrugRealloc = false;
+                foodDrug.pending = false;
                 ExecuteFoodPolicy(tick, showMessage: false);
                 ExecuteDrugPolicy(tick, showMessage: false);
             }
 
-            // 周期触发：评级/星标
+            // 周期触发：仅评级（Mark 无周期——Postfix 每帧自检）
             if (tick - lastTierTick >= ExecuteInterval)
                 ExecuteTier(tick, showMessage: false);
-            if (tick - lastMarkTick >= ExecuteInterval)
-                ExecuteMark(tick, showMessage: false);
         }
 
         /// <summary>
@@ -177,7 +190,7 @@ namespace AutoEverything.Core
 
         private static void ExecuteWork(int tick, bool showMessage)
         {
-            lastWorkTick = tick;
+            work.lastTick = tick;
             if (!AESettings.autoWorkEnabled) return;
 
             try
@@ -195,7 +208,7 @@ namespace AutoEverything.Core
 
         private static void ExecuteFoodPolicy(int tick, bool showMessage)
         {
-            lastFoodDrugTick = tick;
+            foodDrug.lastTick = tick;
             if (!AESettings.autoFoodPolicyEnabled) return;
 
             try
@@ -235,8 +248,13 @@ namespace AutoEverything.Core
 
             try
             {
-                int n = AESettings.ApplyTierTagsWithDefaultSort();
-                AEDebug.Log(() => $"[AutoExecutor] 人员自动评级: {n} 个殖民者 (tick={tick})");
+                // 周期/事件触发(showMessage=false)：仅更新 Nick 前缀，不重排殖民者栏
+                // ——避免每 3000 tick 覆盖玩家手动调整的殖民者栏顺序
+                // 玩家主动触发(showMessage=true，ITab 勾选)：调 ApplyTierTagsWithDefaultSort 重排
+                int n = showMessage
+                    ? AESettings.ApplyTierTagsWithDefaultSort()
+                    : AESettings.ApplyTierTagsToAllPawns();
+                AEDebug.Log(() => $"[AutoExecutor] 人员自动评级: {n} 个殖民者 (tick={tick}, sort={showMessage})");
                 if (showMessage)
                     Messages.Message("AE_TierTag_ApplyResult".Translate(n), MessageTypeDefOf.TaskCompletion);
             }
@@ -248,9 +266,10 @@ namespace AutoEverything.Core
 
         private static void ExecuteMark(int tick, bool showMessage)
         {
-            lastMarkTick = tick;
             if (!AESettings.autoMarkPawn) return;
 
+            // showMessage=false 时无操作：Mark 无周期触发需求，
+            // 红星绘制靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存）
             if (!showMessage) return;
 
             try
@@ -307,7 +326,7 @@ namespace AutoEverything.Core
 
         /// <summary>
         /// 战斗检测：检查所有地图是否有未 Downed 的敌对 Pawn。
-        /// 仅在 pendingWorkRealloc && 冷却到期时调用，平时无开销。
+        /// 仅在 work.pending && 冷却到期时调用，平时无开销。
         /// </summary>
         private static bool AnyCombatActive()
         {

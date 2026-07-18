@@ -33,6 +33,22 @@ namespace AutoEverything.RoleEvaluation
             110f   // SSS
         };
 
+        // 9 大核心技能：评级 Major/Minor 计数与综合价值评分共用
+        // 包含 Shooting/Melee（战斗）+ Social（社交）+ 6 大专业工作技能
+        private static readonly SkillDef[] coreSkills =
+        {
+            SkillDefOf.Shooting, SkillDefOf.Melee, SkillDefOf.Social,
+            SkillDefOf.Crafting, SkillDefOf.Construction, SkillDefOf.Artistic,
+            SkillDefOf.Cooking, SkillDefOf.Plants, SkillDefOf.Mining
+        };
+
+        // 6 大专业工作技能：工作狂+神经质系列评级判定使用（coreSkills 子集，排除 Shooting/Melee/Social）
+        private static readonly SkillDef[] workSkills =
+        {
+            SkillDefOf.Crafting, SkillDefOf.Construction, SkillDefOf.Artistic,
+            SkillDefOf.Cooking, SkillDefOf.Plants, SkillDefOf.Mining
+        };
+
         // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免与 WeaponTraitScorer 重复定义）
         // Brawler（格斗者）是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
@@ -194,15 +210,10 @@ namespace AutoEverything.RoleEvaluation
             if (pawn.skills == null) return score;
 
             // 2 & 3. 兴趣总分 + 技能等级总分（9 大核心技能）
-            AddSkillScore(pawn, SkillDefOf.Shooting, ref score);
-            AddSkillScore(pawn, SkillDefOf.Melee, ref score);
-            AddSkillScore(pawn, SkillDefOf.Social, ref score);
-            AddSkillScore(pawn, SkillDefOf.Crafting, ref score);
-            AddSkillScore(pawn, SkillDefOf.Construction, ref score);
-            AddSkillScore(pawn, SkillDefOf.Artistic, ref score);
-            AddSkillScore(pawn, SkillDefOf.Cooking, ref score);
-            AddSkillScore(pawn, SkillDefOf.Plants, ref score);
-            AddSkillScore(pawn, SkillDefOf.Mining, ref score);
+            for (int i = 0; i < coreSkills.Length; i++)
+            {
+                AddSkillScore(pawn, coreSkills[i], ref score);
+            }
 
             return score;
         }
@@ -395,8 +406,8 @@ namespace AutoEverything.RoleEvaluation
         {
             TierEvaluationInput input = default;
 
-            input.MajorCount = CountPassionsAtLeast(pawn, PassionHelper.PassionTier.Major);
-            input.MinorCount = CountPassionsExactly(pawn, PassionHelper.PassionTier.Minor);
+            input.MajorCount = CountPassions(pawn, PassionHelper.PassionTier.Major, atLeast: true, coreSkills);
+            input.MinorCount = CountPassions(pawn, PassionHelper.PassionTier.Minor, atLeast: false, coreSkills);
 
             input.ShootingMajor = IsPassionAtLeast(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Major);
             input.ShootingMinor = IsPassionExactly(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Minor);
@@ -427,40 +438,21 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 统计 Pawn 在 9 大核心技能中 tier 达到指定层级的数量（含该层级及以上）。
-        /// 用于 Major 计数：tier >= Major 含 Natural/Critical，符合"按双火处理"。
+        /// 统计 Pawn 在指定技能集合中 tier 达到/恰好等于指定层级的数量。
+        /// atLeast=true：含该层级及以上（用于 Major 计数，含 Natural/Critical）；
+        /// atLeast=false：仅该层级（用于 Minor 计数，不含 Major 及以上避免双计数）。
         /// </summary>
-        private static int CountPassionsAtLeast(Pawn pawn, PassionHelper.PassionTier minTier)
+        private static int CountPassions(Pawn pawn, PassionHelper.PassionTier targetTier, bool atLeast, SkillDef[] skills)
         {
             int count = 0;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Shooting, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Melee, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Social, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Crafting, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Construction, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Artistic, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Cooking, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Plants, minTier)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Mining, minTier)) count++;
-            return count;
-        }
-
-        /// <summary>
-        /// 统计 Pawn 在 9 大核心技能中 tier 恰好等于指定层级的数量。
-        /// 用于 Minor 计数：tier == Minor，不含 Major 及以上，避免双计数。
-        /// </summary>
-        private static int CountPassionsExactly(Pawn pawn, PassionHelper.PassionTier tier)
-        {
-            int count = 0;
-            if (IsPassionExactly(pawn, SkillDefOf.Shooting, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Melee, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Social, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Crafting, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Construction, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Artistic, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Cooking, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Plants, tier)) count++;
-            if (IsPassionExactly(pawn, SkillDefOf.Mining, tier)) count++;
+            for (int i = 0; i < skills.Length; i++)
+            {
+                SkillRecord s = pawn.skills?.GetSkill(skills[i]);
+                if (s == null) continue;
+                var tier = PassionHelper.GetPassionTier(s.passion);
+                bool hit = atLeast ? (int)tier >= (int)targetTier : tier == targetTier;
+                if (hit) count++;
+            }
             return count;
         }
 
@@ -500,14 +492,7 @@ namespace AutoEverything.RoleEvaluation
         /// </summary>
         private static int CountWorkMajors(Pawn pawn)
         {
-            int count = 0;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Crafting, PassionHelper.PassionTier.Major)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Construction, PassionHelper.PassionTier.Major)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Artistic, PassionHelper.PassionTier.Major)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Cooking, PassionHelper.PassionTier.Major)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Plants, PassionHelper.PassionTier.Major)) count++;
-            if (IsPassionAtLeast(pawn, SkillDefOf.Mining, PassionHelper.PassionTier.Major)) count++;
-            return count;
+            return CountPassions(pawn, PassionHelper.PassionTier.Major, atLeast: true, workSkills);
         }
 
         private static bool HasSpecialTalentTrait(Pawn pawn)
