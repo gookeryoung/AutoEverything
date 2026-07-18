@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.Core;
@@ -8,7 +7,7 @@ namespace AutoEverything.RoleEvaluation
 {
     /// <summary>
     /// 基于 Pawn 技能与特质自动判定的角色枚举。
-    /// 角色决定其应当偏好何种装备。
+    /// 角色用于 ITab 角色徽章显示与狩猎分配判定。
     /// </summary>
     public enum Role
     {
@@ -23,7 +22,7 @@ namespace AutoEverything.RoleEvaluation
     }
 
     /// <summary>
-    /// 护甲偏好（用于全局重配的护甲分配）。
+    /// 护甲偏好（用于 ITab 护甲偏好徽章显示与狩猎后排判定）。
     /// 设计意图：不同角色对护甲的需求不同——前排战士需要重甲承担伤害，
     /// 后排可选重甲（有盈余时），工人/猎人需要轻甲保持工作效率。
     /// </summary>
@@ -36,27 +35,6 @@ namespace AutoEverything.RoleEvaluation
 
     public static class RoleDetector
     {
-        // 记录每个 Pawn 上一次检测到的角色，仅在变化时输出日志以减少噪音
-        private static readonly Dictionary<int, Role> lastLoggedRole = new Dictionary<int, Role>();
-
-        // 字典清理周期：60000 tick（约 1 游戏小时）扫描一次，移除已死亡/消失的 Pawn 条目
-        // 避免字典无限增长导致内存泄漏与 thingIDNumber 复用导致的误判
-        private const int CleanupInterval = 60000;
-        private static int nextCleanupTick = 60000;
-
-        /// <summary>
-        /// 清理已死亡/离开地图的 Pawn 在字典中的残留条目。
-        /// 由 CompGearManager 的 Tick 路径定期调用。
-        /// </summary>
-        public static void CleanupDeadPawns()
-        {
-            int tick = Find.TickManager.TicksGame;
-            if (tick < nextCleanupTick) return;
-            nextCleanupTick = tick + CleanupInterval;
-
-            PawnStateCleaner.Cleanup(lastLoggedRole);
-        }
-
         /// <summary>
         /// 基于技能、特质与工作指派检测 Pawn 最合适的角色。
         /// </summary>
@@ -183,55 +161,14 @@ namespace AutoEverything.RoleEvaluation
                 }
             }
 
-            // 角色变化是调试信息：战斗中频繁切换会刷屏，改用 AEDebug.Log 受 debugLogging 开关控制
-            int pawnId = pawn.thingIDNumber;
-            if (lastLoggedRole.TryGetValue(pawnId, out Role prev))
-            {
-                if (prev != result)
-                {
-                    // 加 if 守卫避免闭包分配（CompTick 路径）
-                    if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色变化: {prev} -> {result} ({reason})");
-                    lastLoggedRole[pawnId] = result;
-                }
-            }
-            else
-            {
-                // 首次见到该 Pawn：加 if 守卫避免游戏加载时闭包分配
-                if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 初始角色: {result} ({reason})");
-                lastLoggedRole[pawnId] = result;
-            }
+            // 角色检测完成：debug 模式下输出（接受重复日志，简化代码，去重字典已移除）
+            if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色: {result} ({reason})");
 
             return result;
         }
 
         /// <summary>
-        /// 获取角色对应的主战斗属性。
-        /// </summary>
-        public static StatDef GetPrimaryWeaponStat(Role role)
-        {
-            switch (role)
-            {
-                case Role.Shooter:
-                case Role.Hunter:
-                    return StatDefOf.RangedWeapon_DamageMultiplier;
-                case Role.Brawler:
-                    return StatDefOf.MeleeWeapon_AverageDPS;
-                default:
-                    return StatDefOf.RangedWeapon_DamageMultiplier;
-            }
-        }
-
-        /// <summary>
-        /// 该角色是否应当偏好近战武器。
-        /// 仅格斗者返回 true，用于在武器评分中阻止格斗者装备远程武器。
-        /// </summary>
-        public static bool PrefersMelee(Role role)
-        {
-            return role == Role.Brawler;
-        }
-
-        /// <summary>
-        /// 获取角色对应的护甲偏好（用于全局重配护甲分配）。
+        /// 获取角色对应的护甲偏好（用于护甲偏好徽章显示与狩猎后排判定）。
         /// - Brawler：前排战士，优先重甲承担伤害
         /// - Shooter/Hunter：后排，按原评分自由选择（有重甲盈余时使用）
         /// - Worker/Doctor/Pacifist/Leader/Default：工人/医疗/领袖，轻甲提高工作效率

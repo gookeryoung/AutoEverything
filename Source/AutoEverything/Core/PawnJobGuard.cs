@@ -8,12 +8,10 @@ namespace AutoEverything.Core
     /// 殖民者 Job 守卫：判断 Pawn 是否正在执行不应被打断的 Job。
     ///
     /// 供所有"会修改 Pawn 状态的全局入口"复用：
-    /// - CompGearManager（装备评估：CompTick / ForceEvaluate / EvaluateInventory）
-    /// - GlobalAllocator.ReallocateAll（全局换装）
     /// - WorkAllocator.ReallocateAll（工作优先级重配）
     ///
-    /// 设计意图：TryTakeOrderedJob / SetPriority / apparel.Remove / TryDropEquipment
-    /// 都会取消 Pawn 当前 Job，若 Pawn 正在手术/治疗/休养，会导致手术死循环或伤员失救死亡。
+    /// 设计意图：SetPriority 会取消 Pawn 当前 Job，
+    /// 若 Pawn 正在手术/治疗/休养，会导致手术死循环或伤员失救死亡。
     /// 所有全局重配入口必须在收集候选时调用本守卫跳过此类 Pawn。
     /// </summary>
     public static class PawnJobGuard

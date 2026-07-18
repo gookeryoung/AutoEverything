@@ -49,11 +49,11 @@ namespace AutoEverything.RoleEvaluation
             SkillDefOf.Cooking, SkillDefOf.Plants, SkillDefOf.Mining
         };
 
-        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免与 WeaponTraitScorer 重复定义）
+        // TraitDef 查询统一由 TraitDefCache 提供（集中管理，避免重复定义）
         // Brawler（格斗者）是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
         /// <summary>
-        /// 计算 Pawn 的战斗价值分（用于副武器分配优先级与全局重配顺序）。
+        /// 计算 Pawn 的战斗价值分（用于评级排序与高价值标记判定）。
         /// 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
         /// 兴趣乘数、技能权重、特质加分均可在面板上由玩家调整。
         /// 命中自定义评级的 Pawn 不走公式，直接采用对应档次的代表分（保证排序稳定）。
@@ -178,8 +178,7 @@ namespace AutoEverything.RoleEvaluation
         /// 设计意图：评级 CombatTier 是离散分级（S/A/B/C/D），
         ///   但同档内仍有差异——同为 S 档，Tough+Melee 双火 与 双火带特殊天赋
         ///   价值并不相同；该分数提供档内精排依据。
-        ///   护甲分配时先按 CombatTier 降序，同档内再用此分数精排。
-        ///   武器分配不使用此分数，仍用 ComputeCombatValue（仅战斗维度）。
+        ///   排序时先按 CombatTier 降序，同档内再用此分数精排。
         /// </summary>
         public static float ComputePawnValueScore(Pawn pawn)
         {

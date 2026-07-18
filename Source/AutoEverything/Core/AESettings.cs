@@ -16,7 +16,7 @@ namespace AutoEverything.Core
         public static bool enabled = true;
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
-        public static bool autoMarkPawn = true;           // 高价值殖民者星标标记（S+ 追加 ★，周期触发 + 新增人员触发）
+        public static bool autoMarkPawn = true;           // 高价值非殖民者星标标记（S+ 追加 ★，事件触发 + 每帧 Postfix 绘制）
         // 注：autoFoodPolicyEnabled / autoDrugPolicyEnabled 已移除（AutoFood/AutoDrug 模块与其他 MOD 冲突）
 
         // 战斗价值公式可调权重（用于"高价值殖民者"判定）

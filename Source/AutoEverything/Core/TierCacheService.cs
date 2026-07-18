@@ -98,14 +98,6 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 失效所有缓存。极少使用——通常用 Invalidate(pawn) 精细化失效。
-        /// </summary>
-        public static void InvalidateAll()
-        {
-            cache.Clear();
-        }
-
-        /// <summary>
         /// 周期清理：移除 Dead/!Spawned 的 Pawn，避免引用泄漏。
         /// 由 GetTier/GetValue 触发，每 60000 tick 执行一次。
         /// </summary>

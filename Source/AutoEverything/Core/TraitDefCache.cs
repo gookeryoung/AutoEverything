@@ -5,7 +5,6 @@ namespace AutoEverything.Core
 {
     /// <summary>
     /// TraitDef 查询缓存：集中定义多 degree/非原生 DefOf 的特质查询。
-    /// 抽取自 CombatEvaluator 与 WeaponTraitScorer 的重复定义，
     /// 用 GetNamed(false) 安全查询，未加载 DLC 时返回 null 跳过。
     /// 注：原生 DefOf（如 TraitDefOf.Brawler）始终存在，直接引用无需缓存。
     /// </summary>
@@ -32,9 +31,6 @@ namespace AutoEverything.Core
         public static readonly TraitDef Pyromaniac = DefDatabase<TraitDef>.GetNamed("Pyromaniac", false);
         public static readonly TraitDef SlowLearner = DefDatabase<TraitDef>.GetNamed("SlowLearner", false);
         public static readonly TraitDef Wimp = DefDatabase<TraitDef>.GetNamed("Wimp", false);
-
-        // 裸体主义者（影响服装评分，CompGearManager 使用）
-        public static readonly TraitDef Nudist = DefDatabase<TraitDef>.GetNamed("Nudist", false);
 
         // 特殊天赋特质（Anomaly DLC，未加载时返回 null 跳过）
         public static readonly TraitDef TooSmart = DefDatabase<TraitDef>.GetNamed("TooSmart", false);
