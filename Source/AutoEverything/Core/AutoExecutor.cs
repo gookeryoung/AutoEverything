@@ -25,7 +25,7 @@ namespace AutoEverything.Core
     ///   周期/事件触发仅更新 Nick 前缀（评级变化时），不重排殖民者栏——避免覆盖玩家手动排序；
     ///   玩家主动触发（ITab 勾选/点排序按钮）才调 ReorderColonistBar 重排
     /// - 星标（事件 + 每帧）：殖民者数量增加时弹消息反馈；红星绘制靠 Harmony PawnUIOverlay
-    ///   Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存），无需周期触发
+    ///   Postfix 每帧调用 PawnMarker.IsHighValue（走 TierCacheService 共享 2500 tick 缓存），无需周期触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈）
     ///
     /// 信仰变化检测：每 60 tick 比对殖民者信仰 def 名，变化时标记待重配食物/用药方案。
@@ -61,7 +61,7 @@ namespace AutoEverything.Core
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
         // 注：Mark（红星标注）无需 lastXxxTick——ExecuteMark(showMessage:false) 是空操作，
-        // 红星绘制完全靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存）。
+        // 红星绘制完全靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（走 TierCacheService 共享 2500 tick 缓存）。
         // Mark 仅靠"殖民者数量增加"事件 + ITab 勾选触发，不需周期触发。
 
         // 殖民者数量缓存：-1 = 首次只记录不触发
@@ -269,7 +269,7 @@ namespace AutoEverything.Core
             if (!AESettings.autoMarkPawn) return;
 
             // showMessage=false 时无操作：Mark 无周期触发需求，
-            // 红星绘制靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（自维护 2500 tick 缓存）
+            // 红星绘制靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue（走 TierCacheService 共享 2500 tick 缓存）
             if (!showMessage) return;
 
             try

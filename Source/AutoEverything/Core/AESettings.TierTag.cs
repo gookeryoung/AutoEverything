@@ -21,7 +21,8 @@ namespace AutoEverything.Core
         // 持久化：通过 tierTagOriginalEntries 存档，避免重启后丢失导致误剥离玩家手动改的 Nick
         private static readonly Dictionary<int, string> tierTagOriginals = new Dictionary<int, string>();
         // 存档载体：List<string> 格式 "thingIDNumber|原Nick"，加载后重建字典
-        private static List<string> tierTagOriginalEntries;
+        // 显式初始化器：保证 SyncTierTagOriginalEntries 在 ExposeData 之前被调用也不 NRE（理论防御）
+        private static List<string> tierTagOriginalEntries = new List<string>();
         private const string TIER_TAG_PREFIX_SEPARATOR = "#";
 
         // 殖民者栏排序 Role 缓存：Role 不在 TierCacheService 范围，仍需独立预计算
@@ -37,6 +38,7 @@ namespace AutoEverything.Core
         public static int ApplyTierTagsToAllPawns()
         {
             int touched = 0;
+            bool dictModified = false;  // 字典是否被修改，用于决定是否同步存档载体
             // 收集所有需要评级的 Pawn：殖民者 + 食尸鬼（统一走 PawnCollector，避免两处收集逻辑重复）
             List<Pawn> pawns = PawnCollector.AllManagedPawns();
 
@@ -57,6 +59,7 @@ namespace AutoEverything.Core
                 if (!tierTagOriginals.ContainsKey(pid))
                 {
                     tierTagOriginals[pid] = cleanNick;
+                    dictModified = true;
                 }
                 else
                 {
@@ -73,6 +76,13 @@ namespace AutoEverything.Core
                     pawn.Name = new NameTriple(nt.First, newNick, nt.Last);
                     touched++;
                 }
+            }
+            // 字典被修改时同步存档载体，避免存档丢失新增殖民者的原名映射
+            // （Clear 调用方依赖 tierTagOriginalEntries 重建 tierTagOriginals；
+            //  不同步会导致加载存档后对新增殖民者走 Strip 解析，玩家手动改的 "S#王五" 格式 Nick 会被错误剥离）
+            if (dictModified)
+            {
+                SyncTierTagOriginalEntries();
             }
             return touched;
         }
