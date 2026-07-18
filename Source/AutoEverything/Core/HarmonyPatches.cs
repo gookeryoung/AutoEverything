@@ -1,11 +1,10 @@
-using System.Collections.Generic;
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
 using Verse;
-using AutoEverything.AutoEquipment;
 using AutoEverything.AutoMarkPawn;
 
 namespace AutoEverything.Core
@@ -13,9 +12,13 @@ namespace AutoEverything.Core
     /// <summary>
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
-    /// 1) 游戏加载时为所有 Pawn 注入 CompGearManager 组件
-    /// 2) 在非殖民者高价值 Pawn 头顶绘制红色星标
+    /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
+    /// 2) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在非殖民者高价值 Pawn 头顶绘制红色星标
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
+    ///
+    /// 注：原 Pawn.SpawnSetup Postfix 注入 CompGearManager 的逻辑已移除——
+    /// 该机制修改所有人类like Pawn ThingDef.comps，与其他装备管理类 MOD 冲突。
+    /// 现改用 GameComponent 全局 Tick 驱动 AutoExecutor，零 ThingDef 修改。
     /// </summary>
     public static class HarmonyPatches
     {
@@ -26,9 +29,12 @@ namespace AutoEverything.Core
         {
             var harmony = new Harmony(HarmonyID);
             // 显式 Patch：避免 PatchAll 扫描整个程序集的开销
+
+            // Game.FinalizeInit Postfix：新游戏/加载存档后注册 GameComponent
             harmony.Patch(
-                AccessTools.Method(typeof(Pawn), "SpawnSetup"),
-                postfix: new HarmonyMethod(typeof(Pawn_SpawnSetup_Patch), nameof(Pawn_SpawnSetup_Patch.Postfix)));
+                AccessTools.Method(typeof(Game), nameof(Game.FinalizeInit)),
+                postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
+
             // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在非殖民者高价值 Pawn 头顶绘制红色星标
             // 类型/方法名可能因 RimWorld 版本差异变化，用 try-catch + null 检查降级
             try
@@ -58,109 +64,39 @@ namespace AutoEverything.Core
             {
                 Log.Warning("[AutoEverything] PawnUIOverlay 补丁失败: " + ex.Message);
             }
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (显式注册 Postfix)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 星标)");
         }
 
         /// <summary>
-        /// Pawn 生成到地图时的 Postfix：检查并补注入 CompGearManager 实例。
-        /// 关键：RimWorld 加载存档时不会根据 ThingDef.comps 重新创建已存 Pawn 的 comps，
-        /// 必须在 Pawn.SpawnSetup 时运行时检查并注入。
-        /// 此 Postfix 覆盖所有 Pawn 生成场景：新游戏、加载存档、运行时生成。
+        /// Game.FinalizeInit Postfix：在新游戏/加载存档后注册 AutoEverythingGameComponent。
+        /// 已注册则跳过，避免重复添加。
+        /// FinalizeInit 在新游戏和加载存档两种场景都会被调用，是注册 GameComponent 的最佳时机。
         /// </summary>
-        public static class Pawn_SpawnSetup_Patch
+        public static class Game_FinalizeInit_Patch
         {
-            public static void Postfix(Pawn __instance)
+            public static void Postfix(Game __instance)
             {
-                // 异常隔离：单个 Pawn 注入失败不应影响其他 Pawn 的 SpawnSetup
-                // 历史教训：未隔离时一个 Pawn 异常会导致后续所有 Pawn 都无 Comp
                 try
                 {
-                    // 食尸鬼不参与装备管理，跳过
-                    if (DLCCompat.IsGhoul(__instance)) return;
-
-                    // 仅人类like 种族适合装备管理
-                    // 动物、机械族、昆虫、异常实体等不使用武器装备槽
-                    if (!PawnSuitabilityChecker.CanManageGear(__instance)) return;
-
-                    // 已有组件则跳过，避免重复注入
-                    if (__instance.GetComp<CompGearManager>() != null) return;
-
-                    // 运行时创建 ThingComp 实例并注入
-                    // 复现 Pawn.AddComps 的标准流程：创建实例 -> 设 parent -> 加入 AllComps -> Initialize
-                    var comp = new CompGearManager();
-                    comp.parent = __instance;
-                    __instance.AllComps.Add(comp);
-                    comp.Initialize(new CompProperties_GearManager());
+                    // 检查是否已注册（避免重复添加）
+                    List<GameComponent> comps = __instance.components;
+                    for (int i = 0; i < comps.Count; i++)
+                    {
+                        if (comps[i] is AutoEverythingGameComponent) return;
+                    }
+                    comps.Add(new AutoEverythingGameComponent(__instance));
+                    AEDebug.Log(() => "[AutoEverything] AutoEverythingGameComponent 已注册");
                 }
                 catch (Exception ex)
                 {
-                    Log.WarningOnce("[AutoEverything] Pawn SpawnSetup 注入失败 " + (__instance?.LabelShort ?? "?") + ": " + ex.Message,
-                        (__instance?.thingIDNumber ?? 0) ^ 0x4153);
+                    Log.ErrorOnce("[AutoEverything] GameComponent 注册失败: " + ex.Message, 0xA710);
                 }
             }
         }
-
-        // 防止重复注入标志：注入操作只需执行一次
-        private static bool _compAdded;
 
         // PawnUIOverlay.pawn 私有字段缓存：运行时反射查找，类型不存在则为 null
         // Postfix 通过此字段获取 PawnUIOverlay 关联的 Pawn 实例
         private static FieldInfo pawnUIOverlayPawnField;
-
-        /// <summary>
-        /// 遍历 DefDatabase 中所有 Pawn 类别 ThingDef，
-        /// 若未挂载 CompGearManager 则注入。已存在则跳过，避免重复。
-        /// 时机：[StaticConstructorOnStartup]（DefDatabase 已加载，Pawn 未生成）。
-        /// 注意：ThingDef.comps 可能为 null（XML 未声明 comps 节点），
-        /// 此时应初始化为空列表再注入，而不是跳过——否则 Human 等基础种族会被漏掉。
-        /// </summary>
-        public static void AddCompToPawnDefs()
-        {
-            if (_compAdded) return;
-            _compAdded = true;
-
-            int injected = 0;
-            int skipped = 0;
-            int skippedUnsuitable = 0;
-            foreach (ThingDef def in DefDatabase<ThingDef>.AllDefs)
-            {
-                if (def.category != ThingCategory.Pawn) continue;
-
-                // 适配性过滤：仅给人类like 种族 ThingDef 注入 Comp
-                // 动物、机械族、昆虫、异常实体等不使用武器装备槽
-                if (!PawnSuitabilityChecker.CanManageGearDef(def))
-                {
-                    skippedUnsuitable++;
-                    continue;
-                }
-
-                // 关键修复：comps 为 null 时初始化空列表，而非跳过
-                // Human 等基础种族的 ThingDef.comps 可能是 null
-                if (def.comps == null) def.comps = new List<CompProperties>();
-
-                // 检查是否已存在组件，避免重复注入
-                bool hasComp = false;
-                foreach (var comp in def.comps)
-                {
-                    if (comp is CompProperties_GearManager)
-                    {
-                        hasComp = true;
-                        break;
-                    }
-                }
-
-                if (!hasComp)
-                {
-                    def.comps.Add(new CompProperties_GearManager());
-                    injected++;
-                }
-                else
-                {
-                    skipped++;
-                }
-            }
-            Log.Message($"[AutoEverything] ThingComp 注入完成: 新增={injected}, 已存在跳过={skipped}, 不适用类别跳过={skippedUnsuitable}");
-        }
 
         /// <summary>
         /// PawnUIOverlay.DrawPawnGUIOverlay 的 Postfix：在非殖民者高价值 Pawn 头顶绘制鲜艳红色星标。

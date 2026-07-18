@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Verse;
 using RimWorld;
 using AutoEverything.RoleEvaluation;
@@ -18,9 +18,8 @@ namespace AutoEverything.Core
         static ModController()
         {
             HarmonyPatches.Init();
-            HarmonyPatches.AddCompToPawnDefs();
             ValidateTranslationKeys();
-            Log.Message("[AutoEverything] MOD 已初始化（Harmony + ThingComp 注入完成）");
+            Log.Message("[AutoEverything] MOD 已初始化（Harmony GameComponent 注册 + PawnUIOverlay 星标补丁）");
         }
 
         /// <summary>

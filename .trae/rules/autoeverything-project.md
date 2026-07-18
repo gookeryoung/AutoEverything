@@ -37,15 +37,16 @@
 
 ### 模块职责
 
-- **Core**：基础工具与全局状态（MOD 入口、`AESettings`、`AEDebug`、`DLCCompat`、`PawnSuitabilityChecker`、`CombatTier`）
+- **Core**：基础工具与全局状态（MOD 入口 `ModController`、`AutoEverythingGameComponent` Tick 入口、`HarmonyPatches`、`AESettings`（含 `AESettings.TierTag.cs` partial）、`AEDebug`、`DLCCompat`、`PawnSuitabilityChecker`、`PawnJobGuard`、`PawnCollector`、`TierCacheService`、`AutoExecutor`、`CombatTier`、`ColonistBarSortMode`、`PassionHelper`）
 - **RoleEvaluation**：角色与情境评价（`PawnRole`/`RoleDetector`、`GearContext`/`ContextDetector`、`CombatEvaluator`、`PawnStateCleaner`）
-- **AutoEquipment**：装备评分系统（`CompGearManager` Tick 入口、`GearScorer` 门面、`GearDefClassifier` 装备分类、`Scoring/` 评分管线与各 Scorer）
-- **Allocation**：全局分配策略（`GlobalAllocator`、`SidearmAllocator`、`BeltAllocator`、`PawnCombatProfile`）
-- **AutoWork**：自动工作优先级分配（`WorkAllocator`）
+- **AutoWork**：自动工作优先级分配（`WorkAllocator`、`WorkAllocationConfig`）
 - **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制，不修改 Pawn 数据）
-- **UI**：玩家界面（`ITab_GearManager`、`Dialog_GlobalReallocate`、`PresetDetailsWindow`）
+- **UI**：玩家界面（`ITab_GearManager`）
 
-未来扩展（自动药物/自动食物等）应在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
+> 历史模块 `AutoEquipment`/`Allocation`（装备评分系统、副武器/腰带分配等）、`AutoFood`/`AutoDrug`（食物/用药方案自动配置）已移除（与其他 MOD 冲突或代码精简）。
+> 原 `CompGearManager`（ThingComp Tick 入口）已替换为 `AutoEverythingGameComponent`（GameComponent），从源头杜绝 ThingDef.comps 注入冲突。
+
+未来扩展（自动机械族/自动训练等）应在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
 
 跨命名空间引用必须显式 `using`，禁止依赖 IDE 自动补全。
 
@@ -67,9 +68,8 @@
 ### 战斗价值评级
 
 - 战斗价值 = (射击×兴趣乘数 + 近战×兴趣乘数)，兴趣乘数：无火 1.0/单火 1.5/双火 2.0
-- 自定义评级识别码格式 `档次#人员名`（如 `S#王五`），存于 `SGSettings.customTierEntries`
-- `tierTagOriginals` 持久化到存档，避免重启后误剥离玩家手动改的 Nick
-- 腰带附件分配：纯近战 Pawn 优先护盾腰带（+100）> 消防背包（+60）, 其他 Pawn 优先消防背包（+100）> 护盾腰带（+60）
+- 自定义评级识别码格式 `档次#人员名`（如 `S#王五`），存于 `AESettings.customTierEntries`
+- `tierTagOriginals` 持久化到存档（Scribe Key `ae_tierTagOriginals`），避免重启后误剥离玩家手动改的 Nick
 
 ### 自动工作分配原则
 
@@ -87,12 +87,11 @@
 
 - `AEDebug.Log` 提供 `Func<string>` 重载，延迟字符串构造避免 Tick 路径 GC
 - `AEDebug.IsActive` 读取 `AESettings.debugLogging`，玩家切换立即生效
-- `ScoreBreakdown` 加 `collectItems` 开关，性能路径跳过 List 分配
-- `ScoringPipeline.EvaluateFast` 用于 Tick 路径，`Evaluate` 用于调试明细
 
 ## 全局分配系统
 
-- 全局重配按钮触发 `GlobalAllocator.ReallocateAll`
+- 工作重配入口：`WorkAllocator.ReallocateAll`（由 `AutoExecutor` 事件驱动调度，ITab 勾选框触发）
+- 评级标签入口：`AESettings.ApplyTierTagsToAllPawns`（仅更新 Nick 前缀）/ `ApplyTierTagsWithDefaultSort`（同时重排殖民者栏）
 
 ## 同步计算规则（强制）
 
@@ -109,35 +108,50 @@
 2. **情境检测规则**（`GearContext.cs` / `ContextDetector`）
    - 同步章节：`## 情境检测规则` 表格
 
-3. **权重模型**（`GearWeights.cs`）
-   - 同步章节：`## 评分模型 → 权重预设方案`
+3. **评级规则**（`CombatEvaluator.cs` 评级判定）
+   - 同步章节：`## 全局价值评级档次（CombatTier）` 表格
 
-4. **评分管线**（`ScoringPipelineFactory.cs`）
-   - 同步章节：`## 武器评分管线` / `## 防具评分管线` 表格
+4. **评级方法分层**（`CombatEvaluator` 的 `GetCombatTier`/`GetSystemTier`/`GetAutoCombatTier`）
+   - 同步章节：`### 评级方法分层` 表格
 
-5. **评分公式**（任一 `IScorer` 实现的加分逻辑）
-   - 同步章节：对应 Scorer 的"说明"列与 `## 总分公式`
+5. **战斗价值公式权重**（`AESettings.cs` 中的 `cv*` 字段）
+   - 同步章节：`### 战斗价值公式` 表格
 
-6. **副武器分配**（`SidearmAllocator.cs`）
-   - 同步章节：`## 副武器全局分配` 与公式块
+6. **价值评分公式**（`CombatEvaluator.ComputePawnValueScore`）
+   - 同步章节：`### 价值评分`
 
-7. **预设方案**（`GearPreset.cs` / `GearPolicyEngine.cs`）
-   - 同步章节：`## 权重预设方案` 表格
+7. **自定义评级识别码**（`AESettings.cs` 自定义评级读写）
+   - 同步章节：`### 自定义评级识别码`
 
-8. **评估周期**（`CompGearManager.cs` Tick 路径）
-   - 同步章节：`## 评估周期` 表格
+8. **评级标签与殖民者栏排序**（`AESettings.TierTag.cs`、`ColonistBarSortMode`）
+   - 同步章节：`### 全局人物评级标签` + `### 殖民者栏默认排序`
 
-9. **设计原则**（不适用 Pawn 的处理逻辑）
-   - 同步章节：`## 设计原则：逻辑杜绝而非事后清理`
+9. **工作分配规则**（`WorkAllocator.cs` / `WorkAllocationConfig.cs`）
+   - 同步章节：`## 自动工作分配` 分配规则表格与统一四大原则
 
-10. **主武器选择规则**（`WeaponSkillScorer.cs` / `WeaponTraitScorer.cs` / `SidearmAllocator.cs`）
-    - 同步章节：`## 主武器选择规则` 表格
+10. **奴隶处理**（`WorkAllocator.cs` 奴隶收集/分配）
+    - 同步章节：`## 奴隶处理`
 
-11. **腰带附件分配**（`BeltAllocator.cs`）
-    - 同步章节：`## 腰带附件全局分配`
+11. **自动执行调度**（`AutoExecutor.cs`）
+    - 同步章节：`## 自动执行（AutoExecutor）` + `### 评估周期` 表格
 
-12. **护甲偏好规则**（`PawnRole.cs` / `GetArmorPreference`）
-    - 同步章节：`## 护甲偏好` 表格
+12. **GameComponent 入口**（`AutoEverythingGameComponent.cs` / `HarmonyPatches.cs` 的 `Game_FinalizeInit_Patch`）
+    - 同步章节：`### 评估周期` 表格 + `## 设计原则：逻辑杜绝而非事后清理`
+
+13. **高价值标记**（`PawnMarker.cs` / `AutoMarkPawn` 模块）
+    - 同步章节：`### 高价值非殖民者标记（AutoMarkPawn）`
+
+14. **ITab 底部勾选框**（`ITab_GearManager.cs`）
+    - 同步章节：`## 自动执行（AutoExecutor）` 入口章节
+
+15. **设计原则**（不适用 Pawn 的处理逻辑）
+    - 同步章节：`## 设计原则：逻辑杜绝而非事后清理`
+
+16. **护甲偏好规则**（`PawnRole.cs` / `GetArmorPreference`）
+    - 同步章节：`## 角色检测规则` 末尾的护甲偏好说明
+
+17. **新增/删除源文件**（目录结构变更）
+    - 同步章节：`### 目录结构` 代码块
 
 ### 同步检查清单
 
@@ -158,20 +172,14 @@
 
 ## ITab 面板布局
 
-- 面板尺寸 `360f × 766f`（高度容纳底部 7 勾选框 + 2 按钮行），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
+- 面板尺寸 `360f × 420f`（高度容纳底部 3 勾选框），内容区用 ScrollView 包裹（inner rect 宽度比 outer 少 16f）
 - 缓存周期 60 tick：角色/情境/评级/数值摘要避免每帧重算
 - 徽章行 4 列等宽：角色 / 情境 / 评级 / 护甲偏好（食尸鬼用"食尸鬼"徽章替代护甲偏好）
 - **文字防换行强制**：所有 `Widgets.Label` 绘制前 `Text.WordWrap = false`，绘制后恢复
 - **标签宽度动态计算**：用 `Text.CalcSize(labelText).x + 留白`，禁止固定宽度（如 `60f`）
 - 完整信息放 Tooltip，徽章/标签本身只做概览
-- 底部 7 勾选框 + 2 按钮行，固定位置不随滚动：
+- 底部 3 勾选框，固定位置不随滚动：
   - 人员自动评级（`autoTierTag`）
   - 工作自动配置（`autoWorkEnabled`）
-  - 装备自动重配（`autoGearEnabled`）
   - 高价值标记（`autoMarkPawn`）
-  - 自动药物（`autoDrugEnabled`）
-  - 自动食物（`autoFoodEnabled`）
-  - 自动血清（`autoSerumEnabled`）
-  - 即时触发按钮行（3 小按钮并排，宽度 = `(rect.width - buttonGap * 2) / 3f`）：立即药物 / 立即食物 / 立即血清，点击调用 `AutoExecutor.TriggerXxxNow` 绕过 3000 tick 周期，便于游戏内反复测试
-  - 全局装备重配按钮（占满宽度）
-- **测试控件说明**：勾选框勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动（保留当前配置）。即时触发按钮可反复点击绕过 3000 tick 周期，便于游戏内测试观察 Messages 消息反馈与 Pawn 行为变化
+- **勾选框行为说明**：勾选框勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动（保留当前配置）。评级取消勾选额外清除所有 Nick 评级前缀

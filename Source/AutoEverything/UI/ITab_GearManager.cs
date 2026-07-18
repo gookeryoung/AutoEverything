@@ -4,7 +4,6 @@ using UnityEngine;
 using Verse;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
-using AutoEverything.AutoEquipment;
 
 namespace AutoEverything.UI
 {
@@ -110,9 +109,9 @@ namespace AutoEverything.UI
         {
             labelKey = "AE_Tab";
 
-            // 高度容纳徽章区与状态摘要 + 底部 5 勾选框
-            // 5 勾选框（评级/工作/星标/食物方案/用药方案）
-            size = new Vector2(360f, 484f);
+            // 高度容纳徽章区与状态摘要 + 底部 3 勾选框
+            // 3 勾选框（评级/工作/星标）
+            size = new Vector2(360f, 420f);
         }
 
         public override bool IsVisible
@@ -132,19 +131,18 @@ namespace AutoEverything.UI
         {
             if (!(SelPawn is Pawn pawn)) return;
 
-            var comp = pawn.GetComp<CompGearManager>();
-            // 食尸鬼可能没有 comp（被排除注入），仍允许显示评级信息
+            // 食尸鬼不参与自动万物分配，但仍显示评级信息供玩家参考
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：5 勾选框 + 6 间隔
-            // 5 勾选框：评级/工作/星标/食物方案/用药方案
+            // 底部区预留高度：3 勾选框 + 4 间隔
+            // 3 勾选框：评级/工作/星标
             float buttonGap = 8f;
             float checkboxHeight = 24f;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（5 勾选框 + 6 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 5 + buttonGap * 6));
+            // 内容区高度 = 总高 - 底部区（3 勾选框 + 4 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 3 + buttonGap * 4));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -156,7 +154,7 @@ namespace AutoEverything.UI
                 cachedPawnId = pawnId;
                 // 食尸鬼也可能有 CombatEvaluator.GetCombatTier/ComputeCombatValue，
                 // 用于玩家参考其价值（即使不参与分配）
-                cachedRole = comp != null ? comp.CurrentRole : RoleDetector.DetectRole(pawn);
+                cachedRole = RoleDetector.DetectRole(pawn);
                 cachedContext = ContextDetector.GetContext(pawn);
                 cachedTier = CombatEvaluator.GetCombatTier(pawn);
                 cachedArmorPref = RoleDetector.GetArmorPreference(cachedRole);
@@ -350,44 +348,6 @@ namespace AutoEverything.UI
             if (AESettings.autoMarkPawn != prevMark && AESettings.autoMarkPawn)
             {
                 AutoExecutor.TriggerMarkNow();
-            }
-
-            // 4. 自动食物方案勾选框：勾选立即执行 + 启用事件驱动自动；取消勾选仅停止自动（保留当前方案）
-            Rect foodCheckRect = new Rect(
-                rect.x,
-                markCheckRect.yMax + buttonGap,
-                rect.width,
-                checkboxHeight);
-
-            bool prevWrap5 = Text.WordWrap;
-            Text.WordWrap = false;
-            bool prevFood = AESettings.autoFoodPolicyEnabled;
-            Widgets.CheckboxLabeled(foodCheckRect, "AE_AutoFoodPolicy".Translate(), ref AESettings.autoFoodPolicyEnabled);
-            Text.WordWrap = prevWrap5;
-            TooltipHandler.TipRegion(foodCheckRect, "AE_TT_AutoFoodPolicy".Translate());
-            // 状态变化：勾选时立即执行一次；取消勾选仅停止自动（无副作用）
-            if (AESettings.autoFoodPolicyEnabled && AESettings.autoFoodPolicyEnabled != prevFood)
-            {
-                AutoExecutor.TriggerFoodPolicyNow();
-            }
-
-            // 5. 自动用药方案勾选框：勾选立即执行 + 启用事件驱动自动；取消勾选仅停止自动（保留当前方案）
-            Rect drugCheckRect = new Rect(
-                rect.x,
-                foodCheckRect.yMax + buttonGap,
-                rect.width,
-                checkboxHeight);
-
-            bool prevWrap6 = Text.WordWrap;
-            Text.WordWrap = false;
-            bool prevDrug = AESettings.autoDrugPolicyEnabled;
-            Widgets.CheckboxLabeled(drugCheckRect, "AE_AutoDrugPolicy".Translate(), ref AESettings.autoDrugPolicyEnabled);
-            Text.WordWrap = prevWrap6;
-            TooltipHandler.TipRegion(drugCheckRect, "AE_TT_AutoDrugPolicy".Translate());
-            // 状态变化：勾选时立即执行一次；取消勾选仅停止自动（无副作用）
-            if (AESettings.autoDrugPolicyEnabled && AESettings.autoDrugPolicyEnabled != prevDrug)
-            {
-                AutoExecutor.TriggerDrugPolicyNow();
             }
         }
 
