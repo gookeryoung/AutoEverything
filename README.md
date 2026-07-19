@@ -16,8 +16,6 @@
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
 | **AutoMarkPawn**（高价值标记） | 为 S+ 档次非殖民者人类头顶实时绘制红色星标 ★ | 实时绘制（Harmony 补丁）+ ITab 勾选 |
 
-> 注：原 AutoFood/AutoDrug 模块因与其他 MOD 冲突已移除。
-
 ## 设计思路
 
 1. **角色驱动**：殖民者不是无差别的劳动力，而是有专长的个体。评级系统综合射击、近战、工作、社交、特质等维度评判全局价值，让玩家一眼分辨主力与辅助。
@@ -42,7 +40,7 @@
 | 8 | `Worker`（工人）| 射击与近战均 < 5 |
 | 9 | `Shooter`/`Brawler` | 中等技能按高低判定 |
 
-**护甲偏好（`ArmorPreference`）**：角色检测同时输出护甲偏好（`Heavy`/`Flexible`/`Light`），仅用于 ITab 面板徽章展示与工作分配中的"后排角色"判定（`IsBackRow` = Shooter/Hunter/Leader），不再驱动装备分配。
+**护甲偏好（`ArmorPreference`）**：角色检测同时输出护甲偏好（`Heavy`/`Flexible`/`Light`），仅用于 ITab 面板徽章展示与工作分配中的"后排角色"判定（`IsBackRow` = Shooter/Hunter/Leader）。
 
 ## 情境检测规则
 
@@ -292,7 +290,6 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
 - **错误隔离**：工作、评级、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
-- **注**：原 AutoFood/AutoDrug 模块已移除（与其他 MOD 冲突），相关 foodDrug 阶段状态与信仰检测逻辑同步删除
 
 ### 人员自动评级
 
@@ -438,7 +435,7 @@ VSE 扩展的 6 种 passion 按以下规则统一处理：
 | `Minor` | 单火 | 1 | 原版单火 |
 | `Major` | 双火 | 2 | 原版双火 |
 | `VSE_Natural` | 自然 | 2 | 等同双火：战斗价值乘数 = 双火；评级 Major 计数；角色检测按双火处理 |
-| `VSE_Critical` | 临界 | 3 | 高于双火：战斗价值乘数 = 双火 × 1.5；评级 Major 计数；装备评分乘数 = 双火 × 1.5 |
+| `VSE_Critical` | 临界 | 3 | 高于双火：战斗价值乘数 = 双火 × 1.5；评级 Major 计数；综合价值评分兴趣分 = 3 |
 
 设计要点：
 - **Apathy 不加分**：评级兴趣分按 tier 累加（Minor=1, Major=2, Critical=3），Apathy(-1) 与 None(0) 均不加分

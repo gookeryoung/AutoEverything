@@ -38,13 +38,10 @@
 ### 模块职责
 
 - **Core**：基础工具与全局状态（MOD 入口 `ModController`、`AutoEverythingGameComponent` Tick 入口、`HarmonyPatches`、`AESettings`（含 `AESettings.TierTag.cs` partial）、`AEDebug`、`DLCCompat`、`PawnSuitabilityChecker`、`PawnJobGuard`、`PawnCollector`、`TierCacheService`、`AutoExecutor`、`CombatTier`、`ColonistBarSortMode`、`PassionHelper`）
-- **RoleEvaluation**：角色与情境评价（`PawnRole`/`RoleDetector`、`GearContext`/`ContextDetector`、`CombatEvaluator`、`PawnStateCleaner`）
+- **RoleEvaluation**：角色与情境评价（`PawnRole`/`RoleDetector`、`GearContext`/`ContextDetector`、`CombatEvaluator`）
 - **AutoWork**：自动工作优先级分配（`WorkAllocator`、`WorkAllocationConfig`）
 - **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制，不修改 Pawn 数据）
 - **UI**：玩家界面（`ITab_GearManager`）
-
-> 历史模块 `AutoEquipment`/`Allocation`（装备评分系统、副武器/腰带分配等）、`AutoFood`/`AutoDrug`（食物/用药方案自动配置）已移除（与其他 MOD 冲突或代码精简）。
-> 原 `CompGearManager`（ThingComp Tick 入口）已替换为 `AutoEverythingGameComponent`（GameComponent），从源头杜绝 ThingDef.comps 注入冲突。
 
 未来扩展（自动机械族/自动训练等）应在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
 
