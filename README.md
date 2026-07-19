@@ -321,9 +321,10 @@ Passion 量化：None=0, Minor=1, Major=2。
 1. **收集候选**：地图上未穿戴的 Apparel + 玩家阵营 Pawn（殖民者+奴隶）已穿戴的 Apparel（用于扒装重分配）
 2. **收集参与 Pawn**：殖民者 + 奴隶，排除食尸鬼与 X 档（禁止暴力）
 3. **分配顺序**：按 `CombatTier` 降序（S→A→B→C→D）+ `CombatValue` 降序作为 tie-breaker
-4. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
-5. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
-6. **扒装流程**：先 `TrySafeRemove`（落地 spawn）→ `MarkAllocated` → 再 `TrySafeEquip`，单件失败 try-catch 隔离不阻塞整体
+4. **优先级顺延**：扫描候选 Pawn 中是否存在 `ArmorPreference.Heavy`（前排 Brawler）；若无，则把所有 `Flexible`（Shooter/Hunter/Leader）升级为 Heavy 顺延承担前排职责——`effectivePref=Heavy` + `effectiveRole=Brawler` 传给 `GearScorer`，使 layerMatch 用 Heavy 公式加分 + movementPenalty 用前排容忍度，避免重甲烂在仓库。Light（Worker/Doctor/Pacifist）保持 Light 不升级（保工作效率）。仅影响评分参数，不修改 RoleDetector 全局判定与 ITab 徽章显示
+5. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
+6. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
+7. **扒装流程**：先 `TrySafeRemove`（落地 spawn）→ `MarkAllocated` → 再 `TrySafeEquip`，单件失败 try-catch 隔离不阻塞整体
 
 ### 范围限定
 

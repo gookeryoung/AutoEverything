@@ -107,6 +107,24 @@ namespace AutoEverything.AutoEquipment
                 // 但 CollectCandidateApparel 返回前已填好 candidatePawnBuffer，此处再次拿引用
                 // 注意：candidatePawnBuffer 在 CollectCandidateApparel 内被填充，此处无需重复调用
 
+                // 优先级顺延检测：扫描是否存在 Heavy 偏好的 Pawn（前排 Brawler）
+                // 若无 Heavy，则把 Flexible（Shooter/Hunter/Leader）升级为 Heavy 顺延承担前排职责
+                // 设计：用户期望"没有前排时按优先级顺延"——让后排也穿戴重甲，避免重甲烂在仓库
+                // Light（Worker/Doctor/Pacifist）保持 Light，不强制升级（保工作效率）
+                bool hasHeavy = false;
+                for (int i = 0; i < candidatePawns.Count; i++)
+                {
+                    Pawn p = candidatePawns[i];
+                    if (p == null || p.Dead || !p.Spawned) continue;
+                    if (DLCCompat.IsGhoul(p)) continue;
+                    Role r = RoleDetector.DetectRole(p);
+                    if (RoleDetector.GetArmorPreference(r) == ArmorPreference.Heavy)
+                    {
+                        hasHeavy = true;
+                        break;
+                    }
+                }
+
                 // 按 CombatTier 降序排序（高评级先选优质装备）
                 // 用 Comparer 排序，避免 LINQ
                 candidatePawns.Sort(PawnTierComparer.Instance);
@@ -124,13 +142,24 @@ namespace AutoEverything.AutoEquipment
                     Role role = RoleDetector.DetectRole(pawn);
                     ArmorPreference armorPref = RoleDetector.GetArmorPreference(role);
 
-                    if (AllocateForPawn(pawn, role, armorPref, candidateApparel))
+                    // 顺延：无 Heavy 时，Flexible 升级为 Heavy，role 临时视为 Brawler
+                    // 仅影响传给 GearScorer 的评分参数（layerMatch 用 Heavy 公式 + movementPenalty 用前排容忍度）
+                    // 不修改 RoleDetector 全局判定，不影响 ITab 徽章显示与其他模块
+                    Role effectiveRole = role;
+                    ArmorPreference effectivePref = armorPref;
+                    if (!hasHeavy && armorPref == ArmorPreference.Flexible)
+                    {
+                        effectivePref = ArmorPreference.Heavy;
+                        effectiveRole = Role.Brawler;
+                    }
+
+                    if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel))
                     {
                         allocatedCount++;
                     }
                 }
 
-                AEDebug.Log(() => $"[AutoExecutor] 自动装备分配: {allocatedCount}/{candidatePawns.Count} 个殖民者 (tick={tick})");
+                AEDebug.Log(() => $"[AutoExecutor] 自动装备分配: {allocatedCount}/{candidatePawns.Count} 个殖民者 (tick={tick}, hasHeavy={hasHeavy})");
                 if (showMessage)
                 {
                     Messages.Message("AE_AutoGear_AllocateResult".Translate(allocatedCount, candidatePawns.Count),
