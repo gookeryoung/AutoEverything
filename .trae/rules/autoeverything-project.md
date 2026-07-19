@@ -90,7 +90,8 @@
 - **分配顺序**：按 `CombatTier` 降序（S→A→B→C→D）+ `CombatValue` 降序作为 tie-breaker，逐个 Pawn 分配
 - **优先级顺延**：基于"重甲数量 vs Heavy Pawn 数量"计算剩余重甲名额，避免粗暴升级丢失对斥候装甲等轻量护甲的选择能力
   - `CountHeavyArmor`：扫描候选 Apparel，`(Sharp+Blunt) ≥ geHeavyArmorThreshold`（默认 1.0）视为重甲，统计数量
-  - `CountHeavyPreferencePawns`：统计候选 Pawn 中 `ArmorPreference.Heavy`（前排 Brawler）数量
+  - 排序后预扫描：候选 Pawn 按 `CombatTier` 降序排好后，一次遍历同时收集每个 Pawn 的 `ArmorPreference` 与统计 `heavyPawnCount`（`ArmorPreference.Heavy` 即前排 Brawler），避免重复调用 `RoleDetector.DetectRole`
+  - `ComputeHeavyUpgradeFlags(heavyArmorCount, heavyPawnCount, sortedPrefs)`：纯逻辑方法计算每个候选 Pawn 的 Heavy 升级标志（无 RimWorld 依赖，便于单元测试）
   - `remainingHeavySlots = max(0, heavyArmorCount - heavyPawnCount)`：扣除前排已占用的重甲，剩余可顺延给后排
   - 候选 Pawn 按 `CombatTier` 降序排，对每个 `Flexible`（Shooter/Hunter/Leader）Pawn：剩余名额 > 0 时升级为 Heavy（`effectivePref=Heavy` + `effectiveRole=Brawler`），剩余名额 -= 1；否则保持 `Flexible` 按原评分公式自由选择（斥候装甲等低 mass 中等护甲会被选中）
   - `Light`（Worker/Doctor/Pacifist）始终保持 Light，不参与顺延（保工作效率）
