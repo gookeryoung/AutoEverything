@@ -4,6 +4,7 @@ using RimWorld;
 using Verse;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoEquipment;
 
 namespace AutoEverything.Core
 {
@@ -131,6 +132,10 @@ namespace AutoEverything.Core
                 ExecuteWork(tick, showMessage: false);
             }
 
+            // 装备分配：事件触发的脏标在此去抖执行（GearAllocator 内部带冷却 + 战斗过滤）
+            // 不算 Tick 检查策略：脏标由 Harmony 事件 Postfix 设置，本处仅周期去抖执行
+            GearAllocator.TryAllocateFromTick();
+
             // 周期触发：仅评级（Mark 无周期——Postfix 每帧自检）
             if (tick - lastTierTick >= ExecuteInterval)
                 ExecuteTier(tick, showMessage: false);
@@ -161,6 +166,15 @@ namespace AutoEverything.Core
         public static void TriggerMarkNow()
         {
             ExecuteMark(Find.TickManager.TicksGame, showMessage: true, resetTracking: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行全局装备分配并弹消息框。
+        /// 注：取消勾选（autoEquipmentEnabled=false）也会调用本方法——GearAllocator 内部检测开关后静默返回。
+        /// </summary>
+        public static void TriggerGearNow()
+        {
+            GearAllocator.TriggerGearNow();
         }
 
         private static void ExecuteWork(int tick, bool showMessage)

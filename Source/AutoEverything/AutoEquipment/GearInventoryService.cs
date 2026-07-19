@@ -1,0 +1,151 @@
+using System.Collections.Generic;
+using RimWorld;
+using Verse;
+using AutoEverything.Core;
+
+namespace AutoEverything.AutoEquipment
+{
+    /// <summary>
+    /// 装备库存与候选 Pawn 收集器：为 GearAllocator 提供输入数据。
+    ///
+    /// 候选装备来源：
+    /// - 地图上所有未穿戴的 Apparel（ThingRequestGroup.Apparel，所有玩家可见地图）
+    /// - 玩家阵营 Pawn 已穿戴的 Apparel（参与重分配时被纳入候选池）
+    ///
+    /// 候选 Pawn 范围：
+    /// - 玩家阵营自由殖民者
+    /// - 玩家阵营奴隶（Ideology DLC）
+    /// - 食尸鬼不参与（无法穿戴 apparel）
+    ///
+    /// 注：返回的 List 为内部复用缓冲区，调用方使用完毕前不可再次调用本类方法。
+    /// </summary>
+    internal static class GearInventoryService
+    {
+        // 复用缓冲区：Tick 路径避免 new List<>()
+        private static readonly List<Apparel> candidateApparelBuffer = new List<Apparel>();
+        private static readonly List<Pawn> candidatePawnBuffer = new List<Pawn>();
+        // 已分配 apparel ID 集合：本轮分配中已被某 Pawn 占用的 apparel，避免重复分配
+        private static readonly HashSet<int> allocatedApparelIds = new HashSet<int>();
+
+        /// <summary>
+        /// 清空本轮分配状态：每次 GearAllocator 开始新一轮全局分配时调用。
+        /// </summary>
+        public static void ResetAllocation()
+        {
+            candidateApparelBuffer.Clear();
+            candidatePawnBuffer.Clear();
+            allocatedApparelIds.Clear();
+        }
+
+        /// <summary>
+        /// 收集所有候选装备：地图上未穿戴的 Apparel + 玩家阵营 Pawn 已穿戴的 Apparel。
+        /// 过滤：通过 ApparelLayerFilter.IsRelevant 排除附件层（腰带/背包等）。
+        /// 过滤：排除 Forbid 标记的装备（玩家明确禁止使用的）。
+        /// </summary>
+        public static List<Apparel> CollectCandidateApparel()
+        {
+            // 地图上未穿戴的 Apparel
+            foreach (Map map in Find.Maps)
+            {
+                if (map == null) continue;
+                List<Thing> things = map.listerThings.ThingsInGroup(ThingRequestGroup.Apparel);
+                for (int i = 0; i < things.Count; i++)
+                {
+                    Apparel apparel = things[i] as Apparel;
+                    if (apparel == null) continue;
+                    if (!apparel.Spawned) continue;
+                    // 跳过玩家标记为"禁用"的装备：通过 CompForbiddable 检查
+                    // RimWorld 1.6 中 Thing.Forbidden 不存在，需通过 CompForbiddable 组件查询
+                    if (IsForbidden(apparel)) continue;
+                    if (!ApparelLayerFilter.IsRelevant(apparel)) continue;
+                    candidateApparelBuffer.Add(apparel);
+                }
+            }
+
+            // 玩家阵营 Pawn 已穿戴的 Apparel（参与全局重分配）
+            List<Pawn> pawns = CollectCandidatePawns();
+            for (int i = 0; i < pawns.Count; i++)
+            {
+                Pawn pawn = pawns[i];
+                if (pawn.apparel == null) continue;
+                List<Apparel> worn = pawn.apparel.WornApparel;
+                for (int j = 0; j < worn.Count; j++)
+                {
+                    Apparel apparel = worn[j];
+                    if (apparel == null) continue;
+                    if (!ApparelLayerFilter.IsRelevant(apparel)) continue;
+                    candidateApparelBuffer.Add(apparel);
+                }
+            }
+
+            return candidateApparelBuffer;
+        }
+
+        /// <summary>
+        /// 收集参与分配的 Pawn：玩家阵营自由殖民者 + 玩家阵营奴隶。
+        /// 排除：食尸鬼（无法穿戴 apparel）、动物、机械族等。
+        /// </summary>
+        public static List<Pawn> CollectCandidatePawns()
+        {
+            // 自由殖民者（PawnsFinder.AllMaps_FreeColonists 含未 Spawned 的）
+            foreach (Pawn pawn in PawnsFinder.AllMaps_FreeColonists)
+            {
+                if (pawn == null) continue;
+                if (!pawn.Spawned) continue;
+                if (DLCCompat.IsGhoul(pawn)) continue; // 食尸鬼不参与装备分配
+                if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
+                candidatePawnBuffer.Add(pawn);
+            }
+
+            // 玩家阵营奴隶（Ideology DLC）
+            if (ModsConfig.IdeologyActive)
+            {
+                foreach (Map map in Find.Maps)
+                {
+                    if (map == null || map.mapPawns == null) continue;
+                    IReadOnlyList<Pawn> allPawns = map.mapPawns.AllPawnsSpawned;
+                    for (int i = 0; i < allPawns.Count; i++)
+                    {
+                        Pawn pawn = allPawns[i];
+                        if (pawn == null) continue;
+                        if (!pawn.IsSlaveOfColony) continue;
+                        if (DLCCompat.IsGhoul(pawn)) continue;
+                        if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
+                        candidatePawnBuffer.Add(pawn);
+                    }
+                }
+            }
+
+            return candidatePawnBuffer;
+        }
+
+        /// <summary>
+        /// 标记 apparel 已被分配（占用），本轮内不再分给其他 Pawn。
+        /// </summary>
+        public static void MarkAllocated(Apparel apparel)
+        {
+            if (apparel == null) return;
+            allocatedApparelIds.Add(apparel.thingIDNumber);
+        }
+
+        /// <summary>
+        /// 检查 apparel 是否已被分配。
+        /// </summary>
+        public static bool IsAllocated(Apparel apparel)
+        {
+            return apparel != null && allocatedApparelIds.Contains(apparel.thingIDNumber);
+        }
+
+        /// <summary>
+        /// 检查 apparel 是否被玩家标记为"禁用"。
+        /// RimWorld 1.6 中 Thing 没有公共 Forbidden 属性，通过 CompForbiddable 组件查询。
+        /// 无 CompForbiddable 的 apparel 视为未禁用。
+        /// </summary>
+        private static bool IsForbidden(Apparel apparel)
+        {
+            if (apparel == null) return false;
+            CompForbiddable forbidComp = apparel.GetComp<CompForbiddable>();
+            return forbidComp != null && forbidComp.Forbidden;
+        }
+    }
+}

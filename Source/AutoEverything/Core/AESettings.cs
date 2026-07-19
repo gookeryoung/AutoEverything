@@ -17,6 +17,7 @@ namespace AutoEverything.Core
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
         public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 全人类单位彩色星标 ★，事件触发 + 每帧 Postfix 绘制 + ITab 切换全局重扫描）
+        public static bool autoEquipmentEnabled = false;  // AutoEquipment 自动装备分配（事件驱动 + ITab 切换全局重分配，默认关闭避免误扒装）
 
         // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
@@ -31,6 +32,27 @@ namespace AutoEverything.Core
         public static float cvToughBonus = 30f;              // 坚韧 Tough：减伤 50%
         public static float cvTriggerHappyPenalty = -15f;    // 乱开枪 ShootingAccuracy degree=-1：精度大幅下降
         public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
+
+        // AutoEquipment 自动装备评分权重（可调）
+        // 评分公式：score = armorScore + layerMatchScore + cultureScore + insulationScore - movementPenalty
+        //   armorScore = (Sharp+Blunt+Heat)/3 × geArmorWeight
+        //   layerMatchScore：按 ArmorPreference 重甲/轻甲/自由分别加权
+        //   cultureScore：CultureChecker 给出的违反扣分 / 符合要求加分
+        //   insulationScore：极端温度下保暖/隔热值 × geInsulationWeight
+        //   movementPenalty = apparel Mass × 角色敏感度权重（重 apparel 减损更大）
+        public static float geArmorWeight = 1.0f;                    // 护甲值得分权重
+        public static float geHeavyArmorMatchWeight = 2.0f;          // 前排（Heavy）重甲契合权重
+        public static float geLightArmorMatchWeight = 1.5f;          // 工人（Light）轻甲契合权重
+        public static float geLightArmorAvoidWeight = 0.5f;          // 工人（Light）重甲避讳权重
+        public static float geFlexibleArmorMatchWeight = 1.0f;       // 后排（Flexible）自由契合权重
+        public static float geInsulationWeight = 1.0f;               // 保暖/隔热契合权重
+        public static float geWorkerMovePenaltyWeight = 3.0f;        // 工人移动减损敏感度
+        public static float geBackRowMovePenaltyWeight = 2.0f;       // 后排移动减损敏感度
+        public static float geFrontRowMovePenaltyWeight = 0.5f;      // 前排移动减损敏感度
+        public static float geCultureViolationPenalty = 30f;         // ideo 违反扣分
+        public static float geCultureStuffBonus = 5f;                // ideo 偏好材质加分
+        public static float geCultureRequirementBonus = 8f;          // 符合 ideo 要求加分
+        public static float geReplaceThreshold = 0.5f;               // 替换阈值：新 apparel 分数比已穿戴高此值才替换
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -70,6 +92,23 @@ namespace AutoEverything.Core
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
             LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
+            LookCompat(ref autoEquipmentEnabled, "autoEquipmentEnabled", false);
+
+            // AutoEquipment 评分权重持久化（ge_ 前缀）
+            LookCompat(ref geArmorWeight, "geArmorWeight", 1.0f);
+            LookCompat(ref geHeavyArmorMatchWeight, "geHeavyArmorMatchWeight", 2.0f);
+            LookCompat(ref geLightArmorMatchWeight, "geLightArmorMatchWeight", 1.5f);
+            LookCompat(ref geLightArmorAvoidWeight, "geLightArmorAvoidWeight", 0.5f);
+            LookCompat(ref geFlexibleArmorMatchWeight, "geFlexibleArmorMatchWeight", 1.0f);
+            LookCompat(ref geInsulationWeight, "geInsulationWeight", 1.0f);
+            LookCompat(ref geWorkerMovePenaltyWeight, "geWorkerMovePenaltyWeight", 3.0f);
+            LookCompat(ref geBackRowMovePenaltyWeight, "geBackRowMovePenaltyWeight", 2.0f);
+            LookCompat(ref geFrontRowMovePenaltyWeight, "geFrontRowMovePenaltyWeight", 0.5f);
+            LookCompat(ref geCultureViolationPenalty, "geCultureViolationPenalty", 30f);
+            LookCompat(ref geCultureStuffBonus, "geCultureStuffBonus", 5f);
+            LookCompat(ref geCultureRequirementBonus, "geCultureRequirementBonus", 8f);
+            LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.5f);
+
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
 
@@ -210,8 +249,9 @@ namespace AutoEverything.Core
 
         public static void DrawSettings(Rect inRect)
         {
-            // 单列布局：内容较少，无需双列
-            float contentHeight = 510f;
+            // 紧凑布局：装备评分权重较多，单行 label+value + 单行 slider 的双行模式
+            // 估算内容高度：基础段 + cv 权重 7 项 + ge 权重 13 项 + 排序按钮段
+            float contentHeight = 1240f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -223,29 +263,41 @@ namespace AutoEverything.Core
             l.CheckboxLabeled("AE_Enabled".Translate(), ref enabled);
             if (!enabled) { l.End(); Widgets.EndScrollView(); return; }
 
+            // 自动系统段
             l.GapLine();
             l.Label("AE_AutoSystems".Translate());
             l.CheckboxLabeled("AE_AutoWork".Translate(), ref autoWorkEnabled);
             l.CheckboxLabeled("AE_AutoTierTag".Translate(), ref autoTierTag);
             l.CheckboxLabeled("AE_AutoMarkPawn".Translate(), ref autoMarkPawn);
+            l.CheckboxLabeled("AE_AutoEquipment".Translate(), ref autoEquipmentEnabled);
 
             // 战斗价值公式权重
             l.GapLine();
             l.Label("AE_CombatValueWeights".Translate());
-            l.Label("AE_cvSkillWeight".Translate() + ": " + cvSkillWeight.ToString("F2"));
-            cvSkillWeight = l.Slider(cvSkillWeight, 0.1f, 3.0f);
-            l.Label("AE_cvPassionNoneMult".Translate() + ": " + cvPassionNoneMult.ToString("F2"));
-            cvPassionNoneMult = l.Slider(cvPassionNoneMult, 0.1f, 3.0f);
-            l.Label("AE_cvPassionMinorMult".Translate() + ": " + cvPassionMinorMult.ToString("F2"));
-            cvPassionMinorMult = l.Slider(cvPassionMinorMult, 0.1f, 3.0f);
-            l.Label("AE_cvPassionMajorMult".Translate() + ": " + cvPassionMajorMult.ToString("F2"));
-            cvPassionMajorMult = l.Slider(cvPassionMajorMult, 0.1f, 3.0f);
-            l.Label("AE_cvToughBonus".Translate() + ": " + cvToughBonus.ToString("F0"));
-            cvToughBonus = l.Slider(cvToughBonus, 0f, 100f);
-            l.Label("AE_cvTriggerHappyPenalty".Translate() + ": " + cvTriggerHappyPenalty.ToString("F0"));
-            cvTriggerHappyPenalty = l.Slider(cvTriggerHappyPenalty, -50f, 0f);
-            l.Label("AE_cvCarefulShooterBonus".Translate() + ": " + cvCarefulShooterBonus.ToString("F0"));
-            cvCarefulShooterBonus = l.Slider(cvCarefulShooterBonus, 0f, 50f);
+            DrawCompactSlider(l, "AE_cvSkillWeight".Translate(), ref cvSkillWeight, 0.1f, 3.0f);
+            DrawCompactSlider(l, "AE_cvPassionNoneMult".Translate(), ref cvPassionNoneMult, 0.1f, 3.0f);
+            DrawCompactSlider(l, "AE_cvPassionMinorMult".Translate(), ref cvPassionMinorMult, 0.1f, 3.0f);
+            DrawCompactSlider(l, "AE_cvPassionMajorMult".Translate(), ref cvPassionMajorMult, 0.1f, 3.0f);
+            DrawCompactSlider(l, "AE_cvToughBonus".Translate(), ref cvToughBonus, 0f, 100f, "F0");
+            DrawCompactSlider(l, "AE_cvTriggerHappyPenalty".Translate(), ref cvTriggerHappyPenalty, -50f, 0f, "F0");
+            DrawCompactSlider(l, "AE_cvCarefulShooterBonus".Translate(), ref cvCarefulShooterBonus, 0f, 50f, "F0");
+
+            // 装备评分权重
+            l.GapLine();
+            l.Label("AE_GearWeights".Translate());
+            DrawCompactSlider(l, "AE_geArmorWeight".Translate(), ref geArmorWeight, 0.1f, 5.0f);
+            DrawCompactSlider(l, "AE_geHeavyArmorMatchWeight".Translate(), ref geHeavyArmorMatchWeight, 0f, 5.0f);
+            DrawCompactSlider(l, "AE_geLightArmorMatchWeight".Translate(), ref geLightArmorMatchWeight, 0f, 5.0f);
+            DrawCompactSlider(l, "AE_geLightArmorAvoidWeight".Translate(), ref geLightArmorAvoidWeight, 0f, 3.0f);
+            DrawCompactSlider(l, "AE_geFlexibleArmorMatchWeight".Translate(), ref geFlexibleArmorMatchWeight, 0f, 5.0f);
+            DrawCompactSlider(l, "AE_geInsulationWeight".Translate(), ref geInsulationWeight, 0f, 5.0f);
+            DrawCompactSlider(l, "AE_geWorkerMovePenaltyWeight".Translate(), ref geWorkerMovePenaltyWeight, 0f, 10f);
+            DrawCompactSlider(l, "AE_geBackRowMovePenaltyWeight".Translate(), ref geBackRowMovePenaltyWeight, 0f, 10f);
+            DrawCompactSlider(l, "AE_geFrontRowMovePenaltyWeight".Translate(), ref geFrontRowMovePenaltyWeight, 0f, 5f);
+            DrawCompactSlider(l, "AE_geCultureViolationPenalty".Translate(), ref geCultureViolationPenalty, 0f, 100f, "F0");
+            DrawCompactSlider(l, "AE_geCultureStuffBonus".Translate(), ref geCultureStuffBonus, 0f, 30f, "F0");
+            DrawCompactSlider(l, "AE_geCultureRequirementBonus".Translate(), ref geCultureRequirementBonus, 0f, 30f, "F0");
+            DrawCompactSlider(l, "AE_geReplaceThreshold".Translate(), ref geReplaceThreshold, 0f, 5f, "F2");
 
             // 调试
             l.GapLine();
@@ -276,5 +328,32 @@ namespace AutoEverything.Core
 
             Widgets.EndScrollView();
         }
+
+        /// <summary>
+        /// 紧凑滑块：单行显示 "标签: 数值"，下一行紧跟 slider。
+        /// 比默认 l.Label + l.Slider 双行模式节省约 30% 垂直空间。
+        /// 关闭 WordWrap 避免中文标签换行。
+        /// </summary>
+        private static void DrawCompactSlider(Listing_Standard l, string label, ref float value, float min, float max, string format = "F2")
+        {
+            // 标签行：22f
+            Rect labelRect = l.GetRect(22f);
+            string text = label + ": " + value.ToString(format);
+            bool prevWrap = Text.WordWrap;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = ColorLabelGray;
+            Widgets.Label(labelRect, text);
+            GUI.color = Color.white;
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.WordWrap = prevWrap;
+
+            // 滑块行：20f
+            Rect sliderRect = l.GetRect(20f);
+            value = Widgets.HorizontalSlider(sliderRect, value, min, max);
+        }
+
+        // 标签灰色常量（与 ITab 一致），用于紧凑滑块标签
+        private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
     }
 }

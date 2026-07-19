@@ -109,8 +109,8 @@ namespace AutoEverything.UI
         {
             labelKey = "AE_Tab";
 
-            // 高度容纳徽章区与状态摘要 + 底部 3 勾选框
-            // 3 勾选框（评级/工作/星标）
+            // 高度容纳徽章区与状态摘要 + 底部 4 勾选框（2x2 双列紧凑布局）
+            // 4 勾选框：评级/工作/星标/装备
             size = new Vector2(360f, 420f);
         }
 
@@ -134,15 +134,17 @@ namespace AutoEverything.UI
             // 食尸鬼不参与自动万物分配，但仍显示评级信息供玩家参考
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：3 勾选框 + 4 间隔
-            // 3 勾选框：评级/工作/星标
-            float buttonGap = 8f;
-            float checkboxHeight = 24f;
+            // 底部区预留高度：4 勾选框 2x2 双列 + 3 间隔（紧凑布局）
+            // 4 勾选框：评级/工作/星标/装备
+            float buttonGap = 6f;
+            float checkboxHeight = 22f;
+            const int CheckboxRows = 2;
 
             Rect rect = new Rect(0f, 0f, size.x, size.y).ContractedBy(10f);
 
-            // 内容区高度 = 总高 - 底部区（3 勾选框 + 4 间隔）
-            Rect contentRect = new Rect(rect.x, rect.y, rect.width, rect.height - (checkboxHeight * 3 + buttonGap * 4));
+            // 内容区高度 = 总高 - 底部区（2 行勾选框 + 3 间隔）
+            Rect contentRect = new Rect(rect.x, rect.y, rect.width,
+                rect.height - (checkboxHeight * CheckboxRows + buttonGap * (CheckboxRows + 1)));
 
             // ===================== 缓存计算展示数据 =====================
             // FillTab 每帧调用，角色/情境/评级计算涉及技能与特质查询，缓存 60 tick 避免重复计算
@@ -282,12 +284,15 @@ namespace AutoEverything.UI
             cachedContentHeight = l.CurHeight + 20f;
             Widgets.EndScrollView();
 
-            // ===================== 底部区：3 勾选框 =====================
-            // 1. 人员自动评级勾选框：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
+            // ===================== 底部区：4 勾选框 2x2 双列紧凑布局 =====================
+            // 双列布局：节省垂直空间，从 3 勾选框(3*24+4*8=104f) 降至 4 勾选框(2*22+3*6=62f)
+            float colWidth = (rect.width - buttonGap) * 0.5f;
+
+            // 1. 人员自动评级勾选框（左上）：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
             Rect tierCheckRect = new Rect(
                 rect.x,
                 contentRect.yMax + buttonGap,
-                rect.width,
+                colWidth,
                 checkboxHeight);
 
             bool prevWrap1 = Text.WordWrap;
@@ -312,11 +317,11 @@ namespace AutoEverything.UI
                 }
             }
 
-            // 2. 工作自动配置勾选框：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前分配）
+            // 2. 工作自动配置勾选框（右上）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前分配）
             Rect workCheckRect = new Rect(
-                rect.x,
-                tierCheckRect.yMax + buttonGap,
-                rect.width,
+                rect.x + colWidth + buttonGap,
+                contentRect.yMax + buttonGap,
+                colWidth,
                 checkboxHeight);
 
             bool prevWrap2 = Text.WordWrap;
@@ -331,12 +336,12 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerWorkNow();
             }
 
-            // 3. 高价值自动标记勾选框：切换勾选时立即全局重扫描并弹消息；
+            // 3. 高价值自动标记勾选框（左下）：切换勾选时立即全局重扫描并弹消息；
             //    取消勾选时 ExecuteMark 检测开关后静默返回，头顶星标由 Harmony 补丁实时检查开关自动停止绘制
             Rect markCheckRect = new Rect(
                 rect.x,
-                workCheckRect.yMax + buttonGap,
-                rect.width,
+                tierCheckRect.yMax + buttonGap,
+                colWidth,
                 checkboxHeight);
 
             bool prevWrap4 = Text.WordWrap;
@@ -351,6 +356,26 @@ namespace AutoEverything.UI
             if (AESettings.autoMarkPawn != prevMark)
             {
                 AutoExecutor.TriggerMarkNow();
+            }
+
+            // 4. 自动装备勾选框（右下）：勾选立即执行 + 启用事件驱动；取消勾选仅停止自动（保留当前装备）
+            //    默认关闭避免误扒装；勾选时立即执行一次全局装备分配并弹消息
+            Rect gearCheckRect = new Rect(
+                rect.x + colWidth + buttonGap,
+                tierCheckRect.yMax + buttonGap,
+                colWidth,
+                checkboxHeight);
+
+            bool prevWrap5 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevGear = AESettings.autoEquipmentEnabled;
+            Widgets.CheckboxLabeled(gearCheckRect, "AE_AutoEquipment".Translate(), ref AESettings.autoEquipmentEnabled);
+            Text.WordWrap = prevWrap5;
+            TooltipHandler.TipRegion(gearCheckRect, "AE_TT_AutoEquipment".Translate());
+            // 状态变化检测：勾选时立即执行一次全局分配；取消勾选仅停止自动（保留当前装备）
+            if (AESettings.autoEquipmentEnabled && AESettings.autoEquipmentEnabled != prevGear)
+            {
+                AutoExecutor.TriggerGearNow();
             }
         }
 

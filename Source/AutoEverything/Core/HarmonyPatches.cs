@@ -6,6 +6,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoEquipment;
 
 namespace AutoEverything.Core
 {
@@ -14,6 +15,10 @@ namespace AutoEverything.Core
     /// 补丁职责：
     /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
     /// 2) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
+    /// 3) Thing.SpawnSetup Postfix：装备生成/殖民者生成时标记装备分配脏标（事件驱动）
+    /// 4) Thing.Destroy Postfix：装备销毁/殖民者死亡时标记装备分配脏标
+    /// 5) Pawn.SetFaction Postfix：殖民者阵营变化（含奴隶转化）时标记装备分配脏标
+    /// 6) Pawn.Kill Postfix：殖民者死亡时标记装备分配脏标
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
     ///
     /// 注：原 Pawn.SpawnSetup Postfix 注入 CompGearManager 的逻辑已移除——
@@ -64,7 +69,30 @@ namespace AutoEverything.Core
             {
                 Log.Warning("[AutoEverything] PawnUIOverlay 补丁失败: " + ex.Message);
             }
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 彩色星标)");
+
+            // 装备分配事件补丁（仅 Apparel 与玩家阵营人类like Pawn 触发 MarkDirty）
+            // 设计：事件触发只设脏标，AutoExecutor 周期去抖执行，避免 Tick 检查策略
+            try
+            {
+                harmony.Patch(
+                    AccessTools.Method(typeof(Thing), nameof(Thing.SpawnSetup)),
+                    postfix: new HarmonyMethod(typeof(Thing_SpawnSetup_Patch), nameof(Thing_SpawnSetup_Patch.Postfix)));
+                harmony.Patch(
+                    AccessTools.Method(typeof(Thing), nameof(Thing.Destroy)),
+                    postfix: new HarmonyMethod(typeof(Thing_Destroy_Patch), nameof(Thing_Destroy_Patch.Postfix)));
+                harmony.Patch(
+                    AccessTools.Method(typeof(Pawn), nameof(Pawn.SetFaction)),
+                    postfix: new HarmonyMethod(typeof(Pawn_SetFaction_Patch), nameof(Pawn_SetFaction_Patch.Postfix)));
+                harmony.Patch(
+                    AccessTools.Method(typeof(Pawn), nameof(Pawn.Kill)),
+                    postfix: new HarmonyMethod(typeof(Pawn_Kill_Patch), nameof(Pawn_Kill_Patch.Postfix)));
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[AutoEverything] 装备分配事件补丁失败: " + ex.Message);
+            }
+
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 彩色星标 + 装备分配事件触发)");
         }
 
         /// <summary>
@@ -180,6 +208,79 @@ namespace AutoEverything.Core
                 Text.Anchor = prevAnchor;
                 Text.Font = prevFont;
                 GUI.color = prevColor;
+            }
+        }
+
+        // ===================== 装备分配事件触发补丁 =====================
+        // 设计：事件触发仅设置 GearAllocator.IsDirty 脏标，AutoExecutor 周期去抖执行
+        // 避免在事件路径执行实际分配（SpawnSetup/Destroy 在游戏内部循环中频繁触发）
+        // 仅对 Apparel 与玩家阵营人类like Pawn 触发，避免无关 Thing（动物、植物等）干扰
+
+        /// <summary>
+        /// Thing.SpawnSetup Postfix：装备/殖民者生成时标记装备分配脏标。
+        /// 触发条件：Thing 是 Apparel，或 Thing 是玩家阵营人类like Pawn。
+        /// </summary>
+        public static class Thing_SpawnSetup_Patch
+        {
+            public static void Postfix(Thing __instance)
+            {
+                if (__instance == null) return;
+                if (!AESettings.enabled || !AESettings.autoEquipmentEnabled) return;
+
+                if (__instance is Apparel) { GearAllocator.MarkDirty(); return; }
+                if (__instance is Pawn pawn && PawnSuitabilityChecker.CanManageGear(pawn)
+                    && pawn.Faction == Faction.OfPlayer)
+                {
+                    GearAllocator.MarkDirty();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Thing.Destroy Postfix：装备/殖民者销毁时标记装备分配脏标。
+        /// </summary>
+        public static class Thing_Destroy_Patch
+        {
+            public static void Postfix(Thing __instance)
+            {
+                if (__instance == null) return;
+                if (!AESettings.enabled || !AESettings.autoEquipmentEnabled) return;
+
+                if (__instance is Apparel) { GearAllocator.MarkDirty(); return; }
+                if (__instance is Pawn pawn && PawnSuitabilityChecker.CanManageGear(pawn)
+                    && pawn.Faction == Faction.OfPlayer)
+                {
+                    GearAllocator.MarkDirty();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Pawn.SetFaction Postfix：阵营变化（含奴隶转化、殖民者招募）时标记装备分配脏标。
+        /// </summary>
+        public static class Pawn_SetFaction_Patch
+        {
+            public static void Postfix(Pawn __instance)
+            {
+                if (__instance == null) return;
+                if (!AESettings.enabled || !AESettings.autoEquipmentEnabled) return;
+                if (!PawnSuitabilityChecker.CanManageGear(__instance)) return;
+                // 任意阵营变化都可能影响分配（加入/离开/奴隶转化）
+                GearAllocator.MarkDirty();
+            }
+        }
+
+        /// <summary>
+        /// Pawn.Kill Postfix：殖民者死亡时标记装备分配脏标。
+        /// </summary>
+        public static class Pawn_Kill_Patch
+        {
+            public static void Postfix(Pawn __instance)
+            {
+                if (__instance == null) return;
+                if (!AESettings.enabled || !AESettings.autoEquipmentEnabled) return;
+                if (!PawnSuitabilityChecker.CanManageGear(__instance)) return;
+                GearAllocator.MarkDirty();
             }
         }
     }

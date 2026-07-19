@@ -33,6 +33,7 @@
   <AE_AutoWork>Auto Work Config</AE_AutoWork>
   <AE_AutoTierTag>Auto Tier Tag</AE_AutoTierTag>
   <AE_AutoMarkPawn>High-Value Auto Marker</AE_AutoMarkPawn>
+  <AE_AutoEquipment>Auto Equipment</AE_AutoEquipment>
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
 
@@ -45,6 +46,22 @@
   <AE_cvToughBonus>Tough bonus</AE_cvToughBonus>
   <AE_cvTriggerHappyPenalty>Trigger-happy penalty</AE_cvTriggerHappyPenalty>
   <AE_cvCarefulShooterBonus>Careful shooter bonus</AE_cvCarefulShooterBonus>
+
+  <!-- Auto Equipment scoring weights -->
+  <AE_GearWeights>Auto Equipment Scoring Weights</AE_GearWeights>
+  <AE_geArmorWeight>Armor value score weight</AE_geArmorWeight>
+  <AE_geHeavyArmorMatchWeight>Front row heavy armor match weight</AE_geHeavyArmorMatchWeight>
+  <AE_geLightArmorMatchWeight>Worker light armor match weight</AE_geLightArmorMatchWeight>
+  <AE_geLightArmorAvoidWeight>Worker heavy armor avoid weight</AE_geLightArmorAvoidWeight>
+  <AE_geFlexibleArmorMatchWeight>Back row flexible armor match weight</AE_geFlexibleArmorMatchWeight>
+  <AE_geInsulationWeight>Insulation match weight</AE_geInsulationWeight>
+  <AE_geWorkerMovePenaltyWeight>Worker move penalty sensitivity</AE_geWorkerMovePenaltyWeight>
+  <AE_geBackRowMovePenaltyWeight>Back row move penalty sensitivity</AE_geBackRowMovePenaltyWeight>
+  <AE_geFrontRowMovePenaltyWeight>Front row move penalty sensitivity</AE_geFrontRowMovePenaltyWeight>
+  <AE_geCultureViolationPenalty>Ideology violation penalty</AE_geCultureViolationPenalty>
+  <AE_geCultureStuffBonus>Ideology preferred stuff bonus</AE_geCultureStuffBonus>
+  <AE_geCultureRequirementBonus>Ideology requirement match bonus</AE_geCultureRequirementBonus>
+  <AE_geReplaceThreshold>Replace threshold (score diff to swap)</AE_geReplaceThreshold>
 
   <!-- Colonist bar default sort mode (Mod settings) -->
   <AE_DefaultSortMode>Default Sort</AE_DefaultSortMode>
@@ -138,5 +155,12 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
   <AE_MarkCat_WildHuman>Wild</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
+
+  <!-- AutoEquipment -->
+  <AE_AutoGear_AllocateResult>Allocated gear for {0}/{1} colonists</AE_AutoGear_AllocateResult>
+  <AE_TT_AutoEquipment>When checked, enables auto gear allocation: marks dirty on map apparel spawn/destroy, colonist faction change or death; AutoExecutor debounces execution (2500 tick cooldown AND no combat on map).
+Executes once immediately when checked, performing global gear reallocation (including stripping gear from low-value roles to high-value roles); when unchecked, only stops auto-execution, keeps current gear.
+Allocation rules: per pawn in CombatTier desc order, picks highest-scoring apparel per ApparelLayer; front row (Brawler) prefers heavy armor, worker (Worker) prefers light armor, back row (Shooter/Hunter/Leader) flexible; slaves join colonists in unified allocation; ghouls and tier X (non-violent) are skipped.
+Score: armor value + role match + ideology match + insulation - movement penalty. Weights are adjustable in Mod settings.</AE_TT_AutoEquipment>
 
 </LanguageData>
