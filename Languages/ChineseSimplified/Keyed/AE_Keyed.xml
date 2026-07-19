@@ -62,6 +62,7 @@
   <AE_geCultureStuffBonus>意识形态偏好材质加分</AE_geCultureStuffBonus>
   <AE_geCultureRequirementBonus>符合意识形态要求加分</AE_geCultureRequirementBonus>
   <AE_geReplaceThreshold>替换阈值（高于此分差才换装）</AE_geReplaceThreshold>
+  <AE_geHeavyArmorThreshold>重甲判定阈值（Sharp+Blunt≥此值视为重甲，用于后排顺延名额）</AE_geHeavyArmorThreshold>
 
   <!-- 殖民者栏默认排序方式（Mod 选项） -->
   <AE_DefaultSortMode>殖民者栏默认排序</AE_DefaultSortMode>

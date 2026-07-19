@@ -107,23 +107,15 @@ namespace AutoEverything.AutoEquipment
                 // 但 CollectCandidateApparel 返回前已填好 candidatePawnBuffer，此处再次拿引用
                 // 注意：candidatePawnBuffer 在 CollectCandidateApparel 内被填充，此处无需重复调用
 
-                // 优先级顺延检测：扫描是否存在 Heavy 偏好的 Pawn（前排 Brawler）
-                // 若无 Heavy，则把 Flexible（Shooter/Hunter/Leader）升级为 Heavy 顺延承担前排职责
-                // 设计：用户期望"没有前排时按优先级顺延"——让后排也穿戴重甲，避免重甲烂在仓库
-                // Light（Worker/Doctor/Pacifist）保持 Light，不强制升级（保工作效率）
-                bool hasHeavy = false;
-                for (int i = 0; i < candidatePawns.Count; i++)
-                {
-                    Pawn p = candidatePawns[i];
-                    if (p == null || p.Dead || !p.Spawned) continue;
-                    if (DLCCompat.IsGhoul(p)) continue;
-                    Role r = RoleDetector.DetectRole(p);
-                    if (RoleDetector.GetArmorPreference(r) == ArmorPreference.Heavy)
-                    {
-                        hasHeavy = true;
-                        break;
-                    }
-                }
+                // 优先级顺延检测：基于"重甲数量 vs Heavy Pawn 数量"计算剩余重甲名额
+                // 设计意图：
+                //   1. 用户期望"重甲够不够殖民者数量"决定顺延——而非简单"有无 Heavy Pawn"
+                //   2. 斥候装甲等低 mass 中等护甲装备对后排也适用，不应粗暴全部升级为 Heavy 丢失自由选择能力
+                //   3. 重甲名额按 CombatTier 降序分配给 Flexible Pawn；分到名额的升级为 Heavy，没分到的保持 Flexible 自由选择
+                // Light（Worker/Doctor/Pacifist）始终保持 Light，不参与顺延（保工作效率）
+                int heavyArmorCount = CountHeavyArmor(candidateApparel);
+                int heavyPawnCount = CountHeavyPreferencePawns(candidatePawns);
+                int remainingHeavySlots = System.Math.Max(0, heavyArmorCount - heavyPawnCount);
 
                 // 按 CombatTier 降序排序（高评级先选优质装备）
                 // 用 Comparer 排序，避免 LINQ
@@ -142,15 +134,17 @@ namespace AutoEverything.AutoEquipment
                     Role role = RoleDetector.DetectRole(pawn);
                     ArmorPreference armorPref = RoleDetector.GetArmorPreference(role);
 
-                    // 顺延：无 Heavy 时，Flexible 升级为 Heavy，role 临时视为 Brawler
+                    // 顺延：Flexible Pawn 按优先级消耗剩余重甲名额，分到名额则升级为 Heavy
                     // 仅影响传给 GearScorer 的评分参数（layerMatch 用 Heavy 公式 + movementPenalty 用前排容忍度）
                     // 不修改 RoleDetector 全局判定，不影响 ITab 徽章显示与其他模块
+                    // 没分到名额的 Flexible 保持 Flexible，按原评分公式自由选择（斥候装甲等轻量护甲会被选中）
                     Role effectiveRole = role;
                     ArmorPreference effectivePref = armorPref;
-                    if (!hasHeavy && armorPref == ArmorPreference.Flexible)
+                    if (armorPref == ArmorPreference.Flexible && remainingHeavySlots > 0)
                     {
                         effectivePref = ArmorPreference.Heavy;
                         effectiveRole = Role.Brawler;
+                        remainingHeavySlots--;
                     }
 
                     if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel))
@@ -159,7 +153,7 @@ namespace AutoEverything.AutoEquipment
                     }
                 }
 
-                AEDebug.Log(() => $"[AutoExecutor] 自动装备分配: {allocatedCount}/{candidatePawns.Count} 个殖民者 (tick={tick}, hasHeavy={hasHeavy})");
+                AEDebug.Log(() => $"[AutoExecutor] 自动装备分配: {allocatedCount}/{candidatePawns.Count} 个殖民者 (tick={tick}, heavyArmor={heavyArmorCount}, heavyPawn={heavyPawnCount})");
                 if (showMessage)
                 {
                     Messages.Message("AE_AutoGear_AllocateResult".Translate(allocatedCount, candidatePawns.Count),
@@ -404,6 +398,45 @@ namespace AutoEverything.AutoEquipment
                 float vb = CombatEvaluator.ComputeCombatValue(b);
                 return vb.CompareTo(va);
             }
+        }
+
+        /// <summary>
+        /// 统计候选 Apparel 中的"重甲"数量。
+        /// 判定标准：(Sharp + Blunt) ≥ <see cref="AESettings.geHeavyArmorThreshold"/>
+        /// 用途：计算重甲名额，决定多少个 Flexible Pawn 可以顺延升级为 Heavy
+        /// 注：不区分 ApparelLayer（简化），按装备总数算；实际分配时按层独立选最高分
+        /// </summary>
+        private static int CountHeavyArmor(List<Apparel> candidateApparel)
+        {
+            int count = 0;
+            float threshold = AESettings.geHeavyArmorThreshold;
+            for (int i = 0; i < candidateApparel.Count; i++)
+            {
+                Apparel a = candidateApparel[i];
+                if (a == null) continue;
+                float sharp = a.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                float blunt = a.GetStatValue(StatDefOf.ArmorRating_Blunt);
+                if (sharp + blunt >= threshold) count++;
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 统计候选 Pawn 中 Heavy 护甲偏好者数量（前排 Brawler）。
+        /// 用途：从重甲总数中扣除已被 Heavy Pawn 占用的名额，得到可顺延给 Flexible 的剩余名额
+        /// </summary>
+        private static int CountHeavyPreferencePawns(List<Pawn> candidatePawns)
+        {
+            int count = 0;
+            for (int i = 0; i < candidatePawns.Count; i++)
+            {
+                Pawn p = candidatePawns[i];
+                if (p == null || p.Dead || !p.Spawned) continue;
+                if (DLCCompat.IsGhoul(p)) continue;
+                Role r = RoleDetector.DetectRole(p);
+                if (RoleDetector.GetArmorPreference(r) == ArmorPreference.Heavy) count++;
+            }
+            return count;
         }
     }
 }

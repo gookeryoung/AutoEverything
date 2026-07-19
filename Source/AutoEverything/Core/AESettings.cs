@@ -53,6 +53,7 @@ namespace AutoEverything.Core
         public static float geCultureStuffBonus = 5f;                // ideo 偏好材质加分
         public static float geCultureRequirementBonus = 8f;          // 符合 ideo 要求加分
         public static float geReplaceThreshold = 0.5f;               // 替换阈值：新 apparel 分数比已穿戴高此值才替换
+        public static float geHeavyArmorThreshold = 1.0f;            // 重甲判定阈值：apparel 的 (Sharp+Blunt) ≥ 此值视为重甲，用于顺延名额计算
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -108,6 +109,7 @@ namespace AutoEverything.Core
             LookCompat(ref geCultureStuffBonus, "geCultureStuffBonus", 5f);
             LookCompat(ref geCultureRequirementBonus, "geCultureRequirementBonus", 8f);
             LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.5f);
+            LookCompat(ref geHeavyArmorThreshold, "geHeavyArmorThreshold", 1.0f);
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
@@ -298,6 +300,7 @@ namespace AutoEverything.Core
             DrawCompactSlider(l, "AE_geCultureStuffBonus".Translate(), ref geCultureStuffBonus, 0f, 30f, "F0");
             DrawCompactSlider(l, "AE_geCultureRequirementBonus".Translate(), ref geCultureRequirementBonus, 0f, 30f, "F0");
             DrawCompactSlider(l, "AE_geReplaceThreshold".Translate(), ref geReplaceThreshold, 0f, 5f, "F2");
+            DrawCompactSlider(l, "AE_geHeavyArmorThreshold".Translate(), ref geHeavyArmorThreshold, 0f, 3f, "F2");
 
             // 调试
             l.GapLine();

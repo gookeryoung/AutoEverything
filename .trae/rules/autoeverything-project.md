@@ -88,7 +88,13 @@
 - **参与对象**：殖民者 + 奴隶统一参与分配；食尸鬼与 X 档（禁止暴力）跳过
 - **触发方式**：事件驱动（装备/人员增减、阵营变化、Pawn 死亡 → Harmony Postfix → `GearAllocator.MarkDirty`）+ AutoExecutor 周期去抖执行（冷却 2500 tick + 战斗过滤）+ ITab 勾选切换时立即执行
 - **分配顺序**：按 `CombatTier` 降序（S→A→B→C→D）+ `CombatValue` 降序作为 tie-breaker，逐个 Pawn 分配
-- **优先级顺延**：扫描候选 Pawn 中是否存在 `ArmorPreference.Heavy`（前排 Brawler）；若无，则把所有 `Flexible`（Shooter/Hunter/Leader）升级为 Heavy 顺延承担前排职责——`effectivePref=Heavy` + `effectiveRole=Brawler` 传给 `GearScorer`，使 layerMatch 用 Heavy 公式加分 + movementPenalty 用前排容忍度（`geFrontRowMovePenaltyWeight`），避免重甲烂在仓库。Light（Worker/Doctor/Pacifist）保持 Light 不升级（保工作效率）。仅影响评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
+- **优先级顺延**：基于"重甲数量 vs Heavy Pawn 数量"计算剩余重甲名额，避免粗暴升级丢失对斥候装甲等轻量护甲的选择能力
+  - `CountHeavyArmor`：扫描候选 Apparel，`(Sharp+Blunt) ≥ geHeavyArmorThreshold`（默认 1.0）视为重甲，统计数量
+  - `CountHeavyPreferencePawns`：统计候选 Pawn 中 `ArmorPreference.Heavy`（前排 Brawler）数量
+  - `remainingHeavySlots = max(0, heavyArmorCount - heavyPawnCount)`：扣除前排已占用的重甲，剩余可顺延给后排
+  - 候选 Pawn 按 `CombatTier` 降序排，对每个 `Flexible`（Shooter/Hunter/Leader）Pawn：剩余名额 > 0 时升级为 Heavy（`effectivePref=Heavy` + `effectiveRole=Brawler`），剩余名额 -= 1；否则保持 `Flexible` 按原评分公式自由选择（斥候装甲等低 mass 中等护甲会被选中）
+  - `Light`（Worker/Doctor/Pacifist）始终保持 Light，不参与顺延（保工作效率）
+  - 仅影响传给 `GearScorer` 的评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
 - **分配策略**：对每个 Pawn 的每个 `ApparelLayer`，从候选池选当前最高分 apparel（贪心）；候选池包含已穿戴 apparel（支持扒装重分配）
 - **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold`（默认 0.5）才换装，避免频繁抖动
 - **扒装流程**：先 `TrySafeRemove`（落地 spawn）→ `MarkAllocated` → 再 `TrySafeEquip`，单件失败 try-catch 隔离不阻塞整体
