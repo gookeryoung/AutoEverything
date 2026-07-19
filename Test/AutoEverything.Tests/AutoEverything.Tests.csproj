@@ -18,6 +18,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- 测试 PawnMarker.GetMarkerColor 需要 UnityEngine.Color 类型 -->
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- 主项目 DLL 复制到测试目录，避免运行时找不到 AutoEverything.dll -->
     <ProjectReference Include="..\..\Source\AutoEverything\AutoEverything.csproj">
       <Private>true</Private>

@@ -42,6 +42,31 @@ namespace AutoEverything.AutoMarkPawn
             WildHuman    // 野生人类/难民（无派系）
         }
 
+        /// <summary>
+        /// 类别判定输入参数（从 Pawn 收集，用于纯逻辑核心 GetMarkerCategoryCore）。
+        /// 提取为 struct 便于单元测试：测试只需构造输入，无需 mock Pawn。
+        /// 所有字段默认 false（与"未设置/无派系"语义一致），避免默认值产生歧义。
+        /// </summary>
+        internal struct CategoryInput
+        {
+            public bool IsPrisonerOfColony;  // pawn.IsPrisonerOfColony
+            public bool IsSlaveOfColony;      // pawn.IsSlaveOfColony
+            public bool IsColonistFaction;   // pawn.Faction == Faction.OfPlayer
+            public bool IsHostileTo;         // pawn.HostileTo(Faction.OfPlayer)
+            public bool HasFaction;           // pawn.Faction != null
+        }
+
+        /// <summary>
+        /// 消息展示条目（从 Pawn 提取，用于纯逻辑核心 FormatMessageCore）。
+        /// 测试只需构造 List&lt;MessageEntry&gt;，无需 mock Pawn.LabelShort / TierCacheService。
+        /// </summary>
+        internal struct MessageEntry
+        {
+            public string CategoryLabel;  // 类别翻译文本（如"殖民者"/"Slave"）
+            public string Name;           // pawn.LabelShort
+            public CombatTier Tier;       // TierCacheService.GetTier(pawn)
+        }
+
         // 已通知玩家的高价值 Pawn thingIDNumber 集合
         // 仅在首次发现某 Pawn 为高价值时通知，避免重复弹消息
         // toggle on 时（resetTracking=true）清空，触发全局重扫描
@@ -51,6 +76,9 @@ namespace AutoEverything.AutoMarkPawn
         // 复用缓冲区：避免每次扫描分配新集合（单线程主线程使用，无需并发保护）
         private static readonly List<Pawn> scanBuffer = new List<Pawn>();
         private static readonly HashSet<int> currentIdsBuffer = new HashSet<int>();
+
+        // FormatMessage 用的 MessageEntry 复用缓冲区（避免每次调用分配新 List）
+        private static readonly List<MessageEntry> entryBuffer = new List<MessageEntry>();
 
         /// <summary>
         /// 判断 Pawn 是否为高价值（S+ 档次，含自定义评级覆盖）。
@@ -87,11 +115,29 @@ namespace AutoEverything.AutoMarkPawn
         /// </summary>
         public static MarkerCategory GetMarkerCategory(Pawn pawn)
         {
-            if (pawn.IsPrisonerOfColony) return MarkerCategory.Prisoner;
-            if (pawn.IsSlaveOfColony) return MarkerCategory.Slave;
-            if (pawn.Faction == Faction.OfPlayer) return MarkerCategory.Colonist;
-            if (pawn.HostileTo(Faction.OfPlayer)) return MarkerCategory.Enemy;
-            if (pawn.Faction != null) return MarkerCategory.Neutral;
+            return GetMarkerCategoryCore(new CategoryInput
+            {
+                IsPrisonerOfColony = pawn.IsPrisonerOfColony,
+                IsSlaveOfColony = pawn.IsSlaveOfColony,
+                IsColonistFaction = pawn.Faction == Faction.OfPlayer,
+                IsHostileTo = pawn.HostileTo(Faction.OfPlayer),
+                HasFaction = pawn.Faction != null
+            });
+        }
+
+        /// <summary>
+        /// 类别判定纯逻辑核心：根据 Pawn 派系/状态标志位返回类别。
+        /// 优先级：囚犯 > 奴隶 > 殖民者 > 敌对 > 中立/盟友 > 野生人类。
+        /// 单元测试入口：构造 CategoryInput 即可验证全部 6 类别判定。
+        /// 默认值（全 false）：HasFaction=false 表示无派系 → WildHuman，与"未设置"语义一致。
+        /// </summary>
+        internal static MarkerCategory GetMarkerCategoryCore(CategoryInput input)
+        {
+            if (input.IsPrisonerOfColony) return MarkerCategory.Prisoner;
+            if (input.IsSlaveOfColony) return MarkerCategory.Slave;
+            if (input.IsColonistFaction) return MarkerCategory.Colonist;
+            if (input.IsHostileTo) return MarkerCategory.Enemy;
+            if (input.HasFaction) return MarkerCategory.Neutral;
             return MarkerCategory.WildHuman;
         }
 
@@ -183,35 +229,101 @@ namespace AutoEverything.AutoMarkPawn
         /// </summary>
         public static string FormatMessage(List<Pawn> pawns, string headerKey, int maxListed = 8)
         {
+            // 空列表：直接返回"未发现"
             if (pawns == null || pawns.Count == 0)
             {
                 return "AE_AutoMarkPawn_None".Translate();
             }
 
-            StringBuilder sb = new StringBuilder();
-            sb.Append(headerKey.Translate(pawns.Count));
-
-            int listed = pawns.Count < maxListed ? pawns.Count : maxListed;
-            for (int i = 0; i < listed; i++)
+            // 从 Pawn 列表提取 MessageEntry 列表（与 RimWorld 运行时耦合）
+            // 使用静态复用缓冲区避免每次分配
+            entryBuffer.Clear();
+            for (int i = 0; i < pawns.Count; i++)
             {
                 Pawn p = pawns[i];
                 MarkerCategory cat = GetMarkerCategory(p);
-                CombatTier tier = TierCacheService.GetTier(p);
+                entryBuffer.Add(new MessageEntry
+                {
+                    CategoryLabel = ("AE_MarkCat_" + cat).Translate(),
+                    Name = p.LabelShort,
+                    Tier = TierCacheService.GetTier(p)
+                });
+            }
+
+            // 翻译 header/more 文本（含 count 占位符替换）
+            string headerText = headerKey.Translate(pawns.Count);
+            string moreText = pawns.Count > maxListed
+                ? "AE_AutoMarkPawn_More".Translate(pawns.Count - maxListed)
+                : null;
+            string noneText = "AE_AutoMarkPawn_None".Translate();
+
+            return FormatMessageCore(entryBuffer, headerText, moreText, noneText, maxListed);
+        }
+
+        /// <summary>
+        /// 消息格式化纯逻辑核心：根据条目列表与翻译后的文本拼装最终消息。
+        /// 列表项格式："- 类别名 单位名 (档位)"，多于 maxListed 个时显示前 maxListed 个加 moreText。
+        /// 空列表返回 noneText。
+        ///
+        /// 单元测试入口：测试构造 List&lt;MessageEntry&gt; 与 3 个文本参数即可验证：
+        /// - 空列表 → noneText
+        /// - 1 到 maxListed 条 → 完整列表
+        /// - 超过 maxListed 条 → 前 maxListed + moreText 摘要
+        /// </summary>
+        internal static string FormatMessageCore(
+            List<MessageEntry> entries, string headerText, string moreText, string noneText, int maxListed = 8)
+        {
+            if (entries == null || entries.Count == 0)
+            {
+                return noneText ?? string.Empty;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.Append(headerText);
+
+            int listed = entries.Count < maxListed ? entries.Count : maxListed;
+            for (int i = 0; i < listed; i++)
+            {
+                MessageEntry e = entries[i];
                 sb.AppendLine();
                 sb.Append("- ");
-                sb.Append(("AE_MarkCat_" + cat).Translate());
+                sb.Append(e.CategoryLabel);
                 sb.Append(' ');
-                sb.Append(p.LabelShort);
+                sb.Append(e.Name);
                 sb.Append(" (");
-                sb.Append(tier);
+                sb.Append(e.Tier);
                 sb.Append(')');
             }
-            if (pawns.Count > maxListed)
+            if (entries.Count > maxListed && moreText != null)
             {
                 sb.AppendLine();
-                sb.Append("AE_AutoMarkPawn_More".Translate(pawns.Count - maxListed));
+                sb.Append(moreText);
             }
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 计算新发现的高价值 ID 列表（dedup 纯逻辑核心）。
+        /// - resetTracking=true：所有 currentIds 都视为"新发现"（toggle on 全局重扫描场景）
+        /// - resetTracking=false：仅 currentIds 中不在 previousNotified 的 ID 视为"新发现"
+        ///
+        /// 单元测试入口：构造 previousNotified/currentIds 即可验证 dedup 行为与边界条件。
+        /// 生产代码 <see cref="ScanAndMark"/> 用内联 HashSet.Contains 路径（O(1) 查询），
+        /// 此处 List 版本仅供测试，避免在 ScanAndMark 中引入额外遍历与分配。
+        /// </summary>
+        internal static List<int> ComputeNewlyMarkedIds(
+            HashSet<int> previousNotified, List<int> currentIds, bool resetTracking)
+        {
+            List<int> newlyMarked = new List<int>();
+            for (int i = 0; i < currentIds.Count; i++)
+            {
+                int id = currentIds[i];
+                if (resetTracking || !previousNotified.Contains(id))
+                {
+                    newlyMarked.Add(id);
+                }
+            }
+            return newlyMarked;
         }
     }
 }

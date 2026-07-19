@@ -500,6 +500,35 @@ make rebuild-check  # 完整重建后检查
 
 要求 `.NET` SDK 与 RimWorld 1.6 的 `Assembly-CSharp.dll` 引用路径已配置。
 
+## 测试
+
+```bash
+make test           # 编译并运行控制台测试，无需进游戏
+```
+
+测试运行器位于 `Test/AutoEverything.Tests/`，零外部测试框架依赖（不使用 xUnit/NUnit），通过 `InternalsVisibleTo("AutoEverything.Tests")` 调用主程序的 `internal` 方法。
+
+### 纯逻辑核心模式
+
+RimWorld 运行时依赖 `Pawn`/`Map`/`Faction` 等游戏内对象，难以脱离游戏进程构造。为支持单元测试，所有可测纯逻辑统一抽取为 `*Core` 静态方法，输入参数为简单 struct 或基础类型：
+
+| 模块 | 纯逻辑方法 | 输入 struct | 说明 |
+| --- | --- | --- | --- |
+| `CombatEvaluator` | `EvaluateAutoTierCore` | `TierEvaluationInput` | 自动评级档次判定 |
+| `WorkAllocator` | `ApplySkillFloorCore` | `int priority, int skillLevel` | 工作优先级保底规则 |
+| `PawnMarker` | `GetMarkerCategoryCore` | `PawnMarker.CategoryInput` | 派系/状态 → 类别判定 |
+| `PawnMarker` | `FormatMessageCore` | `List<MessageEntry>` + 文本参数 | 高价值列表消息拼装 |
+| `PawnMarker` | `ComputeNewlyMarkedIds` | `HashSet<int>` + `List<int>` | dedup 跟踪纯逻辑 |
+
+**约定**：
+
+1. `*Core` 方法不引用 `Pawn`/`Verse`/`RimWorld` 类型，输入参数为 struct 或基础类型
+2. 生产方法（`GetMarkerCategory(Pawn)` 等）从 Pawn 收集字段填入 struct，再转调 `*Core`
+3. `*Core` 标记 `internal`，通过 `InternalsVisibleTo` 暴露给测试程序集
+4. 性能敏感路径（如 `ScanAndMark`）保留内联实现，`*Core` 仅供测试，避免额外遍历分配
+
+当前覆盖：163 个用例（含 `ApplySkillFloorCoreTests` 30 / `EvaluateAutoTierCoreTests` 32 / `PawnMarkerTests` 101）。
+
 ## 文档同步检查清单
 
 修改以下任一代码/规则时，**必须同步更新本 README 对应章节**，否则视为未完成：

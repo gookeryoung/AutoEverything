@@ -35,6 +35,7 @@ namespace AutoEverything.Tests
                 int failures = 0;
                 failures += ApplySkillFloorCoreTests.RunAll();
                 failures += EvaluateAutoTierCoreTests.RunAll();
+                failures += PawnMarkerTests.RunAll();
 
                 if (failures == 0)
                 {
