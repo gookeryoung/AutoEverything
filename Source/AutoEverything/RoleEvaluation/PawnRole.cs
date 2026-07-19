@@ -12,11 +12,11 @@ namespace AutoEverything.RoleEvaluation
     public enum Role
     {
         Default,
-        Shooter,    // 高射击技能，偏好远程武器
-        Brawler,    // 高近战技能或格斗者特质，偏好近战武器
-        Doctor,     // 高医疗技能，携带药品、穿戴医疗装备
-        Hunter,     // 被指派狩猎，需要狩猎武器
-        Worker,     // 通用工人，偏好工作属性服装
+        Shooter,    // 高射击技能
+        Brawler,    // 高近战技能或格斗者特质
+        Doctor,     // 高医疗技能
+        Hunter,     // 被指派狩猎
+        Worker,     // 通用工人
         Pacifist,   // 无法进行暴力工作
         Leader      // 拥有意识形态角色（仅作标签，不直接驱动评分）
     }
@@ -169,9 +169,9 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 获取角色对应的护甲偏好（用于护甲偏好徽章显示与狩猎后排判定）。
-        /// - Brawler：前排战士，优先重甲承担伤害
-        /// - Shooter/Hunter：后排，按原评分自由选择（有重甲盈余时使用）
-        /// - Worker/Doctor/Pacifist/Leader/Default：工人/医疗/领袖，轻甲提高工作效率
+        /// - Brawler：前排战士，Heavy 重甲
+        /// - Shooter/Hunter/Leader：后排，Flexible 自由
+        /// - Worker/Doctor/Pacifist/Default：工人/医疗，Light 轻甲
         /// </summary>
         public static ArmorPreference GetArmorPreference(Role role)
         {

@@ -14,7 +14,7 @@ namespace AutoEverything.AutoWork
     /// 引入工作计数跟踪使「同等兴趣下优先安排其他工作少的」可执行。
     /// 所有技能类工作复用统一 AssignWork + WorkAllocationConfig 四大原则分配，
     /// 单工作与组分配（手工类 Smithing/Tailoring/Crafting 共享 1 个 workCount）走同一路径。
-    /// 触发方式：ITab 底部"全局工作重配"按钮手动调用。
+    /// 触发方式：ITab 底部"工作自动配置"勾选框 + AutoExecutor 周期/事件驱动调度。
     /// </summary>
     public static partial class WorkAllocator
     {

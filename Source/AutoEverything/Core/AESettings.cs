@@ -17,9 +17,8 @@ namespace AutoEverything.Core
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
         public static bool autoMarkPawn = true;           // 高价值非殖民者星标标记（S+ 追加 ★，事件触发 + 每帧 Postfix 绘制）
-        // 注：autoFoodPolicyEnabled / autoDrugPolicyEnabled 已移除（AutoFood/AutoDrug 模块与其他 MOD 冲突）
 
-        // 战斗价值公式可调权重（用于"高价值殖民者"判定）
+        // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
         // 兴趣乘数：无火 1.0，单火 1.5，双火 2.0
         public static float cvSkillWeight = 1.0f;            // 技能等级整体权重
