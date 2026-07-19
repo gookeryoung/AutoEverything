@@ -307,14 +307,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **判定**：`CombatEvaluator.GetCombatTier(pawn) >= CombatTier.S`（含自定义评级覆盖，走 `TierCacheService` 共享 2500 tick 缓存）
 - **标记范围**（所有人类like 单位，`PawnMarker.IsMarkableTarget`）：
-  - 殖民者（玩家阵营自由人员）
+  - 殖民者（玩家阵营自由人员，含食尸鬼——食尸鬼属 Humanlike 通过过滤，归为 Colonist 类别标金星）
   - 奴隶（玩家阵营奴隶，Ideology DLC）
   - 囚犯（被玩家关押）
   - 敌对派系敌人（来袭突袭/袭营的敌方 Pawn）
   - 中立/盟友派系访客与交易者
   - 野生人类/难民/流浪者
   - 倒下（Downed）的仍标记：便于优先俘虏高价值敌人
-  - 食尸鬼不标记（由 `PawnSuitabilityChecker.CanManageGear` 过滤）
 - **类别与颜色**（`PawnMarker.GetMarkerCategory` + `GetMarkerColor`）：
 
   | 类别 | 颜色 | RGB |
@@ -353,23 +352,28 @@ Source/AutoEverything/
 │   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 星标绘制
 │   ├── AutoEverythingMod.cs               # Mod 设置入口
 │   ├── AutoEverythingGameComponent.cs     # GameComponent：AutoExecutor Tick 入口
-│   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口
+│   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（主 partial）
+│   ├── AESettings.TierTag.cs              # AESettings partial：评级标签应用/清除/排序
 │   ├── ColonistBarSortMode.cs             # 殖民者栏排序枚举
-│   ├── DLCCompat.cs                       # DLC API 安全包装
+│   ├── DLCCompat.cs                       # DLC API 安全包装（IsGhoul）
 │   ├── AEDebug.cs                         # AEDebug 日志工具
-│   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤
+│   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤（仅 Humanlike 通过）
 │   ├── PawnJobGuard.cs                    # 医疗/休养守卫（避免打断手术/休养）
+│   ├── PawnCollector.cs                   # 殖民者+食尸鬼统一收集（AllManagedPawns）
+│   ├── TierCacheService.cs                # 评级共享缓存（2500 tick TTL，自动 cleanup）
+│   ├── TierTagHelper.cs                   # 评级前缀剥离工具
+│   ├── TraitDefCache.cs                   # TraitDef 查询缓存
+│   ├── PassionHelper.cs                   # VSE 兼容 passion tier 映射
 │   ├── AutoExecutor.cs                    # 自动执行调度器（评级/工作/星标）
 │   └── CombatTier.cs                      # 战斗价值档次枚举
 ├── RoleEvaluation/                        # → namespace AutoEverything.RoleEvaluation
 │   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎判定）
-│   ├── GearContext.cs                    # 情境检测（仅 ITab 徽章展示）
-│   ├── PawnStateCleaner.cs                # Pawn 状态清理工具
-│   ├── CombatEvaluator.cs                 # 战斗价值/评级计算
-│   └── PassionHelper.cs                  # VSE 兼容 passion tier 映射
+│   ├── GearContext.cs                     # 情境检测（仅 ITab 徽章展示）
+│   └── CombatEvaluator.cs                 # 战斗价值/评级计算
 ├── AutoWork/                              # → namespace AutoEverything.AutoWork
-│   ├── WorkAllocator.cs                   # 工作优先级自动分配
-│   └── WorkAllocationConfig.cs            # 分配配置结构
+│   ├── WorkAllocator.cs                   # 工作优先级自动分配（主 partial + WorkAllocationConfig 内嵌 struct）
+│   ├── WorkAllocator.Assignment.cs        # WorkAllocator partial：单工作/组分配 + 辅助工作分配
+│   └── WorkAllocator.Comparer.cs          # WorkAllocator partial：三因子排序比较器 + ApplySkillFloor
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
 │   └── PawnMarker.cs                      # 高价值自动标记（S+ 全人类单位彩色星标实时绘制 + 类别区分颜色）
 └── UI/                                    # → namespace AutoEverything.UI
@@ -377,9 +381,9 @@ Source/AutoEverything/
 ```
 
 **模块职责说明：**
-- **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、自动执行调度、战斗价值档次）
-- **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估、状态清理、VSE 兼容）
-- **AutoWork**：工作优先级自动分配
+- **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、Pawn 收集、评级缓存、前缀工具、特质缓存、VSE 兼容、自动执行调度、战斗价值档次）
+- **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估）
+- **AutoWork**：工作优先级自动分配（主分配器 + 分配 + 比较器三 partial）
 - **AutoMarkPawn**：高价值自动标记（S+ 档次所有人类单位头顶彩色星标实时绘制，按类别区分颜色，人员变动事件驱动扫描）
 - **UI**：玩家界面（ITab 面板）
 
@@ -401,12 +405,15 @@ Source/AutoEverything/
 
 ## 设计原则：逻辑杜绝而非事后清理
 
-食尸鬼（Anomaly DLC 变异体）、动物、机械族等不适用类别**绝不进入**自动管理流程：
+动物、机械族、昆虫、异常实体等不适用类别**绝不进入**自动管理流程（食尸鬼属 Humanlike，按下面分模块策略处理）：
 
 | 入口 | 防御 |
 |------|------|
-| `PawnSuitabilityChecker.CanManageGear` | ITab 可见性与工作分配前过滤，仅 `race.Humanlike` 通过 |
+| `PawnSuitabilityChecker.CanManageGear` | 仅 `race.Humanlike` 通过（食尸鬼通过），用于 ITab 可见性、工作分配候选收集、AutoMarkPawn 标记目标判定 |
+| `DLCCompat.IsGhoul` | 工作分配候选收集时跳过食尸鬼（食尸鬼不参与工作分配，但仍参与评级标签与高价值标记） |
 | `GameComponent` 入口 | 全局单例，零 ThingDef.comps 注入，从源头杜绝与其他 MOD 的 Comp 注入冲突 |
+
+**食尸鬼处理策略**（分模块）：评级标签应用（`AESettings.ApplyTierTagsToAllPawns` 经 `PawnCollector.AllManagedPawns` 收集食尸鬼）、高价值标记（`PawnMarker.IsMarkableTarget` 不排除食尸鬼，归为 Colonist 类别标金星）；工作分配（`WorkAllocator.ReallocateAll` 通过 `DLCCompat.IsGhoul` 跳过食尸鬼，因为食尸鬼不参与 RimWorld 工作系统）。
 
 **医疗/休养守卫**：全局工作重配入口 `WorkAllocator.ReallocateAll` 调用 `PawnJobGuard.ShouldSkipForMedical(pawn)` 跳过正在执行医疗工作（治疗/手术/救援）或卧床休养的殖民者，避免 `SetPriority` 取消手术 Job 导致手术死循环或重伤者死亡。
 
@@ -420,7 +427,7 @@ Source/AutoEverything/
 | 辅助工作 | 奴隶固定 priority=1（承担搬运/清洁） |
 | 专业工作 | 按兴趣/技能标准规则分配 |
 
-**奴隶收集**：`mapPawns.FreeColonistsSpawned` 不含奴隶，需单独遍历 `mapPawns.SlavesOfColonySpawned`。无 Biotech DLC 时该方法返回空列表，不影响无 DLC 环境。
+**奴隶收集**：`mapPawns.FreeColonistsSpawned` 不含奴隶，需单独遍历 `mapPawns.SlavesOfColonySpawned`。无 Ideology DLC 时该方法返回空列表，不影响无 DLC 环境。
 
 ## 性能约束
 

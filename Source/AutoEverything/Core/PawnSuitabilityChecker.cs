@@ -11,8 +11,9 @@ namespace AutoEverything.Core
     {
         /// <summary>
         /// 判断 Pawn 是否适合自动管理。
-        /// 适用：仅限人类like（含外星人 mod 的类人种族）。
-        /// 排除：动物、机械族、昆虫、异常实体、食尸鬼等。
+        /// 适用：仅限人类like（含外星人 mod 的类人种族，含食尸鬼）。
+        /// 排除：动物、机械族、昆虫、异常实体等。
+        /// 注：食尸鬼属 Humanlike 会通过此检查，工作分配需另行通过 DLCCompat.IsGhoul 排除。
         /// </summary>
         public static bool CanManageGear(Pawn pawn)
         {
@@ -22,6 +23,7 @@ namespace AutoEverything.Core
             // 仅人类like 适合自动管理
             // 动物（RaceProps.Animal）和机械族（RaceProps.IsMechanoid）原生不使用工作/装备系统
             // 昆虫（RaceProps.Insect）和异常实体（RaceProps.Entity）同样不适用
+            // 食尸鬼属 Humanlike 通过此检查，工作分配需调用方另行用 DLCCompat.IsGhoul 排除
             return pawn.RaceProps.Humanlike;
         }
     }

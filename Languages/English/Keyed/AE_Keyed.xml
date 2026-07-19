@@ -69,11 +69,11 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_Tier_SSS>SSS: TriggerHappy+Tough+Shooting Major / Tough+Melee Major+Nimble/Brawler / Industrious+Neurotic+3 work Majors</AE_Tier_SSS>
   <AE_Tier_SS>SS: TriggerHappy+Shooting Major / Tough+Melee Major / Industrious+Neurotic+2 work Majors</AE_Tier_SS>
   <AE_Tier_S>S: TriggerHappy+Shooting Minor / Tough+Melee passion / Industrious+Neurotic+1 work Major / Special talent / Beauty+Social Major</AE_Tier_S>
-  <AE_Tier_A>A: dual-passion</AE_Tier_A>
-  <AE_Tier_B>B: single-passion</AE_Tier_B>
-  <AE_Tier_C>C: no passion but has trait</AE_Tier_C>
-  <AE_Tier_D>D: no passion no trait</AE_Tier_D>
-  <AE_Tier_X>X: violent work disabled (pacifist etc.)</AE_Tier_X>
+  <AE_Tier_A>A: ≥2 Major + ≥1 Minor (total ≥3)</AE_Tier_A>
+  <AE_Tier_B>B: ≥1 Major + ≥2 Minor (total ≥3)</AE_Tier_B>
+  <AE_Tier_C>C: other cases</AE_Tier_C>
+  <AE_Tier_D>D: demoted one tier if has negative trait (Pyromaniac/SlowLearner/Wimp/Industriousness -1/-2) and original tier > D</AE_Tier_D>
+  <AE_Tier_X>X: violent work disabled (pacifist etc., determined before other tiers)</AE_Tier_X>
 
   <!-- Panel status badges -->
   <AE_Badge_CombatValue>Combat Value</AE_Badge_CombatValue>
@@ -115,12 +115,12 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <!-- AutoWork -->
   <AE_AutoWorkConfig>Auto Work Config</AE_AutoWorkConfig>
   <AE_GlobalWorkReallocateResult>Reassigned work priorities for {0} colonists</AE_GlobalWorkReallocateResult>
-  <AE_TT_GlobalWorkReallocate>Reassign all colonists' work priorities via multi-pass coordinated allocation by work category. Emergency=1; key work (Doctor/Warden/Childcare) passionate top2=1 and guarantee >=2; Hunting max 2, back row first; Research guarantee 1; other skill work guarantee 2, sorted by passion->skill->work count; beyond guarantee passionate=4 backup, non-passionate=0 disabled; Hauling/Cleaning by tier=1/3/4.</AE_TT_GlobalWorkReallocate>
+  <AE_TT_GlobalWorkReallocate>Reassign all colonists' (incl. slaves) work priorities via multi-pass coordinated allocation by work category. Emergency (firefighting/patient/bedrest)=1; key work (Doctor/Warden/Childcare/Cooking/PlantCutting) passionate top2=1 and guarantee ≥2; other skill work (Construction/Mining/Growing/Smithing/Tailoring/Crafting/Art) passionate top2=2 and guarantee ≥2; secondary work (Handling/Fishing/Hunting) passionate top2=2 and guarantee ≥2 (Hunting requires ranged weapon + back row first); Research guarantee 1; service work (Hauling/Cleaning) by tier S+=4 / A/B/C=3 / D/X=1 (researcher hauling downgraded to 4 to avoid interrupting research). Sorted by passion→skill→workCount 3-factor, skill ≥12 floor priority=2, ≥8 floor priority=3.</AE_TT_GlobalWorkReallocate>
 
   <!-- ITab bottom checkboxes (auto-execute) -->
   <AE_TT_AutoTierTag>When checked, auto-executes tier tagging: every 3000 ticks, and immediately on new colonist.
 Executes once immediately when checked; when unchecked, clears all tier tags and restores original names.</AE_TT_AutoTierTag>
-  <AE_TT_AutoWorkConfig>When checked, auto-executes work reallocation: every 3000 ticks, and immediately on new colonist.
+  <AE_TT_AutoWorkConfig>When checked, auto-executes work reallocation: marks pending on colonist count change, executes when 2500 tick cooldown elapses AND no combat on map; fires immediately on new colonist.
 Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current work assignment.</AE_TT_AutoWorkConfig>
   <AE_TT_AutoMarkPawn>When checked, draws a colored star marker above ALL humanlike pawns of S+ tier (S/SS/SSS) in real time.
 Color by category: Colonist=Gold, Slave=Orange, Prisoner=Yellow, Enemy=Red, Neutral/Ally=Cyan, Wild=White. For quick identification of high-value targets to prioritize capture, recruitment or vigilance.
@@ -138,20 +138,5 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
   <AE_MarkCat_WildHuman>Wild</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
-
-  <!-- AutoFood -->
-  <AE_AutoFoodPolicy>Auto Food Policy</AE_AutoFoodPolicy>
-  <AE_FoodPolicyResult>Configured food policy for {0} colonists</AE_FoodPolicyResult>
-  <AE_TT_AutoFoodPolicy>When checked, auto-configures colonist food policies: triggers on colonist count change or ideo change (successful conversion), with 2500 tick cooldown.
-Rules: Cannibal trait or cannibalism precept -> AE_Cannibal (allows human meat); insect meat precept -> AE_Insect (allows insect meat); others -> AE_Normal.
-All three policies forbid raw food, corpses, and animal feed (kibble), only allowing cooked meals; human/insect meat policies override raw food ban via special filters.
-Executes once immediately when checked; when unchecked, only stops auto, keeps current policy.</AE_TT_AutoFoodPolicy>
-
-  <!-- AutoDrug -->
-  <AE_AutoDrugPolicy>Auto Drug Policy</AE_AutoDrugPolicy>
-  <AE_DrugPolicyResult>Configured drug policy for {0} colonists</AE_DrugPolicyResult>
-  <AE_TT_AutoDrugPolicy>When checked, auto-configures colonist drug policies: triggers on colonist count change or ideo change (successful conversion), with 2500 tick cooldown.
-Rules: Teetotaler trait or drug-prohibited/abhorrent precept -> AE_NoDrugs; others -> AE_Normal (social drugs: beer + smokeleaf + psychite tea every 2 days scheduled).
-Executes once immediately when checked; when unchecked, only stops auto, keeps current policy.</AE_TT_AutoDrugPolicy>
 
 </LanguageData>

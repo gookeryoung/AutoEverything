@@ -175,7 +175,7 @@ namespace AutoEverything.AutoWork
             }
 
             // 2. 收集候选殖民者
-            // 奴隶也参与工作分配：Biotech DLC 的 SlavesOfColonySpawned 返回空列表时不影响
+            // 奴隶也参与工作分配：Ideology DLC 的 SlavesOfColonySpawned 返回空列表时不影响
             // 医疗守卫：跳过正在执行医疗 Job/休养的 Pawn——SetPriority 会触发 Job 重评估，
             // 取消医生正在执行的 TendPatient/DoBill(Bill_Medical)，导致手术死循环或伤员失救
             candidatePawns.Clear();
@@ -191,7 +191,7 @@ namespace AutoEverything.AutoWork
                     if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
                     candidatePawns.Add(pawn);
                 }
-                // 奴隶（Biotech DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
+                // 奴隶（Ideology DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
                 foreach (Pawn pawn in map.mapPawns.SlavesOfColonySpawned)
                 {
                     if (DLCCompat.IsGhoul(pawn)) continue;

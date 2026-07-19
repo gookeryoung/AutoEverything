@@ -66,14 +66,14 @@
   <AE_ReallocRules_ClearCustomTier>清除自定义</AE_ReallocRules_ClearCustomTier>
 
   <!-- 评级档次说明 -->
-  <AE_Tier_SSS>SSS：乱开枪+坚韧+射击双火 / 坚韧+格斗双火+敏捷或格斗者 / 工作狂+神经质+3专业双火</AE_Tier_SSS>
-  <AE_Tier_SS>SS：乱开枪+射击双火 / 坚韧+格斗双火 / 工作狂+神经质+2专业双火</AE_Tier_SS>
-  <AE_Tier_S>S：乱开枪+射击单火 / 坚韧+格斗有火 / 工作狂+神经质+1专业双火 / 特殊天赋 / 沉鱼落雁+社交双火</AE_Tier_S>
-  <AE_Tier_A>A：双火</AE_Tier_A>
-  <AE_Tier_B>B：单火</AE_Tier_B>
-  <AE_Tier_C>C：无火有特质</AE_Tier_C>
-  <AE_Tier_D>D：无火无特质</AE_Tier_D>
-  <AE_Tier_X>X：禁用暴力工作（和平主义者等）</AE_Tier_X>
+  <AE_Tier_SSS>SSS：乱开枪+坚韧+射击双火 / 坚韧+格斗双火+敏捷或格斗者 / 勤奋+严重神经质+3专业双火</AE_Tier_SSS>
+  <AE_Tier_SS>SS：乱开枪+射击双火 / 坚韧+格斗双火 / 勤奋+严重神经质+2专业双火</AE_Tier_SS>
+  <AE_Tier_S>S：乱开枪+射击单火 / 坚韧+格斗有火 / 勤奋+严重神经质+1专业双火 / 特殊天赋 / 沉鱼落雁+社交双火</AE_Tier_S>
+  <AE_Tier_A>A：≥2 双火 + ≥1 单火（合计≥3）</AE_Tier_A>
+  <AE_Tier_B>B：≥1 双火 + ≥2 单火（合计≥3）</AE_Tier_B>
+  <AE_Tier_C>C：其他情况</AE_Tier_C>
+  <AE_Tier_D>D：拥有负面特质（纵火狂/脑子慢/脆弱/工作懒惰/工作怠惰）且原档 > D 时降一档</AE_Tier_D>
+  <AE_Tier_X>X：禁用暴力工作（和平主义者等，先于一切判定）</AE_Tier_X>
 
   <!-- 面板状态徽章 -->
   <AE_Badge_CombatValue>战斗价值</AE_Badge_CombatValue>
@@ -115,13 +115,13 @@
   <!-- AutoWork 自动工作分配 -->
   <AE_AutoWorkConfig>工作自动配置</AE_AutoWorkConfig>
   <AE_GlobalWorkReallocateResult>已为 {0} 个殖民者重新分配工作优先级</AE_GlobalWorkReallocateResult>
-  <AE_TT_GlobalWorkReallocate>按工作分类与多遍协调重新分配所有殖民者的工作优先级。
-紧急工作=1；关键工作（医疗/监管/保育）有兴趣top2=1且保证≥2人；狩猎最多2人，后排优先；研究保证1人；其他技能工作保证2人，按兴趣→技能→工作计数排序；保证数量外的有兴趣者=4备选，无兴趣者=0禁用；搬运/清洁均按档位=1/3/4。</AE_TT_GlobalWorkReallocate>
+  <AE_TT_GlobalWorkReallocate>按工作分类与多遍协调重新分配所有殖民者（含奴隶）的工作优先级。
+紧急工作（灭火/就医/休养）=1；关键专业（医生/监管/保育/烹饪/修剪植物）有兴趣top2=1且保底≥2人；普通专业（建造/采矿/种植/锻造/缝制/制作/艺术）有兴趣top2=2且保底≥2人；次级专业（驯兽/钓鱼/狩猎）有兴趣top2=2且保底≥2人（狩猎需远程武器+后排优先）；研究保底1人；辅助工作（搬运/清洁）按评级分档 S+=4 / A/B/C=3 / D/X=1（研究人员搬运降为4避免打断研究）。按兴趣→技能→工作计数三因子排序，技能≥12保底priority=2，≥8保底priority=3。</AE_TT_GlobalWorkReallocate>
 
   <!-- ITab 底部勾选框（自动执行） -->
   <AE_TT_AutoTierTag>勾选后自动执行人员评级：每 3000 tick 一次，新增殖民者时立即触发。
 勾选时立即执行一次；取消勾选时清除所有评级标签并恢复原名。</AE_TT_AutoTierTag>
-  <AE_TT_AutoWorkConfig>勾选后自动执行工作重配：每 3000 tick 一次，新增殖民者时立即触发。
+  <AE_TT_AutoWorkConfig>勾选后自动执行工作重配：殖民者数量变化时标记待触发，冷却 2500 tick 且地图无战斗时执行；新增殖民者时立即触发。
 勾选时立即执行一次；取消勾选仅停止自动执行，保留当前工作分配。</AE_TT_AutoWorkConfig>
   <AE_TT_AutoMarkPawn>勾选后为 S+ 档次（S/SS/SSS）的所有人类单位（殖民者/奴隶/囚犯/敌对/中立/盟友/野生）头顶实时绘制彩色星标 ★。
 按类别区分颜色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白。便于一眼识别高价值目标，优先俘虏、招募或警惕。
@@ -139,20 +139,5 @@
   <AE_MarkCat_WildHuman>野生</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
-
-  <!-- AutoFood 自动食物方案 -->
-  <AE_AutoFoodPolicy>自动食物方案</AE_AutoFoodPolicy>
-  <AE_FoodPolicyResult>已为 {0} 个殖民者配置食物方案</AE_FoodPolicyResult>
-  <AE_TT_AutoFoodPolicy>勾选后自动配置殖民者食物方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
-方案规则：食人族特质或食人信条 → AE_人肉（允许人肉）；虫肉信条 → AE_虫肉（允许虫肉）；其余 → AE_常规。
-三种方案均禁止生食、尸体、动物饲料，仅允许熟食等正常食物；人肉/虫肉方案通过特殊过滤器覆盖生食禁止。
-勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoFoodPolicy>
-
-  <!-- AutoDrug 自动用药方案 -->
-  <AE_AutoDrugPolicy>自动用药方案</AE_AutoDrugPolicy>
-  <AE_DrugPolicyResult>已为 {0} 个殖民者配置用药方案</AE_DrugPolicyResult>
-  <AE_TT_AutoDrugPolicy>勾选后自动配置殖民者用药方案：殖民者数量变化或信仰变化（被传教成功）时触发，冷却 2500 tick。
-方案规则：禁酒主义特质或禁药/憎恶药品信条 → AE_禁药；其余 → AE_常规（社交用药：啤酒+烟叶+精神茶按2天1次定时使用）。
-勾选时立即执行一次；取消勾选仅停止自动，保留当前方案。</AE_TT_AutoDrugPolicy>
 
 </LanguageData>

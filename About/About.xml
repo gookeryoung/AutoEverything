@@ -6,17 +6,23 @@
     <li>1.6</li>
   </supportedVersions>
   <packageId>gookeryoung.autoeverything</packageId>
-  <description>基于 LXO - Smart Gear 设计的智能自动万物管理 MOD。殖民者会根据自身角色、当前工作、天气与战斗状态，自动装备合适的武器、穿戴合适的防具、携带合适的物资。
+  <description>智能自动万物管理 MOD，为殖民者自动执行人员评级、工作优先级分配与高价值单位标记。
 
-修复原设计的两个问题：
-- 食尸鬼（Anomaly DLC）不再四处乱跑寻找装备。
-- 格斗者永远不会主动装备远程武器 —— 始终坚持近战。
+三大功能：
+- 人员自动评级：按 SSS/SS/S/A/B/C/D/X 八档评级，可选应用评级前缀到名字并重排殖民者栏。综合射击/近战/工作/社交/特质等维度，配偶评级豁免，自定义评级覆盖。
+- 工作自动配置：按工作类别与兴趣/技能多遍协调分配工作优先级。紧急工作全员优先，关键/普通/次级专业工作保底 2 人，研究保底 1 人，辅助工作按评级分档。事件驱动 + 2500 tick 冷却 + 战斗中延迟执行避免打断手术。
+- 高价值自动标记：为 S+ 档次所有人类单位（殖民者/奴隶/囚犯/敌对/中立/盟友/野生）头顶实时绘制彩色星标，按类别区分颜色，便于一眼识别高价值目标。
 
-零配置开箱即用，每个殖民者根据技能与特质自动识别角色。
+零配置开箱即用，每个殖民者根据技能与特质自动识别角色与评级。兼容大多数 MOD，支持存档中途添加。
 
-兼容大多数 MOD，支持存档中途添加。
+English: Intelligent auto-everything management MOD. Automatically performs colonist rating, work priority allocation, and high-value pawn marking for colonists.
 
-English: Intelligent automatic equipment management based on Smart Gear design. Ghouls no longer seek gear; brawlers never auto-equip ranged weapons. Zero config, works out of the box. Safe to add mid-save.</description>
+Three main features:
+- Auto Tier: rates colonists into SSS/SS/S/A/B/C/D/X tiers, optionally applies tier prefix to names and reorders the colonist bar. Comprehensive evaluation across shooting/melee/work/social/traits, spouse tier exemption, custom tier override.
+- Auto Work: allocates work priorities via multi-pass coordinated allocation by work category, passion and skill. Emergency work prioritized for all; key/normal/secondary skill work guarantees 2 people; research guarantees 1; service work tiered by rating. Event-driven + 2500 tick cooldown + deferred during combat to avoid interrupting surgery.
+- Auto Mark Pawn: draws colored star markers above all humanlike pawns of S+ tier (colonists/slaves/prisoners/enemies/neutral/ally/wild) in real time, color-coded by category for quick identification of high-value targets.
+
+Zero config, works out of the box. Each colonist auto-detected by skill and trait. Compatible with most mods. Safe to add mid-save.</description>
   <modIconPath>UI/Icons/ModIcon</modIconPath>
   <modDependencies>
     <li>
