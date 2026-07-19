@@ -331,7 +331,8 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerWorkNow();
             }
 
-            // 3. 高价值非殖民者星标勾选框：勾选时统计+消息提示；取消勾选时头顶图标由 Harmony 补丁实时停止绘制
+            // 3. 高价值自动标记勾选框：切换勾选时立即全局重扫描并弹消息；
+            //    取消勾选时 ExecuteMark 检测开关后静默返回，头顶星标由 Harmony 补丁实时检查开关自动停止绘制
             Rect markCheckRect = new Rect(
                 rect.x,
                 workCheckRect.yMax + buttonGap,
@@ -344,8 +345,10 @@ namespace AutoEverything.UI
             Widgets.CheckboxLabeled(markCheckRect, "AE_AutoMarkPawn".Translate(), ref AESettings.autoMarkPawn);
             Text.WordWrap = prevWrap4;
             TooltipHandler.TipRegion(markCheckRect, "AE_TT_AutoMarkPawn".Translate());
-            // 状态变化：勾选时统计当前高价值非殖民者并弹消息；取消勾选时头顶图标自动消失（补丁实时检查开关）
-            if (AESettings.autoMarkPawn != prevMark && AESettings.autoMarkPawn)
+            // 状态变化（任一方向）：调用 TriggerMarkNow 触发全局重扫描
+            //   勾选（autoMarkPawn=true）：执行扫描并弹消息列出当前所有高价值单位
+            //   取消勾选（autoMarkPawn=false）：ExecuteMark 静默返回；星标自动消失；tracking 留待下次勾选时清空
+            if (AESettings.autoMarkPawn != prevMark)
             {
                 AutoExecutor.TriggerMarkNow();
             }

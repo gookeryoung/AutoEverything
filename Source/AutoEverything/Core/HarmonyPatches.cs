@@ -13,7 +13,7 @@ namespace AutoEverything.Core
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
     /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
-    /// 2) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在非殖民者高价值 Pawn 头顶绘制红色星标
+    /// 2) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
     ///
     /// 注：原 Pawn.SpawnSetup Postfix 注入 CompGearManager 的逻辑已移除——
@@ -35,7 +35,7 @@ namespace AutoEverything.Core
                 AccessTools.Method(typeof(Game), nameof(Game.FinalizeInit)),
                 postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
 
-            // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在非殖民者高价值 Pawn 头顶绘制红色星标
+            // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
             // 类型/方法名可能因 RimWorld 版本差异变化，用 try-catch + null 检查降级
             try
             {
@@ -64,7 +64,7 @@ namespace AutoEverything.Core
             {
                 Log.Warning("[AutoEverything] PawnUIOverlay 补丁失败: " + ex.Message);
             }
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 星标)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 彩色星标)");
         }
 
         /// <summary>
@@ -99,21 +99,20 @@ namespace AutoEverything.Core
         private static FieldInfo pawnUIOverlayPawnField;
 
         /// <summary>
-        /// PawnUIOverlay.DrawPawnGUIOverlay 的 Postfix：在非殖民者高价值 Pawn 头顶绘制鲜艳红色星标。
-        /// 仅在 autoMarkPawn 开启且 Pawn 为可标记的非殖民者高价值对象（S+）时绘制。
+        /// PawnUIOverlay.DrawPawnGUIOverlay 的 Postfix：在 S+ 档次人类 Pawn 头顶绘制彩色星标。
+        /// 仅在 autoMarkPawn 开启且 Pawn 为可标记的高价值对象（S+）时绘制。
         ///
         /// 实现要点：
         /// - 通过反射获取 PawnUIOverlay.pawn 私有字段（兼容 RimWorld 版本差异，类型不存在则降级）
         /// - 世界坐标转屏幕坐标：pawn.DrawPos 上方约 1.8 格（头顶位置）
         /// - GUI 坐标 Y 轴翻转：Screen.height - screenPos.y
+        /// - 颜色按 Pawn 类别动态取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
         /// - 不修改任何 Pawn 数据，纯前端绘制，安全可逆
         ///
-        /// 标记范围：敌对派系敌人 / 友好派系访客 / 交易者 / 野生人类难民（非殖民者人类）
+        /// 标记范围：所有人类like 单位（殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类）
         /// </summary>
         public static class PawnUIOverlay_DrawPawnGUIOverlay_Patch
         {
-            private static readonly Color StarColor = new Color(1.0f, 0.15f, 0.15f);
-
             public static void Postfix(object __instance)
             {
                 if (!AESettings.enabled || !AESettings.autoMarkPawn) return;
@@ -145,7 +144,7 @@ namespace AutoEverything.Core
             }
 
             /// <summary>
-            /// 在 Pawn 头顶绘制鲜艳红色 ★ 图标。
+            /// 在 Pawn 头顶绘制彩色 ★ 图标，颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
             /// 世界坐标 pawn.DrawPos 上方约 1.8 格 → 屏幕坐标 → GUI 坐标（Y 轴翻转）。
             /// </summary>
             private static void DrawStarAbovePawn(Pawn pawn)
@@ -163,8 +162,11 @@ namespace AutoEverything.Core
                 float starSize = 20f;
                 Rect starRect = new Rect(guiX - starSize / 2f, guiY - starSize / 2f, starSize, starSize);
 
+                // 按类别取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
+                Color starColor = PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn));
+
                 Color prevColor = GUI.color;
-                GUI.color = StarColor;
+                GUI.color = starColor;
                 GameFont prevFont = Text.Font;
                 Text.Font = GameFont.Medium;
                 TextAnchor prevAnchor = Text.Anchor;

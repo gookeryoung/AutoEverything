@@ -32,7 +32,7 @@
   <AE_AutoSystems>Automatic Systems</AE_AutoSystems>
   <AE_AutoWork>Auto Work Config</AE_AutoWork>
   <AE_AutoTierTag>Auto Tier Tag</AE_AutoTierTag>
-  <AE_AutoMarkPawn>High-Value Marker</AE_AutoMarkPawn>
+  <AE_AutoMarkPawn>High-Value Auto Marker</AE_AutoMarkPawn>
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
 
@@ -122,10 +122,20 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
 Executes once immediately when checked; when unchecked, clears all tier tags and restores original names.</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>When checked, auto-executes work reallocation: every 3000 ticks, and immediately on new colonist.
 Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current work assignment.</AE_TT_AutoWorkConfig>
-  <AE_TT_AutoMarkPawn>When checked, draws a vivid red star marker above non-colonist humans (enemies/visitors/traders/wild humans) of S+ tier (S/SS/SSS) in real time.
-Does not modify any object name, pure frontend drawing, safe and reversible; for quick identification of high-value targets to prioritize capture or vigilance.
-When checked, counts current targets and pops a message; when unchecked, the star disappears automatically.</AE_TT_AutoMarkPawn>
-  <AE_AutoMarkPawnResult>Found {0} high-value non-colonist targets (S+ tier), marked with red star</AE_AutoMarkPawnResult>
+  <AE_TT_AutoMarkPawn>When checked, draws a colored star marker above ALL humanlike pawns of S+ tier (S/SS/SSS) in real time.
+Color by category: Colonist=Gold, Slave=Orange, Prisoner=Yellow, Enemy=Red, Neutral/Ally=Cyan, Wild=White. For quick identification of high-value targets to prioritize capture, recruitment or vigilance.
+Toggling the checkbox triggers a global rescan and pops a message listing all current high-value targets; while checked, when map personnel increase, auto-scans new pawns and pops a message when new high-value targets are discovered.
+Does not modify any object name, pure frontend drawing, safe and reversible, no save side effects; when unchecked, the star disappears automatically.</AE_TT_AutoMarkPawn>
+  <AE_AutoMarkPawn_FullScan>Scanned all pawns, found {0} high-value targets (S+ tier):</AE_AutoMarkPawn_FullScan>
+  <AE_AutoMarkPawn_NewFound>Newly found {0} high-value target(s) (S+ tier):</AE_AutoMarkPawn_NewFound>
+  <AE_AutoMarkPawn_None>No high-value pawns found (S+ tier)</AE_AutoMarkPawn_None>
+  <AE_AutoMarkPawn_More>... and {0} more</AE_AutoMarkPawn_More>
+  <AE_MarkCat_Colonist>Colonist</AE_MarkCat_Colonist>
+  <AE_MarkCat_Slave>Slave</AE_MarkCat_Slave>
+  <AE_MarkCat_Prisoner>Prisoner</AE_MarkCat_Prisoner>
+  <AE_MarkCat_Enemy>Enemy</AE_MarkCat_Enemy>
+  <AE_MarkCat_Neutral>Neutral/Ally</AE_MarkCat_Neutral>
+  <AE_MarkCat_WildHuman>Wild</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
 

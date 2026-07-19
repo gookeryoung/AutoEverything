@@ -40,7 +40,7 @@
 - **Core**：基础工具与全局状态（MOD 入口 `ModController`、`AutoEverythingGameComponent` Tick 入口、`HarmonyPatches`、`AESettings`（含 `AESettings.TierTag.cs` partial）、`AEDebug`、`DLCCompat`、`PawnSuitabilityChecker`、`PawnJobGuard`、`PawnCollector`、`TierCacheService`、`AutoExecutor`、`CombatTier`、`ColonistBarSortMode`、`PassionHelper`）
 - **RoleEvaluation**：角色与情境评价（`PawnRole`/`RoleDetector`、`GearContext`/`ContextDetector`、`CombatEvaluator`）
 - **AutoWork**：自动工作优先级分配（`WorkAllocator`、`WorkAllocationConfig`）
-- **AutoMarkPawn**：高价值非殖民者标记（S+ 档次头顶红色星标实时绘制，不修改 Pawn 数据）
+- **AutoMarkPawn**：高价值自动标记（S+ 档次所有人类单位头顶彩色星标实时绘制，按类别区分颜色，事件驱动扫描，不修改 Pawn 数据）
 - **UI**：玩家界面（`ITab_GearManager`）
 
 未来扩展（自动机械族/自动训练等）应在 `Source/AutoEverything/` 下新增独立模块文件夹，按上述命名空间约定扩展。
@@ -135,8 +135,8 @@
 12. **GameComponent 入口**（`AutoEverythingGameComponent.cs` / `HarmonyPatches.cs` 的 `Game_FinalizeInit_Patch`）
     - 同步章节：`### 评估周期` 表格 + `## 设计原则：逻辑杜绝而非事后清理`
 
-13. **高价值标记**（`PawnMarker.cs` / `AutoMarkPawn` 模块）
-    - 同步章节：`### 高价值非殖民者标记（AutoMarkPawn）`
+13. **高价值自动标记**（`PawnMarker.cs` / `AutoMarkPawn` 模块）
+    - 同步章节：`### 高价值自动标记（AutoMarkPawn）`
 
 14. **ITab 底部勾选框**（`ITab_GearManager.cs`）
     - 同步章节：`## 自动执行（AutoExecutor）` 入口章节
@@ -178,5 +178,5 @@
 - 底部 3 勾选框，固定位置不随滚动：
   - 人员自动评级（`autoTierTag`）
   - 工作自动配置（`autoWorkEnabled`）
-  - 高价值标记（`autoMarkPawn`）
+  - 高价值自动标记（`autoMarkPawn`）
 - **勾选框行为说明**：勾选框勾选立即触发一次 + 启用周期自动；取消勾选仅停止自动（保留当前配置）。评级取消勾选额外清除所有 Nick 评级前缀

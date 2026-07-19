@@ -32,7 +32,7 @@
   <AE_AutoSystems>自动系统</AE_AutoSystems>
   <AE_AutoWork>工作自动配置</AE_AutoWork>
   <AE_AutoTierTag>人员自动评级</AE_AutoTierTag>
-  <AE_AutoMarkPawn>高价值标记</AE_AutoMarkPawn>
+  <AE_AutoMarkPawn>高价值自动标记</AE_AutoMarkPawn>
   <AE_DebugLogging>调试日志</AE_DebugLogging>
   <AE_DebugLogging_Desc>启用详细日志记录以便排查问题。</AE_DebugLogging_Desc>
 
@@ -123,10 +123,20 @@
 勾选时立即执行一次；取消勾选时清除所有评级标签并恢复原名。</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>勾选后自动执行工作重配：每 3000 tick 一次，新增殖民者时立即触发。
 勾选时立即执行一次；取消勾选仅停止自动执行，保留当前工作分配。</AE_TT_AutoWorkConfig>
-  <AE_TT_AutoMarkPawn>勾选后为 S+ 档次（S/SS/SSS）的非殖民者人类（敌人/访客/交易者/野生人类）头顶实时绘制鲜艳红色星标 ★。
-不修改任何对象名字，纯前端绘制，安全可逆；便于一眼识别高价值目标，优先俘虏或警惕。
-勾选时统计当前数量并弹消息；取消勾选时头顶星标自动消失。</AE_TT_AutoMarkPawn>
-  <AE_AutoMarkPawnResult>当前发现 {0} 个高价值非殖民者目标（S+ 档次），已标记红色星标 ★</AE_AutoMarkPawnResult>
+  <AE_TT_AutoMarkPawn>勾选后为 S+ 档次（S/SS/SSS）的所有人类单位（殖民者/奴隶/囚犯/敌对/中立/盟友/野生）头顶实时绘制彩色星标 ★。
+按类别区分颜色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白。便于一眼识别高价值目标，优先俘虏、招募或警惕。
+切换勾选时立即全局重扫描并弹消息列出所有当前高价值单位；勾选状态下当地图人员增加时自动扫描新增单位，发现新高价值目标时弹消息提示。
+不修改任何对象名字，纯前端绘制，安全可逆，无存档副作用；取消勾选时头顶星标自动消失。</AE_TT_AutoMarkPawn>
+  <AE_AutoMarkPawn_FullScan>已扫描所有单位，发现 {0} 个高价值目标（S+ 档次）：</AE_AutoMarkPawn_FullScan>
+  <AE_AutoMarkPawn_NewFound>新发现 {0} 个高价值目标（S+ 档次）：</AE_AutoMarkPawn_NewFound>
+  <AE_AutoMarkPawn_None>未发现高价值单位（S+ 档次）</AE_AutoMarkPawn_None>
+  <AE_AutoMarkPawn_More>... 等 {0} 个</AE_AutoMarkPawn_More>
+  <AE_MarkCat_Colonist>殖民者</AE_MarkCat_Colonist>
+  <AE_MarkCat_Slave>奴隶</AE_MarkCat_Slave>
+  <AE_MarkCat_Prisoner>囚犯</AE_MarkCat_Prisoner>
+  <AE_MarkCat_Enemy>敌对</AE_MarkCat_Enemy>
+  <AE_MarkCat_Neutral>中立/盟友</AE_MarkCat_Neutral>
+  <AE_MarkCat_WildHuman>野生</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
 

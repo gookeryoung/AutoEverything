@@ -16,7 +16,7 @@ namespace AutoEverything.Core
         public static bool enabled = true;
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
-        public static bool autoMarkPawn = true;           // 高价值非殖民者星标标记（S+ 追加 ★，事件触发 + 每帧 Postfix 绘制）
+        public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 全人类单位彩色星标 ★，事件触发 + 每帧 Postfix 绘制 + ITab 切换全局重扫描）
 
         // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
