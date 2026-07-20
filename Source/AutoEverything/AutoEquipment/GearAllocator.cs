@@ -257,7 +257,12 @@ namespace AutoEverything.AutoEquipment
                 Pawn wearer = best.Wearer;
                 if (wearer != null && wearer != pawn)
                 {
-                    if (!TrySafeRemove(wearer, best)) continue;
+                    if (!TrySafeRemove(wearer, best))
+                    {
+                        // 扒装失败：把刚卸下的旧 apparel 装回（best effort），避免 pawn 失去装备
+                        if (currentWorn != null) TrySafeEquip(pawn, currentWorn);
+                        continue;
+                    }
                 }
 
                 // 装备新 apparel
@@ -330,7 +335,9 @@ namespace AutoEverything.AutoEquipment
         /// 安全卸装：包裹 try-catch，防止单件 apparel 卸载失败阻塞整个分配。
         /// RimWorld 1.6 API：
         /// - Apparel.Wearer 返回穿戴者（取代旧版 WornByPawn）
-        /// - Pawn_ApparelTracker.Remove(Apparel) 直接卸下（不返回掉落物，自动 spawn 到 pawn 位置）
+        /// - Pawn_ApparelTracker.TryDrop(Apparel) 卸下并 spawn apparel 到 pawn 位置（返回是否成功）
+        /// - ⚠️ 不能用 Remove(Apparel)：Remove 仅从 WornApparel 列表移除，不 spawn，
+        ///   apparel 会变成 unspawned 状态（消失）。曾因误用 Remove 导致"勾选自动装备时身上装备消失"的 bug
         /// </summary>
         private static bool TrySafeRemove(Pawn pawn, Apparel apparel)
         {
@@ -339,8 +346,9 @@ namespace AutoEverything.AutoEquipment
             {
                 // 若 apparel 当前不由 pawn 穿戴，视为已成功卸下
                 if (apparel.Wearer != pawn) return true;
-                pawn.apparel.Remove(apparel);
-                return true;
+                // TryDrop 会 spawn apparel 到 pawn 位置，确保后续 TrySafeEquip 能 Wear 它
+                // （Wear 要求 apparel 处于 Spawned 状态）
+                return pawn.apparel.TryDrop(apparel);
             }
             catch (Exception ex)
             {

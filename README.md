@@ -332,7 +332,8 @@ Passion 量化：None=0, Minor=1, Major=2。
    - 仅影响传给 `GearScorer` 的评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
 5. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
 6. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
-7. **扒装流程**：先 `TrySafeRemove`（落地 spawn）→ `MarkAllocated` → 再 `TrySafeEquip`，单件失败 try-catch 隔离不阻塞整体
+7. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 若扒装他人装备失败则把已卸下的旧装备装回 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
+   - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
 
 ### 范围限定
 
