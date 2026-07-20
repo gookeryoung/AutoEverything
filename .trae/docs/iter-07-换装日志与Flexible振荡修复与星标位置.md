@@ -39,7 +39,9 @@ Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.0f, 0f);
 
 #### 修复 1：换装调试日志
 
-在 `AllocateForPawn` 换装成功后（`GearInventoryService.MarkAllocated(best); anyAllocated = true;` 之后）增加 `AEDebug.Log` 输出：
+在 `AllocateForPawn` 的四个关键分支增加 `AEDebug.Log` 输出，覆盖"换装成功"与三类"跳过换装"场景，便于玩家排查装备异常：
+
+**1. 换装成功**（`GearInventoryService.MarkAllocated(best); anyAllocated = true;` 之后）：
 
 ```csharp
 AEDebug.Log(() =>
@@ -50,10 +52,35 @@ AEDebug.Log(() =>
 });
 ```
 
+**2. 防振荡跳过**（Flexible 穿重甲 continue 之前）：
+
+```csharp
+AEDebug.Log(() =>
+    $"[GearAllocator] {AEDebug.Label(pawn)} 保留重甲不换[{layerKey.defName}]: {currentWorn.def?.defName} (防振荡, 偏好={armorPref})");
+```
+
+**3. 扒装守卫拒绝**（`ShouldStealFromWearer` 返回 false 的 continue 之前）：
+
+```csharp
+AEDebug.Log(() =>
+    $"[GearAllocator] {AEDebug.Label(pawn)} 放弃扒装[{layerKey.defName}]: {best.def?.defName} 在 {AEDebug.Label(wearer)} 身上 (wearer 得分更高, 偏好={armorPref})");
+```
+
+**4. 阈值不足跳过**（`bestScore - currentScore <= geReplaceThreshold` 的 continue 之前）：
+
+```csharp
+AEDebug.Log(() =>
+{
+    string cur = currentWorn?.def?.defName ?? "无";
+    return $"[GearAllocator] {AEDebug.Label(pawn)} 跳过换装[{layerKey.defName}]: {cur} 保留 (差值 {bestScore - currentScore:F1} ≤ 阈值 {AESettings.geReplaceThreshold}, 偏好={armorPref})";
+});
+```
+
 **设计要点**：
 - 受 `AESettings.debugLogging` 开关控制（AEDebug.Log 内部检查）
 - 用 `Func<string>` 延迟构造：关闭调试时零字符串分配，避免 Tick 路径 GC
-- 输出信息：Pawn 名、层名、旧装备→新装备、得分变化、当前有效偏好
+- 四类日志覆盖所有有价值的"换装决策点"，玩家开启调试后可完整追踪装备分配流程
+- 卸装失败/扒装失败/装备失败不输出 AEDebug.Log（已有 `Log.ErrorOnce` 错误日志，不重复）
 
 #### 修复 2：脱装备振荡
 

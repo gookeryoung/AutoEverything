@@ -274,7 +274,12 @@ namespace AutoEverything.AutoEquipment
                 {
                     float curSharp = currentWorn.GetStatValue(StatDefOf.ArmorRating_Sharp);
                     float curBlunt = currentWorn.GetStatValue(StatDefOf.ArmorRating_Blunt);
-                    if (curSharp + curBlunt >= AESettings.geHeavyArmorThreshold) continue;
+                    if (curSharp + curBlunt >= AESettings.geHeavyArmorThreshold)
+                    {
+                        AEDebug.Log(() =>
+                            $"[GearAllocator] {AEDebug.Label(pawn)} 保留重甲不换[{layerKey.defName}]: {currentWorn.def?.defName} (防振荡, 偏好={armorPref})");
+                        continue;
+                    }
                 }
 
                 float bestScore = GearScorer.ComputeScore(pawn, best, role, armorPref);
@@ -283,7 +288,15 @@ namespace AutoEverything.AutoEquipment
                     : float.MinValue;
 
                 // 仅当新 apparel 明显更优（差值 > 阈值）才替换，避免抖动
-                if (bestScore - currentScore <= AESettings.geReplaceThreshold) continue;
+                if (bestScore - currentScore <= AESettings.geReplaceThreshold)
+                {
+                    AEDebug.Log(() =>
+                    {
+                        string cur = currentWorn?.def?.defName ?? "无";
+                        return $"[GearAllocator] {AEDebug.Label(pawn)} 跳过换装[{layerKey.defName}]: {cur} 保留 (差值 {bestScore - currentScore:F1} ≤ 阈值 {AESettings.geReplaceThreshold}, 偏好={armorPref})";
+                    });
+                    continue;
+                }
 
                 // 执行替换：先卸下旧 apparel，再装备新 apparel
                 if (currentWorn != null)
@@ -302,6 +315,8 @@ namespace AutoEverything.AutoEquipment
                     if (!ShouldStealFromWearer(wearer, best, bestScore))
                     {
                         // wearer 得分更高或相当：不扒装，把刚卸下的旧 apparel 装回，跳过此层
+                        AEDebug.Log(() =>
+                            $"[GearAllocator] {AEDebug.Label(pawn)} 放弃扒装[{layerKey.defName}]: {best.def?.defName} 在 {AEDebug.Label(wearer)} 身上 (wearer 得分更高, 偏好={armorPref})");
                         if (currentWorn != null) TrySafeEquip(pawn, currentWorn);
                         continue;
                     }
