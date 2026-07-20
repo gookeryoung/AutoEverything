@@ -123,6 +123,41 @@ private static int statsSkipThreshold;   // 阈值不足跳过数
 
 玩家通过结束统计可一眼定位"为什么装备没换"：若"防振荡跳过"高 → Flexible 穿重甲被保留；若"扒装拒绝"高 → wearer 得分更高；若"阈值不足"高 → 候选装备不够优。
 
+#### 修复 1 再补充：候选 Pawn 列表日志
+
+在开始统计之后输出候选 Pawn 列表，让玩家能判断"某 Pawn 没分到装备"是因为不在候选中，还是在候选中但所有层都跳过：
+
+```csharp
+AEDebug.Log(() =>
+{
+    var sb = new System.Text.StringBuilder();
+    sb.Append("[GearAllocator] 候选 Pawn: ");
+    int prefIdx = 0;
+    for (int i = 0; i < candidatePawns.Count; i++)
+    {
+        Pawn p = candidatePawns[i];
+        if (p == null || p.Dead || !p.Spawned) continue;
+        if (DLCCompat.IsGhoul(p)) continue;
+        CombatTier t = CombatEvaluator.GetCombatTier(p);
+        if (t == CombatTier.X) continue;
+        ArmorPreference pref = sortedPrefsBuffer[prefIdx];
+        bool upgrade = upgradeFlags[prefIdx];
+        prefIdx++;
+        sb.Append(t).Append('#').Append(p.LabelShort).Append(':').Append(pref);
+        if (upgrade) sb.Append("↑");
+        sb.Append(' ');
+    }
+    return sb.ToString();
+});
+```
+
+**定位流程**：
+1. 玩家发现"张三没分到装备" → 先查候选 Pawn 列表日志
+2. 张三不在列表中 → 被 `CollectCandidatePawns` 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
+3. 张三在列表中 → 看后续决策点日志（阈值不足/防振荡/扒装拒绝）
+
+**示例**：`[GearAllocator] 候选 Pawn: SS#张三:Heavy↑ S#李四:Flexible A#王五:Light B#赵六:Flexible↑`
+
 #### 修复 2：脱装备振荡
 
 振荡有两层根因，分别修复：

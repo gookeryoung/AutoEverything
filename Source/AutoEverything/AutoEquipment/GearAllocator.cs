@@ -167,6 +167,32 @@ namespace AutoEverything.AutoEquipment
                 AEDebug.Log(() =>
                     $"[GearAllocator] 开始装备分配: {candidatePawns.Count} Pawn, {candidateApparel.Count} 件装备, 重甲 {heavyArmorCount}, Heavy Pawn {heavyPawnCount}, 升级 {upgradeCount} (tick={tick})");
 
+                // 候选 Pawn 列表日志：输出每个有效候选 Pawn 的评级/名字/偏好/升级标志
+                // 用途：玩家发现"某 Pawn 没分到装备"时，可从此日志判断该 Pawn 是否在候选中
+                // 若不在列表中 → 被 CollectCandidatePawns 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
+                // 若在列表中但没换装 → 看后续决策点日志（阈值不足/防振荡/扒装拒绝）
+                AEDebug.Log(() =>
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.Append("[GearAllocator] 候选 Pawn: ");
+                    int prefIdx = 0;
+                    for (int i = 0; i < candidatePawns.Count; i++)
+                    {
+                        Pawn p = candidatePawns[i];
+                        if (p == null || p.Dead || !p.Spawned) continue;
+                        if (DLCCompat.IsGhoul(p)) continue;
+                        CombatTier t = CombatEvaluator.GetCombatTier(p);
+                        if (t == CombatTier.X) continue;
+                        ArmorPreference pref = sortedPrefsBuffer[prefIdx];
+                        bool upgrade = upgradeFlags[prefIdx];
+                        prefIdx++;
+                        sb.Append(t).Append('#').Append(p.LabelShort).Append(':').Append(pref);
+                        if (upgrade) sb.Append("↑");
+                        sb.Append(' ');
+                    }
+                    return sb.ToString();
+                });
+
                 // 预填充 upgradedPawns：在主循环前根据 upgradeFlags 一次性收集本轮被升级的 Pawn
                 // 用途：扒装守卫 ShouldStealFromWearer 需用 wearer 本轮的有效偏好（含升级）计算得分
                 // 若在主循环中按处理顺序填充，高评级 stealer 先处理时 wearer 还未加入集合，

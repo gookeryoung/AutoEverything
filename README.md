@@ -345,6 +345,7 @@ Passion 量化：None=0, Minor=1, Major=2。
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
    - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含过程统计与四类决策点：
      - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U} (tick=...)`
+     - **候选 Pawn 列表**：`候选 Pawn: S#张三:Heavy↑ A#李四:Flexible B#王五:Light ...`（↑ 表示本轮升级为 Heavy）。玩家发现"某 Pawn 没分到装备"时，可从此判断该 Pawn 是否在候选中——若不在列表中，说明被 `CollectCandidatePawns` 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
      - 换装成功：`{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`
      - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡, 偏好={armorPref})`
      - 扒装守卫拒绝：`{Pawn} 放弃扒装[{层}]: {best} 在 {wearer} 身上 (wearer 得分更高, 偏好={armorPref})`
