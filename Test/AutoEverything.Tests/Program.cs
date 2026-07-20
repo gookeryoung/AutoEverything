@@ -37,6 +37,7 @@ namespace AutoEverything.Tests
                 failures += EvaluateAutoTierCoreTests.RunAll();
                 failures += PawnMarkerTests.RunAll();
                 failures += GearAllocatorTests.RunAll();
+                failures += GearScorerTests.RunAll();
 
                 if (failures == 0)
                 {

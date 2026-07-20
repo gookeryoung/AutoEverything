@@ -59,9 +59,19 @@ namespace AutoEverything.AutoEquipment
             float sharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
             float blunt = apparel.GetStatValue(StatDefOf.ArmorRating_Blunt);
             float heat = apparel.GetStatValue(StatDefOf.ArmorRating_Heat);
+            return ComputeArmorScoreCore(sharp, blunt, heat, AESettings.geArmorWeight);
+        }
+
+        /// <summary>
+        /// 护甲分纯逻辑核心：三项平均 × 权重。
+        /// 抽出便于单元测试，不依赖 Apparel 实例。
+        /// 用 0.3333f 而非 /3f：避免整数除法风险，与历史实现一致。
+        /// </summary>
+        internal static float ComputeArmorScoreCore(float sharp, float blunt, float heat, float weight)
+        {
             // 三项平均：避免单项极值（如纯防弹衣 Sharp 高 Blunt 低）压倒其他维度
             float avg = (sharp + blunt + heat) * 0.3333f;
-            return avg * AESettings.geArmorWeight;
+            return avg * weight;
         }
 
         /// <summary>
@@ -75,21 +85,38 @@ namespace AutoEverything.AutoEquipment
             // 用 apparel 的"护甲总量"作为重甲/轻甲的判据（Sharp+Blunt）
             float sharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
             float blunt = apparel.GetStatValue(StatDefOf.ArmorRating_Blunt);
+            return ComputeLayerMatchScoreCore(sharp, blunt, armorPref,
+                AESettings.geHeavyArmorMatchWeight,
+                AESettings.geLightArmorMatchWeight,
+                AESettings.geLightArmorAvoidWeight,
+                AESettings.geFlexibleArmorMatchWeight);
+        }
+
+        /// <summary>
+        /// 定位契合分纯逻辑核心：按护甲偏好分支计算。
+        /// 抽出便于单元测试，不依赖 Apparel 实例。
+        ///
+        /// 算法：
+        /// - Heavy:  armorSum × geHeavyMatchW（线性加分，护甲越高越好）
+        /// - Light:  (1 - min(armorSum,1)) × geLightMatchW - armorSum × geLightAvoidW
+        ///           （低护甲加分 + 高护甲减分，工人保移动效率）
+        /// - Flexible: armorSum × geFlexibleMatchW（线性加分，无偏置）
+        /// </summary>
+        internal static float ComputeLayerMatchScoreCore(
+            float sharp, float blunt, ArmorPreference armorPref,
+            float heavyMatchW, float lightMatchW, float lightAvoidW, float flexibleMatchW)
+        {
             float armorSum = sharp + blunt;
 
             switch (armorPref)
             {
                 case ArmorPreference.Heavy:
-                    // 前排：护甲越高越好，线性加分
-                    return armorSum * AESettings.geHeavyArmorMatchWeight;
+                    return armorSum * heavyMatchW;
                 case ArmorPreference.Light:
-                    // 工人：低护甲加分（保持工作效率），高护甲减分
-                    // armorSum 通常 0~2.0，越低加分越多
-                    return (1.0f - System.Math.Min(armorSum, 1.0f)) * AESettings.geLightArmorMatchWeight
-                         - armorSum * AESettings.geLightArmorAvoidWeight;
+                    return (1.0f - System.Math.Min(armorSum, 1.0f)) * lightMatchW
+                         - armorSum * lightAvoidW;
                 default: // Flexible
-                    // 后排：按护甲值线性加分，无偏置
-                    return armorSum * AESettings.geFlexibleArmorMatchWeight;
+                    return armorSum * flexibleMatchW;
             }
         }
 
@@ -110,15 +137,30 @@ namespace AutoEverything.AutoEquipment
             float insulationCold = apparel.GetStatValue(StatDefOf.Insulation_Cold);
             float insulationHeat = apparel.GetStatValue(StatDefOf.Insulation_Heat);
 
-            if (ambient < comfort.min - tempMargin)
+            return ComputeInsulationScoreCore(ambient, comfort.min, comfort.max,
+                insulationCold, insulationHeat, AESettings.geInsulationWeight, tempMargin);
+        }
+
+        /// <summary>
+        /// 保暖隔热分纯逻辑核心：按环境温度分支计算。
+        /// 抽出便于单元测试，不依赖 Pawn/Apparel 实例。
+        ///
+        /// 算法（tempMargin 为危险余量，与 GearContext 一致）：
+        /// - ambient &lt; comfortMin - tempMargin: 寒冷 → insulationCold × weight
+        /// - ambient &gt; comfortMax + tempMargin: 炎热 → insulationHeat × weight
+        /// - 其他: 舒适 → 0
+        /// </summary>
+        internal static float ComputeInsulationScoreCore(
+            float ambient, float comfortMin, float comfortMax,
+            float insulationCold, float insulationHeat, float weight, float tempMargin)
+        {
+            if (ambient < comfortMin - tempMargin)
             {
-                // 寒冷：保暖值加分
-                return insulationCold * AESettings.geInsulationWeight;
+                return insulationCold * weight;
             }
-            if (ambient > comfort.max + tempMargin)
+            if (ambient > comfortMax + tempMargin)
             {
-                // 炎热：隔热值加分
-                return insulationHeat * AESettings.geInsulationWeight;
+                return insulationHeat * weight;
             }
             return 0f;
         }
@@ -131,24 +173,37 @@ namespace AutoEverything.AutoEquipment
         /// </summary>
         private static float ComputeMovementPenalty(Apparel apparel, Role role)
         {
-            // Mass 默认 0.1~5.0 kg，归一化为减损比例
-            // penalty = mass * weight，重甲 mass=4 → penalty=4*weight
             float mass = apparel.GetStatValue(StatDefOf.Mass);
+            return ComputeMovementPenaltyCore(mass, role,
+                AESettings.geWorkerMovePenaltyWeight,
+                AESettings.geBackRowMovePenaltyWeight,
+                AESettings.geFrontRowMovePenaltyWeight);
+        }
 
+        /// <summary>
+        /// 移动减损纯逻辑核心：按角色定位选择权重，penalty = mass × weight。
+        /// 抽出便于单元测试，不依赖 Apparel 实例。
+        ///
+        /// 角色映射：
+        /// - Worker/Doctor/Pacifist → workerW（移动影响工作效率，惩罚最大）
+        /// - Shooter/Hunter → backRowW（移动影响走位，中等惩罚）
+        /// - 其他（Brawler/Leader/Default）→ frontRowW（前排容忍度高，惩罚最小）
+        /// </summary>
+        internal static float ComputeMovementPenaltyCore(
+            float mass, Role role,
+            float workerW, float backRowW, float frontRowW)
+        {
             switch (role)
             {
                 case Role.Worker:
                 case Role.Doctor:
                 case Role.Pacifist:
-                    // 工人/医疗：移动速度影响工作效率，惩罚放大
-                    return mass * AESettings.geWorkerMovePenaltyWeight;
+                    return mass * workerW;
                 case Role.Shooter:
                 case Role.Hunter:
-                    // 后排：移动速度影响走位，中等惩罚
-                    return mass * AESettings.geBackRowMovePenaltyWeight;
+                    return mass * backRowW;
                 default:
-                    // 前排/领袖：容忍度高，轻微惩罚
-                    return mass * AESettings.geFrontRowMovePenaltyWeight;
+                    return mass * frontRowW;
             }
         }
     }
