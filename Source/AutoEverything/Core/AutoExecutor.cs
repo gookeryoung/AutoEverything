@@ -170,7 +170,7 @@ namespace AutoEverything.Core
 
         /// <summary>
         /// ITab 勾选时调用：立即执行全局装备分配并弹消息框。
-        /// 注：取消勾选（autoEquipmentEnabled=false）也会调用本方法——GearAllocator 内部检测开关后静默返回。
+        /// 仅在勾选（false → true）时触发；取消勾选不调用（仅停止自动，保留当前装备，无法撤销已分配装备）。
         /// </summary>
         public static void TriggerGearNow()
         {

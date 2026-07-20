@@ -104,12 +104,10 @@ namespace AutoEverything.AutoEquipment
             try
             {
                 GearInventoryService.ResetAllocation();
-                List<Apparel> candidateApparel = GearInventoryService.CollectCandidateApparel();
+                // 显式调用一次 CollectCandidatePawns，传给 CollectCandidateApparel 复用，
+                // 避免内部重复调用导致缓冲区翻倍或浪费 CPU
                 List<Pawn> candidatePawns = GearInventoryService.CollectCandidatePawns();
-
-                // 候选 Pawn 在 GearInventoryService.CollectCandidateApparel 内已收集（复用同一缓冲）
-                // 但 CollectCandidateApparel 返回前已填好 candidatePawnBuffer，此处再次拿引用
-                // 注意：candidatePawnBuffer 在 CollectCandidateApparel 内被填充，此处无需重复调用
+                List<Apparel> candidateApparel = GearInventoryService.CollectCandidateApparel(candidatePawns);
 
                 // 优先级顺延检测：基于"重甲数量 vs Heavy Pawn 数量"计算剩余重甲名额
                 // 设计意图：
@@ -361,8 +359,8 @@ namespace AutoEverything.AutoEquipment
         /// <summary>
         /// 安全装备：包裹 try-catch，防止单件 apparel 装备失败阻塞整个分配。
         /// RimWorld 1.6 API：
-        /// - Pawn_ApparelTracker.Wear(Apparel, true) 装备 apparel，自动 DeSpawn
-        ///   返回值 void；若同层已有 apparel 会自动替换掉落到 pawn 位置
+        /// - Pawn_ApparelTracker.Wear(Apparel, dropReplacedApparel=true) 装备 apparel，自动 DeSpawn
+        ///   返回值 void；dropReplacedApparel=true 时同层已有 apparel 会自动 drop 旧装备到 pawn 位置
         /// </summary>
         private static bool TrySafeEquip(Pawn pawn, Apparel apparel)
         {
@@ -370,15 +368,15 @@ namespace AutoEverything.AutoEquipment
             try
             {
                 // apparel 必须处于 Spawned 状态才能 Wear
-                // 若刚从他人身上扒下，Remove 会 Spawn 到 wearer 位置
+                // 若刚从他人身上扒下，TryDrop 会 Spawn 到 wearer 位置（不能误用 Remove）
                 if (!apparel.Spawned)
                 {
                     // 极少情况：apparel 在容器/库存中（如装备堆叠在仓鼠笼内）
                     // 简化：跳过非 Spawned apparel 的分配
                     return false;
                 }
-                // Wear 第二参数 lockApparel=true 表示装备后锁定（与玩家手动装备行为一致）
-                // 同层已有 apparel 时会自动替换并掉落
+                // Wear 第二参数 dropReplacedApparel=true：同层冲突时自动 drop 旧装备
+                // （与玩家手动装备行为一致，旧装备掉落到 pawn 位置而非消失）
                 pawn.apparel.Wear(apparel, true);
                 return apparel.Wearer == pawn;
             }

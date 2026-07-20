@@ -41,8 +41,11 @@ namespace AutoEverything.AutoEquipment
         /// 收集所有候选装备：地图上未穿戴的 Apparel + 玩家阵营 Pawn 已穿戴的 Apparel。
         /// 过滤：通过 ApparelLayerFilter.IsRelevant 排除附件层（腰带/背包等）。
         /// 过滤：排除 Forbid 标记的装备（玩家明确禁止使用的）。
+        ///
+        /// 设计：接受外部传入的 candidatePawns 列表，避免内部重复调用 CollectCandidatePawns
+        /// 导致缓冲区翻倍或浪费 CPU（曾因内部调用 + 外部调用两次填充导致翻倍 bug）。
         /// </summary>
-        public static List<Apparel> CollectCandidateApparel()
+        public static List<Apparel> CollectCandidateApparel(List<Pawn> candidatePawns)
         {
             // 地图上未穿戴的 Apparel
             foreach (Map map in Find.Maps)
@@ -63,10 +66,9 @@ namespace AutoEverything.AutoEquipment
             }
 
             // 玩家阵营 Pawn 已穿戴的 Apparel（参与全局重分配）
-            List<Pawn> pawns = CollectCandidatePawns();
-            for (int i = 0; i < pawns.Count; i++)
+            for (int i = 0; i < candidatePawns.Count; i++)
             {
-                Pawn pawn = pawns[i];
+                Pawn pawn = candidatePawns[i];
                 if (pawn.apparel == null) continue;
                 List<Apparel> worn = pawn.apparel.WornApparel;
                 for (int j = 0; j < worn.Count; j++)
@@ -84,9 +86,15 @@ namespace AutoEverything.AutoEquipment
         /// <summary>
         /// 收集参与分配的 Pawn：玩家阵营自由殖民者 + 玩家阵营奴隶。
         /// 排除：食尸鬼（无法穿戴 apparel）、动物、机械族等。
+        ///
+        /// 防御性设计：开头 Clear 缓冲区，即使重复调用也不会翻倍。
+        /// 正常调用路径：ExecuteAllocation 调用一次，传给 CollectCandidateApparel 复用。
         /// </summary>
         public static List<Pawn> CollectCandidatePawns()
         {
+            // 防御性 Clear：避免重复调用导致缓冲区翻倍
+            candidatePawnBuffer.Clear();
+
             // 自由殖民者（PawnsFinder.AllMaps_FreeColonists 含未 Spawned 的）
             foreach (Pawn pawn in PawnsFinder.AllMaps_FreeColonists)
             {
