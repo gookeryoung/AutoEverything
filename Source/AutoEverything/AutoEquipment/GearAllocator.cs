@@ -51,6 +51,10 @@ namespace AutoEverything.AutoEquipment
         // 顺延名额计算输入缓冲区：按 CombatTier 排序后收集每个候选 Pawn 的 ArmorPreference
         // 用途：传给纯逻辑方法 ComputeHeavyUpgradeFlags 计算升级标志，避免在主循环里重复调用 DetectRole
         private static readonly List<ArmorPreference> sortedPrefsBuffer = new List<ArmorPreference>();
+        // 本轮被升级为 Heavy 的 Pawn 集合：扒装守卫用此判断 wearer 的有效偏好
+        // 每轮分配开始时 Clear()，主循环中遇到 upgrade=true 时 Add
+        // 用途：ShouldStealFromWearer 需用 wearer 的"有效偏好"（含升级）计算得分，否则升级 Flexible 的得分被低估导致误扒
+        private static readonly HashSet<Pawn> upgradedPawns = new HashSet<Pawn>();
 
         /// <summary>
         /// 由 AutoExecutor 调用：检查脏标 + 冷却，若到期则执行一次全局分配。
@@ -104,6 +108,8 @@ namespace AutoEverything.AutoEquipment
             try
             {
                 GearInventoryService.ResetAllocation();
+                // 清空升级集合：扒装守卫依赖此集合判断 wearer 有效偏好
+                upgradedPawns.Clear();
                 // 显式调用一次 CollectCandidatePawns，传给 CollectCandidateApparel 复用，
                 // 避免内部重复调用导致缓冲区翻倍或浪费 CPU
                 List<Pawn> candidatePawns = GearInventoryService.CollectCandidatePawns();
@@ -169,6 +175,8 @@ namespace AutoEverything.AutoEquipment
                     {
                         effectivePref = ArmorPreference.Heavy;
                         effectiveRole = Role.Brawler;
+                        // 记录到升级集合：扒装守卫用此判断 wearer 有效偏好
+                        upgradedPawns.Add(pawn);
                     }
 
                     if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel))
@@ -255,6 +263,16 @@ namespace AutoEverything.AutoEquipment
                 Pawn wearer = best.Wearer;
                 if (wearer != null && wearer != pawn)
                 {
+                    // 扒装守卫：仅当 stealer 对该 apparel 的得分高于 wearer 有效得分时才扒装
+                    // 防止两个 Pawn 之间反复抢装导致振荡（A 抢 B 的 Y → B 下轮抢回 → 循环）
+                    // 根因：原逻辑仅比较 stealer 的"新旧得分差"，未考虑 wearer 的损失
+                    if (!ShouldStealFromWearer(wearer, best, bestScore))
+                    {
+                        // wearer 得分更高或相当：不扒装，把刚卸下的旧 apparel 装回，跳过此层
+                        if (currentWorn != null) TrySafeEquip(pawn, currentWorn);
+                        continue;
+                    }
+
                     if (!TrySafeRemove(wearer, best))
                     {
                         // 扒装失败：把刚卸下的旧 apparel 装回（best effort），避免 pawn 失去装备
@@ -493,6 +511,66 @@ namespace AutoEverything.AutoEquipment
                 }
             }
             return flags;
+        }
+
+        /// <summary>
+        /// 扒装守卫：判定是否应从 wearer 扒下 apparel 给当前 Pawn。
+        ///
+        /// 设计意图：防止两个 Pawn 之间反复抢装导致振荡。
+        /// 振荡场景：A 抢 B 的 Y → 下轮 B 抢回 → A 再抢 → 无限循环。
+        /// 根因：原逻辑仅比较 stealer 的"新旧得分差"（bestScore - currentScore > 阈值），
+        ///       未考虑 wearer 失去该 apparel 的损失。当 stealer 与 wearer 得分接近时，
+        ///       双方都会觉得自己"更应该拿"，造成抢装循环。
+        ///
+        /// 守卫规则：
+        /// 1. wearer 不适合装备管理（食尸鬼/X 档/医疗中等）→ 允许扒装，不比较得分
+        /// 2. wearer 在候选池中 → 仅当 stealerScore - wearerScore > 替换阈值 时允许扒装
+        ///
+        /// wearer 有效偏好：若 wearer 在本轮被升级为 Heavy（记于 <see cref="upgradedPawns"/>），
+        /// 用 Heavy 偏好计算得分；否则用基础偏好。否则升级 Flexible 的得分被低估，
+        /// 会导致误判"stealer 得分更高"而扒装，破坏顺延逻辑。
+        /// </summary>
+        /// <param name="wearer">当前穿戴 apparel 的 Pawn</param>
+        /// <param name="apparel">被考虑扒装的 apparel</param>
+        /// <param name="stealerScore">stealer 对该 apparel 的有效得分（已含升级偏好，由调用方传入）</param>
+        /// <returns>true 表示允许扒装；false 表示 wearer 得分更高或相当，不应扒装</returns>
+        private static bool ShouldStealFromWearer(Pawn wearer, Apparel apparel, float stealerScore)
+        {
+            if (wearer == null) return true;
+
+            // wearer 不适合装备管理 → 允许扒装（食尸鬼/X 档/医疗中都不需要保装备）
+            if (!PawnSuitabilityChecker.CanManageGear(wearer)) return true;
+            if (DLCCompat.IsGhoul(wearer)) return true;
+            if (CombatEvaluator.GetCombatTier(wearer) == CombatTier.X) return true;
+            if (PawnJobGuard.ShouldSkipForMedical(wearer)) return true;
+
+            // wearer 在候选池中：比较有效得分
+            Role wearerRole = RoleDetector.DetectRole(wearer);
+            ArmorPreference wearerPref = RoleDetector.GetArmorPreference(wearerRole);
+            if (upgradedPawns.Contains(wearer))
+            {
+                // wearer 在本轮被升级为 Heavy：用 Heavy 偏好计算得分，与主循环评分保持一致
+                wearerRole = Role.Brawler;
+                wearerPref = ArmorPreference.Heavy;
+            }
+            float wearerScore = GearScorer.ComputeScore(wearer, apparel, wearerRole, wearerPref);
+            return ShouldStealFromWearerCore(stealerScore, wearerScore, AESettings.geReplaceThreshold);
+        }
+
+        /// <summary>
+        /// 扒装守卫纯逻辑核心：比较 stealer 与 wearer 得分。
+        /// 抽出便于单元测试，不依赖 Pawn/Apparel 实例。
+        ///
+        /// 算法：stealerScore - wearerScore > threshold 时允许扒装。
+        /// 严格大于（非 ≥）确保得分相当时不扒装，避免边际抢装振荡。
+        /// </summary>
+        /// <param name="stealerScore">stealer 对 apparel 的有效得分</param>
+        /// <param name="wearerScore">wearer 对 apparel 的有效得分</param>
+        /// <param name="threshold">替换阈值（与常规替换一致，由 AESettings.geReplaceThreshold 控制）</param>
+        /// <returns>true 表示允许扒装</returns>
+        internal static bool ShouldStealFromWearerCore(float stealerScore, float wearerScore, float threshold)
+        {
+            return stealerScore - wearerScore > threshold;
         }
     }
 }

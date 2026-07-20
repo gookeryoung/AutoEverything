@@ -6,23 +6,28 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.Tests
 {
     /// <summary>
-    /// GearAllocator.ComputeHeavyUpgradeFlags 纯逻辑核心的单元测试。
+    /// GearAllocator 纯逻辑核心的单元测试。
     ///
     /// 覆盖范围：
-    /// 1. 重甲数量 ≥ Pawn 数量：所有 Flexible 升级
-    /// 2. 重甲数量 < Pawn 数量：按 CombatTier 降序前 N 个 Flexible 升级，其余保持
-    /// 3. 无 Heavy Pawn + 无重甲：无升级
-    /// 4. Light Pawn 始终不升级（保工作效率）
-    /// 5. Heavy Pawn 已占名额，不参与顺延
-    /// 6. 边界：空列表、全 Heavy、全 Light、负数防御（heavyPawnCount > heavyArmorCount）
+    /// 1. ComputeHeavyUpgradeFlags：重甲顺延名额计算
+    ///    - 重甲数量 ≥ Pawn 数量：所有 Flexible 升级
+    ///    - 重甲数量 < Pawn 数量：按 CombatTier 降序前 N 个 Flexible 升级，其余保持
+    ///    - 无 Heavy Pawn + 无重甲：无升级
+    ///    - Light Pawn 始终不升级（保工作效率）
+    ///    - Heavy Pawn 已占名额，不参与顺延
+    ///    - 边界：空列表、全 Heavy、全 Light、负数防御（heavyPawnCount > heavyArmorCount）
+    /// 2. ShouldStealFromWearerCore：扒装守卫得分比较
+    ///    - stealer 得分明显高于 wearer → 允许扒装
+    ///    - stealer 得分接近 wearer（差值 ≤ 阈值）→ 拒绝扒装，防振荡
+    ///    - 边界：差值恰好等于阈值（严格 >，拒绝）、负数得分、零阈值
     ///
     /// 设计原则：测试不依赖 RimWorld 运行时（无 Pawn/Map/Apparel 实例），
-    /// 仅调用 internal static 纯逻辑方法，构造 List<ArmorPreference> 输入即可验证。
+    /// 仅调用 internal static 纯逻辑方法，构造数值输入即可验证。
     ///
-    /// 业务契约（与 README.md "优先级顺延"章节同步）：
-    /// - remaining = max(0, heavyArmorCount - heavyPawnCount)
-    /// - 按 sortedPrefs 顺序（应已按 CombatTier 降序排好）遍历，Flexible + remaining>0 时升级
-    /// - Light 始终不升级；Heavy 已占名额无需再升
+    /// 业务契约（与 README.md "扒装守卫"章节同步）：
+    /// - ShouldStealFromWearerCore(stealerScore, wearerScore, threshold) =
+    ///   stealerScore - wearerScore > threshold
+    /// - 严格大于（非 ≥）确保得分相当时不扒装，避免边际抢装振荡
     /// </summary>
     public static class GearAllocatorTests
     {
@@ -37,6 +42,7 @@ namespace AutoEverything.Tests
             failures += RunLightNeverUpgradeTests(ref total);
             failures += RunHeavyAlreadyOccupiedTests(ref total);
             failures += RunPriorityOrderTests(ref total);
+            failures += RunStealGuardTests(ref total);
 
             return failures;
         }
@@ -245,6 +251,81 @@ namespace AutoEverything.Tests
         }
 
         // ════════════════════════════════════════════════════════════
+        // 7. 扒装守卫 ShouldStealFromWearerCore：stealer vs wearer 得分比较
+        //    防止两个 Pawn 之间反复抢装导致振荡
+        // ════════════════════════════════════════════════════════════
+
+        private static int RunStealGuardTests(ref int total)
+        {
+            int failures = 0;
+
+            // stealer 得分明显高于 wearer → 允许扒装
+            CheckSteal(15f, 10f, 0.5f, true,
+                "stealer 15 > wearer 10 + 0.5 → allow", ref failures, ref total);
+            CheckSteal(20f, 10f, 5f, true,
+                "stealer 20 > wearer 10 + 5 → allow", ref failures, ref total);
+
+            // stealer 得分接近 wearer（差值 = 阈值）→ 拒绝（严格 >）
+            CheckSteal(10.5f, 10f, 0.5f, false,
+                "stealer 10.5 == wearer 10 + 0.5 (boundary) → decline", ref failures, ref total);
+            CheckSteal(15f, 10f, 5f, false,
+                "stealer 15 == wearer 10 + 5 (boundary) → decline", ref failures, ref total);
+
+            // stealer 得分仅略高于 wearer（差值 < 阈值）→ 拒绝
+            CheckSteal(10.3f, 10f, 0.5f, false,
+                "stealer 10.3 < wearer 10 + 0.5 → decline", ref failures, ref total);
+            CheckSteal(12f, 10f, 5f, false,
+                "stealer 12 < wearer 10 + 5 → decline", ref failures, ref total);
+
+            // stealer 得分等于 wearer → 拒绝
+            CheckSteal(10f, 10f, 0.5f, false,
+                "stealer == wearer → decline", ref failures, ref total);
+            CheckSteal(10f, 10f, 0f, false,
+                "stealer == wearer, threshold 0 → decline (strict >)", ref failures, ref total);
+
+            // stealer 得分低于 wearer → 拒绝
+            CheckSteal(8f, 10f, 0.5f, false,
+                "stealer < wearer → decline", ref failures, ref total);
+            CheckSteal(5f, 10f, 0.5f, false,
+                "stealer much < wearer → decline", ref failures, ref total);
+
+            // 负数得分：stealer 仍高于 wearer + 阈值 → 允许
+            CheckSteal(-5f, -10f, 0.5f, true,
+                "negative scores: stealer -5 > wearer -10 + 0.5 → allow", ref failures, ref total);
+            CheckSteal(-5f, -5f, 0.5f, false,
+                "negative scores equal → decline", ref failures, ref total);
+
+            // 零阈值：仍要求严格 >（防止得分相同时反复抢装）
+            CheckSteal(10.0001f, 10f, 0f, true,
+                "threshold 0: stealer slightly > wearer → allow", ref failures, ref total);
+            CheckSteal(10f, 10f, 0f, false,
+                "threshold 0: equal → decline", ref failures, ref total);
+
+            // 极端值：stealer MaxValue → 允许
+            CheckSteal(float.MaxValue, 10f, 0.5f, true,
+                "stealer MaxValue → allow", ref failures, ref total);
+            // 极端值：wearer MaxValue → 拒绝（stealer 不可能更高）
+            CheckSteal(10f, float.MaxValue, 0.5f, false,
+                "wearer MaxValue → decline", ref failures, ref total);
+            // 极端值：wearer MinValue → 允许（stealer 任何有限值都更高）
+            CheckSteal(0f, float.MinValue, 0.5f, true,
+                "wearer MinValue → allow", ref failures, ref total);
+
+            // 振荡场景模拟：A 抢 B 的 Y，下轮 B 抢回
+            // 假设 Score(Y, A) = 11, Score(Y, B) = 12, threshold = 0.5
+            // 第一轮 A 想扒 B 的 Y：ShouldSteal(stealer=A=11, wearer=B=12) → 11-12=-1 < 0.5 → 拒绝
+            // 这正是防振荡的关键：A 不会抢 B 的 Y，因为 B 得分更高
+            CheckSteal(11f, 12f, 0.5f, false,
+                "oscillation guard: A(11) should not steal from B(12)", ref failures, ref total);
+            // 反过来：B 想扒 A 的 Y：ShouldSteal(stealer=B=12, wearer=A=11) → 12-11=1 > 0.5 → 允许
+            CheckSteal(12f, 11f, 0.5f, true,
+                "oscillation guard: B(12) may steal from A(11)", ref failures, ref total);
+
+            Console.WriteLine($"[GearAllocatorTests/StealGuard] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        // ════════════════════════════════════════════════════════════
         // 辅助方法
         // ════════════════════════════════════════════════════════════
 
@@ -278,6 +359,20 @@ namespace AutoEverything.Tests
                     failures++;
                     return;
                 }
+            }
+        }
+
+        private static void CheckSteal(
+            float stealerScore, float wearerScore, float threshold, bool expected, string label,
+            ref int failures, ref int total)
+        {
+            total++;
+            bool actual = GearAllocator.ShouldStealFromWearerCore(stealerScore, wearerScore, threshold);
+            if (actual != expected)
+            {
+                Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");
+                Console.WriteLine($"        stealer={stealerScore}, wearer={wearerScore}, threshold={threshold}, diff={stealerScore - wearerScore}");
+                failures++;
             }
         }
 

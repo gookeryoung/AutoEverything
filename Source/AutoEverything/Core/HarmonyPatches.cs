@@ -41,10 +41,13 @@ namespace AutoEverything.Core
                 postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
 
             // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
-            // 类型/方法名可能因 RimWorld 版本差异变化，用 try-catch + null 检查降级
+            // RimWorld 1.6 中类型为 Verse.PawnUIOverlay（非 RimWorld 命名空间），含实例字段 pawn 与无参方法 DrawPawnGUIOverlay
+            // 用 try-catch + null 检查降级：类型/方法缺失仅 Log.Warning，星标不显示但不崩溃
             try
             {
-                var overlayType = AccessTools.TypeByName("RimWorld.PawnUIOverlay");
+                // 优先用 Verse 命名空间（RimWorld 1.6 实际位置），回退 RimWorld 命名空间兼容旧版本
+                var overlayType = AccessTools.TypeByName("Verse.PawnUIOverlay")
+                    ?? AccessTools.TypeByName("RimWorld.PawnUIOverlay");
                 if (overlayType != null)
                 {
                     pawnUIOverlayPawnField = AccessTools.Field(overlayType, "pawn");
