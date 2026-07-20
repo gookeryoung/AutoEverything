@@ -336,9 +336,14 @@ Passion 量化：None=0, Minor=1, Major=2。
    - **振荡根因**：原逻辑仅比较 stealer 的"新旧得分差"（`bestScore - currentScore > 阈值`），未考虑 wearer 的损失。当 A 与 B 对装备 Y 的得分接近时，A 抢 B 的 Y → 下轮 B 觉得自己更应该拿 → 抢回 → 循环
    - **守卫规则**：wearer 不适合装备管理（食尸鬼/X 档/医疗中）→ 允许扒装不比较；wearer 在候选池中 → 比较 stealer 与 wearer 的有效得分，**严格大于阈值**才扒装（避免边际抢装振荡）
    - **wearer 有效偏好**：若 wearer 在本轮被升级为 Heavy（记于 `upgradedPawns` 集合），用 Heavy 偏好计算其得分；否则用基础偏好。否则升级 Flexible 的得分被低估会导致误扒，破坏顺延逻辑
+   - **`upgradedPawns` 预填充**：在主循环前根据 `upgradeFlags` 一次性收集本轮被升级的 Pawn，避免主循环中按处理顺序填充导致高评级 stealer 先处理时 wearer 还未加入集合、wearer 得分被低估的"扒装守卫不对称"问题
    - **失败回滚**：扒装失败或守卫拒绝时，把刚卸下的旧装备装回（best effort），避免 Pawn 失去装备
-8. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
+8. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），跳过该层换装
+   - **振荡根因**：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲评分低（`movementPenalty` 用 `backRowW=2.0`，penalty 高），bestScore(轻甲) - currentScore(重甲) > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
+   - **修复**：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
+9. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
+   - **换装调试日志**：每次换装成功后输出 `[GearAllocator] {Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常
 
 ### 范围限定
 
@@ -414,7 +419,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **标记方式**：
   - 头顶世界图标：Harmony Postfix on `PawnUIOverlay.DrawPawnGUIOverlay`
-  - 世界坐标 `pawn.DrawPos` 上方约 1.8 格 → 屏幕坐标 → GUI 坐标（Y 轴翻转）
+  - 世界坐标 `pawn.DrawPos` 上方约 1.0 格（接近原生 health bar 位置，紧贴头顶）→ 屏幕坐标 → GUI 坐标（Y 轴翻转）
   - 颜色按类别动态取色（`PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn))`），`GameFont.Medium` 字号
   - 不修改任何 Pawn 的 Nick/Name，纯前端绘制，安全可逆，无存档副作用
 - **触发**：

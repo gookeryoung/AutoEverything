@@ -148,6 +148,25 @@ namespace AutoEverything.AutoEquipment
                 // 纯逻辑方法计算每个候选 Pawn 的 Heavy 升级标志（便于单元测试）
                 bool[] upgradeFlags = ComputeHeavyUpgradeFlags(heavyArmorCount, heavyPawnCount, sortedPrefsBuffer);
 
+                // 预填充 upgradedPawns：在主循环前根据 upgradeFlags 一次性收集本轮被升级的 Pawn
+                // 用途：扒装守卫 ShouldStealFromWearer 需用 wearer 本轮的有效偏好（含升级）计算得分
+                // 若在主循环中按处理顺序填充，高评级 stealer 先处理时 wearer 还未加入集合，
+                // wearer 得分被低估（用基础 Flexible 偏好计算），导致误扒装 → 振荡
+                // 预填充后所有 stealer 都能看到完整升级集合，扒装判定对称一致
+                {
+                    int prefIdx = 0;
+                    for (int i = 0; i < candidatePawns.Count; i++)
+                    {
+                        Pawn p = candidatePawns[i];
+                        if (p == null || p.Dead || !p.Spawned) continue;
+                        if (DLCCompat.IsGhoul(p)) continue;
+                        CombatTier t = CombatEvaluator.GetCombatTier(p);
+                        if (t == CombatTier.X) continue;
+                        if (upgradeFlags[prefIdx]) upgradedPawns.Add(p);
+                        prefIdx++;
+                    }
+                }
+
                 int allocatedCount = 0;
                 int specIndex = 0;
                 for (int i = 0; i < candidatePawns.Count; i++)
@@ -175,8 +194,7 @@ namespace AutoEverything.AutoEquipment
                     {
                         effectivePref = ArmorPreference.Heavy;
                         effectiveRole = Role.Brawler;
-                        // 记录到升级集合：扒装守卫用此判断 wearer 有效偏好
-                        upgradedPawns.Add(pawn);
+                        // upgradedPawns 已在主循环前预填充（避免扒装守卫不对称）
                     }
 
                     if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel))
@@ -244,6 +262,21 @@ namespace AutoEverything.AutoEquipment
 
                 // 与已穿戴的同层 apparel 比较
                 Apparel currentWorn = FindWornByLayer(wornCopyBuffer, layerKey);
+
+                // 防止 Flexible Pawn 振荡：未升级的 Flexible Pawn 若当前已穿重甲，跳过该层换装
+                // 根因：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲
+                // 评分低（movementPenalty 用 backRowW=2.0，penalty 高），bestScore(轻甲) - currentScore(重甲)
+                // 可能 > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
+                // 修复：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
+                // 注：armorPref 是 effectivePref（升级后），== Flexible 即"basePref=Flexible 且未升级"
+                // 重甲判定标准与 CountHeavyArmor 一致：(Sharp+Blunt) ≥ geHeavyArmorThreshold
+                if (armorPref == ArmorPreference.Flexible && currentWorn != null)
+                {
+                    float curSharp = currentWorn.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                    float curBlunt = currentWorn.GetStatValue(StatDefOf.ArmorRating_Blunt);
+                    if (curSharp + curBlunt >= AESettings.geHeavyArmorThreshold) continue;
+                }
+
                 float bestScore = GearScorer.ComputeScore(pawn, best, role, armorPref);
                 float currentScore = currentWorn != null
                     ? GearScorer.ComputeScore(pawn, currentWorn, role, armorPref)
@@ -291,6 +324,15 @@ namespace AutoEverything.AutoEquipment
 
                 GearInventoryService.MarkAllocated(best);
                 anyAllocated = true;
+
+                // 调试日志：换装成功时输出 Pawn 名、层、旧装备→新装备、得分变化
+                // 用 Func<string> 延迟构造，关闭调试日志时零字符串分配
+                AEDebug.Log(() =>
+                {
+                    string oldName = currentWorn?.def?.defName ?? "无";
+                    string newName = best.def?.defName ?? "?";
+                    return $"[GearAllocator] {AEDebug.Label(pawn)} 换装[{layerKey.defName}]: {oldName} → {newName} (得分 {currentScore:F1} → {bestScore:F1}, 偏好={armorPref})";
+                });
             }
 
             return anyAllocated;
