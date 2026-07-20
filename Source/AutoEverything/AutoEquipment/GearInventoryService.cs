@@ -86,6 +86,7 @@ namespace AutoEverything.AutoEquipment
         /// <summary>
         /// 收集参与分配的 Pawn：玩家阵营自由殖民者 + 玩家阵营奴隶。
         /// 排除：食尸鬼（无法穿戴 apparel）、动物、机械族等。
+        /// 排除：医疗中/休养中的 Pawn（扒装会取消 Job，打断手术/治疗/休养，与 WorkAllocator 保持一致）。
         ///
         /// 防御性设计：开头 Clear 缓冲区，即使重复调用也不会翻倍。
         /// 正常调用路径：ExecuteAllocation 调用一次，传给 CollectCandidateApparel 复用。
@@ -102,6 +103,8 @@ namespace AutoEverything.AutoEquipment
                 if (!pawn.Spawned) continue;
                 if (DLCCompat.IsGhoul(pawn)) continue; // 食尸鬼不参与装备分配
                 if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
+                // 医疗守卫：扒装 TryDrop/Wear 会取消当前 Job，打断手术/治疗/休养
+                if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
                 candidatePawnBuffer.Add(pawn);
             }
 
@@ -119,6 +122,8 @@ namespace AutoEverything.AutoEquipment
                         if (!pawn.IsSlaveOfColony) continue;
                         if (DLCCompat.IsGhoul(pawn)) continue;
                         if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
+                        // 医疗守卫：与殖民者一致，奴隶医疗中也不参与装备分配
+                        if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
                         candidatePawnBuffer.Add(pawn);
                     }
                 }

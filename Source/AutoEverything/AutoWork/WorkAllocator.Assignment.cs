@@ -286,7 +286,9 @@ namespace AutoEverything.AutoWork
                     continue;
                 }
 
-                // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给0
+                // 硬上限跳过的满载者：有火者给 Floor 保底，无火者给 0
+                // 注：ApplySkillFloor 会把高技能无火者的 0 提升到 2(技能≥12) 或 3(技能≥8)，
+                //     避免高技能者被硬上限完全排除，违背"技能保底"原则
                 int passionLevel = GetMaxPassionForSkills(pawn, skills);
                 int priority;
                 if (passionLevel >= (int)PassionHelper.PassionTier.Major)
@@ -295,7 +297,7 @@ namespace AutoEverything.AutoWork
                     priority = config.FloorMinorPriority;
                 else
                     priority = 0;
-                // 技能等级保底：相关技能≥8 者 priority 不低于 3
+                // 技能等级保底：相关技能≥12 者 priority 不低于 2，≥8 者不低于 3
                 priority = ApplySkillFloor(priority, pawn, skills);
                 for (int j = 0; j < workTypes.Length; j++)
                     pawn.workSettings.SetPriority(workTypes[j], priority);
