@@ -82,6 +82,47 @@ AEDebug.Log(() =>
 - 四类日志覆盖所有有价值的"换装决策点"，玩家开启调试后可完整追踪装备分配流程
 - 卸装失败/扒装失败/装备失败不输出 AEDebug.Log（已有 `Log.ErrorOnce` 错误日志，不重复）
 
+#### 修复 1 补充：过程统计日志
+
+在四类决策点日志基础上，增加 `ExecuteAllocation` 的开始/结束过程统计，让玩家能掌握整体流程而非只看单次决策：
+
+**开始统计**（主循环前输出本轮输入参数）：
+
+```csharp
+AEDebug.Log(() =>
+    $"[GearAllocator] 开始装备分配: {candidatePawns.Count} Pawn, {candidateApparel.Count} 件装备, 重甲 {heavyArmorCount}, Heavy Pawn {heavyPawnCount}, 升级 {upgradeCount} (tick={tick})");
+```
+
+**结束统计**（主循环后输出分类跳过数）：
+
+```csharp
+AEDebug.Log(() =>
+    $"[GearAllocator] 装备分配完成: 换装 {allocatedCount}, 防振荡跳过 {statsSkipOscillation}, 扒装拒绝 {statsSkipStealGuard}, 阈值不足 {statsSkipThreshold} (tick={tick})");
+```
+
+**统计字段**（3 个静态字段，每轮 ExecuteAllocation 开头清零）：
+
+```csharp
+private static int statsSkipOscillation;  // 防振荡跳过数
+private static int statsSkipStealGuard;    // 扒装守卫拒绝数
+private static int statsSkipThreshold;   // 阈值不足跳过数
+```
+
+在 `AllocateForPawn` 三处跳过分支累加对应统计字段。
+
+**完整调试日志流程示例**：
+
+```
+[GearAllocator] 开始装备分配: 5 Pawn, 12 件装备, 重甲 3, Heavy Pawn 1, 升级 2 (tick=12345)
+[GearAllocator] A#张三 换装[OnSkin]: 无 → Armor_Plate (得分 -∞ → 18.5, 偏好=Heavy)
+[GearAllocator] B#李四 保留重甲不换[OnSkin]: Armor_Plate (防振荡, 偏好=Flexible)
+[GearAllocator] A#张三 跳过换装[Shell]: Armor_Leather 保留 (差值 0.3 ≤ 阈值 0.5, 偏好=Heavy)
+[GearAllocator] B#李四 放弃扒装[Shell]: Armor_Plate 在 A#张三 身上 (wearer 得分更高, 偏好=Flexible)
+[GearAllocator] 装备分配完成: 换装 1, 防振荡跳过 1, 扒装拒绝 1, 阈值不足 1 (tick=12345)
+```
+
+玩家通过结束统计可一眼定位"为什么装备没换"：若"防振荡跳过"高 → Flexible 穿重甲被保留；若"扒装拒绝"高 → wearer 得分更高；若"阈值不足"高 → 候选装备不够优。
+
 #### 修复 2：脱装备振荡
 
 振荡有两层根因，分别修复：

@@ -343,11 +343,13 @@ Passion 量化：None=0, Minor=1, Major=2。
    - **修复**：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
 9. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
-   - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含四类：
+   - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含过程统计与四类决策点：
+     - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U} (tick=...)`
      - 换装成功：`{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`
      - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡, 偏好={armorPref})`
      - 扒装守卫拒绝：`{Pawn} 放弃扒装[{层}]: {best} 在 {wearer} 身上 (wearer 得分更高, 偏好={armorPref})`
      - 阈值不足跳过：`{Pawn} 跳过换装[{层}]: {current} 保留 (差值 {diff} ≤ 阈值 {threshold}, 偏好={armorPref})`
+     - **结束统计**：`装备分配完成: 换装 {A}, 防振荡跳过 {O}, 扒装拒绝 {S}, 阈值不足 {T} (tick=...)`
 
 ### 范围限定
 

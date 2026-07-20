@@ -56,6 +56,12 @@ namespace AutoEverything.AutoEquipment
         // 用途：ShouldStealFromWearer 需用 wearer 的"有效偏好"（含升级）计算得分，否则升级 Flexible 的得分被低估导致误扒
         private static readonly HashSet<Pawn> upgradedPawns = new HashSet<Pawn>();
 
+        // 装备分配过程统计：每轮 ExecuteAllocation 开头清零，结束时输出分类跳过数便于调试
+        // statsSkipOscillation=防振荡跳过, statsSkipStealGuard=扒装守卫拒绝, statsSkipThreshold=阈值不足
+        private static int statsSkipOscillation;
+        private static int statsSkipStealGuard;
+        private static int statsSkipThreshold;
+
         /// <summary>
         /// 由 AutoExecutor 调用：检查脏标 + 冷却，若到期则执行一次全局分配。
         /// 不弹消息（避免周期路径刷屏），仅 AEDebug.Log。
@@ -110,6 +116,10 @@ namespace AutoEverything.AutoEquipment
                 GearInventoryService.ResetAllocation();
                 // 清空升级集合：扒装守卫依赖此集合判断 wearer 有效偏好
                 upgradedPawns.Clear();
+                // 清零过程统计：本轮结束时输出分类跳过数
+                statsSkipOscillation = 0;
+                statsSkipStealGuard = 0;
+                statsSkipThreshold = 0;
                 // 显式调用一次 CollectCandidatePawns，传给 CollectCandidateApparel 复用，
                 // 避免内部重复调用导致缓冲区翻倍或浪费 CPU
                 List<Pawn> candidatePawns = GearInventoryService.CollectCandidatePawns();
@@ -147,6 +157,15 @@ namespace AutoEverything.AutoEquipment
 
                 // 纯逻辑方法计算每个候选 Pawn 的 Heavy 升级标志（便于单元测试）
                 bool[] upgradeFlags = ComputeHeavyUpgradeFlags(heavyArmorCount, heavyPawnCount, sortedPrefsBuffer);
+
+                // 统计本轮升级的 Flexible Pawn 数（upgradeFlags 中 true 的数量）
+                int upgradeCount = 0;
+                for (int i = 0; i < upgradeFlags.Length; i++)
+                    if (upgradeFlags[i]) upgradeCount++;
+
+                // 开始日志：输出本轮分配的完整输入参数，便于玩家追踪整体流程
+                AEDebug.Log(() =>
+                    $"[GearAllocator] 开始装备分配: {candidatePawns.Count} Pawn, {candidateApparel.Count} 件装备, 重甲 {heavyArmorCount}, Heavy Pawn {heavyPawnCount}, 升级 {upgradeCount} (tick={tick})");
 
                 // 预填充 upgradedPawns：在主循环前根据 upgradeFlags 一次性收集本轮被升级的 Pawn
                 // 用途：扒装守卫 ShouldStealFromWearer 需用 wearer 本轮的有效偏好（含升级）计算得分
@@ -203,7 +222,9 @@ namespace AutoEverything.AutoEquipment
                     }
                 }
 
-                AEDebug.Log(() => $"[AutoExecutor] 自动装备分配: {allocatedCount}/{candidatePawns.Count} 个殖民者 (tick={tick}, heavyArmor={heavyArmorCount}, heavyPawn={heavyPawnCount})");
+                // 结束日志：输出本轮分配的分类统计（换装成功数 + 三类跳过数），便于玩家排查
+                AEDebug.Log(() =>
+                    $"[GearAllocator] 装备分配完成: 换装 {allocatedCount}, 防振荡跳过 {statsSkipOscillation}, 扒装拒绝 {statsSkipStealGuard}, 阈值不足 {statsSkipThreshold} (tick={tick})");
                 if (showMessage)
                 {
                     Messages.Message("AE_AutoGear_AllocateResult".Translate(allocatedCount, candidatePawns.Count),
@@ -276,6 +297,7 @@ namespace AutoEverything.AutoEquipment
                     float curBlunt = currentWorn.GetStatValue(StatDefOf.ArmorRating_Blunt);
                     if (curSharp + curBlunt >= AESettings.geHeavyArmorThreshold)
                     {
+                        statsSkipOscillation++;
                         AEDebug.Log(() =>
                             $"[GearAllocator] {AEDebug.Label(pawn)} 保留重甲不换[{layerKey.defName}]: {currentWorn.def?.defName} (防振荡, 偏好={armorPref})");
                         continue;
@@ -290,6 +312,7 @@ namespace AutoEverything.AutoEquipment
                 // 仅当新 apparel 明显更优（差值 > 阈值）才替换，避免抖动
                 if (bestScore - currentScore <= AESettings.geReplaceThreshold)
                 {
+                    statsSkipThreshold++;
                     AEDebug.Log(() =>
                     {
                         string cur = currentWorn?.def?.defName ?? "无";
@@ -315,6 +338,7 @@ namespace AutoEverything.AutoEquipment
                     if (!ShouldStealFromWearer(wearer, best, bestScore))
                     {
                         // wearer 得分更高或相当：不扒装，把刚卸下的旧 apparel 装回，跳过此层
+                        statsSkipStealGuard++;
                         AEDebug.Log(() =>
                             $"[GearAllocator] {AEDebug.Label(pawn)} 放弃扒装[{layerKey.defName}]: {best.def?.defName} 在 {AEDebug.Label(wearer)} 身上 (wearer 得分更高, 偏好={armorPref})");
                         if (currentWorn != null) TrySafeEquip(pawn, currentWorn);
