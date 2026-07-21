@@ -7,13 +7,13 @@ namespace AutoEverything.Core
     /// 格式：档次名 + # + 原名（如 "S#王五"），支持多字母前缀 SS#/SSS#。
     /// 必须是合法 CombatTier 枚举名才剥离，避免误把玩家自定义 Nick 当评级前缀。
     ///
-    /// 星标字符：AutoMarkPawn 模块在非殖民者头顶绘制 "★" 图标时复用此常量。
+    /// 星标字符：AutoMarkPawn 模块在殖民者栏固定位置绘制 "★" 图标时复用此常量。
     /// 不再修改任何 Pawn 的 Nick，星标纯前端绘制（Harmony Postfix）。
     /// </summary>
     public static class TierTagHelper
     {
         /// <summary>
-        /// 高价值星标字符（鲜艳红色，由 AutoMarkPawn 模块在非殖民者头顶绘制）。
+        /// 高价值星标字符（由 AutoMarkPawn 模块在殖民者栏 Rect 右上角绘制）。
         /// 定义在此处供 HarmonyPatches 与 PawnMarker 共享，避免重复定义。
         /// </summary>
         public const string StarMarker = "★";

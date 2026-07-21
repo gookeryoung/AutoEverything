@@ -9,7 +9,7 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.AutoMarkPawn
 {
     /// <summary>
-    /// 高价值单位标记模块：为 S+ 档次（S/SS/SSS）的人类单位头顶实时绘制彩色星标 "★"。
+    /// 高价值单位标记模块：为 S+ 档次（S/SS/SSS）的人类单位在殖民者栏固定位置绘制彩色星标 "★"。
     ///
     /// 设计目的：
     /// - 玩家一眼可辨高价值单位（S/SS/SSS 档），便于优先俘虏、招募、警惕或培养
@@ -17,8 +17,16 @@ namespace AutoEverything.AutoMarkPawn
     /// - 按单位类别用不同颜色星标区分（殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白）
     /// - 不修改任何 Pawn 的 Nick/Name，纯前端绘制（Harmony Postfix），安全可逆，无存档副作用
     ///
+    /// 显示方式（参考 UsefulMarks MOD 设计）：
+    /// - 殖民者栏固定标签：HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch 在
+    ///   ColonistBarColonistDrawer.DrawColonist Postfix 中绘制 ★ 到殖民者栏 Rect 右上角
+    /// - 与相机缩放完全解耦：殖民者栏是固定 UI 元素，星标位置不受世界坐标缩放影响
+    /// - 可视范围限制：仅殖民者栏中的 Pawn（殖民者/奴隶/食尸鬼）有星标；
+    ///   非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）无可视星标，
+    ///   但 ScanAndMark 通知消息逻辑仍覆盖所有人类单位，玩家通过消息仍可知晓
+    ///
     /// 触发方式：
-    /// - 实时绘制：HarmonyPatches.PawnUIOverlay_DrawPawnGUIOverlay_Patch 在 DrawPawnGUIOverlay Postfix 中绘制
+    /// - 殖民者栏绘制：Harmony Postfix 每次殖民者栏绘制单个 Pawn 时调用（OnGUI 路径）
     /// - ITab 勾选时：全局重扫描（resetTracking=true），弹出消息列出所有当前高价值单位
     /// - 自动模式：地图人员变动时（新增人类like 单位），扫描新增高价值单位并弹消息提示
     ///

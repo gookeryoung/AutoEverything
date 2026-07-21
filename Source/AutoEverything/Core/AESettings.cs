@@ -16,7 +16,7 @@ namespace AutoEverything.Core
         public static bool enabled = true;
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
-        public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 全人类单位彩色星标 ★，事件触发 + 每帧 Postfix 绘制 + ITab 切换全局重扫描）
+        public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 人类单位彩色星标 ★，殖民者栏固定位置 Postfix 绘制 + 事件触发 + ITab 切换全局重扫描）
         public static bool autoEquipmentEnabled = false;  // AutoEquipment 自动装备分配（事件驱动 + ITab 切换全局重分配，默认关闭避免误扒装）
 
         // 战斗价值公式可调权重（用于评级排序与高价值标记判定）

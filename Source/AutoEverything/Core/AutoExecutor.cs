@@ -21,8 +21,8 @@ namespace AutoEverything.Core
     /// - 评级（周期 + 事件）：每 3000 tick 周期触发；殖民者数量增加时立即触发
     ///   周期/事件触发仅更新 Nick 前缀（评级变化时），不重排殖民者栏——避免覆盖玩家手动排序；
     ///   玩家主动触发（ITab 勾选/点排序按钮）才调 ReorderColonistBar 重排
-    /// - 高价值标记（事件 + 每帧绘制）：人类单位数量增加时扫描新增高价值目标并弹消息；
-    ///   彩色星标绘制靠 Harmony PawnUIOverlay Postfix 每帧调用 PawnMarker.IsHighValue
+    /// - 高价值标记（事件 + 殖民者栏绘制）：人类单位数量增加时扫描新增高价值目标并弹消息；
+    ///   彩色星标在殖民者栏固定位置由 Harmony ColonistBarColonistDrawer.DrawColonist Postfix 绘制
     ///   （走 TierCacheService 共享 2500 tick 缓存），无需周期触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈，含完整目标列表）
     ///
@@ -55,8 +55,9 @@ namespace AutoEverything.Core
         private static PhaseState work = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
-        // 注：Mark 无周期触发——彩色星标绘制靠 Harmony PawnUIOverlay Postfix 每帧调用
-        // PawnMarker.IsHighValue（走 TierCacheService 共享 2500 tick 缓存）。
+        // 注：Mark 无周期触发——彩色星标在殖民者栏固定位置由 Harmony
+        // ColonistBarColonistDrawer.DrawColonist Postfix 绘制（调用 PawnMarker.IsHighValue，
+        // 走 TierCacheService 共享 2500 tick 缓存）。
         // Mark 触发条件：人类单位数量增加（事件）+ ITab 勾选切换（玩家主动）。
 
         // 殖民者数量缓存：-1 = 首次只记录不触发（用于工作重配与评级事件检测）

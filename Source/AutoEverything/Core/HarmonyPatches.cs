@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
 using HarmonyLib;
 using RimWorld;
 using UnityEngine;
@@ -14,7 +13,7 @@ namespace AutoEverything.Core
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
     /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
-    /// 2) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
+    /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标
     /// 3) Thing.SpawnSetup Postfix：装备生成/殖民者生成时标记装备分配脏标（事件驱动）
     /// 4) Thing.Destroy Postfix：装备销毁/殖民者死亡时标记装备分配脏标
     /// 5) Pawn.SetFaction Postfix：殖民者阵营变化（含奴隶转化）时标记装备分配脏标
@@ -24,6 +23,12 @@ namespace AutoEverything.Core
     /// 注：原 Pawn.SpawnSetup Postfix 注入 CompGearManager 的逻辑已移除——
     /// 该机制修改所有人类like Pawn ThingDef.comps，与其他装备管理类 MOD 冲突。
     /// 现改用 GameComponent 全局 Tick 驱动 AutoExecutor，零 ThingDef 修改。
+    ///
+    /// 星标显示方案（参考 UsefulMarks 设计）：
+    /// - 早期方案在 PawnUIOverlay.DrawPawnGUIOverlay Postfix 中于世界图层 Pawn 头顶绘制 ★，
+    ///   依赖世界坐标到屏幕坐标的换算，相机缩放时星标与 Pawn 头顶的相对位置会飘移
+    /// - 现改为在 ColonistBarColonistDrawer.DrawColonist Postfix 中于殖民者栏 Rect 右上角绘制 ★，
+    ///   殖民者栏是固定 UI 元素，与相机缩放完全解耦，彻底避免飘移
     /// </summary>
     public static class HarmonyPatches
     {
@@ -40,37 +45,28 @@ namespace AutoEverything.Core
                 AccessTools.Method(typeof(Game), nameof(Game.FinalizeInit)),
                 postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
 
-            // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在 S+ 档次人类 Pawn 头顶绘制彩色星标（按类别区分颜色）
-            // RimWorld 1.6 中类型为 Verse.PawnUIOverlay（非 RimWorld 命名空间），含实例字段 pawn 与无参方法 DrawPawnGUIOverlay
-            // 用 try-catch + null 检查降级：类型/方法缺失仅 Log.Warning，星标不显示但不崩溃
+            // ColonistBarColonistDrawer.DrawColonist 补丁：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标
+            // RimWorld 1.6 中类型为 RimWorld.ColonistBarColonistDrawer，公开实例方法 DrawColonist(Rect, Pawn, Map, bool, bool)
+            // 用 try-catch 降级：类型/方法缺失仅 Log.Warning，星标不显示但不崩溃
+            // Priority.Last 避免与其他 MOD 的同方法 patch 顺序冲突
             try
             {
-                // 优先用 Verse 命名空间（RimWorld 1.6 实际位置），回退 RimWorld 命名空间兼容旧版本
-                var overlayType = AccessTools.TypeByName("Verse.PawnUIOverlay")
-                    ?? AccessTools.TypeByName("RimWorld.PawnUIOverlay");
-                if (overlayType != null)
+                var drawMethod = AccessTools.Method(typeof(ColonistBarColonistDrawer), nameof(ColonistBarColonistDrawer.DrawColonist));
+                if (drawMethod != null)
                 {
-                    pawnUIOverlayPawnField = AccessTools.Field(overlayType, "pawn");
-                    var drawMethod = AccessTools.Method(overlayType, "DrawPawnGUIOverlay");
-                    if (drawMethod != null)
-                    {
-                        harmony.Patch(drawMethod,
-                            postfix: new HarmonyMethod(typeof(PawnUIOverlay_DrawPawnGUIOverlay_Patch),
-                                nameof(PawnUIOverlay_DrawPawnGUIOverlay_Patch.Postfix)));
-                    }
-                    else
-                    {
-                        Log.Warning("[AutoEverything] PawnUIOverlay.DrawPawnGUIOverlay 未找到，头顶星标降级为无显示");
-                    }
+                    harmony.Patch(drawMethod,
+                        postfix: new HarmonyMethod(typeof(ColonistBarDrawer_DrawColonist_Patch),
+                            nameof(ColonistBarDrawer_DrawColonist_Patch.Postfix))
+                        { priority = Priority.Last });
                 }
                 else
                 {
-                    Log.Warning("[AutoEverything] PawnUIOverlay 类型未找到，头顶星标降级为无显示");
+                    Log.Warning("[AutoEverything] ColonistBarColonistDrawer.DrawColonist 未找到，殖民者栏星标降级为无显示");
                 }
             }
             catch (Exception ex)
             {
-                Log.Warning("[AutoEverything] PawnUIOverlay 补丁失败: " + ex.Message);
+                Log.Warning("[AutoEverything] ColonistBarColonistDrawer 补丁失败: " + ex.Message);
             }
 
             // 装备分配事件补丁（仅 Apparel 与玩家阵营人类like Pawn 触发 MarkDirty）
@@ -95,7 +91,7 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] 装备分配事件补丁失败: " + ex.Message);
             }
 
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + PawnUIOverlay 彩色星标 + 装备分配事件触发)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 星标 + 装备分配事件触发)");
         }
 
         /// <summary>
@@ -125,93 +121,74 @@ namespace AutoEverything.Core
             }
         }
 
-        // PawnUIOverlay.pawn 私有字段缓存：运行时反射查找，类型不存在则为 null
-        // Postfix 通过此字段获取 PawnUIOverlay 关联的 Pawn 实例
-        private static FieldInfo pawnUIOverlayPawnField;
-
         /// <summary>
-        /// PawnUIOverlay.DrawPawnGUIOverlay 的 Postfix：在 S+ 档次人类 Pawn 头顶绘制彩色星标。
-        /// 仅在 autoMarkPawn 开启且 Pawn 为可标记的高价值对象（S+）时绘制。
+        /// ColonistBarColonistDrawer.DrawColonist 的 Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标。
+        ///
+        /// 设计动机（参考 UsefulMarks MOD）：
+        /// - 早期方案在 PawnUIOverlay.DrawPawnGUIOverlay 中于世界图层 Pawn 头顶绘制 ★，
+        ///   依赖世界坐标到屏幕坐标换算，相机缩放时星标与 Pawn 头顶的相对位置飘移
+        /// - 改为 hook 殖民者栏绘制：殖民者栏是固定 UI 元素，与相机缩放完全解耦
         ///
         /// 实现要点：
-        /// - 通过反射获取 PawnUIOverlay.pawn 私有字段（兼容 RimWorld 版本差异，类型不存在则降级）
-        /// - 世界坐标转屏幕坐标：pawn.DrawPos 上方约 1.8 格（头顶位置）
-        /// - GUI 坐标 Y 轴翻转：Screen.height - screenPos.y
+        /// - Harmony 自动注入参数 rect 与 colonist（与原方法同名同型，无需反射）
+        /// - 在 rect 右上角叠加固定像素大小的 ★ 标签
         /// - 颜色按 Pawn 类别动态取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
         /// - 不修改任何 Pawn 数据，纯前端绘制，安全可逆
         ///
-        /// 标记范围：所有人类like 单位（殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类）
+        /// 覆盖范围：
+        /// - 殖民者栏中所有可见 Pawn（殖民者/奴隶/食尸鬼/动物宠物/机械族等）
+        /// - 通过 PawnSuitabilityChecker.CanManageGear 过滤非人类like（动物/机械族/昆虫/异常实体）
+        /// - 通过 PawnMarker.IsHighValue 过滤非 S+ 档次
+        /// - 不强制 Spawned：殖民者栏包含卧床/运输中的殖民者，仍应标记其高价值状态
+        ///
+        /// 代价（与早期方案相比）：
+        /// - 非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）不再有可视星标，
+        ///   但 PawnMarker.ScanAndMark 通知消息逻辑仍覆盖所有人类单位，玩家仍能通过消息知晓
         /// </summary>
-        public static class PawnUIOverlay_DrawPawnGUIOverlay_Patch
+        public static class ColonistBarDrawer_DrawColonist_Patch
         {
-            public static void Postfix(object __instance)
+            /// <summary>
+            /// 星标尺寸（像素）：殖民者栏 Rect 右上角 ★ 标签的边长。
+            /// 经验值 18：殖民者栏头像约 48x48 像素，星标占右上角约 1/3，醒目不喧宾夺主。
+            /// </summary>
+            private const float StarSize = 18f;
+
+            public static void Postfix(Rect rect, Pawn colonist)
             {
                 if (!AESettings.enabled || !AESettings.autoMarkPawn) return;
-                if (pawnUIOverlayPawnField == null) return;
-
-                Pawn pawn;
-                try
-                {
-                    pawn = pawnUIOverlayPawnField.GetValue(__instance) as Pawn;
-                }
-                catch (Exception ex)
-                {
-                    Log.ErrorOnce("[AutoEverything] PawnUIOverlay pawn 字段读取失败: " + ex.Message, 0xA610);
-                    return;
-                }
-                if (pawn == null) return;
-                if (!PawnMarker.IsMarkableTarget(pawn)) return;
-                if (!PawnMarker.IsHighValue(pawn)) return;
+                if (colonist == null) return;
+                if (colonist.Dead) return;
+                if (!PawnSuitabilityChecker.CanManageGear(colonist)) return;
+                if (!PawnMarker.IsHighValue(colonist)) return;
 
                 try
                 {
-                    DrawStarAbovePawn(pawn);
+                    DrawStarOnColonistBar(rect, colonist);
                 }
                 catch (Exception ex)
                 {
-                    Log.ErrorOnce("[AutoEverything] 头顶星标绘制失败: " + ex.Message,
-                        pawn.thingIDNumber ^ 0xA600);
+                    Log.ErrorOnce("[AutoEverything] 殖民者栏星标绘制失败: " + ex.Message,
+                        colonist.thingIDNumber ^ 0xA600);
                 }
             }
 
             /// <summary>
-            /// 在 Pawn 头顶绘制彩色 ★ 图标，颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
+            /// 在殖民者栏 Rect 右上角绘制彩色 ★ 图标。
+            /// 颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
             ///
-            /// 渲染方式（彻底方案）：
-            /// 直接调用 RimWorld 内部 <c>GenMapUI.LabelDrawPosFor(pawn, 0f)</c> 获取屏幕坐标，
-            /// 与 RimWorld 原生名字标签用完全相同的坐标算法——
-            /// 内部已正确处理 <c>UI.screenHeight</c>（受 UI Scale 影响）与 Y 轴翻转。
-            ///
-            /// 之前几轮失败的根因：
-            /// 1) 用世界坐标 Y 偏移（1.8f/1.0f/1.5f）：相机缩放时世界 Y 偏移在屏幕上的像素数 = N × 缩放因子，飘移
-            /// 2) 用 Screen.height 计算 GUI Y：RimWorld 内部用 UI.screenHeight（受 UI Scale 影响），
-            ///    UI Scale ≠ 1 时坐标系不一致，星标位置错位（这是"依然错位"的真正根因）
-            /// 3) 固定像素偏移 50f + Screen.height：坐标系问题未解决
-            ///
-            /// 本方案彻底解决：
-            /// - 用 GenMapUI.LabelDrawPosFor 获取屏幕坐标（与 RimWorld 内部完全一致，自动处理 UI Scale）
-            /// - 加固定像素偏移让星标显示在 Pawn 上方
+            /// 坐标系：
+            /// - rect 由 RimWorld 内部计算（已含 UI Scale 缩放），直接用 rect.xMax/yMin 定位右上角
+            /// - 星标 Rect 边长 StarSize，右上角对齐 rect 右上角（内缩 2px 留白避免与边框重叠）
             /// </summary>
-            private static void DrawStarAbovePawn(Pawn pawn)
+            private static void DrawStarOnColonistBar(Rect rect, Pawn pawn)
             {
-                // 直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor 获取屏幕坐标
-                // 该方法内部：pawn.DrawPos → WorldToScreenPoint → UI.screenHeight - screenPos.y
-                // 与 RimWorld 原生名字标签用完全相同的坐标计算方式
-                // 关键：内部用 UI.screenHeight（不是 Screen.height），UI Scale ≠ 1 时坐标系与 RimWorld 一致
-                Vector2 labelScreenPos = GenMapUI.LabelDrawPosFor(pawn, 0f);
-                // LabelDrawPosFor 在 Pawn 在相机后时返回 (-1, -1)
-                if (labelScreenPos.x < 0f) return;
-
-                // labelScreenPos 是 Pawn 脚部的 GUI 屏幕坐标（Y 向下为正，原点左上）
-                // 向上偏移固定像素让星标显示在 Pawn 头顶上方
-                // 经验值 50：Pawn 模型在屏幕上约 40-60 像素高，星标位于头顶上方
-                const float yOffsetPixels = 50f;
-                float starSize = 20f;
+                // 右上角对齐：x = rect.right - StarSize - 2，y = rect.top + 2
+                // 内缩 2px 留白，避免星标紧贴殖民者栏边框
                 Rect starRect = new Rect(
-                    labelScreenPos.x - starSize / 2f,
-                    labelScreenPos.y - yOffsetPixels - starSize / 2f,
-                    starSize,
-                    starSize);
+                    rect.xMax - StarSize - 2f,
+                    rect.yMin + 2f,
+                    StarSize,
+                    StarSize);
 
                 // 按类别取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
                 Color starColor = PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn));
@@ -219,7 +196,7 @@ namespace AutoEverything.Core
                 Color prevColor = GUI.color;
                 GUI.color = starColor;
                 GameFont prevFont = Text.Font;
-                Text.Font = GameFont.Medium;
+                Text.Font = GameFont.Small;
                 TextAnchor prevAnchor = Text.Anchor;
                 Text.Anchor = TextAnchor.MiddleCenter;
                 bool prevWrap = Text.WordWrap;
