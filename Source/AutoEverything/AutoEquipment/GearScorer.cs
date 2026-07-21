@@ -79,17 +79,50 @@ namespace AutoEverything.AutoEquipment
         /// - Heavy（前排 Brawler）：高护甲 apparel 加分，低护甲减分
         /// - Light（工人/医生/Pacifist）：低护甲 apparel 加分（保持移动效率），重甲减分
         /// - Flexible（后排 Shooter/Hunter/Leader）：按护甲值线性加分，无偏置
+        ///
+        /// 头盔层（Overhead）特殊规则：Light 偏好降级为 Flexible 评分。
+        /// 根因：头盔核心价值是护甲，mass 普遍 0.3kg 左右，移动效率差异微乎其微；
+        ///       Light 公式 (1-armorSum)*1.5 - armorSum*0.5 在 armorSum=0.2~0.3 时
+        ///       让低护甲头盔反而得分更高（简易头盔胜过斥候头盔），与头盔价值相悖。
         /// </summary>
         private static float ComputeLayerMatchScore(Apparel apparel, Role role, ArmorPreference armorPref)
         {
             // 用 apparel 的"护甲总量"作为重甲/轻甲的判据（Sharp+Blunt）
             float sharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
             float blunt = apparel.GetStatValue(StatDefOf.ArmorRating_Blunt);
-            return ComputeLayerMatchScoreCore(sharp, blunt, armorPref,
+            ArmorPreference effectivePref = ResolveEffectivePref(IsHeadwear(apparel), armorPref);
+            return ComputeLayerMatchScoreCore(sharp, blunt, effectivePref,
                 AESettings.geHeavyArmorMatchWeight,
                 AESettings.geLightArmorMatchWeight,
                 AESettings.geLightArmorAvoidWeight,
                 AESettings.geFlexibleArmorMatchWeight);
+        }
+
+        /// <summary>
+        /// 判断 apparel 是否属于头盔层（Overhead）。
+        /// 用于 Light 偏好降级规则：头盔对 Worker 也按护甲线性加分。
+        /// </summary>
+        private static bool IsHeadwear(Apparel apparel)
+        {
+            ApparelProperties props = apparel?.def?.apparel;
+            if (props == null || props.layers == null) return false;
+            for (int i = 0; i < props.layers.Count; i++)
+            {
+                if (props.layers[i] == ApparelLayerDefOf.Overhead) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 解析有效护甲偏好：头盔层对 Light 偏好降级为 Flexible。
+        /// 纯逻辑方法，便于单元测试，不依赖 Apparel 实例。
+        ///
+        /// 算法：isHeadwear && basePref == Light → Flexible；否则原样返回。
+        /// Heavy/Flexible 不受影响（Heavy 仍强制重甲契合，Flexible 仍线性加分）。
+        /// </summary>
+        internal static ArmorPreference ResolveEffectivePref(bool isHeadwear, ArmorPreference basePref)
+        {
+            return (isHeadwear && basePref == ArmorPreference.Light) ? ArmorPreference.Flexible : basePref;
         }
 
         /// <summary>

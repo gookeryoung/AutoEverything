@@ -52,7 +52,7 @@ namespace AutoEverything.Core
         public static float geCultureViolationPenalty = 30f;         // ideo 违反扣分
         public static float geCultureStuffBonus = 5f;                // ideo 偏好材质加分
         public static float geCultureRequirementBonus = 8f;          // 符合 ideo 要求加分
-        public static float geReplaceThreshold = 0.5f;               // 替换阈值：新 apparel 分数比已穿戴高此值才替换
+        public static float geReplaceThreshold = 0.06f;              // 替换阈值：新 apparel 分数比已穿戴高此值才替换（默认 0.06：同层装备护甲差通常 0.05~0.15，0.5 会阻断细微升级；0.06 让 Worker 头盔层降级后差值 ~0.097 也能触发换装）
         public static float geHeavyArmorThreshold = 1.0f;            // 重甲判定阈值：apparel 的 (Sharp+Blunt) ≥ 此值视为重甲，用于顺延名额计算
 
         // 自定义战斗评级识别码
@@ -108,7 +108,7 @@ namespace AutoEverything.Core
             LookCompat(ref geCultureViolationPenalty, "geCultureViolationPenalty", 30f);
             LookCompat(ref geCultureStuffBonus, "geCultureStuffBonus", 5f);
             LookCompat(ref geCultureRequirementBonus, "geCultureRequirementBonus", 8f);
-            LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.5f);
+            LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.06f);
             LookCompat(ref geHeavyArmorThreshold, "geHeavyArmorThreshold", 1.0f);
 
             // 殖民者栏默认排序方式

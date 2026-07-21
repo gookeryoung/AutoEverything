@@ -316,7 +316,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 | `geCultureViolationPenalty` | 30 | 意识形态违反扣分 |
 | `geCultureStuffBonus` | 5 | 意识形态偏好材质加分 |
 | `geCultureRequirementBonus` | 8 | 符合意识形态要求加分 |
-| `geReplaceThreshold` | 0.5 | 替换阈值（新装备需比已穿高此分差才换装） |
+| `geReplaceThreshold` | 0.06 | 替换阈值（新装备需比已穿高此分差才换装；默认 0.06 让同层装备的细微护甲差异也能触发换装，如简易头盔→斥候头盔差值约 0.097） |
 | `geHeavyArmorThreshold` | 1.0 | 重甲判定阈值（Sharp+Blunt≥此值视为重甲，用于后排顺延名额计算） |
 
 ### 分配规则
@@ -333,17 +333,21 @@ Passion 量化：None=0, Minor=1, Major=2。
    - `Light`（Worker/Doctor/Pacifist）始终保持 Light，不参与顺延（保工作效率）
    - 仅影响传给 `GearScorer` 的评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
 5. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
-6. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
-7. **扒装守卫（防振荡）**：从他人身上扒装前先调用 `ShouldStealFromWearer(wearer, apparel, stealerScore)`，仅当 `stealerScore - wearerScore > geReplaceThreshold` 时允许扒装
+6. **头盔层特殊规则**：头盔层（`Overhead`）对 `Light` 偏好（Worker/Doctor/Pacifist）降级为 `Flexible` 评分
+   - **根因**：头盔核心价值是护甲，mass 普遍 0.3kg 左右，移动效率差异微乎其微；Light 公式 `(1-armorSum)*1.5 - armorSum*0.5` 在 armorSum=0.2~0.3 时让低护甲头盔反而得分更高（简易头盔胜过斥候头盔），与头盔价值相悖
+   - **修复**：`GearScorer.ResolveEffectivePref(isHeadwear, basePref)` 纯逻辑方法做转换，仅影响传给 `ComputeLayerMatchScoreCore` 的偏好参数，不修改 `RoleDetector` 全局判定
+   - Heavy/Flexible 偏好不受影响（头盔层也按原公式评分）
+7. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
+8. **扒装守卫（防振荡）**：从他人身上扒装前先调用 `ShouldStealFromWearer(wearer, apparel, stealerScore)`，仅当 `stealerScore - wearerScore > geReplaceThreshold` 时允许扒装
    - **振荡根因**：原逻辑仅比较 stealer 的"新旧得分差"（`bestScore - currentScore > 阈值`），未考虑 wearer 的损失。当 A 与 B 对装备 Y 的得分接近时，A 抢 B 的 Y → 下轮 B 觉得自己更应该拿 → 抢回 → 循环
    - **守卫规则**：wearer 不适合装备管理（食尸鬼/X 档/医疗中）→ 允许扒装不比较；wearer 在候选池中 → 比较 stealer 与 wearer 的有效得分，**严格大于阈值**才扒装（避免边际抢装振荡）
    - **wearer 有效偏好**：若 wearer 在本轮被升级为 Heavy（记于 `upgradedPawns` 集合），用 Heavy 偏好计算其得分；否则用基础偏好。否则升级 Flexible 的得分被低估会导致误扒，破坏顺延逻辑
    - **`upgradedPawns` 预填充**：在主循环前根据 `upgradeFlags` 一次性收集本轮被升级的 Pawn，避免主循环中按处理顺序填充导致高评级 stealer 先处理时 wearer 还未加入集合、wearer 得分被低估的"扒装守卫不对称"问题
    - **失败回滚**：扒装失败或守卫拒绝时，把刚卸下的旧装备装回（best effort），避免 Pawn 失去装备
-8. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），跳过该层换装
+9. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），跳过该层换装
    - **振荡根因**：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲评分低（`movementPenalty` 用 `backRowW=2.0`，penalty 高），bestScore(轻甲) - currentScore(重甲) > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
    - **修复**：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
-9. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
+10. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
    - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含过程统计与四类决策点：
      - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U} (tick=...)`

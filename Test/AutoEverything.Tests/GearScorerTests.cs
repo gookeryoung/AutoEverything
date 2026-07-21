@@ -41,6 +41,7 @@ namespace AutoEverything.Tests
             failures += RunLayerMatchTests(ref total);
             failures += RunInsulationTests(ref total);
             failures += RunMovementPenaltyTests(ref total);
+            failures += RunEffectivePrefTests(ref total);
 
             return failures;
         }
@@ -277,6 +278,43 @@ namespace AutoEverything.Tests
         }
 
         // ════════════════════════════════════════════════════════════
+        // 5. ResolveEffectivePref：头盔层 Light → Flexible 降级规则
+        // ════════════════════════════════════════════════════════════
+
+        private static int RunEffectivePrefTests(ref int total)
+        {
+            int failures = 0;
+
+            // ── Light 偏好 + 头盔层 → 降级为 Flexible ──────────────
+            // 设计意图：Worker 头盔 mass 小无移动效率差异，Light 公式让低护甲头盔
+            // 反而得分更高（简易胜斥候），与头盔核心价值（护甲）相悖，故头盔层 Light → Flexible
+            CheckPref(true, ArmorPreference.Light, ArmorPreference.Flexible,
+                "headwear + Light → Flexible (override)", ref failures, ref total);
+
+            // ── Light 偏好 + 非头盔层 → 保持 Light ─────────────────
+            // 衬衫/护甲等躯干装备仍按 Light 公式（保 Worker 移动效率）
+            CheckPref(false, ArmorPreference.Light, ArmorPreference.Light,
+                "non-headwear + Light → Light (keep)", ref failures, ref total);
+
+            // ── Heavy 偏好 + 任何层 → 保持 Heavy ──────────────────
+            // Heavy 强制重甲契合，头盔层也不变（前排战士头盔也要护甲）
+            CheckPref(true, ArmorPreference.Heavy, ArmorPreference.Heavy,
+                "headwear + Heavy → Heavy (keep)", ref failures, ref total);
+            CheckPref(false, ArmorPreference.Heavy, ArmorPreference.Heavy,
+                "non-headwear + Heavy → Heavy (keep)", ref failures, ref total);
+
+            // ── Flexible 偏好 + 任何层 → 保持 Flexible ─────────────
+            // Flexible 已是线性加分，头盔层无需转换
+            CheckPref(true, ArmorPreference.Flexible, ArmorPreference.Flexible,
+                "headwear + Flexible → Flexible (keep)", ref failures, ref total);
+            CheckPref(false, ArmorPreference.Flexible, ArmorPreference.Flexible,
+                "non-headwear + Flexible → Flexible (keep)", ref failures, ref total);
+
+            Console.WriteLine($"[GearScorerTests/EffectivePref] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        // ════════════════════════════════════════════════════════════
         // 辅助方法
         // ════════════════════════════════════════════════════════════
 
@@ -328,6 +366,18 @@ namespace AutoEverything.Tests
             float actual = GearScorer.ComputeMovementPenaltyCore(mass, role,
                 workerW, backRowW, frontRowW);
             if (System.Math.Abs(actual - expected) > Epsilon)
+            {
+                Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");
+                failures++;
+            }
+        }
+
+        private static void CheckPref(bool isHeadwear, ArmorPreference basePref, ArmorPreference expected,
+            string label, ref int failures, ref int total)
+        {
+            total++;
+            ArmorPreference actual = GearScorer.ResolveEffectivePref(isHeadwear, basePref);
+            if (actual != expected)
             {
                 Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");
                 failures++;
