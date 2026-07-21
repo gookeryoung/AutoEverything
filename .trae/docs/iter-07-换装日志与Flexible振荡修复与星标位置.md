@@ -2,13 +2,14 @@
 
 ## 变动日期
 
-2026-07-20
+2026-07-20（初版）/ 2026-07-21（追加星标渲染方式修复）
 
 ## 需求清单
 
 - [x] 给更换装备增加消息提示，便于调试（用户指令 1）
 - [x] 修复殖民者总是自动脱装备的振荡问题（用户指令 2）
 - [x] 修复高价值星标偏离殖民者头像过远的问题（用户指令 3）
+- [x] 修复星标在相机缩放时位置飘移（用户追加反馈：改用名字标签渲染方式而非 Layer）
 
 ## 迭代目标
 
@@ -21,23 +22,59 @@
 
 ### 1. `Source/AutoEverything/Core/HarmonyPatches.cs`
 
-**问题**：`DrawStarAbovePawn` 中 `pawn.DrawPos + new Vector3(0f, 1.8f, 0f)` 的 1.8f 偏移过大，星标位置过高，偏离 Pawn 头像太远。
+#### 调整历程（三轮）
 
-**修复**：将 1.8f 改为 1.5f（介于 health bar 约 1.0 与名字标签约 1.8 之间，显示在名字下方一行）。
+星标位置经历三轮调整：
 
-**调整过程**：
-- 初版改为 1.0f（接近 health bar 位置），但用户反馈"殖民者标记没有显示在头像上"——1.0f 被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）
-- 终版改为 1.5f，介于 health bar（约 1.0）与名字标签（约 1.8）之间，显示在名字下方一行，不被模型遮挡也不与名字重叠
+**第一轮（1.8f → 1.0f）**：初版 1.8f 偏移过大，星标偏离 Pawn 头像太远；改为 1.0f（接近 health bar）。
+但用户反馈"殖民者标记没有显示在头像上"——1.0f 被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）。
+
+**第二轮（1.0f → 1.5f）**：改为 1.5f（介于 health bar 约 1.0 与名字标签约 1.8 之间，显示在名字下方一行）。
+用户反馈"显示依然有问题，在缩放时位置一直变化"——根因未解决：用世界坐标 Y 偏移 + WorldToScreenPoint，相机缩放时世界 Y 偏移在屏幕上的像素数随缩放因子变化，星标相对 Pawn 头像飘移。
+
+**第三轮（终版：世界坐标 Y 偏移 → 屏幕坐标固定像素偏移）**：改用 RimWorld 名字标签渲染方式，根因消除。
+
+#### 第三轮修复：渲染方式重构
+
+**问题根因**：
+```csharp
+Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);  // 世界 Y 偏移
+Vector3 screenPos = Find.Camera.WorldToScreenPoint(worldPos);
+```
+相机缩放时，世界 Y 偏移 1.5 在屏幕上的像素数 = 1.5 × 缩放因子，缩放因子随相机距离变化，导致星标相对 Pawn 头像的位置随缩放飘移。
+
+**修复方案**：改用名字标签渲染方式（基于 Pawn 脚部屏幕坐标 + 固定像素偏移）：
 
 ```csharp
-// 修复前
-Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.8f, 0f);
+// 修复后：与 RimWorld 名字标签渲染方式一致
+Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);  // 脚部世界坐标 → 屏幕坐标
+if (pawnScreenPos.z <= 0) return;
 
-// 修复后
-Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);
+float guiX = pawnScreenPos.x;
+float guiY = Screen.height - pawnScreenPos.y;
+
+// 固定像素偏移：与相机缩放无关，相对位置稳定
+const float yOffsetPixels = 50f;
+float starSize = 20f;
+Rect starRect = new Rect(
+    guiX - starSize / 2f,
+    guiY - yOffsetPixels - starSize / 2f,
+    starSize,
+    starSize);
 ```
 
-同步更新方法注释：明确"介于 health bar 与名字标签之间，显示在名字下方一行"。
+**为何此方式缩放时稳定**：
+- pawn.DrawPos 是 Pawn 脚部世界坐标，WorldToScreenPoint 转换得到脚部屏幕坐标
+- yOffsetPixels 是固定 50 像素，与缩放因子无关
+- 相机缩放时，Pawn 脚部屏幕坐标同步变化（Pawn 视觉位置随之缩放是正常的），但星标相对脚部的像素偏移始终是 50 像素
+- 与 RimWorld 原生名字标签（health bar 等）的渲染方式一致，缩放时星标与名字标签同步移动
+
+**yOffsetPixels = 50 的选择依据**：
+- 缩放下 Pawn 模型在屏幕上约 40-60 像素高
+- RimWorld 原生名字标签位于约 y-50~-60 像素位置
+- 星标用 50 像素，与名字标签位置接近，略低避免重叠
+
+同步更新方法注释：详细说明渲染方式、根因分析与方案选择理由。
 
 ### 2. `Source/AutoEverything/AutoEquipment/GearAllocator.cs`
 
@@ -228,16 +265,17 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 
 ## 关键决策与依据
 
-### 决策 1：星标位置选 1.5f（名字下方一行）
+### 决策 1：星标渲染方式选屏幕坐标固定像素偏移（名字标签方式）
 
-**选择**：`pawn.DrawPos + new Vector3(0f, 1.5f, 0f)`
+**选择**：`Find.Camera.WorldToScreenPoint(pawn.DrawPos)` 转屏幕坐标 → GUI 坐标 Y 轴翻转 → 减固定像素偏移 50
 
 **依据**：
-- RimWorld 原生 health bar 约在 `DrawPos + (0, 1.0, 0)`，名字标签约在 `DrawPos + (0, 1.8, 0)`
-- 1.0f 会被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）——用户反馈"没有显示在头像上"
-- 1.8f 与名字标签重叠，偏离头像——用户初版反馈"偏离太远，不是正上方"
-- 1.5f 介于两者之间，显示在名字标签下方一行，不被模型遮挡也不与名字重叠
-- 用户明确建议"改到名字下方一行"，1.5f 正是名字标签下方一行的位置
+- 旧实现（世界 Y 偏移）在相机缩放时，世界 Y 偏移在屏幕上的像素数 = N × 缩放因子，缩放因子随相机距离变化，星标相对 Pawn 头像飘移——这是用户反馈"在缩放时位置一直变化"的根因
+- 用户明确要求"用名字标签渲染方式而非 Layer"——即用 Pawn 屏幕坐标 + 固定像素偏移
+- 固定像素偏移与缩放因子无关：缩放时 Pawn 脚部屏幕坐标同步变化（Pawn 视觉位置随之缩放是正常的），但星标相对脚部的像素偏移始终是 50 像素
+- 与 RimWorld 原生名字标签渲染方式一致，缩放时星标与名字标签同步移动，相对位置稳定
+- yOffsetPixels = 50：缩放下 Pawn 模型在屏幕上约 40-60 像素高，RimWorld 原生名字标签位于约 y-50~-60 像素位置，星标用 50 像素与之接近且略低避免重叠
+- 之前尝试 1.8f / 1.0f / 1.5f 世界 Y 偏移均未解决根因，第三轮重构渲染方式才彻底解决
 
 ### 决策 2：upgradedPawns 预填充而非主循环填充
 
@@ -271,16 +309,27 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 
 ## 代码实现情况
 
-### HarmonyPatches.cs 星标位置
+### HarmonyPatches.cs 星标渲染方式
 
 ```csharp
 private static void DrawStarAbovePawn(Pawn pawn)
 {
-    // 世界坐标：DrawPos 上方约 1.5 格
-    // 选 1.5f：介于 health bar（约 y+1.0）与名字标签（约 y+1.8）之间，
-    // 显示在名字标签下方一行，不被 Pawn 模型遮挡（1.0f 会被模型遮挡，1.8f 与名字重叠偏离头像）
-    Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);
-    // ...
+    // 用 Pawn 脚部位置作为屏幕坐标基准（与名字标签渲染方式一致）
+    Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);
+    if (pawnScreenPos.z <= 0) return;
+
+    float guiX = pawnScreenPos.x;
+    float guiY = Screen.height - pawnScreenPos.y;
+
+    // 固定像素偏移：与相机缩放无关，相对位置稳定
+    const float yOffsetPixels = 50f;
+    float starSize = 20f;
+    Rect starRect = new Rect(
+        guiX - starSize / 2f,
+        guiY - yOffsetPixels - starSize / 2f,
+        starSize,
+        starSize);
+    // ...（颜色、字体、绘制保持不变）
 }
 ```
 
@@ -387,7 +436,8 @@ All tests passed.
 |------|------|
 | 换装调试日志 | ✓ AEDebug.Log Func<string> 延迟构造，受 debugLogging 开关控制 |
 | 脱装备振荡修复 | ✓ upgradedPawns 预填充 + Flexible 穿重甲跳过换装，双管齐下消除振荡 |
-| 星标位置修复 | ✓ 1.8f → 1.5f，显示在名字标签下方一行（1.0f 被模型遮挡，1.8f 与名字重叠） |
+| 星标位置修复（初版） | ✓ 1.8f → 1.5f（已被第三轮重构替代） |
+| 星标渲染方式修复（终版） | ✓ 世界坐标 Y 偏移 → 屏幕坐标固定像素偏移（50 像素），相机缩放时位置稳定 |
 | 编译零警告零错误 | ✓ make check 通过 |
 | 测试全通过 | ✓ 391 个测试通过 |
 | 文档同步 | ✓ README.md 同步星标位置、扒装守卫预填充、Flexible 防振荡、换装调试日志 |
