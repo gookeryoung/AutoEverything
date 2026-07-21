@@ -224,6 +224,13 @@ namespace AutoEverything.AutoWork
                 // 技能等级保底：相关技能≥8 者 priority 不低于 3
                 priority = ApplySkillFloor(priority, pawn, skills);
 
+                // 神秘学者 DarkStudy 优先级覆盖：神秘学者强制 DarkStudy priority=1
+                // 用户决策（2026-07-21）：神秘学者应优先承担暗黑调查工作，覆盖 ResearchConfig 默认优先级
+                if (IsDarkStudyWork(workTypes) && IsOccultist(pawn))
+                {
+                    priority = 1;
+                }
+
                 // 对所有工作类型设置相同优先级（单工作循环 1 次，组分配循环 N 次共享排序结果）
                 for (int j = 0; j < workTypes.Length; j++)
                 {
@@ -299,9 +306,47 @@ namespace AutoEverything.AutoWork
                     priority = 0;
                 // 技能等级保底：相关技能≥12 者 priority 不低于 2，≥8 者不低于 3
                 priority = ApplySkillFloor(priority, pawn, skills);
+
+                // 神秘学者 DarkStudy 优先级覆盖：神秘学者强制 DarkStudy priority=1（即使被硬上限拦截）
+                // 用户决策（2026-07-21）：神秘学者应优先承担暗黑调查工作，绕过硬上限
+                if (IsDarkStudyWork(workTypes) && IsOccultist(pawn))
+                {
+                    priority = 1;
+                }
+
                 for (int j = 0; j < workTypes.Length; j++)
                     pawn.workSettings.SetPriority(workTypes[j], priority);
             }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // 神秘学者 DarkStudy 优先级覆盖辅助方法
+        // ════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 判定工作类型组是否包含 DarkStudy（暗黑调查，Anomaly DLC）。
+        /// 用于神秘学者优先级覆盖：神秘学者强制 DarkStudy priority=1。
+        /// </summary>
+        private static bool IsDarkStudyWork(WorkTypeDef[] workTypes)
+        {
+            if (cachedDarkStudyDef == null) return false;
+            for (int i = 0; i < workTypes.Length; i++)
+            {
+                if (workTypes[i] == cachedDarkStudyDef) return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 判定 Pawn 是否为神秘学者（Occultist 特质，Anomaly DLC）。
+        /// 神秘学者应优先承担暗黑调查工作（DarkStudy priority=1）。
+        /// TraitDefCache.Occultist 在无 Anomaly DLC 时为 null，安全跳过。
+        /// </summary>
+        private static bool IsOccultist(Pawn pawn)
+        {
+            if (TraitDefCache.Occultist == null) return false;
+            if (pawn.story?.traits == null) return false;
+            return pawn.story.traits.HasTrait(TraitDefCache.Occultist);
         }
     }
 }

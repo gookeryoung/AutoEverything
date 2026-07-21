@@ -230,7 +230,7 @@
 | 2 | 重要专业 | Doctor / Warden / Childcare / Cooking / PlantCutting | 2 | 1 | 2 | 3 | 0 | — |
 | 3 | 普通专业 | Construction / Mining / Growing / Smithing / Tailoring / Crafting / Art | 2 | 2 | 3 | 3 | 0 | Crafting 组分配共享 1 workCount |
 | 4 | 次级专业 | Handling / Fishing / Hunting | 2 | 2 | 4 | 3 | 0 | Hunting 需远程武器+后排排序 |
-| 5 | 研究 | Research / DarkStudy | 1 | 2 | 3 | 0 | 0 | 最后分配 |
+| 5 | 研究 | Research / DarkStudy | 1 | 2 | 3 | 0 | 0 | 最后分配；神秘学者强制 DarkStudy priority=1（绕过硬上限） |
 | 6 | 辅助 | Hauling / Cleaning / BasicWorker 等 | — | 见辅助工作规则 | — | — | — | 不计入 workCount，按评级分档 |
 
 **双火/单火**：对应 Passion.Major / Passion.Minor，整个候选列表中（含超出保底）双火/单火分别给"双火"/"单火"列优先级。
@@ -254,6 +254,8 @@ Passion 量化：None=0, Minor=1, Major=2。
 设计意图：避免无远程武器者被分配狩猎工作。Fishing 虽属次级专业但关联 Animals 技能，不要求远程武器。
 
 **循环依赖规避**：Hunting 始终设为 2 或 4，绝不设为 1，因此不会污染 `RoleDetector.DetectRole` 的 Hunter 判定（其依赖 Hunting priority == 1）。
+
+**神秘学者 DarkStudy 优先级覆盖**：用户决策（2026-07-21）神秘学者（Occultist 特质，Anomaly DLC）应优先承担暗黑调查工作。在 DarkStudy 分配阶段，所有神秘学者强制 priority=1，覆盖 ResearchConfig 默认优先级（双火 2/单火 3/无火 0），且绕过硬上限（即使满载也承担 DarkStudy）。设计意图：神秘学者天然契合暗黑调查，应优先发展该方向。无 Anomaly DLC 时 `TraitDefCache.Occultist` 为 null 安全跳过。
 
 ### 辅助工作规则（搬运/清洁/非技能）
 
@@ -410,13 +412,15 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 | 图标 | 形状 | 颜色 | 判定条件 | 设计意图 |
 |------|------|------|----------|----------|
-| **前排** | 盾 | 橙色 `RGB(1.0, 0.55, 0.06)` | 坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major） | 高生存力近战单位，优先重甲 |
-| **远程** | 弓箭 | 橙色 `RGB(1.0, 0.55, 0.06)` | 乱开枪（ShootingAccuracy degree=-1）+ 射击 Major | DPS 突出远程单位，优先射击任务 |
-| **手工** | 锤子铁砧 | 绿色 `RGB(0.2, 0.8, 0.2)` | 工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1） | 生产效率突出，优先专业工作 |
-| **贸易** | 钱袋 | 粉红 `RGB(1.0, 0.4, 0.7)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
+| **前排** | 盾 | 深红 `RGB(0.6, 0.0, 0.0)` | 坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major） | 高生存力近战单位，优先重甲 |
+| **远程** | 弓箭 | 深红 `RGB(0.6, 0.0, 0.0)` | 乱开枪（ShootingAccuracy degree=-1）+ 射击有火（Major 或 Minor） | DPS 突出远程单位，优先射击任务 |
+| **手工** | 锤子铁砧 | 深红 `RGB(0.6, 0.0, 0.0)` | 工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1） | 生产效率突出，优先专业工作 |
+| **贸易** | 钱袋 | 深红 `RGB(0.6, 0.0, 0.0)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
 
+- **颜色统一深红**：用户决策（2026-07-21）原橙/绿/粉三色在殖民者栏小尺寸下看不清，统一深红色。形状本身已足够区分 4 种角色定位
+- **远程判定扩展**：用户决策（2026-07-21）"乱开枪+射击单火"（S 档高价值）也标记为远程，原仅"乱开枪+射击双火"（SS/SSS 档）标记
 - **叠加显示**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个，单个 16×16 像素，间距 2px，右上角内缩 2px 留白）
-- **纹理资源**：4 个 64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Frontline.png` 等路径，风格参考 Useful Marks 扁平化设计。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
+- **纹理资源**：64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Frontline.png` 等路径，由用户从 iconfont 下载的 SVG 转换而来。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
 - **降级策略**：若外部 PNG 加载失败（ContentFinder 返回 null），自动回退到程序化生成的 32×32 像素纹理，确保 MOD 仍能正常运行
 - **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新
 - **覆盖范围**：殖民者栏中所有可见人类 Pawn（通过 `PawnSuitabilityChecker.CanManageGear` 过滤非人类like），不强制 Spawned（卧床/运输中的殖民者仍标记）
@@ -481,7 +485,7 @@ Source/AutoEverything/
 │   └── WorkAllocator.Comparer.cs          # WorkAllocator partial：三因子排序比较器 + ApplySkillFloor
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
 │   ├── PawnMarker.cs                      # S+ 高价值扫描通知（全人类单位扫描 + 消息通知）
-│   ├── RoleIconDef.cs                     # 角色定位判定（前排/远程/手工/贸易 4 种 + 颜色常量）
+│   ├── RoleIconDef.cs                     # 角色定位判定（前排/远程/手工/贸易 4 种 + 统一深红色常量）
 │   └── RoleIconTextures.cs                # 角色定位纹理（程序化生成 4 个 32x32 RGBA 纹理）
 ├── AutoEquipment/                         # → namespace AutoEverything.AutoEquipment
 │   ├── ApparelLayerFilter.cs              # 附件层过滤（Belt/Backpack/Bag/Pack 排除）
@@ -512,7 +516,7 @@ Source/AutoEverything/
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
-| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，颜色按战斗橙/工作绿/交易粉分组）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
+| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，统一深红色）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
 | `AutoExecutor` 装备分配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 装备/人员增减、阵营变化、Pawn 死亡时 `GearAllocator.MarkDirty`；冷却结束且 `AnyCombatActive()`=false 时执行；ITab 勾选时立即执行（含扒装重分配） |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
