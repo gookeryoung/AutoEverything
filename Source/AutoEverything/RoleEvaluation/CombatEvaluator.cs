@@ -53,6 +53,29 @@ namespace AutoEverything.RoleEvaluation
         // Brawler（格斗者）是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
         /// <summary>
+        /// 尝试获取覆盖分（自定义评级或配偶评级豁免命中时）。
+        /// 用于 <see cref="ComputeCombatValue"/> 与 <see cref="ComputePawnValueScore"/> 开头共享的早返回路径：
+        /// - 命中自定义评级 → 返回该档代表分 +0.5（让自定义档略优先于同档自动）
+        /// - 配偶为 S+ 档 → 返回 S 代表分 +0.5（保证排序一致）
+        /// - 均未命中 → 返回 false，由调用方走公式
+        /// </summary>
+        private static bool TryGetOverrideScore(Pawn pawn, out float score)
+        {
+            if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
+            {
+                score = tierRepresentativeScore[(int)customTier] + 0.5f;
+                return true;
+            }
+            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
+            {
+                score = tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
+                return true;
+            }
+            score = 0f;
+            return false;
+        }
+
+        /// <summary>
         /// 计算 Pawn 的战斗价值分（用于评级排序与高价值标记判定）。
         /// 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
         /// 兴趣乘数、技能权重、特质加分均可在面板上由玩家调整。
@@ -62,17 +85,9 @@ namespace AutoEverything.RoleEvaluation
         {
             if (pawn == null) return 0f;
 
-            // 命中自定义评级：不走公式，直接采用代表分（加 0.5 微量偏向，让自定义档略优先于同档自动）
-            if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
-            {
-                return tierRepresentativeScore[(int)customTier] + 0.5f;
-            }
-
-            // 配偶评级豁免：与 S+ 配偶结婚的殖民者，用 S 代表分保证排序一致
-            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
-            {
-                return tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
-            }
+            // 命中自定义评级或配偶豁免：不走公式，直接采用代表分（加 0.5 微量偏向，让自定义档略优先于同档自动）
+            if (TryGetOverrideScore(pawn, out float overrideScore))
+                return overrideScore;
 
             if (pawn.skills == null) return 0f;
 
@@ -184,17 +199,9 @@ namespace AutoEverything.RoleEvaluation
         {
             if (pawn == null) return 0f;
 
-            // 命中自定义评级：用代表分 +0.5，让自定义档略优先于同档自动
-            if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
-            {
-                return tierRepresentativeScore[(int)customTier] + 0.5f;
-            }
-
-            // 配偶评级豁免：与 S+ 配偶结婚的殖民者，用 S 代表分保证排序一致
-            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
-            {
-                return tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
-            }
+            // 命中自定义评级或配偶豁免：用代表分 +0.5，让自定义档略优先于同档自动
+            if (TryGetOverrideScore(pawn, out float overrideScore))
+                return overrideScore;
 
             float score = 0f;
 
@@ -416,11 +423,11 @@ namespace AutoEverything.RoleEvaluation
             input.MajorCount = CountPassions(pawn, PassionHelper.PassionTier.Major, atLeast: true, coreSkills);
             input.MinorCount = CountPassions(pawn, PassionHelper.PassionTier.Minor, atLeast: false, coreSkills);
 
-            input.ShootingMajor = IsPassionAtLeast(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Major);
-            input.ShootingMinor = IsPassionExactly(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Minor);
-            input.MeleeMajor = IsPassionAtLeast(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Major);
-            input.MeleeMinor = IsPassionExactly(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Minor);
-            input.SocialMajor = IsPassionAtLeast(pawn, SkillDefOf.Social, PassionHelper.PassionTier.Major);
+            input.ShootingMajor = IsPassion(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Major, atLeast: true);
+            input.ShootingMinor = IsPassion(pawn, SkillDefOf.Shooting, PassionHelper.PassionTier.Minor, atLeast: false);
+            input.MeleeMajor = IsPassion(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Major, atLeast: true);
+            input.MeleeMinor = IsPassion(pawn, SkillDefOf.Melee, PassionHelper.PassionTier.Minor, atLeast: false);
+            input.SocialMajor = IsPassion(pawn, SkillDefOf.Social, PassionHelper.PassionTier.Major, atLeast: true);
 
             bool hasTraits = pawn.story?.traits != null;
             input.IsTough = hasTraits && TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough);
@@ -464,23 +471,17 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 判定技能 tier 是否达到指定层级（含该层级及以上）。
-        /// 用于 Major 判定：tier >= Major 含 Natural/Critical。
+        /// 判定技能 tier 是否满足指定条件。
+        /// atLeast=true：含该层级及以上（用于 Major 判定，含 Natural/Critical）。
+        /// atLeast=false：仅该层级（用于 Minor 判定，不含 Major 及以上避免双计数）。
+        /// 与 <see cref="CountPassions"/> 的 atLeast 参数语义一致。
         /// </summary>
-        private static bool IsPassionAtLeast(Pawn pawn, SkillDef skillDef, PassionHelper.PassionTier minTier)
+        private static bool IsPassion(Pawn pawn, SkillDef skillDef, PassionHelper.PassionTier tier, bool atLeast)
         {
             SkillRecord s = pawn.skills?.GetSkill(skillDef);
-            return s != null && (int)PassionHelper.GetPassionTier(s.passion) >= (int)minTier;
-        }
-
-        /// <summary>
-        /// 判定技能 tier 是否恰好等于指定层级。
-        /// 用于 Minor 判定：tier == Minor，不含 Major 及以上。
-        /// </summary>
-        private static bool IsPassionExactly(Pawn pawn, SkillDef skillDef, PassionHelper.PassionTier tier)
-        {
-            SkillRecord s = pawn.skills?.GetSkill(skillDef);
-            return s != null && PassionHelper.GetPassionTier(s.passion) == tier;
+            if (s == null) return false;
+            var actual = PassionHelper.GetPassionTier(s.passion);
+            return atLeast ? (int)actual >= (int)tier : actual == tier;
         }
 
         /// <summary>
