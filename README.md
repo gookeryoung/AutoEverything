@@ -413,10 +413,11 @@ Passion 量化：None=0, Minor=1, Major=2。
 | **前排** | 盾 | 橙色 `RGB(1.0, 0.55, 0.06)` | 坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major） | 高生存力近战单位，优先重甲 |
 | **远程** | 弓箭 | 橙色 `RGB(1.0, 0.55, 0.06)` | 乱开枪（ShootingAccuracy degree=-1）+ 射击 Major | DPS 突出远程单位，优先射击任务 |
 | **手工** | 锤子铁砧 | 绿色 `RGB(0.2, 0.8, 0.2)` | 工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1） | 生产效率突出，优先专业工作 |
-| **贸易** | 钱袋（实心圆） | 粉红 `RGB(1.0, 0.4, 0.7)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
+| **贸易** | 钱袋 | 粉红 `RGB(1.0, 0.4, 0.7)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
 
 - **叠加显示**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个，单个 16×16 像素，间距 2px，右上角内缩 2px 留白）
-- **纹理生成**：4 个 32×32 RGBA 纹理由 `RoleIconTextures` 程序化生成（白色像素 + 透明背景，`FilterMode.Point` 保持像素风），绘制时用 `GUI.color` 染色，无需外部 PNG 资源
+- **纹理资源**：4 个 64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Frontline.png` 等路径，风格参考 Useful Marks 扁平化设计。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
+- **降级策略**：若外部 PNG 加载失败（ContentFinder 返回 null），自动回退到程序化生成的 32×32 像素纹理，确保 MOD 仍能正常运行
 - **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新
 - **覆盖范围**：殖民者栏中所有可见人类 Pawn（通过 `PawnSuitabilityChecker.CanManageGear` 过滤非人类like），不强制 Spawned（卧床/运输中的殖民者仍标记）
 
