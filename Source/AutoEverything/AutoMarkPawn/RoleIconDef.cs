@@ -9,20 +9,20 @@ namespace AutoEverything.AutoMarkPawn
     /// <summary>
     /// 角色定位图标判定：为殖民者栏 Rect 上的角色定位图标提供判定与取色。
     ///
-    /// 4 种角色定位（颜色 + 形状双重区分）：
+    /// 4 种角色定位（形状区分，颜色统一深红）：
     /// - <see cref="RoleIconType.Frontline"/>（前排，盾）：坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major）
     ///   设计意图：高生存力的近战单位，应优先装备重甲
-    /// - <see cref="RoleIconType.Ranged"/>（远程，弓箭）：乱开枪（ShootingAccuracy degree=-1）+ 射击火（Major）
+    /// - <see cref="RoleIconType.Ranged"/>（远程，弓箭）：乱开枪（ShootingAccuracy degree=-1）+ 射击有火（Major 或 Minor）
     ///   设计意图：DPS 突出的远程单位，应优先承担射击任务
+    ///   用户决策（2026-07-21）：扩展到含单火（Minor），覆盖"乱开枪+单火"S 档高价值角色
     /// - <see cref="RoleIconType.Crafter"/>（手工，锤子铁砧）：工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1）
     ///   设计意图：生产效率突出的单位，应优先承担专业工作
     /// - <see cref="RoleIconType.Trader"/>（贸易，钱袋）：俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8）
     ///   设计意图：社交优势单位，适合外交与贸易
     ///
-    /// 颜色分组（玩家可读，参考 UsefulMarks 设计）：
-    /// - 战斗类（Frontline/Ranged）：橙色 RGB(1.0, 0.55, 0.06)
-    /// - 工作类（Crafter）：绿色 RGB(0.2, 0.8, 0.2)
-    /// - 交易类（Trader）：粉红 RGB(1.0, 0.4, 0.7)
+    /// 颜色策略（用户决策 2026-07-21）：
+    /// - 所有图标统一深红色 RGB(0.6, 0.0, 0.0)，避免多色看不清
+    /// - 形状本身已足够区分 4 种角色定位，颜色不再做分类
     ///
     /// 一个殖民者可同时符合多个角色定位（如坚韧格斗 + 工作狂神经质），图标横向排列显示。
     ///
@@ -32,24 +32,21 @@ namespace AutoEverything.AutoMarkPawn
     public static class RoleIconDef
     {
         /// <summary>
-        /// 角色定位图标类型：按战斗/工作/交易三大类分组，颜色由 <see cref="GetColor"/> 提供。
+        /// 角色定位图标类型：按战斗/工作/交易三大类分组，形状区分（颜色统一深红）。
         /// </summary>
         public enum RoleIconType : byte
         {
-            Frontline,  // 前排（盾，橙色）
-            Ranged,     // 远程（弓箭，橙色）
-            Crafter,    // 手工（锤子铁砧，绿色）
-            Trader      // 贸易（钱袋，粉红）
+            Frontline,  // 前排（盾）
+            Ranged,     // 远程（弓箭）
+            Crafter,    // 手工（锤子铁砧）
+            Trader      // 贸易（钱袋）
         }
 
-        /// <summary>战斗类颜色（前排/远程共用）：橙色</summary>
-        public static readonly Color CombatColor = new Color(1.0f, 0.55f, 0.06f);
-
-        /// <summary>工作类颜色（手工）：绿色</summary>
-        public static readonly Color WorkColor = new Color(0.2f, 0.8f, 0.2f);
-
-        /// <summary>交易类颜色（贸易）：粉红</summary>
-        public static readonly Color TradeColor = new Color(1.0f, 0.4f, 0.7f);
+        /// <summary>
+        /// 统一图标颜色：深红色。
+        /// 用户决策（2026-07-21）：原橙/绿/粉三色在殖民者栏小尺寸下看不清，统一深红提升可读性。
+        /// </summary>
+        public static readonly Color IconColor = new Color(0.6f, 0.0f, 0.0f);
 
         // 复用缓冲区：避免每帧分配（殖民者栏每帧绘制多个 Pawn，调用频繁）
         // 单线程主线程使用，无需并发保护
@@ -85,6 +82,7 @@ namespace AutoEverything.AutoMarkPawn
             // 收集技能兴趣状态（直接用 Passion 枚举比较，避免 PassionHelper 间接层）
             bool meleeMajor = IsMajorPassion(pawn, SkillDefOf.Melee);
             bool shootingMajor = IsMajorPassion(pawn, SkillDefOf.Shooting);
+            bool shootingMinor = IsMinorPassion(pawn, SkillDefOf.Shooting);
             bool socialMajor = IsMajorPassion(pawn, SkillDefOf.Social);
             int socialLevel = GetSkillLevel(pawn, SkillDefOf.Social);
 
@@ -93,9 +91,10 @@ namespace AutoEverything.AutoMarkPawn
             if (isTough && (isBrawler || meleeMajor))
                 buffer.Add(RoleIconType.Frontline);
 
-            // Ranged：乱开枪 + 射击双火
-            // 设计：乱开枪 + 双火是 SSS/SS 评级的核心组合，DPS 突出
-            if (isTriggerHappy && shootingMajor)
+            // Ranged：乱开枪 + 射击有火（Major 或 Minor）
+            // 设计：乱开枪+双火为 SSS/SS，乱开枪+单火为 S（均为高价值远程单位）
+            // 用户决策（2026-07-21）：扩展到含 Minor，覆盖"乱开枪+单火"S 档高价值角色
+            if (isTriggerHappy && (shootingMajor || shootingMinor))
                 buffer.Add(RoleIconType.Ranged);
 
             // Crafter：工作狂 + 神经质
@@ -112,26 +111,23 @@ namespace AutoEverything.AutoMarkPawn
         }
 
         /// <summary>
-        /// 获取角色定位对应的颜色（战斗类橙、工作类绿、交易类粉）。
+        /// 获取角色定位对应的颜色（统一深红色，形状区分角色类型）。
         /// </summary>
         public static Color GetColor(RoleIconType type)
         {
-            switch (type)
-            {
-                case RoleIconType.Frontline:
-                case RoleIconType.Ranged:
-                    return CombatColor;
-                case RoleIconType.Crafter:
-                    return WorkColor;
-                default:
-                    return TradeColor;
-            }
+            return IconColor;
         }
 
         private static bool IsMajorPassion(Pawn pawn, SkillDef skill)
         {
             SkillRecord record = pawn.skills?.GetSkill(skill);
             return record != null && record.passion == Passion.Major;
+        }
+
+        private static bool IsMinorPassion(Pawn pawn, SkillDef skill)
+        {
+            SkillRecord record = pawn.skills?.GetSkill(skill);
+            return record != null && record.passion == Passion.Minor;
         }
 
         private static int GetSkillLevel(Pawn pawn, SkillDef skill)
