@@ -33,12 +33,15 @@ namespace AutoEverything.Tests
             Check(Empty(tough: true, meleeMajor: true, brawler: true), CombatTier.SSS, "坚韧+格斗双火+格斗者 → SSS", ref failures, ref total);
 
             // ── 维度3：工作狂神经质系列 ────────────────────────────
-            Check(Empty(industrious2: true), CombatTier.C, "工作狂+无神经质 → C（不触发维度3）", ref failures, ref total);
-            Check(Empty(neurotic2: true), CombatTier.C, "无工作狂+神经质 → C（不触发维度3）", ref failures, ref total);
-            Check(Empty(industrious2: true, neurotic2: true, workMajors: 0), CombatTier.C, "工作狂+神经质+0双火 → C（不触发）", ref failures, ref total);
-            Check(Empty(industrious2: true, neurotic2: true, workMajors: 1), CombatTier.S, "工作狂+神经质+1双火 → S", ref failures, ref total);
-            Check(Empty(industrious2: true, neurotic2: true, workMajors: 2), CombatTier.SS, "工作狂+神经质+2双火 → SS", ref failures, ref total);
-            Check(Empty(industrious2: true, neurotic2: true, workMajors: 3), CombatTier.SSS, "工作狂+神经质+3双火 → SSS", ref failures, ref total);
+            // 用户决策（2026-07-21）：degree 要求从 == 2 放宽到 >= 1
+            // 字段含义：HasIndustrious/HasNeurotic 表示"拥有任一 degree 的工作狂/神经质特质"
+            // 测试中 bool 字段无法区分 degree=1/2，但生产代码 CollectTierInput 已放宽判定
+            Check(Empty(hasIndustrious: true), CombatTier.C, "工作狂+无神经质 → C（不触发维度3）", ref failures, ref total);
+            Check(Empty(hasNeurotic: true), CombatTier.C, "无工作狂+神经质 → C（不触发维度3）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), CombatTier.C, "工作狂+神经质+0双火 → C（不触发）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 1), CombatTier.S, "工作狂+神经质+1双火 → S", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2), CombatTier.SS, "工作狂+神经质+2双火 → SS", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), CombatTier.SSS, "工作狂+神经质+3双火 → SSS", ref failures, ref total);
 
             // ── 特殊天赋 → S ───────────────────────────────────────
             Check(Empty(hasSpecialTalent: true), CombatTier.S, "特殊天赋 → S", ref failures, ref total);
@@ -74,7 +77,7 @@ namespace AutoEverything.Tests
             Check(combo2, CombatTier.SS, "乱开枪SS + 特殊天赋S → SS（取最高）", ref failures, ref total);
 
             // 工作狂神经质+2双火(SS) + 特殊天赋(S) → SS（取最高）
-            var combo3 = Empty(industrious2: true, neurotic2: true, workMajors: 2, hasSpecialTalent: true);
+            var combo3 = Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2, hasSpecialTalent: true);
             Check(combo3, CombatTier.SS, "工作狂SS + 特殊天赋S → SS（取最高）", ref failures, ref total);
 
             // 特殊天赋(S) + A档条件 → S（特殊天赋优先，不走A/B判定）
@@ -87,10 +90,12 @@ namespace AutoEverything.Tests
 
         /// <summary>
         /// 构造默认输入（全 false/0），按参数覆盖指定字段。
+        /// 注：HasIndustrious/HasNeurotic 字段含义为"拥有任一 degree 的工作狂/神经质特质"
+        /// （用户决策 2026-07-21：放宽 degree 要求从 == 2 到 >= 1）。
         /// </summary>
         private static CombatEvaluator.TierEvaluationInput Empty(
             bool triggerHappy = false, bool tough = false, bool nimble = false, bool brawler = false,
-            bool industrious2 = false, bool neurotic2 = false, bool beauty2 = false,
+            bool hasIndustrious = false, bool hasNeurotic = false, bool beauty2 = false,
             bool hasSpecialTalent = false, bool negativeTrait = false,
             bool shootingMajor = false, bool shootingMinor = false,
             bool meleeMajor = false, bool meleeMinor = false, bool socialMajor = false,
@@ -102,8 +107,8 @@ namespace AutoEverything.Tests
                 IsTough = tough,
                 IsNimble = nimble,
                 IsBrawler = brawler,
-                Industrious2 = industrious2,
-                Neurotic2 = neurotic2,
+                HasIndustrious = hasIndustrious,
+                HasNeurotic = hasNeurotic,
                 Beauty2 = beauty2,
                 HasSpecialTalent = hasSpecialTalent,
                 HasNegativeTrait = negativeTrait,

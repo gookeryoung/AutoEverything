@@ -247,15 +247,15 @@ namespace AutoEverything.RoleEvaluation
         ///   SSS：顶级组合
         ///     1. 乱开枪 + 坚韧 + 射击双火
         ///     2. 坚韧 + 格斗双火 + 敏捷或格斗者
-        ///     3. 勤奋且严重神经质 + 3 个专业工作双火
+        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 3 个专业工作双火
         ///   SS：强化组合
         ///     1. 乱开枪 + 射击双火
         ///     2. 坚韧 + 格斗双火
-        ///     3. 勤奋且严重神经质 + 2 个专业工作双火
+        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 2 个专业工作双火
         ///   S：全局高价值
         ///     1. 乱开枪 + 射击单火
         ///     2. 坚韧 + 格斗有火（Minor 或 Major）
-        ///     3. 勤奋且严重神经质 + 1 个专业工作双火
+        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 1 个专业工作双火
         ///     4. 拥有任一"特殊天赋"特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经）
         ///     5. 沉鱼落雁（Beauty degree=2）+ 社交双火
         ///   A：≥ 2 个双 Major + ≥ 1 个 Minor 以上
@@ -263,6 +263,9 @@ namespace AutoEverything.RoleEvaluation
         ///   C：其他情况
         ///   D：有负面特质且原档 > D 时降一档（纵火狂/脑子慢/脆弱/工作懒惰/工作怠惰）
         ///   X：无法从事暴力活动（先于一切判定，不受降档影响）
+        ///
+        /// 用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级，
+        /// degree 要求从 == 2 放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）。
         /// </summary>
         public static CombatTier GetAutoCombatTier(Pawn pawn)
         {
@@ -284,8 +287,10 @@ namespace AutoEverything.RoleEvaluation
             public bool IsTough;           // 坚韧 Tough
             public bool IsNimble;          // 敏捷 Nimble
             public bool IsBrawler;         // 格斗者 Brawler
-            public bool Industrious2;      // 勤奋 Industriousness degree=2
-            public bool Neurotic2;         // 严重神经质 Neurotic degree=2
+            // 工作狂/神经质：放宽到 degree >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）
+            // 用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级，放宽 degree 要求
+            public bool HasIndustrious;    // 工作狂 Industriousness degree >= 1（努力/勤奋）
+            public bool HasNeurotic;       // 神经质 Neurotic degree >= 1（轻度/严重）
             public bool Beauty2;           // 沉鱼落雁 Beauty degree=2
             public bool HasSpecialTalent;  // 特殊天赋特质之一
             public bool HasNegativeTrait;  // 负面特质（用于降档）
@@ -341,11 +346,13 @@ namespace AutoEverything.RoleEvaluation
                     tier = MaxTier(tier, CombatTier.S);
             }
 
-            // 维度3（工作狂神经质系列）：industrious2 AND neurotic2 + workMajors
-            //   SSS: industrious2 && neurotic2 && workMajors >= 3
-            //   SS:  industrious2 && neurotic2 && workMajors >= 2
-            //   S:   industrious2 && neurotic2 && workMajors >= 1
-            if (input.Industrious2 && input.Neurotic2)
+            // 维度3（工作狂神经质系列）：industrious AND neurotic + workMajors
+            //   用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级
+            //   degree 要求放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）
+            //   SSS: hasIndustrious && hasNeurotic && workMajors >= 3
+            //   SS:  hasIndustrious && hasNeurotic && workMajors >= 2
+            //   S:   hasIndustrious && hasNeurotic && workMajors >= 1
+            if (input.HasIndustrious && input.HasNeurotic)
             {
                 if (input.WorkMajors >= 3)
                     tier = MaxTier(tier, CombatTier.SSS);
@@ -422,10 +429,10 @@ namespace AutoEverything.RoleEvaluation
             {
                 input.IsTriggerHappy = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
             }
-            input.Industrious2 = hasTraits && TraitDefCache.Industriousness != null
-                                 && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) == 2;
-            input.Neurotic2 = hasTraits && TraitDefCache.Neurotic != null
-                              && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) == 2;
+            input.HasIndustrious = hasTraits && TraitDefCache.Industriousness != null
+                                  && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1;
+            input.HasNeurotic = hasTraits && TraitDefCache.Neurotic != null
+                                && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) >= 1;
             input.Beauty2 = hasTraits && TraitDefCache.Beauty != null
                             && pawn.story.traits.DegreeOfTrait(TraitDefCache.Beauty) == 2;
 
