@@ -1,0 +1,2 @@
+- [x] 将用户从 iconfont 等图标网站下载的 11 个 SVG 文件转换为 64×64 RGBA PNG 并替换原有 PNG
+- [x] 删除 SVG 源文件与 RimWorld 1.6 自动生成的 .dds/.dds.zstd 缓存
