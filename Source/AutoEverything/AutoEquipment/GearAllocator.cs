@@ -242,7 +242,7 @@ namespace AutoEverything.AutoEquipment
                         // upgradedPawns 已在主循环前预填充（避免扒装守卫不对称）
                     }
 
-                    if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel))
+                    if (AllocateForPawn(pawn, effectiveRole, effectivePref, candidateApparel, showMessage))
                     {
                         allocatedCount++;
                     }
@@ -266,8 +266,9 @@ namespace AutoEverything.AutoEquipment
         /// <summary>
         /// 为单个 Pawn 分配装备：按层选最高分 apparel，必要时卸旧换新。
         /// </summary>
+        /// <param name="showMessage">是否在换装成功时弹消息栏提示（仅 ITab 手动触发时为 true，周期触发为 false 避免刷屏）</param>
         /// <returns>是否实际装备了至少一件新 apparel</returns>
-        private static bool AllocateForPawn(Pawn pawn, Role role, ArmorPreference armorPref, List<Apparel> candidateApparel)
+        private static bool AllocateForPawn(Pawn pawn, Role role, ArmorPreference armorPref, List<Apparel> candidateApparel, bool showMessage)
         {
             bool anyAllocated = false;
 
@@ -398,6 +399,19 @@ namespace AutoEverything.AutoEquipment
                     string newName = best.def?.defName ?? "?";
                     return $"[GearAllocator] {AEDebug.Label(pawn)} 换装[{layerKey.defName}]: {oldName} → {newName} (得分 {currentScore:F1} → {bestScore:F1}, 偏好={armorPref})";
                 });
+
+                // 消息栏逐件换装提示（req-08 需求4）：仅 ITab 手动触发时弹出，附带判断依据便于调试
+                // 周期触发（showMessage=false）不弹避免刷屏，仅写入 AEDebug.Log
+                // 注：用 string.Format 替代多参 Translate，规避 RimWorld 1.6 Translator.Translate(params object[]) 过时警告
+                if (showMessage)
+                {
+                    string oldName = currentWorn?.def?.defName ?? "无";
+                    string newName = best.def?.defName ?? "?";
+                    string message = string.Format("AE_AutoGear_SwapDetail".Translate(),
+                        pawn.LabelShort, layerKey.defName, oldName, newName,
+                        currentScore.ToString("F1"), bestScore.ToString("F1"), armorPref);
+                    Messages.Message(message, MessageTypeDefOf.TaskCompletion);
+                }
             }
 
             return anyAllocated;

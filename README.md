@@ -369,6 +369,12 @@ Passion 量化：None=0, Minor=1, Major=2。
   - **取消勾选时**：仅停止自动执行，保留当前装备（无法撤销已分配装备）
   - **默认关闭**：需玩家显式启用
 
+### 消息栏逐件换装提示
+
+- **仅 ITab 手动触发时弹出**：每次换装成功后在消息栏显示 `{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好 {armorPref})`，附带判断依据便于玩家调试
+- **周期触发不弹**：事件驱动的自动重分配（Harmony Postfix → AutoExecutor 周期去抖）仅写入 `AEDebug.Log`，不弹消息栏避免刷屏
+- **翻译 Key**：`AE_AutoGear_SwapDetail`（中英双语）
+
 ### 事件驱动
 
 通过 Harmony Postfix 在以下事件触发时标记脏标，AutoExecutor 周期去抖执行（冷却 2500 tick + 战斗过滤）：

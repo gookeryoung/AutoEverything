@@ -159,6 +159,7 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
 
   <!-- AutoEquipment -->
   <AE_AutoGear_AllocateResult>Allocated gear for {0}/{1} colonists</AE_AutoGear_AllocateResult>
+  <AE_AutoGear_SwapDetail>{0} swap[{1}]: {2} → {3} (score {4} → {5}, pref {6})</AE_AutoGear_SwapDetail>
   <AE_TT_AutoEquipment>When checked, enables auto gear allocation: marks dirty on map apparel spawn/destroy, colonist faction change or death; AutoExecutor debounces execution (2500 tick cooldown AND no combat on map).
 Executes once immediately when checked, performing global gear reallocation (including stripping gear from low-value roles to high-value roles); when unchecked, only stops auto-execution, keeps current gear.
 Allocation rules: per pawn in CombatTier desc order, picks highest-scoring apparel per ApparelLayer; front row (Brawler) prefers heavy armor, worker (Worker) prefers light armor, back row (Shooter/Hunter/Leader) flexible; slaves join colonists in unified allocation; ghouls and tier X (non-violent) are skipped.

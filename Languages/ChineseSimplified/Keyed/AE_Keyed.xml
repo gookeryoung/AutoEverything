@@ -160,6 +160,7 @@
 
   <!-- AutoEquipment 自动装备分配 -->
   <AE_AutoGear_AllocateResult>已为 {0}/{1} 个殖民者分配装备</AE_AutoGear_AllocateResult>
+  <AE_AutoGear_SwapDetail>{0} 换装[{1}]: {2} → {3} (得分 {4} → {5}, 偏好 {6})</AE_AutoGear_SwapDetail>
   <AE_TT_AutoEquipment>勾选后启用自动装备分配：地图装备生成/销毁、殖民者阵营变化或死亡时标记脏标，AutoExecutor 周期去抖执行（冷却 2500 tick 且无战斗时）。
 勾选时立即执行一次全局装备分配（含从低价值角色身上扒装给高价值角色）；取消勾选仅停止自动，保留当前装备。
 分配规则：按 CombatTier 降序逐个分配，按 ApparelLayer 分组选最高分装备；前排(Brawler)优先重甲，工人(Worker)优先轻甲，后排(Shooter/Hunter/Leader)自由；奴隶与殖民者统一参与；食尸鬼与 X 档（禁止暴力）跳过。
