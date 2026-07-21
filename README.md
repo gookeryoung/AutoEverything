@@ -14,7 +14,7 @@
 |------|------|----------|
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
-| **AutoMarkPawn**（高价值自动标记） | 为 S+ 档次人类单位在殖民者栏固定位置绘制深红色星标 ★（统一深红色，参考 UsefulMarks 设计） | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
+| **AutoMarkPawn**（高价值自动标记） | 在殖民者栏固定位置绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋），S+ 单位扫描消息通知 | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
 | **AutoEquipment**（自动装备分配） | 按评级降序逐个分配，按 ApparelLayer 分组选最高分装备（含扒装重分配） | 事件驱动（装备/人员增减）+ 冷却 2500 tick + ITab 勾选 |
 
 ## 设计思路
@@ -23,7 +23,7 @@
 2. **情境感知**：同一殖民者在不同情境下角色不同。情境检测器识别战斗/工作/狩猎/寒冷/炎热等状态，供面板展示与工作分配参考。
 3. **工作均衡**：工作分配按兴趣 → 技能 → 工作计数三因子排序，保证关键工作有人做、专业工作兴趣者优先、辅助工作按评级分档，避免高价值殖民者被杂务拖累。
 4. **逻辑杜绝而非事后清理**：食尸鬼、动物等不适用类别在入口（ITab 可见性、工作分配前过滤）就被排除，绝不进入自动管理流程。
-5. **安全可逆**：评级标签与星标均为纯前端展示，不修改 Pawn 核心数据；工作优先级可随时手动调整。
+5. **安全可逆**：评级标签与角色定位图标均为纯前端展示，不修改 Pawn 核心数据；工作优先级可随时手动调整。
 
 ## 角色检测规则
 
@@ -384,11 +384,11 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **入口**：由 `AutoEverythingGameComponent.GameComponentTick` 每 tick 调用 `AutoExecutor.TryTick()`。GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册
 - **静态门控**：每 60 tick 检查一次殖民者数量变化、全人类单位数量变化与周期触发
-- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配为事件驱动，无周期触发；高价值标记为殖民者栏 Postfix 绘制 + 人员变动事件触发，无周期执行
+- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（基于特质组合，无缓存），S+ 高价值扫描为人员变动事件触发，无周期执行
 - **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
 - **全人类单位数量变化检测**：`CountAllHumanlikeSpawned()`（含殖民者/奴隶/囚犯/敌对/中立/盟友/野生）增加时，若 `autoMarkPawn` 开启则立即调用 `ExecuteMark(resetTracking=false)` 扫描新增高价值目标，有新发现时弹消息
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作、评级、星标各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
+- **错误隔离**：工作、评级、标记各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
 ### 人员自动评级
@@ -402,7 +402,27 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ### 高价值自动标记（AutoMarkPawn）
 
-`AutoMarkPawn/PawnMarker.cs` 静态类为 S+ 档次人类单位（S/SS/SSS，含自定义评级覆盖）在殖民者栏固定位置绘制深红色星标 `★`，便于玩家一眼识别高价值目标，优先俘虏、招募或警惕。
+`AutoMarkPawn/` 模块包含两个职责：
+- **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋），基于特质与技能组合判定，与评级缓存解耦
+- **S+ 高价值扫描通知**（`PawnMarker.cs`）：扫描所有人类单位中的 S+ 目标，通过消息通知玩家（不再绘制 ★）
+
+#### 角色定位图标（4 种）
+
+| 图标 | 形状 | 颜色 | 判定条件 | 设计意图 |
+|------|------|------|----------|----------|
+| **前排** | 盾 | 橙色 `RGB(1.0, 0.55, 0.06)` | 坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major） | 高生存力近战单位，优先重甲 |
+| **远程** | 弓箭 | 橙色 `RGB(1.0, 0.55, 0.06)` | 乱开枪（ShootingAccuracy degree=-1）+ 射击 Major | DPS 突出远程单位，优先射击任务 |
+| **手工** | 锤子铁砧 | 绿色 `RGB(0.2, 0.8, 0.2)` | 工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1） | 生产效率突出，优先专业工作 |
+| **贸易** | 钱袋（实心圆） | 粉红 `RGB(1.0, 0.4, 0.7)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
+
+- **叠加显示**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个，单个 16×16 像素，间距 2px，右上角内缩 2px 留白）
+- **纹理生成**：4 个 32×32 RGBA 纹理由 `RoleIconTextures` 程序化生成（白色像素 + 透明背景，`FilterMode.Point` 保持像素风），绘制时用 `GUI.color` 染色，无需外部 PNG 资源
+- **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新
+- **覆盖范围**：殖民者栏中所有可见人类 Pawn（通过 `PawnSuitabilityChecker.CanManageGear` 过滤非人类like），不强制 Spawned（卧床/运输中的殖民者仍标记）
+
+#### S+ 高价值扫描通知（PawnMarker）
+
+`PawnMarker.cs` 静态类扫描所有人类单位中的 S+ 目标（S/SS/SSS，含自定义评级覆盖），通过消息通知玩家。
 
 - **判定**：`CombatEvaluator.GetCombatTier(pawn) >= CombatTier.S`（含自定义评级覆盖，走 `TierCacheService` 共享 2500 tick 缓存）
 - **扫描范围**（所有人类like 单位，`PawnMarker.IsMarkableTarget`）：
@@ -413,23 +433,15 @@ Passion 量化：None=0, Minor=1, Major=2。
   - 中立/盟友派系访客与交易者
   - 野生人类/难民/流浪者
   - 倒下（Downed）的仍标记：便于优先俘虏高价值敌人
-- **类别**（`PawnMarker.GetMarkerCategory`）：仅用于消息展示中的类别名翻译（如"殖民者"/"敌对"），不再用于星标取色
-- **星标颜色**：统一深红色 `RGB (0.60, 0.10, 0.10)`，与殖民者栏头像（多为浅色/皮肤色）形成强对比，避免按类别变色时金色/橙色/黄色与头像对比不足
+- **类别**（`PawnMarker.GetMarkerCategory`）：用于消息展示中的类别名翻译（如"殖民者"/"敌对"）
 
-- **标记方式**（参考 UsefulMarks 设计）：
-  - 殖民者栏固定标签：Harmony Postfix on `ColonistBarColonistDrawer.DrawColonist`
-  - 星标绘制到殖民者栏 Rect 右上角（边长 18px，内缩 2px 留白），与相机缩放完全解耦
-  - 颜色统一深红色（`HarmonyPatches.StarColor`），`GameFont.Small` 字号
-  - 不修改任何 Pawn 的 Nick/Name，纯前端绘制，安全可逆，无存档副作用
-- **可视范围限制**：殖民者栏只显示玩家阵营的殖民者/奴隶/食尸鬼等，非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）无可视星标；但 `ScanAndMark` 通知消息逻辑仍覆盖所有人类单位，玩家通过消息仍可知晓
 - **触发**：
-  - 殖民者栏绘制：Harmony Postfix 每次殖民者栏绘制单个 Pawn 时调用（OnGUI 路径）
   - ITab 勾选切换（任一方向）：立即全局重扫描并弹消息列出所有当前高价值单位（`resetTracking=true` 清空已通知集合，所有目标都视为"新发现"）
   - 人员变动事件：全人类单位数量增加时扫描新增高价值目标，有新发现时弹消息提示（`resetTracking=false`，仅通知首次出现的目标）
   - 周期路径不执行（无 Nick 修改，无需周期刷新）
 - **消息格式**（`PawnMarker.FormatMessage`）：标题 + 列表项 `- 类别 名字 (档位)`，超过 8 个时显示前 8 个加"... 等 N 个"；空列表显示"未发现高价值单位"
-- **取消勾选**：`ExecuteMark` 检测 `autoMarkPawn=false` 后静默返回；殖民者栏星标由 Harmony 补丁实时检查开关自动停止绘制；`notifiedMarkedIds` 留待下次勾选时由 `resetTracking=true` 清空
-- **Harmony 补丁降级**：`ColonistBarColonistDrawer.DrawColonist` 方法缺失时仅 `Log.Warning`，星标不显示但不崩溃。补丁优先级 `Priority.Last`，避免与其他 MOD 的同方法 patch 顺序冲突
+- **取消勾选**：`ExecuteMark` 检测 `autoMarkPawn=false` 后静默返回；殖民者栏图标由 Harmony 补丁实时检查开关自动停止绘制；`notifiedMarkedIds` 留待下次勾选时由 `resetTracking=true` 清空
+- **Harmony 补丁降级**：`ColonistBarColonistDrawer.DrawColonist` 方法缺失时仅 `Log.Warning`，图标不显示但不崩溃。补丁优先级 `Priority.Last`，避免与其他 MOD 的同方法 patch 顺序冲突
 - **入口**：殖民者装备面板（ITab）底部 → "高价值自动标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
 
 ## 架构模型
@@ -441,7 +453,7 @@ Source/AutoEverything/
 ├── AutoEverything.csproj                  # C# 7.3 项目文件
 ├── Core/                                  # → namespace AutoEverything.Core
 │   ├── ModController.cs                   # MOD 入口，StaticConstructorOnStartup
-│   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 星标绘制
+│   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 角色定位图标绘制
 │   ├── AutoEverythingMod.cs               # Mod 设置入口
 │   ├── AutoEverythingGameComponent.cs     # GameComponent：AutoExecutor Tick 入口
 │   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（主 partial）
@@ -456,7 +468,7 @@ Source/AutoEverything/
 │   ├── TierTagHelper.cs                   # 评级前缀剥离工具
 │   ├── TraitDefCache.cs                   # TraitDef 查询缓存
 │   ├── PassionHelper.cs                   # VSE 兼容 passion tier 映射
-│   ├── AutoExecutor.cs                    # 自动执行调度器（评级/工作/星标）
+│   ├── AutoExecutor.cs                    # 自动执行调度器（评级/工作/标记）
 │   └── CombatTier.cs                      # 战斗价值档次枚举
 ├── RoleEvaluation/                        # → namespace AutoEverything.RoleEvaluation
 │   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎判定）
@@ -467,7 +479,9 @@ Source/AutoEverything/
 │   ├── WorkAllocator.Assignment.cs        # WorkAllocator partial：单工作/组分配 + 辅助工作分配
 │   └── WorkAllocator.Comparer.cs          # WorkAllocator partial：三因子排序比较器 + ApplySkillFloor
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
-│   └── PawnMarker.cs                      # 高价值自动标记（S+ 全人类单位深红色星标 + 类别名消息展示）
+│   ├── PawnMarker.cs                      # S+ 高价值扫描通知（全人类单位扫描 + 消息通知）
+│   ├── RoleIconDef.cs                     # 角色定位判定（前排/远程/手工/贸易 4 种 + 颜色常量）
+│   └── RoleIconTextures.cs                # 角色定位纹理（程序化生成 4 个 32x32 RGBA 纹理）
 ├── AutoEquipment/                         # → namespace AutoEverything.AutoEquipment
 │   ├── ApparelLayerFilter.cs              # 附件层过滤（Belt/Backpack/Bag/Pack 排除）
 │   ├── CultureChecker.cs                  # 意识形态违反/偏好材质/要求加分
@@ -482,7 +496,7 @@ Source/AutoEverything/
 - **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、Pawn 收集、评级缓存、前缀工具、特质缓存、VSE 兼容、自动执行调度、战斗价值档次）
 - **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估）
 - **AutoWork**：工作优先级自动分配（主分配器 + 分配 + 比较器三 partial）
-- **AutoMarkPawn**：高价值自动标记（S+ 档次人类单位在殖民者栏固定位置绘制深红色星标，人员变动事件驱动扫描）
+- **AutoMarkPawn**：殖民者栏角色定位图标（前排/远程/手工/贸易 4 种，基于特质组合判定）+ S+ 全人类单位扫描消息通知
 - **AutoEquipment**：自动装备分配（仅护甲类，事件驱动 + 全局重分配可扒装，按 CombatTier 降序贪心分配，13 个评分权重可调）
 - **UI**：玩家界面（ITab 面板）
 
@@ -497,7 +511,7 @@ Source/AutoEverything/
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
-| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | S+ 档次人类单位在殖民者栏 Rect 右上角绘制深红色星标（统一深红色，与相机缩放解耦）；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
+| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，颜色按战斗橙/工作绿/交易粉分组）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
 | `AutoExecutor` 装备分配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 装备/人员增减、阵营变化、Pawn 死亡时 `GearAllocator.MarkDirty`；冷却结束且 `AnyCombatActive()`=false 时执行；ITab 勾选时立即执行（含扒装重分配） |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |

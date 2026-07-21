@@ -8,33 +8,28 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.AutoMarkPawn
 {
     /// <summary>
-    /// 高价值单位标记模块：为 S+ 档次（S/SS/SSS）的人类单位在殖民者栏固定位置绘制深红色星标 "★"。
+    /// 高价值单位扫描通知模块：扫描所有人类单位中的 S+ 高价值目标，通过消息通知玩家。
     ///
     /// 设计目的：
     /// - 玩家一眼可辨高价值单位（S/SS/SSS 档），便于优先俘虏、招募、警惕或培养
     /// - 范围覆盖所有人类单位：殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类/难民
-    /// - 星标统一使用深红色：与殖民者栏头像（多为浅色/皮肤色）形成强对比，避免按类别变色时与头像对比不足
-    /// - 不修改任何 Pawn 的 Nick/Name，纯前端绘制（Harmony Postfix），安全可逆，无存档副作用
+    /// - 不修改任何 Pawn 的 Nick/Name，纯消息通知，安全可逆，无存档副作用
     ///
-    /// 显示方式（参考 UsefulMarks MOD 设计）：
-    /// - 殖民者栏固定标签：HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch 在
-    ///   ColonistBarColonistDrawer.DrawColonist Postfix 中绘制 ★ 到殖民者栏 Rect 右上角
-    /// - 与相机缩放完全解耦：殖民者栏是固定 UI 元素，星标位置不受世界坐标缩放影响
-    /// - 可视范围限制：仅殖民者栏中的 Pawn（殖民者/奴隶/食尸鬼）有星标；
-    ///   非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）无可视星标，
-    ///   但 ScanAndMark 通知消息逻辑仍覆盖所有人类单位，玩家通过消息仍可知晓
-    ///
-    /// 类别用途：MarkerCategory 仅用于消息展示中的类别名翻译（如"殖民者"/"敌对"），
-    /// 不再用于星标取色——星标颜色统一为深红色常量（见 HarmonyPatches.StarColor）。
+    /// 模块职责（v3 演进后）：
+    /// - 本模块仅负责扫描与消息通知：发现新高价值单位时通过 <see cref="Messages.Message"/> 弹消息
+    /// - 殖民者栏角色定位图标绘制由 <see cref="RoleIconDef"/> + <see cref="RoleIconTextures"/>
+    ///   + <see cref="AutoEverything.Core.HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch"/> 负责
+    /// - 早期版本（v1/v2）本模块还负责殖民者栏 ★ 星标绘制，v3 后绘制职责已移交角色定位图标模块
     ///
     /// 触发方式：
-    /// - 殖民者栏绘制：Harmony Postfix 每次殖民者栏绘制单个 Pawn 时调用（OnGUI 路径）
     /// - ITab 勾选时：全局重扫描（resetTracking=true），弹出消息列出所有当前高价值单位
     /// - 自动模式：地图人员变动时（新增人类like 单位），扫描新增高价值单位并弹消息提示
     ///
     /// 缓存：评级查询走 <see cref="TierCacheService"/>（2500 tick TTL，自动 cleanup）。
     /// 通知去重：<see cref="notifiedMarkedIds"/> 跟踪已通知玩家的 Pawn thingIDNumber，
     /// 仅在首次发现某 Pawn 为高价值时通知，避免重复弹消息。
+    ///
+    /// 类别用途：<see cref="MarkerCategory"/> 仅用于消息展示中的类别名翻译（如"殖民者"/"敌对"）。
     /// </summary>
     public static class PawnMarker
     {

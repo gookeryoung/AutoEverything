@@ -13,7 +13,7 @@ namespace AutoEverything.Core
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
     /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
-    /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标
+    /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标
     /// 3) Thing.SpawnSetup Postfix：装备生成/殖民者生成时标记装备分配脏标（事件驱动）
     /// 4) Thing.Destroy Postfix：装备销毁/殖民者死亡时标记装备分配脏标
     /// 5) Pawn.SetFaction Postfix：殖民者阵营变化（含奴隶转化）时标记装备分配脏标
@@ -24,11 +24,13 @@ namespace AutoEverything.Core
     /// 该机制修改所有人类like Pawn ThingDef.comps，与其他装备管理类 MOD 冲突。
     /// 现改用 GameComponent 全局 Tick 驱动 AutoExecutor，零 ThingDef 修改。
     ///
-    /// 星标显示方案（参考 UsefulMarks 设计）：
-    /// - 早期方案在 PawnUIOverlay.DrawPawnGUIOverlay Postfix 中于世界图层 Pawn 头顶绘制 ★，
-    ///   依赖世界坐标到屏幕坐标的换算，相机缩放时星标与 Pawn 头顶的相对位置会飘移
-    /// - 现改为在 ColonistBarColonistDrawer.DrawColonist Postfix 中于殖民者栏 Rect 右上角绘制 ★，
-    ///   殖民者栏是固定 UI 元素，与相机缩放完全解耦，彻底避免飘移
+    /// 殖民者栏图标显示方案演进（参考 UsefulMarks 设计）：
+    /// - v1：PawnUIOverlay.DrawPawnGUIOverlay Postfix 在世界图层 Pawn 头顶绘制 ★，
+    ///   依赖世界坐标到屏幕坐标换算，相机缩放时星标与 Pawn 头顶相对位置飘移
+    /// - v2：ColonistBarColonistDrawer.DrawColonist Postfix 在殖民者栏 Rect 右上角绘制 ★，
+    ///   殖民者栏是固定 UI 元素，与相机缩放完全解耦
+    /// - v3（当前）：单一 ★ 星标改为角色定位图标（前排/远程/手工/贸易），
+    ///   玩家一眼可辨殖民者定位，颜色按战斗橙/工作绿/交易粉分组，纹理由代码程序化生成
     /// </summary>
     public static class HarmonyPatches
     {
@@ -45,9 +47,9 @@ namespace AutoEverything.Core
                 AccessTools.Method(typeof(Game), nameof(Game.FinalizeInit)),
                 postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
 
-            // ColonistBarColonistDrawer.DrawColonist 补丁：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标
+            // ColonistBarColonistDrawer.DrawColonist 补丁：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标
             // RimWorld 1.6 中类型为 RimWorld.ColonistBarColonistDrawer，公开实例方法 DrawColonist(Rect, Pawn, Map, bool, bool)
-            // 用 try-catch 降级：类型/方法缺失仅 Log.Warning，星标不显示但不崩溃
+            // 用 try-catch 降级：类型/方法缺失仅 Log.Warning，图标不显示但不崩溃
             // Priority.Last 避免与其他 MOD 的同方法 patch 顺序冲突
             try
             {
@@ -61,7 +63,7 @@ namespace AutoEverything.Core
                 }
                 else
                 {
-                    Log.Warning("[AutoEverything] ColonistBarColonistDrawer.DrawColonist 未找到，殖民者栏星标降级为无显示");
+                    Log.Warning("[AutoEverything] ColonistBarColonistDrawer.DrawColonist 未找到，殖民者栏角色图标降级为无显示");
                 }
             }
             catch (Exception ex)
@@ -91,7 +93,7 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] 装备分配事件补丁失败: " + ex.Message);
             }
 
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 星标 + 装备分配事件触发)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 角色图标 + 装备分配事件触发)");
         }
 
         /// <summary>
@@ -122,44 +124,45 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// ColonistBarColonistDrawer.DrawColonist 的 Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制深红色星标。
+        /// ColonistBarColonistDrawer.DrawColonist 的 Postfix：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标。
         ///
         /// 设计动机（参考 UsefulMarks MOD）：
         /// - 早期方案在 PawnUIOverlay.DrawPawnGUIOverlay 中于世界图层 Pawn 头顶绘制 ★，
         ///   依赖世界坐标到屏幕坐标换算，相机缩放时星标与 Pawn 头顶的相对位置飘移
         /// - 改为 hook 殖民者栏绘制：殖民者栏是固定 UI 元素，与相机缩放完全解耦
+        /// - 进一步演进：从单一星标（S+ 高价值 ★）改为角色定位图标（前排/远程/手工/贸易），
+        ///   玩家一眼可辨殖民者定位，便于装备分配与工作安排
         ///
         /// 实现要点：
         /// - Harmony 自动注入参数 rect 与 colonist（与原方法同名同型，无需反射）
-        /// - 在 rect 右上角叠加固定像素大小的 ★ 标签
-        /// - 颜色统一为深红色 StarColor：与殖民者栏头像（多为浅色/皮肤色）形成强对比，
-        ///   避免按类别变色时金色/橙色/黄色与头像对比不足导致"差异不清"
+        /// - 调用 <see cref="RoleIconDef.GetRoleIcons"/> 收集 Pawn 符合的所有角色定位
+        /// - 在 rect 右上角从右往左横向排列图标（最多 4 个）
+        /// - 图标纹理由 <see cref="RoleIconTextures"/> 程序化生成，颜色由 <see cref="RoleIconDef.GetColor"/> 染色
         /// - 不修改任何 Pawn 数据，纯前端绘制，安全可逆
         ///
         /// 覆盖范围：
         /// - 殖民者栏中所有可见 Pawn（殖民者/奴隶/食尸鬼/动物宠物/机械族等）
         /// - 通过 PawnSuitabilityChecker.CanManageGear 过滤非人类like（动物/机械族/昆虫/异常实体）
-        /// - 通过 PawnMarker.IsHighValue 过滤非 S+ 档次
-        /// - 不强制 Spawned：殖民者栏包含卧床/运输中的殖民者，仍应标记其高价值状态
+        /// - 不强制 Spawned：殖民者栏包含卧床/运输中的殖民者，仍应标记其角色定位
+        /// - 不依赖 S+ 评级判定：角色定位基于特质组合，与 CombatTier 解耦
         ///
-        /// 代价（与早期方案相比）：
+        /// 代价：
         /// - 非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）不再有可视星标，
         ///   但 PawnMarker.ScanAndMark 通知消息逻辑仍覆盖所有人类单位，玩家仍能通过消息知晓
         /// </summary>
         public static class ColonistBarDrawer_DrawColonist_Patch
         {
             /// <summary>
-            /// 星标尺寸（像素）：殖民者栏 Rect 右上角 ★ 标签的边长。
-            /// 经验值 18：殖民者栏头像约 48x48 像素，星标占右上角约 1/3，醒目不喧宾夺主。
+            /// 单个图标尺寸（像素）：殖民者栏头像约 48x48，图标 16x16 占右上角约 1/3，醒目不喧宾夺主。
+            /// 多个图标横向排列时总宽 = N × IconSize + (N-1) × IconSpacing，最多 4 个 = 70px。
             /// </summary>
-            private const float StarSize = 18f;
+            private const float IconSize = 16f;
 
-            /// <summary>
-            /// 星标统一颜色：深红色。
-            /// 设计原因：殖民者栏头像多为浅色/皮肤色背景，金色/橙色/黄色等浅色系星标对比不足；
-            /// 深红色（RGB 0.6, 0.1, 0.1）饱和度高、明度低，与浅色头像形成强对比，玩家一眼可辨。
-            /// </summary>
-            private static readonly Color StarColor = new Color(0.6f, 0.1f, 0.1f);
+            /// <summary>图标间距（像素）：横向排列时图标之间的留白</summary>
+            private const float IconSpacing = 2f;
+
+            /// <summary>右上角内缩留白（像素）：避免图标紧贴殖民者栏边框</summary>
+            private const float Margin = 2f;
 
             public static void Postfix(Rect rect, Pawn colonist)
             {
@@ -167,50 +170,44 @@ namespace AutoEverything.Core
                 if (colonist == null) return;
                 if (colonist.Dead) return;
                 if (!PawnSuitabilityChecker.CanManageGear(colonist)) return;
-                if (!PawnMarker.IsHighValue(colonist)) return;
 
                 try
                 {
-                    DrawStarOnColonistBar(rect, colonist);
+                    DrawRoleIcons(rect, colonist);
                 }
                 catch (Exception ex)
                 {
-                    Log.ErrorOnce("[AutoEverything] 殖民者栏星标绘制失败: " + ex.Message,
+                    Log.ErrorOnce("[AutoEverything] 殖民者栏角色图标绘制失败: " + ex.Message,
                         colonist.thingIDNumber ^ 0xA600);
                 }
             }
 
             /// <summary>
-            /// 在殖民者栏 Rect 右上角绘制深红色 ★ 图标。
+            /// 在殖民者栏 Rect 右上角从右往左横向排列角色定位图标。
             ///
             /// 坐标系：
             /// - rect 由 RimWorld 内部计算（已含 UI Scale 缩放），直接用 rect.xMax/yMin 定位右上角
-            /// - 星标 Rect 边长 StarSize，右上角对齐 rect 右上角（内缩 2px 留白避免与边框重叠）
+            /// - 第一个图标右上角对齐（内缩 Margin 留白），后续图标向左排列
             /// </summary>
-            private static void DrawStarOnColonistBar(Rect rect, Pawn pawn)
+            private static void DrawRoleIcons(Rect rect, Pawn pawn)
             {
-                // 右上角对齐：x = rect.right - StarSize - 2，y = rect.top + 2
-                // 内缩 2px 留白，避免星标紧贴殖民者栏边框
-                Rect starRect = new Rect(
-                    rect.xMax - StarSize - 2f,
-                    rect.yMin + 2f,
-                    StarSize,
-                    StarSize);
+                List<RoleIconDef.RoleIconType> icons = RoleIconDef.GetRoleIcons(pawn);
+                if (icons.Count == 0) return;
+
+                // 从右往左排列：第一个图标在最右
+                float x = rect.xMax - IconSize - Margin;
+                float y = rect.yMin + Margin;
 
                 Color prevColor = GUI.color;
-                GUI.color = StarColor;
-                GameFont prevFont = Text.Font;
-                Text.Font = GameFont.Small;
-                TextAnchor prevAnchor = Text.Anchor;
-                Text.Anchor = TextAnchor.MiddleCenter;
-                bool prevWrap = Text.WordWrap;
-                Text.WordWrap = false;
-
-                Widgets.Label(starRect, TierTagHelper.StarMarker);
-
-                Text.WordWrap = prevWrap;
-                Text.Anchor = prevAnchor;
-                Text.Font = prevFont;
+                for (int i = 0; i < icons.Count; i++)
+                {
+                    RoleIconDef.RoleIconType type = icons[i];
+                    GUI.color = RoleIconDef.GetColor(type);
+                    Texture2D tex = RoleIconTextures.Get(type);
+                    Rect iconRect = new Rect(x, y, IconSize, IconSize);
+                    GUI.DrawTexture(iconRect, tex);
+                    x -= IconSize + IconSpacing;
+                }
                 GUI.color = prevColor;
             }
         }

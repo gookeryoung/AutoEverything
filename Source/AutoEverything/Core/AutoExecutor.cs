@@ -22,8 +22,8 @@ namespace AutoEverything.Core
     ///   周期/事件触发仅更新 Nick 前缀（评级变化时），不重排殖民者栏——避免覆盖玩家手动排序；
     ///   玩家主动触发（ITab 勾选/点排序按钮）才调 ReorderColonistBar 重排
     /// - 高价值标记（事件 + 殖民者栏绘制）：人类单位数量增加时扫描新增高价值目标并弹消息；
-    ///   彩色星标在殖民者栏固定位置由 Harmony ColonistBarColonistDrawer.DrawColonist Postfix 绘制
-    ///   （走 TierCacheService 共享 2500 tick 缓存），无需周期触发
+    ///   角色定位图标在殖民者栏固定位置由 Harmony ColonistBarColonistDrawer.DrawColonist Postfix 绘制
+    ///   （基于特质组合判定，无评级缓存依赖），无需周期触发
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈，含完整目标列表）
     ///
     /// 首次初始化守卫：work.lastTick 等 &lt; 0 时设为当前 tick，不触发执行，
@@ -55,9 +55,9 @@ namespace AutoEverything.Core
         private static PhaseState work = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
-        // 注：Mark 无周期触发——彩色星标在殖民者栏固定位置由 Harmony
-        // ColonistBarColonistDrawer.DrawColonist Postfix 绘制（调用 PawnMarker.IsHighValue，
-        // 走 TierCacheService 共享 2500 tick 缓存）。
+        // 注：Mark 无周期触发——角色定位图标在殖民者栏固定位置由 Harmony
+        // ColonistBarColonistDrawer.DrawColonist Postfix 绘制（调用 RoleIconDef.GetRoleIcons，
+        // 基于特质组合判定，无评级缓存依赖）。
         // Mark 触发条件：人类单位数量增加（事件）+ ITab 勾选切换（玩家主动）。
 
         // 殖民者数量缓存：-1 = 首次只记录不触发（用于工作重配与评级事件检测）
