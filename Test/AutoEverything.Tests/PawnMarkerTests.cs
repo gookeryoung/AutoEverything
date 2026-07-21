@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using AutoEverything.AutoMarkPawn;
 using AutoEverything.Core;
 // 类型别名：PawnMarker.MarkerCategory 是嵌套类型，用别名避免到处写 PawnMarker.MarkerCategory
@@ -13,12 +12,14 @@ namespace AutoEverything.Tests
     ///
     /// 覆盖范围：
     /// 1. GetMarkerCategoryCore — 6 类别判定 + 优先级顺序（Prisoner>Slave>Colonist>Enemy>Neutral>WildHuman）
-    /// 2. GetMarkerColor — 6 类别颜色映射（金/橙/黄/红/青/白）
-    /// 3. FormatMessageCore — 空列表/单条/边界 maxListed/超过 maxListed 加省略号
-    /// 4. ComputeNewlyMarkedIds — dedup 跟踪：首次全通知/重复不通知/resetTracking 强制全通知
+    /// 2. FormatMessageCore — 空列表/单条/边界 maxListed/超过 maxListed 加省略号
+    /// 3. ComputeNewlyMarkedIds — dedup 跟踪：首次全通知/重复不通知/resetTracking 强制全通知
     ///
     /// 设计原则：测试不依赖 RimWorld 运行时（无 Pawn/Map/Faction 实例），
     /// 仅调用 internal static 纯逻辑方法，构造 struct 输入即可验证。
+    ///
+    /// 注：GetMarkerColor 已删除（星标统一为深红色常量，见 HarmonyPatches.StarColor），
+    /// 按类别变色逻辑不再存在，颜色测试同步移除。
     /// </summary>
     public static class PawnMarkerTests
     {
@@ -28,7 +29,6 @@ namespace AutoEverything.Tests
             int total = 0;
 
             failures += RunCategoryTests(ref total);
-            failures += RunColorTests(ref total);
             failures += RunFormatMessageTests(ref total);
             failures += RunComputeNewlyMarkedTests(ref total);
 
@@ -106,40 +106,7 @@ namespace AutoEverything.Tests
         }
 
         // ════════════════════════════════════════════════════════════
-        // 2. GetMarkerColor：6 类别颜色映射
-        // ════════════════════════════════════════════════════════════
-
-        private static int RunColorTests(ref int total)
-        {
-            int failures = 0;
-
-            // 颜色契约：与 README.md 中颜色表保持一致
-            CheckColor(MarkerCategory.Colonist, new Color(1.0f, 0.84f, 0.0f), "Colonist=金", ref failures, ref total);
-            CheckColor(MarkerCategory.Slave, new Color(0.95f, 0.55f, 0.06f), "Slave=橙", ref failures, ref total);
-            CheckColor(MarkerCategory.Prisoner, new Color(0.95f, 0.75f, 0.06f), "Prisoner=黄", ref failures, ref total);
-            CheckColor(MarkerCategory.Enemy, new Color(1.0f, 0.15f, 0.15f), "Enemy=红", ref failures, ref total);
-            CheckColor(MarkerCategory.Neutral, new Color(0.20f, 0.85f, 0.95f), "Neutral=青", ref failures, ref total);
-            CheckColor(MarkerCategory.WildHuman, new Color(0.95f, 0.95f, 0.95f), "WildHuman=白", ref failures, ref total);
-
-            Console.WriteLine($"[PawnMarkerTests/Color] {total - failures}/{total} passed");
-            return failures;
-        }
-
-        private static void CheckColor(MarkerCategory category, Color expected, string label,
-            ref int failures, ref int total)
-        {
-            total++;
-            Color actual = PawnMarker.GetMarkerColor(category);
-            // UnityEngine.Color == operator 内置 1e-5 epsilon 近似比较，适合测试场景
-            if (actual != expected)
-            {
-                Console.WriteLine($"  FAIL: {label}: expected ({expected.r},{expected.g},{expected.b}), got ({actual.r},{actual.g},{actual.b})");
-                failures++;
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════
-        // 3. FormatMessageCore：消息格式化
+        // 2. FormatMessageCore：消息格式化
         // ════════════════════════════════════════════════════════════
 
         private static int RunFormatMessageTests(ref int total)
@@ -244,7 +211,7 @@ namespace AutoEverything.Tests
         }
 
         // ════════════════════════════════════════════════════════════
-        // 4. ComputeNewlyMarkedIds：dedup 跟踪
+        // 3. ComputeNewlyMarkedIds：dedup 跟踪
         // ════════════════════════════════════════════════════════════
 
         private static int RunComputeNewlyMarkedTests(ref int total)

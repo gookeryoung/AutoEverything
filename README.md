@@ -14,7 +14,7 @@
 |------|------|----------|
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
-| **AutoMarkPawn**（高价值自动标记） | 为 S+ 档次人类单位在殖民者栏固定位置绘制彩色星标 ★（按类别区分颜色，参考 UsefulMarks 设计） | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
+| **AutoMarkPawn**（高价值自动标记） | 为 S+ 档次人类单位在殖民者栏固定位置绘制深红色星标 ★（统一深红色，参考 UsefulMarks 设计） | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
 | **AutoEquipment**（自动装备分配） | 按评级降序逐个分配，按 ApparelLayer 分组选最高分装备（含扒装重分配） | 事件驱动（装备/人员增减）+ 冷却 2500 tick + ITab 勾选 |
 
 ## 设计思路
@@ -402,32 +402,24 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ### 高价值自动标记（AutoMarkPawn）
 
-`AutoMarkPawn/PawnMarker.cs` 静态类为 S+ 档次人类单位（S/SS/SSS，含自定义评级覆盖）在殖民者栏固定位置绘制彩色星标 `★`，按单位类别区分颜色，便于玩家一眼识别高价值目标，优先俘虏、招募或警惕。
+`AutoMarkPawn/PawnMarker.cs` 静态类为 S+ 档次人类单位（S/SS/SSS，含自定义评级覆盖）在殖民者栏固定位置绘制深红色星标 `★`，便于玩家一眼识别高价值目标，优先俘虏、招募或警惕。
 
 - **判定**：`CombatEvaluator.GetCombatTier(pawn) >= CombatTier.S`（含自定义评级覆盖，走 `TierCacheService` 共享 2500 tick 缓存）
 - **扫描范围**（所有人类like 单位，`PawnMarker.IsMarkableTarget`）：
-  - 殖民者（玩家阵营自由人员，含食尸鬼——食尸鬼属 Humanlike 通过过滤，归为 Colonist 类别标金星）
+  - 殖民者（玩家阵营自由人员，含食尸鬼——食尸鬼属 Humanlike 通过过滤）
   - 奴隶（玩家阵营奴隶，Ideology DLC）
   - 囚犯（被玩家关押）
   - 敌对派系敌人（来袭突袭/袭营的敌方 Pawn）
   - 中立/盟友派系访客与交易者
   - 野生人类/难民/流浪者
   - 倒下（Downed）的仍标记：便于优先俘虏高价值敌人
-- **类别与颜色**（`PawnMarker.GetMarkerCategory` + `GetMarkerColor`）：
-
-  | 类别 | 颜色 | RGB |
-  |------|------|-----|
-  | 殖民者 Colonist | 金 | (1.00, 0.84, 0.00) |
-  | 奴隶 Slave | 橙 | (0.95, 0.55, 0.06) |
-  | 囚犯 Prisoner | 黄 | (0.95, 0.75, 0.06) |
-  | 敌对 Enemy | 红 | (1.00, 0.15, 0.15) |
-  | 中立/盟友 Neutral | 青 | (0.20, 0.85, 0.95) |
-  | 野生 WildHuman | 白 | (0.95, 0.95, 0.95) |
+- **类别**（`PawnMarker.GetMarkerCategory`）：仅用于消息展示中的类别名翻译（如"殖民者"/"敌对"），不再用于星标取色
+- **星标颜色**：统一深红色 `RGB (0.60, 0.10, 0.10)`，与殖民者栏头像（多为浅色/皮肤色）形成强对比，避免按类别变色时金色/橙色/黄色与头像对比不足
 
 - **标记方式**（参考 UsefulMarks 设计）：
   - 殖民者栏固定标签：Harmony Postfix on `ColonistBarColonistDrawer.DrawColonist`
   - 星标绘制到殖民者栏 Rect 右上角（边长 18px，内缩 2px 留白），与相机缩放完全解耦
-  - 颜色按类别动态取色（`PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn))`），`GameFont.Small` 字号
+  - 颜色统一深红色（`HarmonyPatches.StarColor`），`GameFont.Small` 字号
   - 不修改任何 Pawn 的 Nick/Name，纯前端绘制，安全可逆，无存档副作用
 - **可视范围限制**：殖民者栏只显示玩家阵营的殖民者/奴隶/食尸鬼等，非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）无可视星标；但 `ScanAndMark` 通知消息逻辑仍覆盖所有人类单位，玩家通过消息仍可知晓
 - **触发**：
@@ -475,7 +467,7 @@ Source/AutoEverything/
 │   ├── WorkAllocator.Assignment.cs        # WorkAllocator partial：单工作/组分配 + 辅助工作分配
 │   └── WorkAllocator.Comparer.cs          # WorkAllocator partial：三因子排序比较器 + ApplySkillFloor
 ├── AutoMarkPawn/                          # → namespace AutoEverything.AutoMarkPawn
-│   └── PawnMarker.cs                      # 高价值自动标记（S+ 全人类单位彩色星标实时绘制 + 类别区分颜色）
+│   └── PawnMarker.cs                      # 高价值自动标记（S+ 全人类单位深红色星标 + 类别名消息展示）
 ├── AutoEquipment/                         # → namespace AutoEverything.AutoEquipment
 │   ├── ApparelLayerFilter.cs              # 附件层过滤（Belt/Backpack/Bag/Pack 排除）
 │   ├── CultureChecker.cs                  # 意识形态违反/偏好材质/要求加分
@@ -490,7 +482,7 @@ Source/AutoEverything/
 - **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、Pawn 收集、评级缓存、前缀工具、特质缓存、VSE 兼容、自动执行调度、战斗价值档次）
 - **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估）
 - **AutoWork**：工作优先级自动分配（主分配器 + 分配 + 比较器三 partial）
-- **AutoMarkPawn**：高价值自动标记（S+ 档次人类单位在殖民者栏固定位置绘制彩色星标，按类别区分颜色，人员变动事件驱动扫描）
+- **AutoMarkPawn**：高价值自动标记（S+ 档次人类单位在殖民者栏固定位置绘制深红色星标，人员变动事件驱动扫描）
 - **AutoEquipment**：自动装备分配（仅护甲类，事件驱动 + 全局重分配可扒装，按 CombatTier 降序贪心分配，13 个评分权重可调）
 - **UI**：玩家界面（ITab 面板）
 
@@ -505,7 +497,7 @@ Source/AutoEverything/
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
-| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | S+ 档次人类单位在殖民者栏 Rect 右上角绘制彩色星标（按类别区分颜色，与相机缩放解耦）；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
+| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | S+ 档次人类单位在殖民者栏 Rect 右上角绘制深红色星标（统一深红色，与相机缩放解耦）；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
 | `AutoExecutor` 装备分配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 装备/人员增减、阵营变化、Pawn 死亡时 `GearAllocator.MarkDirty`；冷却结束且 `AnyCombatActive()`=false 时执行；ITab 勾选时立即执行（含扒装重分配） |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |

@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Text;
 using RimWorld;
-using UnityEngine;
 using Verse;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
@@ -9,12 +8,12 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.AutoMarkPawn
 {
     /// <summary>
-    /// 高价值单位标记模块：为 S+ 档次（S/SS/SSS）的人类单位在殖民者栏固定位置绘制彩色星标 "★"。
+    /// 高价值单位标记模块：为 S+ 档次（S/SS/SSS）的人类单位在殖民者栏固定位置绘制深红色星标 "★"。
     ///
     /// 设计目的：
     /// - 玩家一眼可辨高价值单位（S/SS/SSS 档），便于优先俘虏、招募、警惕或培养
     /// - 范围覆盖所有人类单位：殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类/难民
-    /// - 按单位类别用不同颜色星标区分（殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白）
+    /// - 星标统一使用深红色：与殖民者栏头像（多为浅色/皮肤色）形成强对比，避免按类别变色时与头像对比不足
     /// - 不修改任何 Pawn 的 Nick/Name，纯前端绘制（Harmony Postfix），安全可逆，无存档副作用
     ///
     /// 显示方式（参考 UsefulMarks MOD 设计）：
@@ -24,6 +23,9 @@ namespace AutoEverything.AutoMarkPawn
     /// - 可视范围限制：仅殖民者栏中的 Pawn（殖民者/奴隶/食尸鬼）有星标；
     ///   非殖民者栏中的高价值单位（囚犯/敌对/中立/野生）无可视星标，
     ///   但 ScanAndMark 通知消息逻辑仍覆盖所有人类单位，玩家通过消息仍可知晓
+    ///
+    /// 类别用途：MarkerCategory 仅用于消息展示中的类别名翻译（如"殖民者"/"敌对"），
+    /// 不再用于星标取色——星标颜色统一为深红色常量（见 HarmonyPatches.StarColor）。
     ///
     /// 触发方式：
     /// - 殖民者栏绘制：Harmony Postfix 每次殖民者栏绘制单个 Pawn 时调用（OnGUI 路径）
@@ -37,7 +39,8 @@ namespace AutoEverything.AutoMarkPawn
     public static class PawnMarker
     {
         /// <summary>
-        /// 标记类别：按单位所属派系/状态区分，用于星标颜色与消息展示。
+        /// 标记类别：按单位所属派系/状态区分，用于消息展示中的类别名翻译。
+        /// 不再用于星标取色——星标统一深红色（见 HarmonyPatches.StarColor）。
         /// 优先级顺序：Prisoner > Slave > Colonist > Enemy > Neutral > WildHuman
         /// </summary>
         public enum MarkerCategory : byte
@@ -147,23 +150,6 @@ namespace AutoEverything.AutoMarkPawn
             if (input.IsHostileTo) return MarkerCategory.Enemy;
             if (input.HasFaction) return MarkerCategory.Neutral;
             return MarkerCategory.WildHuman;
-        }
-
-        /// <summary>
-        /// 获取类别对应的星标颜色。
-        /// 殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
-        /// </summary>
-        public static Color GetMarkerColor(MarkerCategory category)
-        {
-            switch (category)
-            {
-                case MarkerCategory.Colonist: return new Color(1.0f, 0.84f, 0.0f);    // 金
-                case MarkerCategory.Slave: return new Color(0.95f, 0.55f, 0.06f);  // 橙
-                case MarkerCategory.Prisoner: return new Color(0.95f, 0.75f, 0.06f); // 黄
-                case MarkerCategory.Enemy: return new Color(1.0f, 0.15f, 0.15f);   // 红
-                case MarkerCategory.Neutral: return new Color(0.20f, 0.85f, 0.95f);  // 青
-                default: return new Color(0.95f, 0.95f, 0.95f); // 白（野生人类）
-            }
         }
 
         /// <summary>

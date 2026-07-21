@@ -18,7 +18,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 测试 PawnMarker.GetMarkerColor 需要 UnityEngine.Color 类型 -->
+    <!-- 主项目依赖 UnityEngine（HarmonyPatches 等），测试运行时需传递加载 -->
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>

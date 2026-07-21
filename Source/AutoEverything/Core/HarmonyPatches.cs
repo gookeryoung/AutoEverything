@@ -122,7 +122,7 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// ColonistBarColonistDrawer.DrawColonist 的 Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制彩色星标。
+        /// ColonistBarColonistDrawer.DrawColonist 的 Postfix：在殖民者栏固定位置为 S+ 档次人类 Pawn 绘制深红色星标。
         ///
         /// 设计动机（参考 UsefulMarks MOD）：
         /// - 早期方案在 PawnUIOverlay.DrawPawnGUIOverlay 中于世界图层 Pawn 头顶绘制 ★，
@@ -132,7 +132,8 @@ namespace AutoEverything.Core
         /// 实现要点：
         /// - Harmony 自动注入参数 rect 与 colonist（与原方法同名同型，无需反射）
         /// - 在 rect 右上角叠加固定像素大小的 ★ 标签
-        /// - 颜色按 Pawn 类别动态取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
+        /// - 颜色统一为深红色 StarColor：与殖民者栏头像（多为浅色/皮肤色）形成强对比，
+        ///   避免按类别变色时金色/橙色/黄色与头像对比不足导致"差异不清"
         /// - 不修改任何 Pawn 数据，纯前端绘制，安全可逆
         ///
         /// 覆盖范围：
@@ -152,6 +153,13 @@ namespace AutoEverything.Core
             /// 经验值 18：殖民者栏头像约 48x48 像素，星标占右上角约 1/3，醒目不喧宾夺主。
             /// </summary>
             private const float StarSize = 18f;
+
+            /// <summary>
+            /// 星标统一颜色：深红色。
+            /// 设计原因：殖民者栏头像多为浅色/皮肤色背景，金色/橙色/黄色等浅色系星标对比不足；
+            /// 深红色（RGB 0.6, 0.1, 0.1）饱和度高、明度低，与浅色头像形成强对比，玩家一眼可辨。
+            /// </summary>
+            private static readonly Color StarColor = new Color(0.6f, 0.1f, 0.1f);
 
             public static void Postfix(Rect rect, Pawn colonist)
             {
@@ -173,8 +181,7 @@ namespace AutoEverything.Core
             }
 
             /// <summary>
-            /// 在殖民者栏 Rect 右上角绘制彩色 ★ 图标。
-            /// 颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
+            /// 在殖民者栏 Rect 右上角绘制深红色 ★ 图标。
             ///
             /// 坐标系：
             /// - rect 由 RimWorld 内部计算（已含 UI Scale 缩放），直接用 rect.xMax/yMin 定位右上角
@@ -190,11 +197,8 @@ namespace AutoEverything.Core
                     StarSize,
                     StarSize);
 
-                // 按类别取色：殖民者=金、奴隶=橙、囚犯=黄、敌对=红、中立/盟友=青、野生=白
-                Color starColor = PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn));
-
                 Color prevColor = GUI.color;
-                GUI.color = starColor;
+                GUI.color = StarColor;
                 GameFont prevFont = Text.Font;
                 Text.Font = GameFont.Small;
                 TextAnchor prevAnchor = Text.Anchor;
