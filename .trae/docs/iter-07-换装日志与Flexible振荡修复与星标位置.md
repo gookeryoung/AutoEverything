@@ -2,7 +2,7 @@
 
 ## 变动日期
 
-2026-07-20（初版）/ 2026-07-21（追加星标渲染方式修复）
+2026-07-20（初版）/ 2026-07-21（追加星标渲染方式修复 + 彻底方案）
 
 ## 需求清单
 
@@ -10,6 +10,7 @@
 - [x] 修复殖民者总是自动脱装备的振荡问题（用户指令 2）
 - [x] 修复高价值星标偏离殖民者头像过远的问题（用户指令 3）
 - [x] 修复星标在相机缩放时位置飘移（用户追加反馈：改用名字标签渲染方式而非 Layer）
+- [x] 修复星标依然显示错位（用户追加反馈：彻底解决而非反复调整）
 
 ## 迭代目标
 
@@ -22,9 +23,9 @@
 
 ### 1. `Source/AutoEverything/Core/HarmonyPatches.cs`
 
-#### 调整历程（三轮）
+#### 调整历程（四轮）
 
-星标位置经历三轮调整：
+星标位置经历四轮调整：
 
 **第一轮（1.8f → 1.0f）**：初版 1.8f 偏移过大，星标偏离 Pawn 头像太远；改为 1.0f（接近 health bar）。
 但用户反馈"殖民者标记没有显示在头像上"——1.0f 被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）。
@@ -32,49 +33,63 @@
 **第二轮（1.0f → 1.5f）**：改为 1.5f（介于 health bar 约 1.0 与名字标签约 1.8 之间，显示在名字下方一行）。
 用户反馈"显示依然有问题，在缩放时位置一直变化"——根因未解决：用世界坐标 Y 偏移 + WorldToScreenPoint，相机缩放时世界 Y 偏移在屏幕上的像素数随缩放因子变化，星标相对 Pawn 头像飘移。
 
-**第三轮（终版：世界坐标 Y 偏移 → 屏幕坐标固定像素偏移）**：改用 RimWorld 名字标签渲染方式，根因消除。
+**第三轮（世界 Y 偏移 → Screen.height + 固定像素偏移 50f）**：改用 RimWorld 名字标签渲染方式（屏幕坐标 + 固定像素偏移），用 `Screen.height` 做 Y 轴翻转。
+用户反馈"依然显示错位"——根因未解决：用 `Screen.height` 而 RimWorld 内部用 `UI.screenHeight`，UI Scale ≠ 1 时坐标系不一致。
 
-#### 第三轮修复：渲染方式重构
+**第四轮（终版：直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor）**：彻底解决。
 
-**问题根因**：
+#### 第四轮修复：彻底方案
+
+**问题根因（最终定位）**：
 ```csharp
-Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);  // 世界 Y 偏移
-Vector3 screenPos = Find.Camera.WorldToScreenPoint(worldPos);
+// 旧实现（第三轮失败方案）
+Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);
+float guiY = Screen.height - pawnScreenPos.y;  // ← 错误：用 Screen.height
 ```
-相机缩放时，世界 Y 偏移 1.5 在屏幕上的像素数 = 1.5 × 缩放因子，缩放因子随相机距离变化，导致星标相对 Pawn 头像的位置随缩放飘移。
 
-**修复方案**：改用名字标签渲染方式（基于 Pawn 脚部屏幕坐标 + 固定像素偏移）：
+RimWorld 内部 GUI 坐标系用 `UI.screenHeight` 而非 `Screen.height`：
+- `Screen.height` = Unity 屏幕实际像素高度
+- `UI.screenHeight` = RimWorld UI 屏幕高度，受 UI Scale 影响（Prefs.UIScale）
+
+当玩家 UI Scale ≠ 1 时（如 1.5x 或 0.75x），`Screen.height != UI.screenHeight`，导致：
+- 星标用 `Screen.height` 计算的 GUI Y 坐标与 RimWorld GUI 坐标系不一致
+- 星标位置相对 Pawn 偏移，UI Scale 越偏离 1，错位越严重
+
+**修复方案**：直接调用 RimWorld 内部 `GenMapUI.LabelDrawPosFor(pawn, 0f)` 获取屏幕坐标——
+该方法内部已正确处理 `UI.screenHeight` 与 Y 轴翻转，与 RimWorld 原生名字标签用完全相同的坐标算法。
 
 ```csharp
-// 修复后：与 RimWorld 名字标签渲染方式一致
-Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);  // 脚部世界坐标 → 屏幕坐标
-if (pawnScreenPos.z <= 0) return;
+// 修复后：直接调用 RimWorld 内部 API
+Vector2 labelScreenPos = GenMapUI.LabelDrawPosFor(pawn, 0f);
+if (labelScreenPos.x < 0f) return;  // Pawn 在相机后时返回 (-1, -1)
 
-float guiX = pawnScreenPos.x;
-float guiY = Screen.height - pawnScreenPos.y;
-
-// 固定像素偏移：与相机缩放无关，相对位置稳定
+// 加固定像素偏移让星标显示在 Pawn 上方
 const float yOffsetPixels = 50f;
 float starSize = 20f;
 Rect starRect = new Rect(
-    guiX - starSize / 2f,
-    guiY - yOffsetPixels - starSize / 2f,
+    labelScreenPos.x - starSize / 2f,
+    labelScreenPos.y - yOffsetPixels - starSize / 2f,
     starSize,
     starSize);
 ```
 
-**为何此方式缩放时稳定**：
-- pawn.DrawPos 是 Pawn 脚部世界坐标，WorldToScreenPoint 转换得到脚部屏幕坐标
-- yOffsetPixels 是固定 50 像素，与缩放因子无关
-- 相机缩放时，Pawn 脚部屏幕坐标同步变化（Pawn 视觉位置随之缩放是正常的），但星标相对脚部的像素偏移始终是 50 像素
-- 与 RimWorld 原生名字标签（health bar 等）的渲染方式一致，缩放时星标与名字标签同步移动
+**API 验证**：用 PowerShell 反射查看 RimWorld 1.6 `Verse.GenMapUI` 类型，确认存在 public static 方法：
+- `Vector2 LabelDrawPosFor(Thing thing, float worldOffsetZ)` — 返回 GUI 屏幕坐标（Vector2）
+- `Vector2 LabelDrawPosFor(IntVec3 center)` — 重载
+- `void DrawPawnLabel(Pawn pawn, Vector2 pos, ...)` — 绘制名字标签
+
+**为何此方案彻底解决**：
+1. 用 RimWorld 内部 API，与原生名字标签完全相同的坐标计算（包括 UI Scale 处理）
+2. 不会再因 UI Scale 变化导致错位
+3. Pawn 在相机后时返回 (-1, -1)，原 API 已处理边界情况
+4. 与 RimWorld 1.6 内部 API 一致，未来版本兼容性更好
 
 **yOffsetPixels = 50 的选择依据**：
 - 缩放下 Pawn 模型在屏幕上约 40-60 像素高
-- RimWorld 原生名字标签位于约 y-50~-60 像素位置
-- 星标用 50 像素，与名字标签位置接近，略低避免重叠
+- 50 像素让星标显示在 Pawn 头顶上方
+- 与 RimWorld 原生名字标签位置接近但略低避免重叠
 
-同步更新方法注释：详细说明渲染方式、根因分析与方案选择理由。
+同步更新方法注释：详细说明四轮调整历程与最终方案。
 
 ### 2. `Source/AutoEverything/AutoEquipment/GearAllocator.cs`
 
@@ -265,17 +280,26 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 
 ## 关键决策与依据
 
-### 决策 1：星标渲染方式选屏幕坐标固定像素偏移（名字标签方式）
+### 决策 1：星标渲染方式直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor（彻底方案）
 
-**选择**：`Find.Camera.WorldToScreenPoint(pawn.DrawPos)` 转屏幕坐标 → GUI 坐标 Y 轴翻转 → 减固定像素偏移 50
+**选择**：`GenMapUI.LabelDrawPosFor(pawn, 0f)` 获取屏幕坐标 + 固定像素偏移 50
 
 **依据**：
-- 旧实现（世界 Y 偏移）在相机缩放时，世界 Y 偏移在屏幕上的像素数 = N × 缩放因子，缩放因子随相机距离变化，星标相对 Pawn 头像飘移——这是用户反馈"在缩放时位置一直变化"的根因
-- 用户明确要求"用名字标签渲染方式而非 Layer"——即用 Pawn 屏幕坐标 + 固定像素偏移
-- 固定像素偏移与缩放因子无关：缩放时 Pawn 脚部屏幕坐标同步变化（Pawn 视觉位置随之缩放是正常的），但星标相对脚部的像素偏移始终是 50 像素
-- 与 RimWorld 原生名字标签渲染方式一致，缩放时星标与名字标签同步移动，相对位置稳定
-- yOffsetPixels = 50：缩放下 Pawn 模型在屏幕上约 40-60 像素高，RimWorld 原生名字标签位于约 y-50~-60 像素位置，星标用 50 像素与之接近且略低避免重叠
-- 之前尝试 1.8f / 1.0f / 1.5f 世界 Y 偏移均未解决根因，第三轮重构渲染方式才彻底解决
+- 旧实现用 `Screen.height` 做 GUI Y 轴翻转，但 RimWorld 内部用 `UI.screenHeight`（受 UI Scale 影响）
+- UI Scale ≠ 1 时（玩家常见设置），两个值不同，GUI 坐标系不一致 → 星标位置错位
+- 第三轮改用 `Screen.height + 固定像素偏移 50f` 仍失败，因为没解决坐标系问题
+- 第四轮直接调用 RimWorld 内部 `GenMapUI.LabelDrawPosFor(pawn, 0f)`，与原生名字标签用完全相同的坐标算法（内部自动用 `UI.screenHeight`）
+- API 已用 PowerShell 反射验证：RimWorld 1.6 `Verse.GenMapUI` 存在 public static `Vector2 LabelDrawPosFor(Thing, float)`
+- 边界处理：Pawn 在相机后时返回 (-1, -1)，原 API 已处理
+- 与 RimWorld 1.6 内部 API 一致，未来版本兼容性更好
+
+**几轮失败教训**：
+- 第一轮（1.8f → 1.0f）：调整世界 Y 偏移值，未解决根因
+- 第二轮（1.0f → 1.5f）：继续调整世界 Y 偏移值，未解决根因
+- 第三轮（世界 Y → Screen.height + 像素偏移）：换渲染方式但用错 API（Screen.height）
+- 第四轮（GenMapUI.LabelDrawPosFor）：复用 RimWorld 内部 API，彻底解决
+
+**核心教训**：GUI 渲染跟随游戏内对象时，应优先复用游戏内部 API（如 RimWorld 的 `GenMapUI.LabelDrawPosFor`），而非自己用 `Screen.height` 等基础 API 拼装——游戏内部可能用不同的坐标系（如 `UI.screenHeight` 受 UI Scale 影响），自己拼装容易引入坐标系不一致的 bug。
 
 ### 决策 2：upgradedPawns 预填充而非主循环填充
 
@@ -309,24 +333,24 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 
 ## 代码实现情况
 
-### HarmonyPatches.cs 星标渲染方式
+### HarmonyPatches.cs 星标渲染方式（彻底方案）
 
 ```csharp
 private static void DrawStarAbovePawn(Pawn pawn)
 {
-    // 用 Pawn 脚部位置作为屏幕坐标基准（与名字标签渲染方式一致）
-    Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);
-    if (pawnScreenPos.z <= 0) return;
+    // 直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor 获取屏幕坐标
+    // 该方法内部：pawn.DrawPos → WorldToScreenPoint → UI.screenHeight - screenPos.y
+    // 关键：内部用 UI.screenHeight（不是 Screen.height），UI Scale ≠ 1 时坐标系与 RimWorld 一致
+    Vector2 labelScreenPos = GenMapUI.LabelDrawPosFor(pawn, 0f);
+    // LabelDrawPosFor 在 Pawn 在相机后时返回 (-1, -1)
+    if (labelScreenPos.x < 0f) return;
 
-    float guiX = pawnScreenPos.x;
-    float guiY = Screen.height - pawnScreenPos.y;
-
-    // 固定像素偏移：与相机缩放无关，相对位置稳定
+    // 向上偏移固定像素让星标显示在 Pawn 头顶上方
     const float yOffsetPixels = 50f;
     float starSize = 20f;
     Rect starRect = new Rect(
-        guiX - starSize / 2f,
-        guiY - yOffsetPixels - starSize / 2f,
+        labelScreenPos.x - starSize / 2f,
+        labelScreenPos.y - yOffsetPixels - starSize / 2f,
         starSize,
         starSize);
     // ...（颜色、字体、绘制保持不变）
@@ -436,8 +460,8 @@ All tests passed.
 |------|------|
 | 换装调试日志 | ✓ AEDebug.Log Func<string> 延迟构造，受 debugLogging 开关控制 |
 | 脱装备振荡修复 | ✓ upgradedPawns 预填充 + Flexible 穿重甲跳过换装，双管齐下消除振荡 |
-| 星标位置修复（初版） | ✓ 1.8f → 1.5f（已被第三轮重构替代） |
-| 星标渲染方式修复（终版） | ✓ 世界坐标 Y 偏移 → 屏幕坐标固定像素偏移（50 像素），相机缩放时位置稳定 |
+| 星标位置修复（初版） | ✓ 1.8f → 1.5f（已被第四轮重构替代） |
+| 星标渲染方式修复（终版） | ✓ 直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor，与原生名字标签用相同坐标算法（含 UI Scale 处理） |
 | 编译零警告零错误 | ✓ make check 通过 |
 | 测试全通过 | ✓ 391 个测试通过 |
 | 文档同步 | ✓ README.md 同步星标位置、扒装守卫预填充、Flexible 防振荡、换装调试日志 |

@@ -426,8 +426,8 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **标记方式**：
   - 头顶世界图标：Harmony Postfix on `PawnUIOverlay.DrawPawnGUIOverlay`
-  - 渲染方式与 RimWorld 名字标签一致：`pawn.DrawPos`（脚部）→ 屏幕坐标 → GUI 坐标（Y 轴翻转）→ 减固定像素偏移（50 像素，约等于名字标签位置）
-  - 固定像素偏移与相机缩放无关：缩放时星标相对 Pawn 头像的位置稳定，不随缩放飘移
+  - 渲染方式直接调用 RimWorld 内部 `GenMapUI.LabelDrawPosFor(pawn, 0f)` 获取屏幕坐标——与原生名字标签用完全相同的坐标算法（内部已处理 `UI.screenHeight` 受 UI Scale 影响），加固定像素偏移 50 显示在 Pawn 头顶上方
+  - 不再使用 `Screen.height` 拼装 GUI Y 坐标（UI Scale ≠ 1 时与 RimWorld 内部坐标系不一致会导致星标错位）
   - 颜色按类别动态取色（`PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn))`），`GameFont.Medium` 字号
   - 不修改任何 Pawn 的 Nick/Name，纯前端绘制，安全可逆，无存档副作用
 - **触发**：

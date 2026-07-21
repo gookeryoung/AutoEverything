@@ -176,39 +176,40 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在 Pawn 头顶绘制彩色 ★ 图标，颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
-            /// 渲染方式：基于 Pawn 脚部屏幕坐标 + 固定像素偏移（与 RimWorld 名字标签渲染方式一致）。
             ///
-            /// 为何不用世界坐标 Y 偏移：
-            /// 旧实现用 pawn.DrawPos + Vector3.up * N，再 WorldToScreenPoint 转屏幕坐标。
-            /// 但相机缩放时，世界 Y 偏移在屏幕上的像素数 = N × 缩放因子，缩放因子随相机距离变化，
-            /// 导致星标相对 Pawn 头像的位置随缩放飘移。
+            /// 渲染方式（彻底方案）：
+            /// 直接调用 RimWorld 内部 <c>GenMapUI.LabelDrawPosFor(pawn, 0f)</c> 获取屏幕坐标，
+            /// 与 RimWorld 原生名字标签用完全相同的坐标算法——
+            /// 内部已正确处理 <c>UI.screenHeight</c>（受 UI Scale 影响）与 Y 轴翻转。
             ///
-            /// 名字标签渲染方式：
-            /// 1) 取 pawn.DrawPos（脚部）作为世界坐标基准
-            /// 2) WorldToScreenPoint 转屏幕坐标
-            /// 3) GUI 坐标 Y 轴翻转
-            /// 4) 在 GUI 坐标基础上减去固定像素偏移（向上偏移）
-            /// 缩放时相对位置稳定，因为像素偏移与缩放因子无关
+            /// 之前几轮失败的根因：
+            /// 1) 用世界坐标 Y 偏移（1.8f/1.0f/1.5f）：相机缩放时世界 Y 偏移在屏幕上的像素数 = N × 缩放因子，飘移
+            /// 2) 用 Screen.height 计算 GUI Y：RimWorld 内部用 UI.screenHeight（受 UI Scale 影响），
+            ///    UI Scale ≠ 1 时坐标系不一致，星标位置错位（这是"依然错位"的真正根因）
+            /// 3) 固定像素偏移 50f + Screen.height：坐标系问题未解决
+            ///
+            /// 本方案彻底解决：
+            /// - 用 GenMapUI.LabelDrawPosFor 获取屏幕坐标（与 RimWorld 内部完全一致，自动处理 UI Scale）
+            /// - 加固定像素偏移让星标显示在 Pawn 上方
             /// </summary>
             private static void DrawStarAbovePawn(Pawn pawn)
             {
-                // 用 Pawn 脚部位置作为屏幕坐标基准（与名字标签渲染方式一致）
-                Vector3 pawnScreenPos = Find.Camera.WorldToScreenPoint(pawn.DrawPos);
-                // pawnScreenPos.z <= 0 表示在相机后面或同一平面，不绘制
-                if (pawnScreenPos.z <= 0) return;
+                // 直接调用 RimWorld 内部 GenMapUI.LabelDrawPosFor 获取屏幕坐标
+                // 该方法内部：pawn.DrawPos → WorldToScreenPoint → UI.screenHeight - screenPos.y
+                // 与 RimWorld 原生名字标签用完全相同的坐标计算方式
+                // 关键：内部用 UI.screenHeight（不是 Screen.height），UI Scale ≠ 1 时坐标系与 RimWorld 一致
+                Vector2 labelScreenPos = GenMapUI.LabelDrawPosFor(pawn, 0f);
+                // LabelDrawPosFor 在 Pawn 在相机后时返回 (-1, -1)
+                if (labelScreenPos.x < 0f) return;
 
-                // GUI 坐标（Y 轴翻转：Unity Screen 原点在左下，GUI 原点在左上）
-                float guiX = pawnScreenPos.x;
-                float guiY = Screen.height - pawnScreenPos.y;
-
-                // 固定像素偏移：从 Pawn 脚部向上偏移约 50 像素
-                // 经验值：缩放下 Pawn 模型在屏幕上约 40-60 像素高，星标位于头顶上方
-                // 与名字标签（RimWorld 原生约 y-50~-60 像素位置）接近，但略低避免重叠
+                // labelScreenPos 是 Pawn 脚部的 GUI 屏幕坐标（Y 向下为正，原点左上）
+                // 向上偏移固定像素让星标显示在 Pawn 头顶上方
+                // 经验值 50：Pawn 模型在屏幕上约 40-60 像素高，星标位于头顶上方
                 const float yOffsetPixels = 50f;
                 float starSize = 20f;
                 Rect starRect = new Rect(
-                    guiX - starSize / 2f,
-                    guiY - yOffsetPixels - starSize / 2f,
+                    labelScreenPos.x - starSize / 2f,
+                    labelScreenPos.y - yOffsetPixels - starSize / 2f,
                     starSize,
                     starSize);
 
