@@ -85,6 +85,59 @@ namespace AutoEverything.Tests
             var talentWithA = Empty(hasSpecialTalent: true, majorCount: 2, minorCount: 1);
             Check(talentWithA, CombatTier.S, "特殊天赋S + A档条件 → S（不走A/B）", ref failures, ref total);
 
+            // ── 极端情况验证 ──────────────────────────────────────
+            // 三维度同时触发 SSS：乱开枪SSS + 坚韧格斗SSS + 工作狂SSS → SSS（MaxTier 不互斥）
+            var allDim3Sss = Empty(triggerHappy: true, tough: true, nimble: true,
+                shootingMajor: true, meleeMajor: true,
+                hasIndustrious: true, hasNeurotic: true, workMajors: 3);
+            Check(allDim3Sss, CombatTier.SSS, "三维度全 SSS → SSS（MaxTier 不互斥）", ref failures, ref total);
+
+            // 三维度 SSS + 负面特质 → SS（最高档降一档，验证多维度与降档交互）
+            var allDim3SssNeg = allDim3Sss;
+            allDim3SssNeg.HasNegativeTrait = true;
+            Check(allDim3SssNeg, CombatTier.SS, "三维度全 SSS + 负面 → SS（降一档）", ref failures, ref total);
+
+            // 两维度 SS + 负面特质 → S（降一档：维度1 SS 乱开枪+射击双火 + 维度3 SS 工作狂组合+2双火）
+            // 注：tough=true 会让维度1 升 SSS（triggerHappy+tough+shootingMajor），故此处不用 tough
+            Check(Empty(triggerHappy: true, shootingMajor: true,
+                hasIndustrious: true, hasNeurotic: true, workMajors: 2,
+                negativeTrait: true),
+                CombatTier.S, "两维度 SS + 负面 → S（降一档）", ref failures, ref total);
+
+            // A/B 边界：2 Major + 0 Minor → C（合计=2 < 3，不满足 A；满足 B 的 Major>=1 但合计<3 也不满足）
+            Check(Empty(majorCount: 2, minorCount: 0), CombatTier.C, "2双火+0单火 → C（合计<3 不满足A/B）", ref failures, ref total);
+
+            // A/B 边界：0 Major + 5 Minor → C（无双火不满足 A/B，单火再多也不触发）
+            Check(Empty(majorCount: 0, minorCount: 5), CombatTier.C, "0双火+5单火 → C（无双火不满足A/B）", ref failures, ref total);
+
+            // A/B 边界：1 Major + 3 Minor → B（合计=4 >= 3，Major=1 不满足 A 但满足 B）
+            Check(Empty(majorCount: 1, minorCount: 3), CombatTier.B, "1双火+3单火 → B（合计=4 满足B）", ref failures, ref total);
+
+            // 维度3 阈值越界：workMajors=10（远超 SSS 阈值 3）→ SSS（>=3 即升 SSS，更大值不越界）
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 10), CombatTier.SSS,
+                "工作狂+神经质+10双火 → SSS（远超阈值不越界）", ref failures, ref total);
+
+            // 维度3 SS + 负面特质 → S（降一档，验证维度3 与降档交互）
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2, negativeTrait: true),
+                CombatTier.S, "工作狂SS + 负面 → S（降一档）", ref failures, ref total);
+
+            // 沉鱼落雁边界：Beauty2 + 非社交双火（如 ShootingMajor）→ C（沉鱼落雁必须配 SocialMajor）
+            Check(Empty(beauty2: true, shootingMajor: true), CombatTier.C,
+                "沉鱼落雁+射击双火（非社交） → C（沉鱼落雁需 SocialMajor）", ref failures, ref total);
+
+            // 全字段最大组合：所有维度触发 SSS + 特殊天赋 S + 沉鱼落雁 S + A 档条件 → SSS（取最高）
+            var allMax = Empty(triggerHappy: true, tough: true, nimble: true, brawler: true,
+                hasIndustrious: true, hasNeurotic: true, beauty2: true,
+                hasSpecialTalent: true,
+                shootingMajor: true, meleeMajor: true, socialMajor: true,
+                majorCount: 9, minorCount: 0, workMajors: 6);
+            Check(allMax, CombatTier.SSS, "全字段最大组合 → SSS（所有维度全开）", ref failures, ref total);
+
+            // 全字段最大 + 负面特质 → SS（SSS 降一档，验证最高档降档边界）
+            var allMaxNeg = allMax;
+            allMaxNeg.HasNegativeTrait = true;
+            Check(allMaxNeg, CombatTier.SS, "全字段最大 + 负面 → SS（SSS 降一档）", ref failures, ref total);
+
             Console.WriteLine($"[EvaluateAutoTierCoreTests] {total - failures}/{total} passed");
             return failures;
         }
