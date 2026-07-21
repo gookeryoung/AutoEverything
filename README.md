@@ -411,22 +411,24 @@ Passion 量化：None=0, Minor=1, Major=2。
 ### 高价值自动标记（AutoMarkPawn）
 
 `AutoMarkPawn/` 模块包含两个职责：
-- **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋），基于特质与技能组合判定，与评级缓存解耦
+- **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（坚韧盾/前排盾/远程弓/手工锤/贸易钱袋），基于特质与技能组合判定，与评级缓存解耦
 - **S+ 高价值扫描通知**（`PawnMarker.cs`）：扫描所有人类单位中的 S+ 目标，通过消息通知玩家（不再绘制 ★）
 
-#### 角色定位图标（4 种）
+#### 角色定位图标（5 种）
 
 | 图标 | 形状 | 颜色 | 判定条件 | 设计意图 |
 |------|------|------|----------|----------|
+| **坚韧** | 带翼盾 | 深红 `RGB(0.6, 0.0, 0.0)` | 坚韧（Tough）特质 | 高生存力单位（减伤 50%），无论近战远程都值得标识 |
 | **前排** | 盾 | 深红 `RGB(0.6, 0.0, 0.0)` | 坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major） | 高生存力近战单位，优先重甲 |
 | **远程** | 弓箭 | 深红 `RGB(0.6, 0.0, 0.0)` | 乱开枪（ShootingAccuracy degree=-1）+ 射击有火（Major 或 Minor） | DPS 突出远程单位，优先射击任务 |
 | **手工** | 锤子铁砧 | 深红 `RGB(0.6, 0.0, 0.0)` | 工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1） | 生产效率突出，优先专业工作 |
 | **贸易** | 钱袋 | 深红 `RGB(0.6, 0.0, 0.0)` | 俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8） | 社交优势，适合外交贸易 |
 
-- **颜色统一深红**：用户决策（2026-07-21）原橙/绿/粉三色在殖民者栏小尺寸下看不清，统一深红色。形状本身已足够区分 4 种角色定位
+- **颜色统一深红**：用户决策（2026-07-21）原橙/绿/粉三色在殖民者栏小尺寸下看不清，统一深红色。形状本身已足够区分 5 种角色定位
+- **坚韧一律标记**：用户决策（2026-07-21）带坚韧特质的角色一律标记 Tough 标识，与 Frontline 解耦——Tough 单独作为高价值特质标识，Frontline 仍保留为"坚韧+近战倾向"组合标识，两者可同时显示
 - **远程判定扩展**：用户决策（2026-07-21）"乱开枪+射击单火"（S 档高价值）也标记为远程，原仅"乱开枪+射击双火"（SS/SSS 档）标记
-- **叠加显示**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个，单个 16×16 像素，间距 2px，右上角内缩 2px 留白）
-- **纹理资源**：64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Frontline.png` 等路径，由用户从 iconfont 下载的 SVG 转换而来。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
+- **叠加显示**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 5 个，单个 16×16 像素，间距 2px，右上角内缩 2px 留白）
+- **纹理资源**：64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Tough.png` 等路径，由用户从 iconfont 下载的 SVG 转换而来。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
 - **降级策略**：若外部 PNG 加载失败（ContentFinder 返回 null），自动回退到程序化生成的 32×32 像素纹理，确保 MOD 仍能正常运行
 - **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新
 - **覆盖范围**：殖民者栏中所有可见人类 Pawn（通过 `PawnSuitabilityChecker.CanManageGear` 过滤非人类like），不强制 Spawned（卧床/运输中的殖民者仍标记）

@@ -9,7 +9,10 @@ namespace AutoEverything.AutoMarkPawn
     /// <summary>
     /// 角色定位图标判定：为殖民者栏 Rect 上的角色定位图标提供判定与取色。
     ///
-    /// 4 种角色定位（形状区分，颜色统一深红）：
+    /// 5 种角色定位（形状区分，颜色统一深红）：
+    /// - <see cref="RoleIconType.Tough"/>（坚韧，盾）：坚韧（Tough）特质
+    ///   设计意图：高生存力单位（减伤 50%），无论是否近战都值得标识
+    ///   用户决策（2026-07-21）：带坚韧的角色一律标记 Tough 标识，与 Frontline 解耦
     /// - <see cref="RoleIconType.Frontline"/>（前排，盾）：坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major）
     ///   设计意图：高生存力的近战单位，应优先装备重甲
     /// - <see cref="RoleIconType.Ranged"/>（远程，弓箭）：乱开枪（ShootingAccuracy degree=-1）+ 射击有火（Major 或 Minor）
@@ -22,7 +25,7 @@ namespace AutoEverything.AutoMarkPawn
     ///
     /// 颜色策略（用户决策 2026-07-21）：
     /// - 所有图标统一深红色 RGB(0.6, 0.0, 0.0)，避免多色看不清
-    /// - 形状本身已足够区分 4 种角色定位，颜色不再做分类
+    /// - 形状本身已足够区分 5 种角色定位，颜色不再做分类
     ///
     /// 一个殖民者可同时符合多个角色定位（如坚韧格斗 + 工作狂神经质），图标横向排列显示。
     ///
@@ -36,6 +39,7 @@ namespace AutoEverything.AutoMarkPawn
         /// </summary>
         public enum RoleIconType : byte
         {
+            Tough,      // 坚韧（盾）
             Frontline,  // 前排（盾）
             Ranged,     // 远程（弓箭）
             Crafter,    // 手工（锤子铁砧）
@@ -50,7 +54,7 @@ namespace AutoEverything.AutoMarkPawn
 
         // 复用缓冲区：避免每帧分配（殖民者栏每帧绘制多个 Pawn，调用频繁）
         // 单线程主线程使用，无需并发保护
-        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(4);
+        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(5);
 
         // 社交技能等级阈值：达到此等级视为"高社交"，配合 Beauty 特质触发 Trader 图标
         private const int SocialLevelThreshold = 8;
@@ -85,6 +89,12 @@ namespace AutoEverything.AutoMarkPawn
             bool shootingMinor = IsMinorPassion(pawn, SkillDefOf.Shooting);
             bool socialMajor = IsMajorPassion(pawn, SkillDefOf.Social);
             int socialLevel = GetSkillLevel(pawn, SkillDefOf.Social);
+
+            // Tough：坚韧特质（一律标记，与 Frontline 解耦）
+            // 用户决策（2026-07-21）：带坚韧的角色一律标记 Tough 标识
+            // 设计：Tough 提供减伤 50% 是高价值特质，无论近战远程都值得标识
+            if (isTough)
+                buffer.Add(RoleIconType.Tough);
 
             // Frontline：坚韧 + 格斗（Brawler 特质 或 近战 Major）
             // 设计：Tough 提供减伤 50% 是核心，Brawler/MeleeMajor 标识近战倾向

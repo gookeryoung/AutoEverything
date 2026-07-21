@@ -8,10 +8,11 @@ namespace AutoEverything.AutoMarkPawn
     ///
     /// 设计原因：
     /// - 外部 PNG 图标比程序化生成的像素纹理视觉质量更高，符合 Useful Marks 风格
-    /// - 白色纹理在绘制时由 GUI.color 染色，4 种颜色共用同一套图标（节省资源）
+    /// - 白色纹理在绘制时由 GUI.color 染色，5 种图标共用同一套白色纹理（节省资源）
     /// - 项目已有完整的 Textures/UI/Icons/Role/ 目录结构，与现有 Role_*.png 保持一致命名约定
     ///
     /// 纹理文件（64x64 RGBA，白色形状+透明背景）：
+    /// - <see cref="Tough"/>：Role_Tough.png——坚韧盾牌（带翼盾形，标识坚韧特质）
     /// - <see cref="Frontline"/>：Role_Frontline.png——盾牌（上宽下尖的经典盾形）
     /// - <see cref="Ranged"/>：Role_Ranged.png——弓箭（弓弧+弓弦+箭杆+箭头）
     /// - <see cref="Crafter"/>：Role_Crafter.png——锤子铁砧（锤头+锤柄+铁砧平台）
@@ -24,6 +25,9 @@ namespace AutoEverything.AutoMarkPawn
     [StaticConstructorOnStartup]
     public static class RoleIconTextures
     {
+        /// <summary>坚韧盾牌纹理：坚韧</summary>
+        public static readonly Texture2D Tough;
+
         /// <summary>盾牌纹理：前排</summary>
         public static readonly Texture2D Frontline;
 
@@ -43,6 +47,7 @@ namespace AutoEverything.AutoMarkPawn
 
         static RoleIconTextures()
         {
+            Tough = LoadOrFallback("UI/Icons/Role/Role_Tough", CreateToughShieldFallback);
             Frontline = LoadOrFallback("UI/Icons/Role/Role_Frontline", CreateShieldFallback);
             Ranged = LoadOrFallback("UI/Icons/Role/Role_Ranged", CreateBowArrowFallback);
             Crafter = LoadOrFallback("UI/Icons/Role/Role_Crafter", CreateHammerAnvilFallback);
@@ -56,6 +61,7 @@ namespace AutoEverything.AutoMarkPawn
         {
             switch (type)
             {
+                case RoleIconDef.RoleIconType.Tough: return Tough;
                 case RoleIconDef.RoleIconType.Frontline: return Frontline;
                 case RoleIconDef.RoleIconType.Ranged: return Ranged;
                 case RoleIconDef.RoleIconType.Crafter: return Crafter;
@@ -75,12 +81,44 @@ namespace AutoEverything.AutoMarkPawn
                 tex.filterMode = FilterMode.Point;
                 return tex;
             }
-            Log.WarningOnce("[AutoEverything] 角色定位图标加载失败: " + path + ", 使用降级纹理", 
+            Log.WarningOnce("[AutoEverything] 角色定位图标加载失败: " + path + ", 使用降级纹理",
                 path.GetHashCode() ^ 0xB100);
             return fallbackCreator();
         }
 
         // ── 降级纹理生成（32x32 像素，仅在 PNG 缺失时使用） ──
+
+        /// <summary>
+        /// Tough 降级纹理：带翼盾形（与 Frontline 盾形区分，顶部多两个翼状装饰）。
+        /// 简化为：顶部两翼 + 中央盾牌主体。
+        /// </summary>
+        private static Texture2D CreateToughShieldFallback()
+        {
+            Color[] pixels = new Color[FallbackSize * FallbackSize];
+            for (int y = 0; y < FallbackSize; y++)
+            {
+                for (int x = 0; x < FallbackSize; x++)
+                {
+                    int dx = x < FallbackCenter ? FallbackCenter - x : x - FallbackCenter;
+                    bool filled = false;
+                    // 顶部两翼（y=2~5，x 在 4~10 与 22~28 范围内）
+                    if (y >= 2 && y <= 5)
+                    {
+                        if (x >= 4 && x <= 10) filled = true;
+                        else if (x >= 22 && x <= 28) filled = true;
+                    }
+                    // 中央盾牌主体（y=6~28，上宽下尖）
+                    else if (y >= 6 && y <= 28)
+                    {
+                        if (y <= 9) filled = dx <= 11;
+                        else if (y <= 20) filled = dx * 2 <= 22 - (y - 10);
+                        else filled = dx * 7 <= (28 - y) * 4;
+                    }
+                    pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
+                }
+            }
+            return CreateFallbackTexture(pixels);
+        }
 
         private static Texture2D CreateShieldFallback()
         {
