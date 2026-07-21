@@ -23,17 +23,21 @@
 
 **问题**：`DrawStarAbovePawn` 中 `pawn.DrawPos + new Vector3(0f, 1.8f, 0f)` 的 1.8f 偏移过大，星标位置过高，偏离 Pawn 头像太远。
 
-**修复**：将 1.8f 改为 1.0f（接近 RimWorld 原生 health bar 位置）。
+**修复**：将 1.8f 改为 1.5f（介于 health bar 约 1.0 与名字标签约 1.8 之间，显示在名字下方一行）。
+
+**调整过程**：
+- 初版改为 1.0f（接近 health bar 位置），但用户反馈"殖民者标记没有显示在头像上"——1.0f 被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）
+- 终版改为 1.5f，介于 health bar（约 1.0）与名字标签（约 1.8）之间，显示在名字下方一行，不被模型遮挡也不与名字重叠
 
 ```csharp
 // 修复前
 Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.8f, 0f);
 
 // 修复后
-Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.0f, 0f);
+Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);
 ```
 
-同步更新方法注释：明确"约 1.0 格（接近原生 health bar 位置）"。
+同步更新方法注释：明确"介于 health bar 与名字标签之间，显示在名字下方一行"。
 
 ### 2. `Source/AutoEverything/AutoEquipment/GearAllocator.cs`
 
@@ -217,22 +221,23 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 
 ### 3. `README.md`
 
-- **星标位置**：行 417 `pawn.DrawPos` 上方约 1.8 格 → 约 1.0 格（接近原生 health bar 位置，紧贴头顶）
+- **星标位置**：行 417 `pawn.DrawPos` 上方约 1.8 格 → 约 1.5 格（介于 health bar 与名字标签之间，显示在名字下方一行）
 - **扒装守卫章节**：新增"`upgradedPawns` 预填充"子项，说明预填充时机与对称性
 - **新增"Flexible 防振荡（重甲保留）"规则**（原第 8 条扒装流程顺延为第 9 条）：说明振荡根因与修复方案
 - **扒装流程章节**：新增"换装调试日志"子项，说明日志格式与开关
 
 ## 关键决策与依据
 
-### 决策 1：星标位置选 1.0f 而非更小值
+### 决策 1：星标位置选 1.5f（名字下方一行）
 
-**选择**：`pawn.DrawPos + new Vector3(0f, 1.0f, 0f)`
+**选择**：`pawn.DrawPos + new Vector3(0f, 1.5f, 0f)`
 
 **依据**：
-- RimWorld 原生 health bar 约在 `DrawPos + (0, 1.0, 0)`，星标与之接近
-- `DrawPos.y` 是 Pawn 脚部地面高度，y+1.0 约为头部高度
-- 选更小值（如 0.5f）可能与 Pawn 模型重叠，影响美观
-- 选更大值（如 1.5f）仍会有偏离感
+- RimWorld 原生 health bar 约在 `DrawPos + (0, 1.0, 0)`，名字标签约在 `DrawPos + (0, 1.8, 0)`
+- 1.0f 会被 Pawn 模型遮挡（人类like 模型高度约 1.0~1.5）——用户反馈"没有显示在头像上"
+- 1.8f 与名字标签重叠，偏离头像——用户初版反馈"偏离太远，不是正上方"
+- 1.5f 介于两者之间，显示在名字标签下方一行，不被模型遮挡也不与名字重叠
+- 用户明确建议"改到名字下方一行"，1.5f 正是名字标签下方一行的位置
 
 ### 决策 2：upgradedPawns 预填充而非主循环填充
 
@@ -271,10 +276,10 @@ if (armorPref == ArmorPreference.Flexible && currentWorn != null)
 ```csharp
 private static void DrawStarAbovePawn(Pawn pawn)
 {
-    // 头顶世界坐标：DrawPos 上方约 1.0 格
-    // 选 1.0f 而非更高的偏移：与 RimWorld 原生 health bar / 状态图标位置接近，
-    // 星标紧贴 Pawn 头顶（DrawPos.y 是脚部地面，y+1.0 约为头部高度）
-    Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.0f, 0f);
+    // 世界坐标：DrawPos 上方约 1.5 格
+    // 选 1.5f：介于 health bar（约 y+1.0）与名字标签（约 y+1.8）之间，
+    // 显示在名字标签下方一行，不被 Pawn 模型遮挡（1.0f 会被模型遮挡，1.8f 与名字重叠偏离头像）
+    Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);
     // ...
 }
 ```
@@ -382,7 +387,7 @@ All tests passed.
 |------|------|
 | 换装调试日志 | ✓ AEDebug.Log Func<string> 延迟构造，受 debugLogging 开关控制 |
 | 脱装备振荡修复 | ✓ upgradedPawns 预填充 + Flexible 穿重甲跳过换装，双管齐下消除振荡 |
-| 星标位置修复 | ✓ 1.8f → 1.0f，紧贴 Pawn 头顶 |
+| 星标位置修复 | ✓ 1.8f → 1.5f，显示在名字标签下方一行（1.0f 被模型遮挡，1.8f 与名字重叠） |
 | 编译零警告零错误 | ✓ make check 通过 |
 | 测试全通过 | ✓ 391 个测试通过 |
 | 文档同步 | ✓ README.md 同步星标位置、扒装守卫预填充、Flexible 防振荡、换装调试日志 |

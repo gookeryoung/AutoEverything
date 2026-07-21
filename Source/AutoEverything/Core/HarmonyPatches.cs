@@ -175,15 +175,16 @@ namespace AutoEverything.Core
             }
 
             /// <summary>
-            /// 在 Pawn 头顶绘制彩色 ★ 图标，颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
-            /// 世界坐标 pawn.DrawPos 上方约 1.0 格（接近原生 health bar 位置）→ 屏幕坐标 → GUI 坐标（Y 轴翻转）。
+            /// 在 Pawn 名字标签下方一行绘制彩色 ★ 图标，颜色按 Pawn 类别取自 <see cref="PawnMarker.GetMarkerColor"/>。
+            /// 世界坐标 pawn.DrawPos 上方约 1.5 格 → 屏幕坐标 → GUI 坐标（Y 轴翻转）。
+            /// 位置选择：介于原生 health bar（约 y+1.0）与名字标签（约 y+1.8）之间，显示在名字下方一行
             /// </summary>
             private static void DrawStarAbovePawn(Pawn pawn)
             {
-                // 头顶世界坐标：DrawPos 上方约 1.0 格
-                // 选 1.0f 而非更高的偏移：与 RimWorld 原生 health bar / 状态图标位置接近，
-                // 星标紧贴 Pawn 头顶（DrawPos.y 是脚部地面，y+1.0 约为头部高度）
-                Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.0f, 0f);
+                // 世界坐标：DrawPos 上方约 1.5 格
+                // 选 1.5f：介于 health bar（约 y+1.0）与名字标签（约 y+1.8）之间，
+                // 显示在名字标签下方一行，不被 Pawn 模型遮挡（1.0f 会被模型遮挡，1.8f 与名字重叠偏离头像）
+                Vector3 worldPos = pawn.DrawPos + new Vector3(0f, 1.5f, 0f);
                 Vector3 screenPos = Find.Camera.WorldToScreenPoint(worldPos);
                 // screenPos.z <= 0 表示在相机后面或同一平面，不绘制
                 if (screenPos.z <= 0) return;

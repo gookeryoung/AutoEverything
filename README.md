@@ -426,7 +426,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 - **标记方式**：
   - 头顶世界图标：Harmony Postfix on `PawnUIOverlay.DrawPawnGUIOverlay`
-  - 世界坐标 `pawn.DrawPos` 上方约 1.0 格（接近原生 health bar 位置，紧贴头顶）→ 屏幕坐标 → GUI 坐标（Y 轴翻转）
+  - 世界坐标 `pawn.DrawPos` 上方约 1.5 格（介于 health bar 约 1.0 与名字标签约 1.8 之间，显示在名字下方一行）→ 屏幕坐标 → GUI 坐标（Y 轴翻转）
   - 颜色按类别动态取色（`PawnMarker.GetMarkerColor(PawnMarker.GetMarkerCategory(pawn))`），`GameFont.Medium` 字号
   - 不修改任何 Pawn 的 Nick/Name，纯前端绘制，安全可逆，无存档副作用
 - **触发**：
