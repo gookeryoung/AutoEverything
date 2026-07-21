@@ -33,13 +33,14 @@ namespace AutoEverything.Tests
             Check(Empty(tough: true, meleeMajor: true, brawler: true), CombatTier.SSS, "坚韧+格斗双火+格斗者 → SSS", ref failures, ref total);
 
             // ── 维度3：工作狂神经质系列 ────────────────────────────
-            // 用户决策（2026-07-21）：degree 要求从 == 2 放宽到 >= 1
-            // 字段含义：HasIndustrious/HasNeurotic 表示"拥有任一 degree 的工作狂/神经质特质"
-            // 测试中 bool 字段无法区分 degree=1/2，但生产代码 CollectTierInput 已放宽判定
+            // 用户决策（2026-07-21）：
+            //   1) degree 要求从 == 2 放宽到 >= 1（HasIndustrious/HasNeurotic 表示"拥有任一 degree"）
+            //   2) 组合即 S（无需 workMajors），workMajors 仅决定升档（>=2 SS，>=3 SSS）
+            // 修复：原实现把 S 档也要求 workMajors>=1，导致无工作双火的组合落入 A/B 判定
             Check(Empty(hasIndustrious: true), CombatTier.C, "工作狂+无神经质 → C（不触发维度3）", ref failures, ref total);
             Check(Empty(hasNeurotic: true), CombatTier.C, "无工作狂+神经质 → C（不触发维度3）", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), CombatTier.C, "工作狂+神经质+0双火 → C（不触发）", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 1), CombatTier.S, "工作狂+神经质+1双火 → S", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), CombatTier.S, "工作狂+神经质+0双火 → S（组合即 S）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 1), CombatTier.S, "工作狂+神经质+1双火 → S（workMajors<2 不升档）", ref failures, ref total);
             Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2), CombatTier.SS, "工作狂+神经质+2双火 → SS", ref failures, ref total);
             Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), CombatTier.SSS, "工作狂+神经质+3双火 → SSS", ref failures, ref total);
 

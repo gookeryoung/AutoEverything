@@ -255,7 +255,7 @@ namespace AutoEverything.RoleEvaluation
         ///   S：全局高价值
         ///     1. 乱开枪 + 射击单火
         ///     2. 坚韧 + 格斗有火（Minor 或 Major）
-        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 1 个专业工作双火
+        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）（组合即 S，无需工作双火）
         ///     4. 拥有任一"特殊天赋"特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经）
         ///     5. 沉鱼落雁（Beauty degree=2）+ 社交双火
         ///   A：≥ 2 个双 Major + ≥ 1 个 Minor 以上
@@ -346,20 +346,21 @@ namespace AutoEverything.RoleEvaluation
                     tier = MaxTier(tier, CombatTier.S);
             }
 
-            // 维度3（工作狂神经质系列）：industrious AND neurotic + workMajors
-            //   用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级
+            // 维度3（工作狂神经质系列）：industrious AND neurotic → 组合即 S，workMajors 决定升档
+            //   用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级（至少 S）
             //   degree 要求放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）
-            //   SSS: hasIndustrious && hasNeurotic && workMajors >= 3
+            //   S:   hasIndustrious && hasNeurotic（组合即 S，无需 workMajors）
             //   SS:  hasIndustrious && hasNeurotic && workMajors >= 2
-            //   S:   hasIndustrious && hasNeurotic && workMajors >= 1
+            //   SSS: hasIndustrious && hasNeurotic && workMajors >= 3
+            //   修复（2026-07-21）：原实现把 S 档也要求 workMajors>=1，导致无工作双火的组合
+            //     落入 A/B 判定路径（如 1 Major+2 Minor → B），违背"组合即 S"决策
             if (input.HasIndustrious && input.HasNeurotic)
             {
+                tier = MaxTier(tier, CombatTier.S);
                 if (input.WorkMajors >= 3)
                     tier = MaxTier(tier, CombatTier.SSS);
                 else if (input.WorkMajors >= 2)
                     tier = MaxTier(tier, CombatTier.SS);
-                else if (input.WorkMajors >= 1)
-                    tier = MaxTier(tier, CombatTier.S);
             }
 
             // 原 S 条件 4：拥有特殊天赋特质之一
