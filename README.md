@@ -15,7 +15,7 @@
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
 | **AutoMarkPawn**（高价值自动标记） | 在殖民者栏固定位置绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋），S+ 单位扫描消息通知 | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
-| **AutoEquipment**（自动装备分配） | 按评级降序逐个分配，按 ApparelLayer 分组选最高分装备（含扒装重分配） | 事件驱动（装备/人员增减）+ 冷却 2500 tick + ITab 勾选 |
+| **AutoEquipment**（自动装备分配） | 按评级降序逐个分配，按 ApparelLayer 分组选最高分装备（含扒装重分配） | 事件驱动（装备/人员增减）+ 冷却 600 tick + ITab 勾选 |
 
 ## 设计思路
 
@@ -382,7 +382,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ### 事件驱动
 
-通过 Harmony Postfix 在以下事件触发时标记脏标，AutoExecutor 周期去抖执行（冷却 2500 tick + 战斗过滤）：
+通过 Harmony Postfix 在以下事件触发时标记脏标，AutoExecutor 周期去抖执行（冷却 600 tick + 战斗过滤）：
 
 | 事件 | 触发条件 |
 |------|----------|
@@ -529,7 +529,7 @@ Source/AutoEverything/
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
 | `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，统一深红色）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
-| `AutoExecutor` 装备分配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 装备/人员增减、阵营变化、Pawn 死亡时 `GearAllocator.MarkDirty`；冷却结束且 `AnyCombatActive()`=false 时执行；ITab 勾选时立即执行（含扒装重分配） |
+| `AutoExecutor` 装备分配 | 事件驱动 + 冷却 600 tick + 战斗过滤 | 装备/人员增减、阵营变化、Pawn 死亡时 `GearAllocator.MarkDirty`；冷却结束且 `AnyCombatActive()`=false 时执行；ITab 勾选时立即执行（含扒装重分配）；手动触发不更新冷却，不阻塞后续自动触发 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
 | 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
 | 死亡 Pawn 字典清理 | 60000 tick | `RoleDetector`/`ContextDetector` 残留条目清理 |

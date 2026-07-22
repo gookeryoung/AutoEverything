@@ -35,11 +35,14 @@ namespace AutoEverything.AutoEquipment
         /// </summary>
         public static bool IsDirty;
 
-        // 上次执行 tick：冷却控制，避免短时间内连续重分配造成卡顿
+        // 上次自动执行 tick：冷却控制，避免短时间内连续重分配造成卡顿
+        // 仅由 TryAllocateFromTick 更新，TriggerGearNow 不更新——手动触发不阻塞自动触发
         private static int lastAllocateTick = -9999;
 
-        // 冷却：2500 tick ≈ 42 秒（与工作重配一致，避免抖动）
-        private const int AllocateCooldown = 2500;
+        // 冷却：600 tick ≈ 10 秒
+        // 设计：装备制作后 10 秒内自动分配，玩家不会感觉"无人去拿"；
+        //       战斗过滤（AnyCombatActive）保护医疗 Job 不被扒装打断，冷却只防频繁重分配卡顿
+        private const int AllocateCooldown = 600;
 
         // 错误去重 salt：0xA800 段为 GearAllocator 保留
         private const int AllocateErrorSalt = 0xA800;
@@ -83,12 +86,12 @@ namespace AutoEverything.AutoEquipment
 
         /// <summary>
         /// ITab 勾选切换时调用：立即执行全局装备分配并弹消息框。
-        /// 不受冷却限制（玩家主动触发）。
+        /// 不受冷却限制（玩家主动触发），也不更新 lastAllocateTick——
+        /// 手动触发不阻塞后续自动触发，避免"手动触发后自动触发被冷却阻塞需反复点击"的问题。
         /// </summary>
         public static void TriggerGearNow()
         {
             int tick = Find.TickManager.TicksGame;
-            lastAllocateTick = tick;
             IsDirty = false;
             ExecuteAllocation(tick, showMessage: true);
         }
