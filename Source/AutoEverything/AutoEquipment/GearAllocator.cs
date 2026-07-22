@@ -322,11 +322,12 @@ namespace AutoEverything.AutoEquipment
                 // 与已穿戴的同层 apparel 比较
                 Apparel currentWorn = FindWornByLayer(wornCopyBuffer, layerKey);
 
-                // 防止 Flexible Pawn 振荡：未升级的 Flexible Pawn 若当前已穿重甲，跳过该层换装
+                // 防止 Flexible Pawn 振荡：未升级的 Flexible Pawn 若当前已穿重甲，且候选 best 是轻甲，才跳过
                 // 根因：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲
                 // 评分低（movementPenalty 用 backRowW=2.0，penalty 高），bestScore(轻甲) - currentScore(重甲)
                 // 可能 > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
-                // 修复：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
+                // 修复：未升级 Flexible 保留重甲不脱（轻甲候选跳过），消除振荡
+                // 例外：若 best 也是重甲（更好的重甲），允许升级——重甲→更好的重甲不会导致振荡
                 // 注：armorPref 是 effectivePref（升级后），== Flexible 即"basePref=Flexible 且未升级"
                 // 重甲判定标准与 CountHeavyArmor 一致：(Sharp+Blunt) ≥ geHeavyArmorThreshold
                 if (armorPref == ArmorPreference.Flexible && currentWorn != null)
@@ -335,10 +336,18 @@ namespace AutoEverything.AutoEquipment
                     float curBlunt = currentWorn.GetStatValue(StatDefOf.ArmorRating_Blunt);
                     if (curSharp + curBlunt >= AESettings.geHeavyArmorThreshold)
                     {
-                        statsSkipOscillation++;
-                        AEDebug.Log(() =>
-                            $"[GearAllocator] {AEDebug.Label(pawn)} 保留重甲不换[{layerKey.defName}]: {currentWorn.def?.defName} (防振荡, 偏好={armorPref})");
-                        continue;
+                        // currentWorn 是重甲：检查 best 是否也是重甲
+                        float bestSharp = best.GetStatValue(StatDefOf.ArmorRating_Sharp);
+                        float bestBlunt = best.GetStatValue(StatDefOf.ArmorRating_Blunt);
+                        if (bestSharp + bestBlunt < AESettings.geHeavyArmorThreshold)
+                        {
+                            // best 是轻甲，currentWorn 是重甲 → 跳过防振荡
+                            statsSkipOscillation++;
+                            AEDebug.Log(() =>
+                                $"[GearAllocator] {AEDebug.Label(pawn)} 保留重甲不换[{layerKey.defName}]: {currentWorn.def?.defName} (防振荡: 候选非重甲, 偏好={armorPref})");
+                            continue;
+                        }
+                        // best 也是重甲 → 允许升级，继续到阈值判断
                     }
                 }
 

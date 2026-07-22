@@ -345,16 +345,16 @@ Passion 量化：None=0, Minor=1, Major=2。
    - **`upgradedPawns` 预填充**：在主循环前根据 `upgradeFlags` 一次性收集本轮被升级的 Pawn，避免主循环中按处理顺序填充导致高评级 stealer 先处理时 wearer 还未加入集合、wearer 得分被低估的"扒装守卫不对称"问题
    - **fallback 语义**：守卫拒绝后**不放弃整层**，而是跳过该候选继续找次高分（与原实现"放弃扒装即跳过整层"不同），确保闲置装备仍能被选用
    - **失败回滚**：`TrySafeRemove` 实际失败时把刚卸下的旧装备装回（best effort），避免 Pawn 失去装备
-9. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），跳过该层换装
+9. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），且候选 best 是轻甲（非重甲），才跳过该层换装
    - **振荡根因**：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲评分低（`movementPenalty` 用 `backRowW=2.0`，penalty 高），bestScore(轻甲) - currentScore(重甲) > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
-   - **修复**：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
+   - **修复**：未升级 Flexible 保留重甲不脱（仅跳过轻甲候选），消除振荡；若候选 best 也是重甲（更好的重甲），允许正常阈值判断升级——重甲→更好的重甲不会导致振荡
 10. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
    - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含过程统计与四类决策点：
      - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U} (tick=...)`
      - **候选 Pawn 列表**：`候选 Pawn: S#张三:Heavy↑ A#李四:Flexible B#王五:Light ...`（↑ 表示本轮升级为 Heavy）。玩家发现"某 Pawn 没分到装备"时，可从此判断该 Pawn 是否在候选中——若不在列表中，说明被 `CollectCandidatePawns` 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
      - 换装成功：`{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`
-     - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡, 偏好={armorPref})`
+     - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡: 候选非重甲, 偏好={armorPref})`
      - 扒装守卫拒绝：`{Pawn} 跳过候选[{层}]: {candidate} 在 {wearer} 身上 (扒装守卫拒绝, 偏好={armorPref})`
      - 阈值不足跳过：`{Pawn} 跳过换装[{层}]: {current} 保留 (差值 {diff} ≤ 阈值 {threshold}, 偏好={armorPref})`
      - **结束统计**：`装备分配完成: 换装 {A}, 防振荡跳过 {O}, 扒装拒绝 {S}, 阈值不足 {T} (tick=...)`
