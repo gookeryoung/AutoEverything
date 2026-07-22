@@ -77,15 +77,13 @@ namespace AutoEverything.Core
             }
 
             // PawnUIOverlay.DrawPawnGUIOverlay 补丁：在地图上为非殖民者栏的高价值单位（敌方/中立/野生）绘制标记
-            // PawnUIOverlay 类在 RimWorld 1.6 命名空间 RimWorld 下，公开实例方法 DrawPawnGUIOverlay()
-            // 用 try-catch 降级：类型/方法缺失仅 Log.Warning，地图标记不显示但不崩溃
+            // PawnUIOverlay 类位于 Verse 命名空间（非 RimWorld），公开实例方法 DrawPawnGUIOverlay()
+            // 用 typeof 编译期解析类型，避免字符串拼写错误（之前误写 "RimWorld.PawnUIOverlay" 导致 patch 静默失败）
+            // 用 try-catch 降级：方法缺失仅 Log.Warning，地图标记不显示但不崩溃
             // 注：通过 ___pawn 参数注入访问 PawnUIOverlay.pawn 实例字段
             try
             {
-                var overlayType = AccessTools.TypeByName("RimWorld.PawnUIOverlay");
-                var overlayMethod = overlayType != null
-                    ? AccessTools.Method(overlayType, "DrawPawnGUIOverlay")
-                    : null;
+                var overlayMethod = AccessTools.Method(typeof(PawnUIOverlay), nameof(PawnUIOverlay.DrawPawnGUIOverlay));
                 if (overlayMethod != null)
                 {
                     harmony.Patch(overlayMethod,
