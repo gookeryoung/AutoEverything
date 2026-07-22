@@ -210,8 +210,12 @@ namespace AutoEverything.AutoEquipment
         }
 
         /// <summary>
-        /// 移动减损纯逻辑核心：按角色定位选择权重，penalty = mass × weight。
+        /// 移动减损纯逻辑核心：按角色定位选择权重，penalty = (mass / 5.0) × weight。
         /// 抽出便于单元测试，不依赖 Apparel 实例。
+        ///
+        /// 归一化：RimWorld 中 apparel mass 最大约 5.0kg，除以 5.0 归一化到 0~1 范围。
+        /// 不归一化时 penalty = mass × weight 范围 0~15，远大于 armorScore（0~1）+ layerMatchScore（0~4），
+        /// 导致护甲提升被移动减损淹没，新装备无法触发换装。
         ///
         /// 角色映射：
         /// - Worker/Doctor/Pacifist → workerW（移动影响工作效率，惩罚最大）
@@ -222,17 +226,21 @@ namespace AutoEverything.AutoEquipment
             float mass, Role role,
             float workerW, float backRowW, float frontRowW)
         {
+            // 归一化因子：RimWorld apparel mass 最大约 5.0kg
+            const float MassNormalizeFactor = 5.0f;
+            float normalizedMass = mass / MassNormalizeFactor;
+
             switch (role)
             {
                 case Role.Worker:
                 case Role.Doctor:
                 case Role.Pacifist:
-                    return mass * workerW;
+                    return normalizedMass * workerW;
                 case Role.Shooter:
                 case Role.Hunter:
-                    return mass * backRowW;
+                    return normalizedMass * backRowW;
                 default:
-                    return mass * frontRowW;
+                    return normalizedMass * frontRowW;
             }
         }
     }

@@ -38,7 +38,7 @@ namespace AutoEverything.Core
         //   armorScore = (Sharp+Blunt+Heat)/3 × geArmorWeight
         //   layerMatchScore：按 ArmorPreference 重甲/轻甲/自由分别加权
         //   insulationScore：极端温度下保暖/隔热值 × geInsulationWeight
-        //   movementPenalty = apparel Mass × 角色敏感度权重（重 apparel 减损更大）
+        //   movementPenalty = (apparel Mass / 5.0) × 角色敏感度权重（归一化 mass 到 0~1，与 armorScore 量级匹配）
         public static float geArmorWeight = 1.0f;                    // 护甲值得分权重
         public static float geHeavyArmorMatchWeight = 2.0f;          // 前排（Heavy）重甲契合权重
         public static float geLightArmorMatchWeight = 1.5f;          // 工人（Light）轻甲契合权重

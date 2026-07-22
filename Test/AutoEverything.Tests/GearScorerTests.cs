@@ -25,7 +25,7 @@ namespace AutoEverything.Tests
     ///   Light  = (1 - min(armorSum,1)) × geLightArmorMatchWeight - armorSum × geLightArmorAvoidWeight
     ///   Flex   = armorSum × geFlexibleArmorMatchWeight
     /// - insulationScore：寒冷用 Cold、炎热用 Heat、舒适为 0
-    /// - movementPenalty = mass × 角色敏感度权重
+    /// - movementPenalty = (mass / 5.0) × 角色敏感度权重（归一化 mass 到 0~1，与 armorScore 量级匹配）
     /// </summary>
     public static class GearScorerTests
     {
@@ -227,36 +227,39 @@ namespace AutoEverything.Tests
             const float backRowW = 2.0f;
             const float frontRowW = 0.5f;
             const float mass = 2.0f;
+            // 归一化因子：mass / 5.0（RimWorld apparel mass 最大约 5.0kg）
+            const float norm = 5.0f;
 
             // ── Worker/Doctor/Pacifist 共享 workerW（移动影响工作效率）──
             CheckMove(mass, Role.Worker, workerW, backRowW, frontRowW,
-                mass * workerW, "Worker → workerW", ref failures, ref total);
+                mass / norm * workerW, "Worker → workerW (normalized)", ref failures, ref total);
             CheckMove(mass, Role.Doctor, workerW, backRowW, frontRowW,
-                mass * workerW, "Doctor → workerW (shared)", ref failures, ref total);
+                mass / norm * workerW, "Doctor → workerW (shared, normalized)", ref failures, ref total);
             CheckMove(mass, Role.Pacifist, workerW, backRowW, frontRowW,
-                mass * workerW, "Pacifist → workerW (shared)", ref failures, ref total);
+                mass / norm * workerW, "Pacifist → workerW (shared, normalized)", ref failures, ref total);
 
             // ── Shooter/Hunter 共享 backRowW（移动影响走位）──────────
             CheckMove(mass, Role.Shooter, workerW, backRowW, frontRowW,
-                mass * backRowW, "Shooter → backRowW", ref failures, ref total);
+                mass / norm * backRowW, "Shooter → backRowW (normalized)", ref failures, ref total);
             CheckMove(mass, Role.Hunter, workerW, backRowW, frontRowW,
-                mass * backRowW, "Hunter → backRowW (shared)", ref failures, ref total);
+                mass / norm * backRowW, "Hunter → backRowW (shared, normalized)", ref failures, ref total);
 
             // ── 其他（Brawler/Leader/Default）用 frontRowW（前排容忍度高）──
             CheckMove(mass, Role.Brawler, workerW, backRowW, frontRowW,
-                mass * frontRowW, "Brawler → frontRowW", ref failures, ref total);
+                mass / norm * frontRowW, "Brawler → frontRowW (normalized)", ref failures, ref total);
             CheckMove(mass, Role.Leader, workerW, backRowW, frontRowW,
-                mass * frontRowW, "Leader → frontRowW", ref failures, ref total);
+                mass / norm * frontRowW, "Leader → frontRowW (normalized)", ref failures, ref total);
             CheckMove(mass, Role.Default, workerW, backRowW, frontRowW,
-                mass * frontRowW, "Default → frontRowW", ref failures, ref total);
+                mass / norm * frontRowW, "Default → frontRowW (normalized)", ref failures, ref total);
 
             // ── 真实场景：重甲 mass=4.0 ─────────────────────────────
-            // Worker 穿重甲：4*3 = 12（强惩罚，工人不该穿重甲）
-            // Brawler 穿重甲：4*0.5 = 2（轻惩罚，前排适合）
+            // 归一化后 penalty 范围 0~weight，与 armorScore(0~1)+layerMatchScore(0~4) 量级匹配
+            // Worker 穿重甲：(4/5)*3 = 2.4（强惩罚，工人不该穿重甲）
+            // Brawler 穿重甲：(4/5)*0.5 = 0.4（轻惩罚，前排适合）
             CheckMove(4.0f, Role.Worker, workerW, backRowW, frontRowW,
-                12.0f, "Worker + heavy armor (mass=4) → 12 (strong penalty)", ref failures, ref total);
+                4.0f / norm * workerW, "Worker + heavy armor (mass=4) → 2.4 (strong penalty, normalized)", ref failures, ref total);
             CheckMove(4.0f, Role.Brawler, workerW, backRowW, frontRowW,
-                2.0f, "Brawler + heavy armor (mass=4) → 2 (mild penalty)", ref failures, ref total);
+                4.0f / norm * frontRowW, "Brawler + heavy armor (mass=4) → 0.4 (mild penalty, normalized)", ref failures, ref total);
 
             // ── 边界：mass=0 → 0 ────────────────────────────────────
             CheckMove(0f, Role.Worker, workerW, backRowW, frontRowW,
@@ -269,9 +272,9 @@ namespace AutoEverything.Tests
                 0f, "all weights=0 → 0", ref failures, ref total);
 
             // ── 真实轻甲 mass=0.3 ───────────────────────────────────
-            // Worker 穿轻甲：0.3*3 = 0.9
+            // Worker 穿轻甲：(0.3/5)*3 = 0.18
             CheckMove(0.3f, Role.Worker, workerW, backRowW, frontRowW,
-                0.9f, "Worker + light armor (mass=0.3) → 0.9", ref failures, ref total);
+                0.3f / norm * workerW, "Worker + light armor (mass=0.3) → 0.18 (normalized)", ref failures, ref total);
 
             Console.WriteLine($"[GearScorerTests/MovementPenalty] {total - failures}/{total} passed");
             return failures;
