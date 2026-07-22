@@ -14,7 +14,7 @@
 |------|------|----------|
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
-| **AutoMarkPawn**（高价值自动标记） | 在殖民者栏固定位置绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋），S+ 单位扫描消息通知 | 殖民者栏 Postfix 绘制 + 人员变动事件 + ITab 切换 |
+| **AutoMarkPawn**（高价值自动标记） | 殖民者栏角色定位图标（前排盾/远程弓/手工锤/贸易钱袋）+ 地图高价值标记（敌方/中立/野生 S+ 单位圆形标记）+ S+ 单位扫描消息通知 | 殖民者栏 Postfix + 地图 Postfix + 人员变动事件 + ITab 切换 |
 | **AutoEquipment**（自动装备分配） | 按评级降序逐个分配，按 ApparelLayer 分组选最高分装备（含扒装重分配） | 事件驱动（装备/人员增减）+ 冷却 600 tick + ITab 勾选 |
 
 ## 设计思路
@@ -350,13 +350,17 @@ Passion 量化：None=0, Minor=1, Major=2。
    - **修复**：未升级 Flexible 保留重甲不脱（仅跳过轻甲候选），消除振荡；若候选 best 也是重甲（更好的重甲），允许正常阈值判断升级——重甲→更好的重甲不会导致振荡
 10. **扒装流程**：先 `TrySafeRemove`（`Pawn_ApparelTracker.TryDrop` 卸下并 spawn 到穿戴者位置）→ 守卫通过后扒下他人装备 → `MarkAllocated` → 再 `TrySafeEquip`（`Wear(apparel, true)` 自动 DeSpawn 并穿戴，同层冲突自动 drop 旧装备），单件失败 try-catch 隔离不阻塞整体
    - ⚠️ 不能用 `Remove(Apparel)`：该方法仅从 WornApparel 列表移除，不 spawn，apparel 会变成 unspawned 状态（消失）。曾因误用导致"勾选自动装备时身上装备消失"的 bug
-   - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。包含过程统计与四类决策点：
-     - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U} (tick=...)`
+   - **换装调试日志**：每次换装/跳过均输出 `[GearAllocator]` 前缀日志，受 `AESettings.debugLogging` 开关控制（用 `Func<string>` 延迟构造，关闭时零字符串分配），便于玩家排查装备异常。覆盖事件触发、周期阻塞与单 Pawn 决策点全流程：
+     - **事件触发**：`装备分配脏标已设置 (事件触发, 等待 AutoExecutor 周期去抖执行)` —— Harmony 事件 Postfix（SpawnSetup/Destroy/SetFaction/Kill）触发时输出，让玩家确认事件已捕获
+     - **冷却阻塞**：`等待冷却: 还需 {N} tick (事件已触发, 但距上次分配太近, 避免频繁重分配卡顿)` —— 事件已触发但被 600 tick 冷却阻塞
+     - **战斗阻塞**：`战斗中跳过分配: 地图上存在敌对单位, 扒装会取消 Job 打断医疗/手术, 战斗结束后自动恢复` —— 事件已触发但地图有敌对单位被 `AnyCombatActive` 阻塞（玩家排查"装备没换上"的首要点：若反复出现此日志说明战斗未结束）
+     - **开始统计**：`开始装备分配: {N} Pawn, {M} 件装备, 重甲 {H}, Heavy Pawn {P}, 升级 {U}, Forbid {F} 件(已跳过/已自动取消) (tick=...)`
      - **候选 Pawn 列表**：`候选 Pawn: S#张三:Heavy↑ A#李四:Flexible B#王五:Light ...`（↑ 表示本轮升级为 Heavy）。玩家发现"某 Pawn 没分到装备"时，可从此判断该 Pawn 是否在候选中——若不在列表中，说明被 `CollectCandidatePawns` 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
      - 换装成功：`{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`
      - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡: 候选非重甲, 偏好={armorPref})`
      - 扒装守卫拒绝：`{Pawn} 跳过候选[{层}]: {candidate} 在 {wearer} 身上 (扒装守卫拒绝, 偏好={armorPref})`
-     - 阈值不足跳过：`{Pawn} 跳过换装[{层}]: {current} 保留 (差值 {diff} ≤ 阈值 {threshold}, 偏好={armorPref})`
+     - 阈值不足跳过：`{Pawn} 跳过换装[{层}]: {current} 保留 (差值 {diff} ≤ 阈值 {threshold}, 偏好={armorPref})` —— 玩家排查"新装备没换上"的关键点：差值过小说明新装备评分提升不足，可调整 `geReplaceThreshold` 阈值或评分权重
+     - 无可用候选：`{Pawn} 无可用候选[{层}]: 该层无闲置/可扒装的装备 (偏好={armorPref})` —— 该层完全无装备或所有装备都被分配/扒装守卫拒绝
      - **结束统计**：`装备分配完成: 换装 {A}, 防振荡跳过 {O}, 扒装拒绝 {S}, 阈值不足 {T} (tick=...)`
 
 ### 范围限定
@@ -462,6 +466,25 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **Harmony 补丁降级**：`ColonistBarColonistDrawer.DrawColonist` 方法缺失时仅 `Log.Warning`，图标不显示但不崩溃。补丁优先级 `Priority.Last`，避免与其他 MOD 的同方法 patch 顺序冲突
 - **入口**：殖民者装备面板（ITab）底部 → "高价值自动标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
 
+#### 地图高价值标记（PawnUIOverlay Postfix）
+
+`HarmonyPatches.PawnUIOverlay_DrawPawnGUIOverlay_Patch` 在地图上为非殖民者栏的高价值单位（敌方/中立/野生）绘制圆形标记 + 档位字母。
+
+- **设计动机**：殖民者栏 patch 只覆盖玩家阵营单位（殖民者/奴隶/囚犯），敌方/中立/野生高价值单位在地图上没有任何可视标记。玩家反馈"标记高价值殖民者，没有标记到敌对方，只看到日志提示"——本 patch 在地图上为这些单位绘制可视标记
+- **Hook 入口**：`PawnUIOverlay.DrawPawnGUIOverlay()` Postfix（RimWorld 原生绘制血条/状态 icon 的入口，此时 GUI.matrix 与坐标变换已完成）
+- **覆盖范围**：仅非殖民者栏中的高价值单位
+  - 跳过 `pawn.Faction == Faction.OfPlayer`（殖民者+奴隶，已在殖民者栏有角色定位图标）
+  - 跳过 `pawn.IsPrisonerOfColony`（囚犯，已在殖民者栏有角色定位图标）
+  - 剩余：敌方/中立/野生人类单位
+- **判定**：`PawnMarker.IsHighValue(pawn)` 为 true（即 `TierCacheService.GetTier(pawn) >= CombatTier.S`，含自定义评级覆盖）
+- **标记样式**：圆形背景（20×20 像素，程序化生成 32×32 纹理，边缘 alpha 渐变抗锯齿）+ 居中档位字母（S/SS/SSS，黑色 GameFont.Tiny）
+- **颜色**（按 `PawnMarker.GetMarkerCategory` 类别染色）：
+  - Enemy（敌对）= 红色 `RGB(0.85, 0.2, 0.2)`
+  - Neutral（中立/盟友）= 青色 `RGB(0.2, 0.7, 0.85)`
+  - WildHuman（野生人类）= 白色 `RGB(1, 1, 1)`
+- **坐标变换**：`pawn.DrawPos + 头顶偏移(1.6f)` → 世界坐标 → `Find.Camera.WorldToScreenPoint(worldPos) / Prefs.UIScale` → `screenPos.y = Screen.height - screenPos.y`（Y 翻转，与 RimWorld 原生 PawnUIOverlay 一致）
+- **Harmony 补丁降级**：`PawnUIOverlay.DrawPawnGUIOverlay` 方法缺失时仅 `Log.Warning`，地图标记不显示但不崩溃。补丁优先级 `Priority.Last`
+
 ## 架构模型
 
 ### 目录结构
@@ -471,7 +494,7 @@ Source/AutoEverything/
 ├── AutoEverything.csproj                  # C# 7.3 项目文件
 ├── Core/                                  # → namespace AutoEverything.Core
 │   ├── ModController.cs                   # MOD 入口，StaticConstructorOnStartup
-│   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 角色定位图标绘制
+│   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 角色定位图标 + 地图高价值标记
 │   ├── AutoEverythingMod.cs               # Mod 设置入口
 │   ├── AutoEverythingGameComponent.cs     # GameComponent：AutoExecutor Tick 入口
 │   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（主 partial）

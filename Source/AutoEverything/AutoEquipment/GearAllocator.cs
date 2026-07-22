@@ -74,9 +74,21 @@ namespace AutoEverything.AutoEquipment
         {
             if (!IsDirty) return false;
             int tick = Find.TickManager.TicksGame;
-            if (tick - lastAllocateTick < AllocateCooldown) return false;
+            if (tick - lastAllocateTick < AllocateCooldown)
+            {
+                // 冷却阻塞日志：让玩家知道事件触发但被冷却阻塞，N tick 后会自动重试
+                AEDebug.Log(() =>
+                    $"[GearAllocator] 等待冷却: 还需 {AllocateCooldown - (tick - lastAllocateTick)} tick (事件已触发, 但距上次分配太近, 避免频繁重分配卡顿)");
+                return false;
+            }
             // 战斗中不执行：扒装会取消 Job，可能打断医疗/手术
-            if (AnyCombatActive()) return false;
+            if (AnyCombatActive())
+            {
+                // 战斗阻塞日志：让玩家知道事件触发但被战斗过滤阻塞
+                AEDebug.Log(() =>
+                    "[GearAllocator] 战斗中跳过分配: 地图上存在敌对单位, 扒装会取消 Job 打断医疗/手术, 战斗结束后自动恢复");
+                return false;
+            }
 
             IsDirty = false;
             lastAllocateTick = tick;
@@ -104,6 +116,9 @@ namespace AutoEverything.AutoEquipment
         {
             if (!AESettings.autoEquipmentEnabled) return;
             IsDirty = true;
+            // 事件触发日志：让玩家确认事件是否触发（如装备制作完成、殖民者阵营变化等）
+            // 用堆栈信息辅助判断触发源（SpawnSetup=新装备生成/新 Pawn 生成, Destroy=装备销毁, SetFaction=阵营变化, Kill=死亡）
+            AEDebug.Log(() => "[GearAllocator] 装备分配脏标已设置 (事件触发, 等待 AutoExecutor 周期去抖执行)");
         }
 
         /// <summary>
