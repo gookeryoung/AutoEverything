@@ -33,7 +33,6 @@
   <AE_AutoWork>工作自动配置</AE_AutoWork>
   <AE_AutoTierTag>人员自动评级</AE_AutoTierTag>
   <AE_AutoMarkPawn>高价值自动标记</AE_AutoMarkPawn>
-  <AE_AutoEquipment>自动装备</AE_AutoEquipment>
   <AE_DebugLogging>调试日志</AE_DebugLogging>
   <AE_DebugLogging_Desc>启用详细日志记录以便排查问题。</AE_DebugLogging_Desc>
 
@@ -46,22 +45,6 @@
   <AE_cvToughBonus>坚韧 Tough 加分</AE_cvToughBonus>
   <AE_cvTriggerHappyPenalty>乱开枪 减分</AE_cvTriggerHappyPenalty>
   <AE_cvCarefulShooterBonus>冷枪手 加分</AE_cvCarefulShooterBonus>
-
-  <!-- 自动装备评分权重 -->
-  <AE_GearWeights>自动装备评分权重</AE_GearWeights>
-  <AE_geArmorWeight>护甲值得分权重</AE_geArmorWeight>
-  <AE_geHeavyArmorMatchWeight>前排重甲契合权重</AE_geHeavyArmorMatchWeight>
-  <AE_geLightArmorMatchWeight>工人轻甲契合权重</AE_geLightArmorMatchWeight>
-  <AE_geLightArmorAvoidWeight>工人重甲避讳权重</AE_geLightArmorAvoidWeight>
-  <AE_geFlexibleArmorMatchWeight>后排自由契合权重</AE_geFlexibleArmorMatchWeight>
-  <AE_geInsulationWeight>保暖隔热契合权重</AE_geInsulationWeight>
-  <AE_geWorkerMovePenaltyWeight>工人移动减损敏感度</AE_geWorkerMovePenaltyWeight>
-  <AE_geBackRowMovePenaltyWeight>后排移动减损敏感度</AE_geBackRowMovePenaltyWeight>
-  <AE_geFrontRowMovePenaltyWeight>前排移动减损敏感度</AE_geFrontRowMovePenaltyWeight>
-  <AE_geReplaceThreshold>替换阈值（高于此分差才换装）</AE_geReplaceThreshold>
-  <AE_geHeavyArmorThreshold>重甲判定阈值（Sharp+Blunt≥此值视为重甲，用于后排顺延名额）</AE_geHeavyArmorThreshold>
-  <AE_geAutoUnforbidApparel>自动取消装备禁止标记</AE_geAutoUnforbidApparel>
-  <AE_geAutoUnforbidApparel_Desc>开启后系统会自动取消地图上装备的禁止标记以便分配。默认关闭以尊重玩家手动禁止的意图。若发现闲置装备未被选用，可开启此选项或手动取消禁止标记。</AE_geAutoUnforbidApparel_Desc>
 
   <!-- 殖民者栏默认排序方式（Mod 选项） -->
   <AE_DefaultSortMode>殖民者栏默认排序</AE_DefaultSortMode>
@@ -156,13 +139,5 @@
   <AE_MarkCat_WildHuman>野生</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
-
-  <!-- AutoEquipment 自动装备分配 -->
-  <AE_AutoGear_AllocateResult>已为 {0}/{1} 个殖民者分配装备</AE_AutoGear_AllocateResult>
-  <AE_AutoGear_SwapDetail>{0} 换装[{1}]: {2} → {3} (得分 {4} → {5}, 偏好 {6})</AE_AutoGear_SwapDetail>
-  <AE_TT_AutoEquipment>勾选后启用自动装备分配：地图装备生成/销毁、殖民者阵营变化或死亡时标记脏标，AutoExecutor 周期去抖执行（冷却 2500 tick 且无战斗时）。
-勾选时立即执行一次全局装备分配（含从低价值角色身上扒装给高价值角色）；取消勾选仅停止自动，保留当前装备。
-分配规则：按 CombatTier 降序逐个分配，按 ApparelLayer 分组选最高分装备；前排(Brawler)优先重甲，工人(Worker)优先轻甲，后排(Shooter/Hunter/Leader)自由；奴隶与殖民者统一参与；食尸鬼与 X 档（禁止暴力）跳过。
-评分：护甲值 + 定位契合 + 意识形态符合 + 保暖隔热 - 移动减损，权重可在 Mod 选项调整。</AE_TT_AutoEquipment>
 
 </LanguageData>

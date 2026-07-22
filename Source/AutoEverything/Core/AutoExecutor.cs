@@ -4,7 +4,6 @@ using RimWorld;
 using Verse;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
-using AutoEverything.AutoEquipment;
 
 namespace AutoEverything.Core
 {
@@ -30,6 +29,8 @@ namespace AutoEverything.Core
     /// 避免存档加载后立即执行造成卡顿。
     ///
     /// 注：AutoFood/AutoDrug 模块已移除（与其他 MOD 冲突），相关 foodDrug 阶段状态与信仰检测逻辑同步删除。
+    /// 注：AutoEquipment 模块（自动装备分配）已整体移除——玩家反馈换装效果不理想，
+    /// 改用 RimWorld 原生换装（玩家手动管理装备）。
     /// </summary>
     internal static class AutoExecutor
     {
@@ -133,10 +134,6 @@ namespace AutoEverything.Core
                 ExecuteWork(tick, showMessage: false);
             }
 
-            // 装备分配：事件触发的脏标在此去抖执行（GearAllocator 内部带冷却 + 战斗过滤）
-            // 不算 Tick 检查策略：脏标由 Harmony 事件 Postfix 设置，本处仅周期去抖执行
-            GearAllocator.TryAllocateFromTick();
-
             // 周期触发：仅评级（Mark 无周期——Postfix 每帧自检）
             if (tick - lastTierTick >= ExecuteInterval)
                 ExecuteTier(tick, showMessage: false);
@@ -167,15 +164,6 @@ namespace AutoEverything.Core
         public static void TriggerMarkNow()
         {
             ExecuteMark(Find.TickManager.TicksGame, showMessage: true, resetTracking: true);
-        }
-
-        /// <summary>
-        /// ITab 勾选时调用：立即执行全局装备分配并弹消息框。
-        /// 仅在勾选（false → true）时触发；取消勾选不调用（仅停止自动，保留当前装备，无法撤销已分配装备）。
-        /// </summary>
-        public static void TriggerGearNow()
-        {
-            GearAllocator.TriggerGearNow();
         }
 
         private static void ExecuteWork(int tick, bool showMessage)

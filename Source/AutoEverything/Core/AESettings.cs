@@ -17,7 +17,6 @@ namespace AutoEverything.Core
         public static bool autoWorkEnabled = true;       // AutoWork 自动工作分配主开关
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
         public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 人类单位扫描通知 + 殖民者栏角色定位图标：前排/远程/手工/贸易，事件触发 + ITab 切换全局重扫描）
-        public static bool autoEquipmentEnabled = false;  // AutoEquipment 自动装备分配（事件驱动 + ITab 切换全局重分配，默认关闭避免误扒装）
 
         // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
@@ -32,25 +31,6 @@ namespace AutoEverything.Core
         public static float cvToughBonus = 30f;              // 坚韧 Tough：减伤 50%
         public static float cvTriggerHappyPenalty = -15f;    // 乱开枪 ShootingAccuracy degree=-1：精度大幅下降
         public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
-
-        // AutoEquipment 自动装备评分权重（可调）
-        // 评分公式：score = armorScore + layerMatchScore + insulationScore - movementPenalty
-        //   armorScore = (Sharp+Blunt+Heat)/3 × geArmorWeight
-        //   layerMatchScore：按 ArmorPreference 重甲/轻甲/自由分别加权
-        //   insulationScore：极端温度下保暖/隔热值 × geInsulationWeight
-        //   movementPenalty = (apparel Mass / 5.0) × 角色敏感度权重（归一化 mass 到 0~1，与 armorScore 量级匹配）
-        public static float geArmorWeight = 1.0f;                    // 护甲值得分权重
-        public static float geHeavyArmorMatchWeight = 2.0f;          // 前排（Heavy）重甲契合权重
-        public static float geLightArmorMatchWeight = 1.5f;          // 工人（Light）轻甲契合权重
-        public static float geLightArmorAvoidWeight = 0.5f;          // 工人（Light）重甲避讳权重
-        public static float geFlexibleArmorMatchWeight = 1.0f;       // 后排（Flexible）自由契合权重
-        public static float geInsulationWeight = 1.0f;               // 保暖/隔热契合权重
-        public static float geWorkerMovePenaltyWeight = 3.0f;        // 工人移动减损敏感度
-        public static float geBackRowMovePenaltyWeight = 2.0f;       // 后排移动减损敏感度
-        public static float geFrontRowMovePenaltyWeight = 0.5f;      // 前排移动减损敏感度
-        public static float geReplaceThreshold = 0.06f;              // 替换阈值：新 apparel 分数比已穿戴高此值才替换（默认 0.06：同层装备护甲差通常 0.05~0.15，0.5 会阻断细微升级；0.06 让 Worker 头盔层降级后差值 ~0.097 也能触发换装）
-        public static float geHeavyArmorThreshold = 1.0f;            // 重甲判定阈值：apparel 的 (Sharp+Blunt) ≥ 此值视为重甲，用于顺延名额计算
-        public static bool geAutoUnforbidApparel = false;           // 自动取消装备禁止标记：开启后候选收集时自动取消 Forbidden 标记，让系统可选用被禁用的装备（默认关闭，尊重玩家 Forbid 意图）
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -90,21 +70,6 @@ namespace AutoEverything.Core
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
             LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
-            LookCompat(ref autoEquipmentEnabled, "autoEquipmentEnabled", false);
-
-            // AutoEquipment 评分权重持久化（ge_ 前缀）
-            LookCompat(ref geArmorWeight, "geArmorWeight", 1.0f);
-            LookCompat(ref geHeavyArmorMatchWeight, "geHeavyArmorMatchWeight", 2.0f);
-            LookCompat(ref geLightArmorMatchWeight, "geLightArmorMatchWeight", 1.5f);
-            LookCompat(ref geLightArmorAvoidWeight, "geLightArmorAvoidWeight", 0.5f);
-            LookCompat(ref geFlexibleArmorMatchWeight, "geFlexibleArmorMatchWeight", 1.0f);
-            LookCompat(ref geInsulationWeight, "geInsulationWeight", 1.0f);
-            LookCompat(ref geWorkerMovePenaltyWeight, "geWorkerMovePenaltyWeight", 3.0f);
-            LookCompat(ref geBackRowMovePenaltyWeight, "geBackRowMovePenaltyWeight", 2.0f);
-            LookCompat(ref geFrontRowMovePenaltyWeight, "geFrontRowMovePenaltyWeight", 0.5f);
-            LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.06f);
-            LookCompat(ref geHeavyArmorThreshold, "geHeavyArmorThreshold", 1.0f);
-            LookCompat(ref geAutoUnforbidApparel, "geAutoUnforbidApparel", false);
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
@@ -246,9 +211,9 @@ namespace AutoEverything.Core
 
         public static void DrawSettings(Rect inRect)
         {
-            // 紧凑布局：装备评分权重较多，单行 label+value + 单行 slider 的双行模式
-            // 估算内容高度：基础段 + cv 权重 7 项 + ge 权重 13 项 + 排序按钮段
-            float contentHeight = 1240f;
+            // 紧凑布局：单行 label+value + 单行 slider 的双行模式
+            // 估算内容高度：基础段 + cv 权重 7 项 + 排序按钮段
+            float contentHeight = 720f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -266,7 +231,6 @@ namespace AutoEverything.Core
             l.CheckboxLabeled("AE_AutoWork".Translate(), ref autoWorkEnabled);
             l.CheckboxLabeled("AE_AutoTierTag".Translate(), ref autoTierTag);
             l.CheckboxLabeled("AE_AutoMarkPawn".Translate(), ref autoMarkPawn);
-            l.CheckboxLabeled("AE_AutoEquipment".Translate(), ref autoEquipmentEnabled);
 
             // 战斗价值公式权重
             l.GapLine();
@@ -278,22 +242,6 @@ namespace AutoEverything.Core
             DrawCompactSlider(l, "AE_cvToughBonus".Translate(), ref cvToughBonus, 0f, 100f, "F0");
             DrawCompactSlider(l, "AE_cvTriggerHappyPenalty".Translate(), ref cvTriggerHappyPenalty, -50f, 0f, "F0");
             DrawCompactSlider(l, "AE_cvCarefulShooterBonus".Translate(), ref cvCarefulShooterBonus, 0f, 50f, "F0");
-
-            // 装备评分权重
-            l.GapLine();
-            l.Label("AE_GearWeights".Translate());
-            DrawCompactSlider(l, "AE_geArmorWeight".Translate(), ref geArmorWeight, 0.1f, 5.0f);
-            DrawCompactSlider(l, "AE_geHeavyArmorMatchWeight".Translate(), ref geHeavyArmorMatchWeight, 0f, 5.0f);
-            DrawCompactSlider(l, "AE_geLightArmorMatchWeight".Translate(), ref geLightArmorMatchWeight, 0f, 5.0f);
-            DrawCompactSlider(l, "AE_geLightArmorAvoidWeight".Translate(), ref geLightArmorAvoidWeight, 0f, 3.0f);
-            DrawCompactSlider(l, "AE_geFlexibleArmorMatchWeight".Translate(), ref geFlexibleArmorMatchWeight, 0f, 5.0f);
-            DrawCompactSlider(l, "AE_geInsulationWeight".Translate(), ref geInsulationWeight, 0f, 5.0f);
-            DrawCompactSlider(l, "AE_geWorkerMovePenaltyWeight".Translate(), ref geWorkerMovePenaltyWeight, 0f, 10f);
-            DrawCompactSlider(l, "AE_geBackRowMovePenaltyWeight".Translate(), ref geBackRowMovePenaltyWeight, 0f, 10f);
-            DrawCompactSlider(l, "AE_geFrontRowMovePenaltyWeight".Translate(), ref geFrontRowMovePenaltyWeight, 0f, 5f);
-            DrawCompactSlider(l, "AE_geReplaceThreshold".Translate(), ref geReplaceThreshold, 0f, 5f, "F2");
-            DrawCompactSlider(l, "AE_geHeavyArmorThreshold".Translate(), ref geHeavyArmorThreshold, 0f, 3f, "F2");
-            l.CheckboxLabeled("AE_geAutoUnforbidApparel".Translate(), ref geAutoUnforbidApparel, "AE_geAutoUnforbidApparel_Desc".Translate());
 
             // 调试
             l.GapLine();
