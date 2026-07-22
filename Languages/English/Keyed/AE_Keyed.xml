@@ -58,9 +58,6 @@
   <AE_geWorkerMovePenaltyWeight>Worker move penalty sensitivity</AE_geWorkerMovePenaltyWeight>
   <AE_geBackRowMovePenaltyWeight>Back row move penalty sensitivity</AE_geBackRowMovePenaltyWeight>
   <AE_geFrontRowMovePenaltyWeight>Front row move penalty sensitivity</AE_geFrontRowMovePenaltyWeight>
-  <AE_geCultureViolationPenalty>Ideology violation penalty</AE_geCultureViolationPenalty>
-  <AE_geCultureStuffBonus>Ideology preferred stuff bonus</AE_geCultureStuffBonus>
-  <AE_geCultureRequirementBonus>Ideology requirement match bonus</AE_geCultureRequirementBonus>
   <AE_geReplaceThreshold>Replace threshold (score diff to swap)</AE_geReplaceThreshold>
   <AE_geHeavyArmorThreshold>Heavy armor threshold (Sharp+Blunt>=this counts as heavy, used for back-row fallback slots)</AE_geHeavyArmorThreshold>
   <AE_geAutoUnforbidApparel>Auto-unforbid apparel</AE_geAutoUnforbidApparel>

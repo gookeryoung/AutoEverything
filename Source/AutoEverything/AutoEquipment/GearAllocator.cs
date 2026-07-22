@@ -309,7 +309,12 @@ namespace AutoEverything.AutoEquipment
 
                 // 在该层找最高分 apparel
                 Apparel best = FindBestForLayer(pawn, role, armorPref, candidateApparel, layerKey, wornCopyBuffer);
-                if (best == null) continue;
+                if (best == null)
+                {
+                    AEDebug.Log(() =>
+                        $"[GearAllocator] {AEDebug.Label(pawn)} 无可用候选[{layerKey.defName}]: 该层无闲置/可扒装的装备 (偏好={armorPref})");
+                    continue;
+                }
 
                 // 与已穿戴的同层 apparel 比较
                 Apparel currentWorn = FindWornByLayer(wornCopyBuffer, layerKey);
@@ -409,16 +414,11 @@ namespace AutoEverything.AutoEquipment
         }
 
         /// <summary>
-        /// 在指定层中找最高分的未占用 apparel（已过滤扒不到与文化厌恶的候选）。
+        /// 在指定层中找最高分的未占用 apparel（含扒装 fallback）。
         ///
-        /// 方案 A（扒装 fallback）：若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个。
+        /// 扒装 fallback：若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个。
         ///   根因：原逻辑只取最高分，扒不到就放弃整层；改为跳过扒不到的候选，fallback 到次高分，
         ///         这样即使最高分装备在别人身上扒不到，闲置的次优装备仍会被选中。
-        ///
-        /// 方案 B（cultureScore 硬约束）：文化厌恶的 apparel（违反 ideo 要求，cultureScore &lt; 0）直接跳过。
-        ///   根因：cultureScore 负值（如 -30）会主导总分，当 currentWorn=null（currentScore=float.MinValue）时，
-        ///         任何 bestScore 都让 bestScore - currentScore &gt; 阈值 成立，迫使系统选文化厌恶装备。
-        ///         改为硬约束跳过，避免极端负分让阈值判断失效。
         /// </summary>
         private static Apparel FindBestForLayer(Pawn pawn, Role role, ArmorPreference armorPref,
             List<Apparel> candidates, ApparelLayerDef layer, List<Apparel> wornCopy)
@@ -442,12 +442,9 @@ namespace AutoEverything.AutoEquipment
                 // RimWorld 1.6 中 PawnApparelGenerator.CanWearApparelDef 不存在，改用 ApparelUtility.HasPartsToWear
                 if (!ApparelUtility.HasPartsToWear(pawn, candidate.def)) continue;
 
-                // 方案 B：文化厌恶的 apparel 直接跳过（硬约束，不参与评分）
-                if (CultureChecker.GetCultureScore(pawn, candidate) < 0f) continue;
-
                 float score = GearScorer.ComputeScore(pawn, candidate, role, armorPref);
 
-                // 方案 A：扒装 fallback - 若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个
+                // 扒装 fallback - 若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个
                 Pawn wearer = candidate.Wearer;
                 if (wearer != null && wearer != pawn)
                 {

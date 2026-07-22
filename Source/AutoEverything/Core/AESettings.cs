@@ -34,10 +34,9 @@ namespace AutoEverything.Core
         public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
 
         // AutoEquipment 自动装备评分权重（可调）
-        // 评分公式：score = armorScore + layerMatchScore + cultureScore + insulationScore - movementPenalty
+        // 评分公式：score = armorScore + layerMatchScore + insulationScore - movementPenalty
         //   armorScore = (Sharp+Blunt+Heat)/3 × geArmorWeight
         //   layerMatchScore：按 ArmorPreference 重甲/轻甲/自由分别加权
-        //   cultureScore：CultureChecker 给出的违反扣分 / 符合要求加分
         //   insulationScore：极端温度下保暖/隔热值 × geInsulationWeight
         //   movementPenalty = apparel Mass × 角色敏感度权重（重 apparel 减损更大）
         public static float geArmorWeight = 1.0f;                    // 护甲值得分权重
@@ -49,9 +48,6 @@ namespace AutoEverything.Core
         public static float geWorkerMovePenaltyWeight = 3.0f;        // 工人移动减损敏感度
         public static float geBackRowMovePenaltyWeight = 2.0f;       // 后排移动减损敏感度
         public static float geFrontRowMovePenaltyWeight = 0.5f;      // 前排移动减损敏感度
-        public static float geCultureViolationPenalty = 30f;         // ideo 违反扣分
-        public static float geCultureStuffBonus = 5f;                // ideo 偏好材质加分
-        public static float geCultureRequirementBonus = 8f;          // 符合 ideo 要求加分
         public static float geReplaceThreshold = 0.06f;              // 替换阈值：新 apparel 分数比已穿戴高此值才替换（默认 0.06：同层装备护甲差通常 0.05~0.15，0.5 会阻断细微升级；0.06 让 Worker 头盔层降级后差值 ~0.097 也能触发换装）
         public static float geHeavyArmorThreshold = 1.0f;            // 重甲判定阈值：apparel 的 (Sharp+Blunt) ≥ 此值视为重甲，用于顺延名额计算
         public static bool geAutoUnforbidApparel = false;           // 自动取消装备禁止标记：开启后候选收集时自动取消 Forbidden 标记，让系统可选用被禁用的装备（默认关闭，尊重玩家 Forbid 意图）
@@ -106,9 +102,6 @@ namespace AutoEverything.Core
             LookCompat(ref geWorkerMovePenaltyWeight, "geWorkerMovePenaltyWeight", 3.0f);
             LookCompat(ref geBackRowMovePenaltyWeight, "geBackRowMovePenaltyWeight", 2.0f);
             LookCompat(ref geFrontRowMovePenaltyWeight, "geFrontRowMovePenaltyWeight", 0.5f);
-            LookCompat(ref geCultureViolationPenalty, "geCultureViolationPenalty", 30f);
-            LookCompat(ref geCultureStuffBonus, "geCultureStuffBonus", 5f);
-            LookCompat(ref geCultureRequirementBonus, "geCultureRequirementBonus", 8f);
             LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.06f);
             LookCompat(ref geHeavyArmorThreshold, "geHeavyArmorThreshold", 1.0f);
             LookCompat(ref geAutoUnforbidApparel, "geAutoUnforbidApparel", false);
@@ -298,9 +291,6 @@ namespace AutoEverything.Core
             DrawCompactSlider(l, "AE_geWorkerMovePenaltyWeight".Translate(), ref geWorkerMovePenaltyWeight, 0f, 10f);
             DrawCompactSlider(l, "AE_geBackRowMovePenaltyWeight".Translate(), ref geBackRowMovePenaltyWeight, 0f, 10f);
             DrawCompactSlider(l, "AE_geFrontRowMovePenaltyWeight".Translate(), ref geFrontRowMovePenaltyWeight, 0f, 5f);
-            DrawCompactSlider(l, "AE_geCultureViolationPenalty".Translate(), ref geCultureViolationPenalty, 0f, 100f, "F0");
-            DrawCompactSlider(l, "AE_geCultureStuffBonus".Translate(), ref geCultureStuffBonus, 0f, 30f, "F0");
-            DrawCompactSlider(l, "AE_geCultureRequirementBonus".Translate(), ref geCultureRequirementBonus, 0f, 30f, "F0");
             DrawCompactSlider(l, "AE_geReplaceThreshold".Translate(), ref geReplaceThreshold, 0f, 5f, "F2");
             DrawCompactSlider(l, "AE_geHeavyArmorThreshold".Translate(), ref geHeavyArmorThreshold, 0f, 3f, "F2");
             l.CheckboxLabeled("AE_geAutoUnforbidApparel".Translate(), ref geAutoUnforbidApparel, "AE_geAutoUnforbidApparel_Desc".Translate());

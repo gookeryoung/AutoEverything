@@ -289,14 +289,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 ### 评分公式
 
 ```
-装备评分 = 护甲值 + 定位契合 + 文化契合 + 保暖隔热 - 移动减损
+装备评分 = 护甲值 + 定位契合 + 保暖隔热 - 移动减损
 ```
 
 | 维度 | 计分 | 说明 |
 |------|------|------|
 | 护甲值 | `(Sharp + Blunt + Heat) / 3 × geArmorWeight` | 三类护甲平均后乘权重 |
 | 定位契合 | 按 `ArmorPreference`：重甲契合 `geHeavyArmorMatchWeight`、轻甲契合 `geLightArmorMatchWeight`、轻甲避重甲 `geLightArmorAvoidWeight`、自由契合 `geFlexibleArmorMatchWeight` | 前排优先重甲、工人优先轻甲、后排自由 |
-| 文化契合 | ideo 违反 `-geCultureViolationPenalty`、偏好材质 `+geCultureStuffBonus`、符合 ideo 要求 `+geCultureRequirementBonus` | Ideology DLC 才生效 |
 | 保暖隔热 | 极端温度下 `Insulation × geInsulationWeight` | 寒冷加保暖、炎热加隔热 |
 | 移动减损 | `(1 - MoveSpeedFactor) × 角色敏感度权重` | 工人 `geWorkerMovePenaltyWeight`、后排 `geBackRowMovePenaltyWeight`、前排 `geFrontRowMovePenaltyWeight` |
 
@@ -313,9 +312,6 @@ Passion 量化：None=0, Minor=1, Major=2。
 | `geWorkerMovePenaltyWeight` | 3.0 | 工人移动减损敏感度 |
 | `geBackRowMovePenaltyWeight` | 2.0 | 后排移动减损敏感度 |
 | `geFrontRowMovePenaltyWeight` | 0.5 | 前排移动减损敏感度 |
-| `geCultureViolationPenalty` | 30 | 意识形态违反扣分 |
-| `geCultureStuffBonus` | 5 | 意识形态偏好材质加分 |
-| `geCultureRequirementBonus` | 8 | 符合意识形态要求加分 |
 | `geReplaceThreshold` | 0.06 | 替换阈值（新装备需比已穿高此分差才换装；默认 0.06 让同层装备的细微护甲差异也能触发换装，如简易头盔→斥候头盔差值约 0.097） |
 | `geHeavyArmorThreshold` | 1.0 | 重甲判定阈值（Sharp+Blunt≥此值视为重甲，用于后排顺延名额计算） |
 | `geAutoUnforbidApparel` | false | 自动取消装备禁止标记（开启后候选收集时自动清除 Forbidden 标记，让系统可选用被禁用的装备；默认关闭尊重玩家 Forbid 意图） |
@@ -337,7 +333,6 @@ Passion 量化：None=0, Minor=1, Major=2。
    - 仅影响传给 `GearScorer` 的评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
 5. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
    - **扒装 fallback**：`FindBestForLayer` 内部对每个候选先检查扒装可行性——若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个，自动 fallback 到次高分。这样即使最高分装备在别人身上扒不到，闲置的次优装备仍会被选中，避免"整层放弃换装"
-   - **文化厌恶硬约束**：`FindBestForLayer` 内部对每个候选先检查 `CultureChecker.GetCultureScore(pawn, candidate)`，若返回负值（违反 ideo 要求）直接跳过，不参与评分。根因：cultureScore 负值（如 -30）会主导总分，当 currentWorn=null（currentScore=float.MinValue）时任何 bestScore 都让差值 > 阈值成立，迫使系统选文化厌恶装备；改为硬约束跳过避免极端负分让阈值判断失效
 6. **头盔层特殊规则**：头盔层（`Overhead`）对 `Light` 偏好（Worker/Doctor/Pacifist）降级为 `Flexible` 评分
    - **根因**：头盔核心价值是护甲，mass 普遍 0.3kg 左右，移动效率差异微乎其微；Light 公式 `(1-armorSum)*1.5 - armorSum*0.5` 在 armorSum=0.2~0.3 时让低护甲头盔反而得分更高（简易头盔胜过斥候头盔），与头盔价值相悖
    - **修复**：`GearScorer.ResolveEffectivePref(isHeadwear, basePref)` 纯逻辑方法做转换，仅影响传给 `ComputeLayerMatchScoreCore` 的偏好参数，不修改 `RoleDetector` 全局判定
@@ -507,7 +502,6 @@ Source/AutoEverything/
 │   └── RoleIconTextures.cs                # 角色定位纹理（程序化生成 4 个 32x32 RGBA 纹理）
 ├── AutoEquipment/                         # → namespace AutoEverything.AutoEquipment
 │   ├── ApparelLayerFilter.cs              # 附件层过滤（Belt/Backpack/Bag/Pack 排除）
-│   ├── CultureChecker.cs                  # 意识形态违反/偏好材质/要求加分
 │   ├── GearInventoryService.cs            # 候选装备 + 参与 Pawn 收集（含扒装重分配）
 │   ├── GearScorer.cs                      # (Pawn×Apparel) 综合评分计算
 │   └── GearAllocator.cs                   # 装备分配主入口（事件驱动 + ITab 勾选触发）

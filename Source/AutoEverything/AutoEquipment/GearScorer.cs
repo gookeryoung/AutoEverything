@@ -8,10 +8,9 @@ namespace AutoEverything.AutoEquipment
     /// <summary>
     /// 装备评分器：计算 (Pawn × Apparel) 组合的契合度分数。
     ///
-    /// 评分公式（5 项加权求和，权重可由玩家在 Mod 选项调整）：
+    /// 评分公式（4 项加权求和，权重可由玩家在 Mod 选项调整）：
     ///   score = armorScore          // 护甲值（Sharp+Blunt+Heat 归一化）
     ///         + layerMatchScore     // 定位契合（前排重甲+，工人轻甲+，后排均衡）
-    ///         + cultureScore        // 文化/心情影响（CultureChecker）
     ///         + insulationScore     // 保暖/隔热契合当前环境
     ///         - movementPenalty     // 移动速度减损（工人/后排更敏感）
     ///
@@ -38,13 +37,10 @@ namespace AutoEverything.AutoEquipment
             // 2. 定位契合：根据护甲偏好重甲/轻甲/自由加分
             score += ComputeLayerMatchScore(apparel, role, armorPref);
 
-            // 3. 文化/心情影响
-            score += CultureChecker.GetCultureScore(pawn, apparel);
-
-            // 4. 保暖/隔热契合（极端温度时考虑）
+            // 3. 保暖/隔热契合（极端温度时考虑）
             score += ComputeInsulationScore(pawn, apparel);
 
-            // 5. 移动速度减损（工人与后排更敏感）
+            // 4. 移动速度减损（工人与后排更敏感）
             score -= ComputeMovementPenalty(apparel, role);
 
             return score;
