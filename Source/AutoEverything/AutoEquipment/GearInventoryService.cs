@@ -26,6 +26,8 @@ namespace AutoEverything.AutoEquipment
         private static readonly List<Pawn> candidatePawnBuffer = new List<Pawn>();
         // 已分配 apparel ID 集合：本轮分配中已被某 Pawn 占用的 apparel，避免重复分配
         private static readonly HashSet<int> allocatedApparelIds = new HashSet<int>();
+        // 本轮候选收集遇到的 Forbidden 装备数量（无论是否自动取消都统计，用于诊断日志）
+        private static int statsForbiddenEncountered;
 
         /// <summary>
         /// 清空本轮分配状态：每次 GearAllocator 开始新一轮全局分配时调用。
@@ -35,12 +37,19 @@ namespace AutoEverything.AutoEquipment
             candidateApparelBuffer.Clear();
             candidatePawnBuffer.Clear();
             allocatedApparelIds.Clear();
+            statsForbiddenEncountered = 0;
         }
+
+        /// <summary>
+        /// 本轮候选收集遇到的 Forbidden 装备数量（被跳过或被自动取消）。
+        /// 用于 GearAllocator 调试日志，帮助玩家诊断"地图上有 N 件装备被 Forbid 跳过"。
+        /// </summary>
+        public static int StatsForbiddenEncountered => statsForbiddenEncountered;
 
         /// <summary>
         /// 收集所有候选装备：地图上未穿戴的 Apparel + 玩家阵营 Pawn 已穿戴的 Apparel。
         /// 过滤：通过 ApparelLayerFilter.IsRelevant 排除附件层（腰带/背包等）。
-        /// 过滤：排除 Forbid 标记的装备（玩家明确禁止使用的）。
+        /// 过滤：Forbidden 装备默认跳过；若 geAutoUnforbidApparel=true 则自动取消 Forbid 标记后纳入候选。
         ///
         /// 设计：接受外部传入的 candidatePawns 列表，避免内部重复调用 CollectCandidatePawns
         /// 导致缓冲区翻倍或浪费 CPU（曾因内部调用 + 外部调用两次填充导致翻倍 bug）。
@@ -57,9 +66,16 @@ namespace AutoEverything.AutoEquipment
                     Apparel apparel = things[i] as Apparel;
                     if (apparel == null) continue;
                     if (!apparel.Spawned) continue;
-                    // 跳过玩家标记为"禁用"的装备：通过 CompForbiddable 检查
-                    // RimWorld 1.6 中 Thing.Forbidden 不存在，需通过 CompForbiddable 组件查询
-                    if (IsForbidden(apparel)) continue;
+                    // Forbidden 处理：默认跳过，geAutoUnforbidApparel=true 时自动取消 Forbid 标记
+                    // 统计：无论是否自动取消都累加 statsForbiddenEncountered，用于诊断日志
+                    if (IsForbidden(apparel))
+                    {
+                        statsForbiddenEncountered++;
+                        if (!AESettings.geAutoUnforbidApparel) continue;
+                        // 自动取消 Forbid 标记，让系统可以选用被禁用的装备
+                        CompForbiddable forbidComp = apparel.GetComp<CompForbiddable>();
+                        if (forbidComp != null) forbidComp.Forbidden = false;
+                    }
                     if (!ApparelLayerFilter.IsRelevant(apparel)) continue;
                     candidateApparelBuffer.Add(apparel);
                 }

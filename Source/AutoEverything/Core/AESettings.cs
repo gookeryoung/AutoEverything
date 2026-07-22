@@ -54,6 +54,7 @@ namespace AutoEverything.Core
         public static float geCultureRequirementBonus = 8f;          // 符合 ideo 要求加分
         public static float geReplaceThreshold = 0.06f;              // 替换阈值：新 apparel 分数比已穿戴高此值才替换（默认 0.06：同层装备护甲差通常 0.05~0.15，0.5 会阻断细微升级；0.06 让 Worker 头盔层降级后差值 ~0.097 也能触发换装）
         public static float geHeavyArmorThreshold = 1.0f;            // 重甲判定阈值：apparel 的 (Sharp+Blunt) ≥ 此值视为重甲，用于顺延名额计算
+        public static bool geAutoUnforbidApparel = false;           // 自动取消装备禁止标记：开启后候选收集时自动取消 Forbidden 标记，让系统可选用被禁用的装备（默认关闭，尊重玩家 Forbid 意图）
 
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
@@ -110,6 +111,7 @@ namespace AutoEverything.Core
             LookCompat(ref geCultureRequirementBonus, "geCultureRequirementBonus", 8f);
             LookCompat(ref geReplaceThreshold, "geReplaceThreshold", 0.06f);
             LookCompat(ref geHeavyArmorThreshold, "geHeavyArmorThreshold", 1.0f);
+            LookCompat(ref geAutoUnforbidApparel, "geAutoUnforbidApparel", false);
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
@@ -301,6 +303,7 @@ namespace AutoEverything.Core
             DrawCompactSlider(l, "AE_geCultureRequirementBonus".Translate(), ref geCultureRequirementBonus, 0f, 30f, "F0");
             DrawCompactSlider(l, "AE_geReplaceThreshold".Translate(), ref geReplaceThreshold, 0f, 5f, "F2");
             DrawCompactSlider(l, "AE_geHeavyArmorThreshold".Translate(), ref geHeavyArmorThreshold, 0f, 3f, "F2");
+            l.CheckboxLabeled("AE_geAutoUnforbidApparel".Translate(), ref geAutoUnforbidApparel, "AE_geAutoUnforbidApparel_Desc".Translate());
 
             // 调试
             l.GapLine();

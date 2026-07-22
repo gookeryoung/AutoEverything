@@ -164,8 +164,11 @@ namespace AutoEverything.AutoEquipment
                     if (upgradeFlags[i]) upgradeCount++;
 
                 // 开始日志：输出本轮分配的完整输入参数，便于玩家追踪整体流程
+                // Forbid 统计：让玩家知道地图上有多少装备被 Forbid 跳过（或被自动取消）
+                int forbidCount = GearInventoryService.StatsForbiddenEncountered;
+                bool autoUnforbid = AESettings.geAutoUnforbidApparel;
                 AEDebug.Log(() =>
-                    $"[GearAllocator] 开始装备分配: {candidatePawns.Count} Pawn, {candidateApparel.Count} 件装备, 重甲 {heavyArmorCount}, Heavy Pawn {heavyPawnCount}, 升级 {upgradeCount} (tick={tick})");
+                    $"[GearAllocator] 开始装备分配: {candidatePawns.Count} Pawn, {candidateApparel.Count} 件装备, 重甲 {heavyArmorCount}, Heavy Pawn {heavyPawnCount}, 升级 {upgradeCount}, Forbid {forbidCount} 件({(autoUnforbid ? "已自动取消" : "已跳过")}) (tick={tick})");
 
                 // 候选 Pawn 列表日志：输出每个有效候选 Pawn 的评级/名字/偏好/升级标志
                 // 用途：玩家发现"某 Pawn 没分到装备"时，可从此日志判断该 Pawn 是否在候选中
@@ -355,23 +358,11 @@ namespace AutoEverything.AutoEquipment
                 }
 
                 // 若新 apparel 在他人身上，先扒下来
-                // RimWorld 1.6 中 Apparel.Wearer 属性返回穿戴者（无穿戴者时为 null）
+                // 注：扒装可行性已在 FindBestForLayer 中检查（方案 A：扒装 fallback），
+                //     此处 best 必然是"扒得到的"；但仍需处理 TrySafeRemove 实际失败的情况
                 Pawn wearer = best.Wearer;
                 if (wearer != null && wearer != pawn)
                 {
-                    // 扒装守卫：仅当 stealer 对该 apparel 的得分高于 wearer 有效得分时才扒装
-                    // 防止两个 Pawn 之间反复抢装导致振荡（A 抢 B 的 Y → B 下轮抢回 → 循环）
-                    // 根因：原逻辑仅比较 stealer 的"新旧得分差"，未考虑 wearer 的损失
-                    if (!ShouldStealFromWearer(wearer, best, bestScore))
-                    {
-                        // wearer 得分更高或相当：不扒装，把刚卸下的旧 apparel 装回，跳过此层
-                        statsSkipStealGuard++;
-                        AEDebug.Log(() =>
-                            $"[GearAllocator] {AEDebug.Label(pawn)} 放弃扒装[{layerKey.defName}]: {best.def?.defName} 在 {AEDebug.Label(wearer)} 身上 (wearer 得分更高, 偏好={armorPref})");
-                        if (currentWorn != null) TrySafeEquip(pawn, currentWorn);
-                        continue;
-                    }
-
                     if (!TrySafeRemove(wearer, best))
                     {
                         // 扒装失败：把刚卸下的旧 apparel 装回（best effort），避免 pawn 失去装备
@@ -418,7 +409,16 @@ namespace AutoEverything.AutoEquipment
         }
 
         /// <summary>
-        /// 在指定层中找最高分的未占用 apparel。
+        /// 在指定层中找最高分的未占用 apparel（已过滤扒不到与文化厌恶的候选）。
+        ///
+        /// 方案 A（扒装 fallback）：若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个。
+        ///   根因：原逻辑只取最高分，扒不到就放弃整层；改为跳过扒不到的候选，fallback 到次高分，
+        ///         这样即使最高分装备在别人身上扒不到，闲置的次优装备仍会被选中。
+        ///
+        /// 方案 B（cultureScore 硬约束）：文化厌恶的 apparel（违反 ideo 要求，cultureScore &lt; 0）直接跳过。
+        ///   根因：cultureScore 负值（如 -30）会主导总分，当 currentWorn=null（currentScore=float.MinValue）时，
+        ///         任何 bestScore 都让 bestScore - currentScore &gt; 阈值 成立，迫使系统选文化厌恶装备。
+        ///         改为硬约束跳过，避免极端负分让阈值判断失效。
         /// </summary>
         private static Apparel FindBestForLayer(Pawn pawn, Role role, ArmorPreference armorPref,
             List<Apparel> candidates, ApparelLayerDef layer, List<Apparel> wornCopy)
@@ -442,7 +442,24 @@ namespace AutoEverything.AutoEquipment
                 // RimWorld 1.6 中 PawnApparelGenerator.CanWearApparelDef 不存在，改用 ApparelUtility.HasPartsToWear
                 if (!ApparelUtility.HasPartsToWear(pawn, candidate.def)) continue;
 
+                // 方案 B：文化厌恶的 apparel 直接跳过（硬约束，不参与评分）
+                if (CultureChecker.GetCultureScore(pawn, candidate) < 0f) continue;
+
                 float score = GearScorer.ComputeScore(pawn, candidate, role, armorPref);
+
+                // 方案 A：扒装 fallback - 若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个
+                Pawn wearer = candidate.Wearer;
+                if (wearer != null && wearer != pawn)
+                {
+                    if (!ShouldStealFromWearer(wearer, candidate, score))
+                    {
+                        statsSkipStealGuard++;
+                        AEDebug.Log(() =>
+                            $"[GearAllocator] {AEDebug.Label(pawn)} 跳过候选[{layer.defName}]: {candidate.def?.defName} 在 {AEDebug.Label(wearer)} 身上 (扒装守卫拒绝, 偏好={armorPref})");
+                        continue;
+                    }
+                }
+
                 if (score > bestScore)
                 {
                     bestScore = score;

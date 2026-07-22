@@ -318,10 +318,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 | `geCultureRequirementBonus` | 8 | 符合意识形态要求加分 |
 | `geReplaceThreshold` | 0.06 | 替换阈值（新装备需比已穿高此分差才换装；默认 0.06 让同层装备的细微护甲差异也能触发换装，如简易头盔→斥候头盔差值约 0.097） |
 | `geHeavyArmorThreshold` | 1.0 | 重甲判定阈值（Sharp+Blunt≥此值视为重甲，用于后排顺延名额计算） |
+| `geAutoUnforbidApparel` | false | 自动取消装备禁止标记（开启后候选收集时自动清除 Forbidden 标记，让系统可选用被禁用的装备；默认关闭尊重玩家 Forbid 意图） |
 
 ### 分配规则
 
 1. **收集候选**：地图上未穿戴的 Apparel + 玩家阵营 Pawn（殖民者+奴隶）已穿戴的 Apparel（用于扒装重分配）
+   - **Forbidden 处理**：默认跳过 Forbidden 装备（敌人掉落/玩家手动禁止）；`geAutoUnforbidApparel=true` 时自动清除 Forbidden 标记后纳入候选
+   - **诊断日志**：开始分配日志输出 `Forbid N 件(已跳过/已自动取消)`，帮助玩家定位"闲置装备未被选用"问题
 2. **收集参与 Pawn**：殖民者 + 奴隶，排除食尸鬼与 X 档（禁止暴力）
 3. **分配顺序**：按 `CombatTier` 降序（S→A→B→C→D）+ `CombatValue` 降序作为 tie-breaker
 4. **优先级顺延**：基于"重甲数量 vs Heavy Pawn 数量"计算剩余重甲名额，避免粗暴升级丢失对斥候装甲等轻量护甲的选择能力
@@ -333,17 +336,20 @@ Passion 量化：None=0, Minor=1, Major=2。
    - `Light`（Worker/Doctor/Pacifist）始终保持 Light，不参与顺延（保工作效率）
    - 仅影响传给 `GearScorer` 的评分参数，不修改 `RoleDetector` 全局判定与 ITab 徽章显示
 5. **按层选最高分**：对每个 Pawn 的每个 ApparelLayer，从候选池选当前最高分 apparel（贪心）
+   - **扒装 fallback**：`FindBestForLayer` 内部对每个候选先检查扒装可行性——若候选在他人身上且扒不到（wearer 得分更高），跳过该候选继续看下一个，自动 fallback 到次高分。这样即使最高分装备在别人身上扒不到，闲置的次优装备仍会被选中，避免"整层放弃换装"
+   - **文化厌恶硬约束**：`FindBestForLayer` 内部对每个候选先检查 `CultureChecker.GetCultureScore(pawn, candidate)`，若返回负值（违反 ideo 要求）直接跳过，不参与评分。根因：cultureScore 负值（如 -30）会主导总分，当 currentWorn=null（currentScore=float.MinValue）时任何 bestScore 都让差值 > 阈值成立，迫使系统选文化厌恶装备；改为硬约束跳过避免极端负分让阈值判断失效
 6. **头盔层特殊规则**：头盔层（`Overhead`）对 `Light` 偏好（Worker/Doctor/Pacifist）降级为 `Flexible` 评分
    - **根因**：头盔核心价值是护甲，mass 普遍 0.3kg 左右，移动效率差异微乎其微；Light 公式 `(1-armorSum)*1.5 - armorSum*0.5` 在 armorSum=0.2~0.3 时让低护甲头盔反而得分更高（简易头盔胜过斥候头盔），与头盔价值相悖
    - **修复**：`GearScorer.ResolveEffectivePref(isHeadwear, basePref)` 纯逻辑方法做转换，仅影响传给 `ComputeLayerMatchScoreCore` 的偏好参数，不修改 `RoleDetector` 全局判定
    - Heavy/Flexible 偏好不受影响（头盔层也按原公式评分）
 7. **替换阈值**：新 apparel 评分需比当前已穿的高 `geReplaceThreshold` 才换装，避免频繁抖动
-8. **扒装守卫（防振荡）**：从他人身上扒装前先调用 `ShouldStealFromWearer(wearer, apparel, stealerScore)`，仅当 `stealerScore - wearerScore > geReplaceThreshold` 时允许扒装
+8. **扒装守卫（防振荡）**：`FindBestForLayer` 内部对每个在他人身上的候选调用 `ShouldStealFromWearer(wearer, apparel, stealerScore)`，仅当 `stealerScore - wearerScore > geReplaceThreshold` 时允许扒装
    - **振荡根因**：原逻辑仅比较 stealer 的"新旧得分差"（`bestScore - currentScore > 阈值`），未考虑 wearer 的损失。当 A 与 B 对装备 Y 的得分接近时，A 抢 B 的 Y → 下轮 B 觉得自己更应该拿 → 抢回 → 循环
    - **守卫规则**：wearer 不适合装备管理（食尸鬼/X 档/医疗中）→ 允许扒装不比较；wearer 在候选池中 → 比较 stealer 与 wearer 的有效得分，**严格大于阈值**才扒装（避免边际抢装振荡）
    - **wearer 有效偏好**：若 wearer 在本轮被升级为 Heavy（记于 `upgradedPawns` 集合），用 Heavy 偏好计算其得分；否则用基础偏好。否则升级 Flexible 的得分被低估会导致误扒，破坏顺延逻辑
    - **`upgradedPawns` 预填充**：在主循环前根据 `upgradeFlags` 一次性收集本轮被升级的 Pawn，避免主循环中按处理顺序填充导致高评级 stealer 先处理时 wearer 还未加入集合、wearer 得分被低估的"扒装守卫不对称"问题
-   - **失败回滚**：扒装失败或守卫拒绝时，把刚卸下的旧装备装回（best effort），避免 Pawn 失去装备
+   - **fallback 语义**：守卫拒绝后**不放弃整层**，而是跳过该候选继续找次高分（与原实现"放弃扒装即跳过整层"不同），确保闲置装备仍能被选用
+   - **失败回滚**：`TrySafeRemove` 实际失败时把刚卸下的旧装备装回（best effort），避免 Pawn 失去装备
 9. **Flexible 防振荡（重甲保留）**：未升级的 Flexible Pawn（`effectivePref == Flexible`）若当前已穿重甲（`(Sharp+Blunt) ≥ geHeavyArmorThreshold`），跳过该层换装
    - **振荡根因**：Flexible 升级为 Heavy 时穿重甲（评分高），下一轮没被升级，Flexible 偏好下重甲评分低（`movementPenalty` 用 `backRowW=2.0`，penalty 高），bestScore(轻甲) - currentScore(重甲) > 阈值 → 换回轻甲；再下一轮又被升级 → 又换回重甲 → 反复换装振荡
    - **修复**：未升级 Flexible 保留重甲不脱，消除振荡（重甲对 Flexible 也提供保护，并非无用）
@@ -354,7 +360,7 @@ Passion 量化：None=0, Minor=1, Major=2。
      - **候选 Pawn 列表**：`候选 Pawn: S#张三:Heavy↑ A#李四:Flexible B#王五:Light ...`（↑ 表示本轮升级为 Heavy）。玩家发现"某 Pawn 没分到装备"时，可从此判断该 Pawn 是否在候选中——若不在列表中，说明被 `CollectCandidatePawns` 排除（Ghoul/X 档/Dead/医疗中/非殖民者非奴隶）
      - 换装成功：`{Pawn} 换装[{层}]: {旧} → {新} (得分 {old} → {new}, 偏好={armorPref})`
      - 防振荡跳过：`{Pawn} 保留重甲不换[{层}]: {current} (防振荡, 偏好={armorPref})`
-     - 扒装守卫拒绝：`{Pawn} 放弃扒装[{层}]: {best} 在 {wearer} 身上 (wearer 得分更高, 偏好={armorPref})`
+     - 扒装守卫拒绝：`{Pawn} 跳过候选[{层}]: {candidate} 在 {wearer} 身上 (扒装守卫拒绝, 偏好={armorPref})`
      - 阈值不足跳过：`{Pawn} 跳过换装[{层}]: {current} 保留 (差值 {diff} ≤ 阈值 {threshold}, 偏好={armorPref})`
      - **结束统计**：`装备分配完成: 换装 {A}, 防振荡跳过 {O}, 扒装拒绝 {S}, 阈值不足 {T} (tick=...)`
 
