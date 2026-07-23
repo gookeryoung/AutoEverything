@@ -236,10 +236,13 @@ namespace AutoEverything.Core
         /// - 仅对 PawnMarker.IsHighValue(pawn) 为 true 的单位绘制
         /// - 标记样式：圆形背景（按 MarkerCategory 染色）+ 档位字母（S/SS/SSS）
         ///
-        /// 坐标系：
-        /// - pawn.DrawPos + 头顶偏移（Humanlike 1.6f）→ 世界坐标
-        /// - Find.Camera.WorldToScreenPoint(worldPos) / Prefs.UIScale → 屏幕像素坐标
-        /// - screenPos.y = Screen.height - screenPos.y → GUI 坐标系（Y 翻转）
+        /// 坐标系（与 RimWorld 1.6 原生 GenMapUI.LabelDrawPosFor 完全一致）：
+        /// - 偏移在 Z 轴（地面平面），不是 Y 轴（世界高度）——
+        ///   Y 轴偏移会因相机俯视角与缩放导致屏幕投影位置随缩放飘移；
+        ///   Z 轴偏移在地面平面上，与相机缩放完全解耦，标记精准跟随 Pawn
+        /// - Find.Camera.WorldToScreenPoint(drawPos) / Prefs.UIScale → GUI 局部坐标
+        /// - result.y = UI.screenHeight - result.y → GUI 坐标系（Y 翻转）
+        /// - 标记在 Pawn 名字标签上方（屏幕 y 更小方向），避免遮挡标签
         ///
         /// 颜色（与 PawnMarker 类别语义一致）：
         /// - Enemy=红色, Neutral=青色, WildHuman=白色
@@ -248,9 +251,6 @@ namespace AutoEverything.Core
         {
             // 标记尺寸（像素）：地图上的标记圆形直径，比殖民者栏图标稍大便于远距识别
             private const float MarkerSize = 20f;
-
-            // 头顶偏移：人类 Pawn 头顶以上一点（与 RimWorld 原生 icon 绘制位置一致）
-            private const float HeadOffsetY = 1.6f;
 
             // 圆形纹理：白色圆 + 透明背景，运行时由 GUI.color 染色
             // 静态字段初始化器中只调用 Texture2D 构造，不调用 ContentFinder/DefDatabase，符合规则
@@ -284,30 +284,34 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在 Pawn 头顶绘制圆形标记 + 档位字母。
-            /// 坐标变换：WorldToScreenPoint + UIScale 除法 + Y 翻转，与 RimWorld 原生 PawnUIOverlay 一致。
+            /// 坐标变换：复用 RimWorld 1.6 原生 GenMapUI.LabelDrawPosFor，与 Pawn 名字标签同一套坐标系。
+            /// 关键：偏移在 Z 轴（地面平面），不是 Y 轴（世界高度），避免相机缩放时屏幕投影飘移。
             /// </summary>
             private static void DrawMapMarker(Pawn pawn)
             {
-                // 世界坐标：pawn.DrawPos + 头顶偏移
-                Vector3 worldPos = pawn.DrawPos;
-                worldPos.y += HeadOffsetY;
+                // 复用 RimWorld 原生坐标变换：GenMapUI.LabelDrawPosFor(pawn, -0.6f) 与
+                // 原生 PawnUIOverlay.DrawPawnGUIOverlay 内部调用完全一致。
+                // Z 轴 -0.6 偏移让位置在 Pawn 名字标签的基准点（屏幕上方一点）。
+                Vector2 pos = GenMapUI.LabelDrawPosFor(pawn, -0.6f);
 
-                // 屏幕坐标变换：与 RimWorld 原生 PawnUIOverlay 内部一致
-                Vector2 screenPos = Find.Camera.WorldToScreenPoint(worldPos) / Prefs.UIScale;
-                screenPos.y = Screen.height - screenPos.y;
+                // 标记向上偏移（屏幕 y 减小），避开 Pawn 名字标签：
+                // LabelDrawPosFor 返回的 pos.y 是标签顶部 y，标签向下绘制 12-16 像素；
+                // 标记底部应在 pos.y 之上（更小 y），中心 = pos.y - 间距 - 半径
+                pos.y -= MarkerSize * 0.5f + 2f;
 
-                // 防御性：相机视角外（screenPos 异常）跳过
-                if (screenPos.x < -MarkerSize || screenPos.x > Screen.width + MarkerSize) return;
-                if (screenPos.y < -MarkerSize || screenPos.y > Screen.height + MarkerSize) return;
+                // 防御性：相机视角外跳过（用 Verse.UI.screenWidth/Height 与原生坐标系一致）
+                // 用完全限定名避开本命名空间 AutoEverything.UI 的歧义
+                if (pos.x < -MarkerSize || pos.x > Verse.UI.screenWidth + MarkerSize) return;
+                if (pos.y < -MarkerSize || pos.y > Verse.UI.screenHeight + MarkerSize) return;
 
                 // 取类别颜色：Enemy=红, Neutral=青, WildHuman=白（PawnMarker.GetMarkerCategory 判定）
                 PawnMarker.MarkerCategory category = PawnMarker.GetMarkerCategory(pawn);
                 Color markerColor = GetMarkerColor(category);
 
-                // 圆形背景：以 screenPos 为中心，MarkerSize×MarkerSize 的 Rect
+                // 圆形背景：以 pos 为中心，MarkerSize×MarkerSize 的 Rect
                 Rect markerRect = new Rect(
-                    screenPos.x - MarkerSize * 0.5f,
-                    screenPos.y - MarkerSize * 0.5f,
+                    pos.x - MarkerSize * 0.5f,
+                    pos.y - MarkerSize * 0.5f,
                     MarkerSize,
                     MarkerSize);
 
