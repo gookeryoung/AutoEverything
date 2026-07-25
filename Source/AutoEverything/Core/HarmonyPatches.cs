@@ -242,7 +242,10 @@ namespace AutoEverything.Core
         ///   Z 轴偏移在地面平面上，与相机缩放完全解耦，标记精准跟随 Pawn
         /// - Find.Camera.WorldToScreenPoint(drawPos) / Prefs.UIScale → GUI 局部坐标
         /// - result.y = UI.screenHeight - result.y → GUI 坐标系（Y 翻转）
-        /// - 标记在 Pawn 名字标签上方（屏幕 y 更小方向），避免遮挡标签
+        /// - 头顶锚点与原生问号图标（OverlayDrawer.RenderQuestionMarkOverlay）一致：
+        ///   drawPos.z + (def.size.z - 0.45f)，人类 size.z=1 即 z+0.55 ≈ 头顶；
+        ///   注意不能用名字标签锚点（z-0.6）——名字标签在 Pawn 脚下方向，
+        ///   以其为基准会让标记落在 Pawn 下半身，视觉上"偏离"Pawn
         ///
         /// 颜色（与 PawnMarker 类别语义一致）：
         /// - Enemy=红色, Neutral=青色, WildHuman=白色
@@ -284,19 +287,19 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在 Pawn 头顶绘制圆形标记 + 档位字母。
-            /// 坐标变换：复用 RimWorld 1.6 原生 GenMapUI.LabelDrawPosFor，与 Pawn 名字标签同一套坐标系。
+            /// 坐标变换：复用 RimWorld 1.6 原生 GenMapUI.LabelDrawPosFor 投影。
+            /// 锚点取头顶而非名字标签：原生问号图标（OverlayDrawer.RenderQuestionMarkOverlay）
+            /// 对 Pawn 的偏移为 drawPos.z + (def.size.z - 0.45f)，人类 size.z=1 即 z+0.55 ≈ 头顶；
+            /// 名字标签锚点（z-0.6）在 Pawn 脚下方向，以其为基准标记会落在下半身。
             /// 关键：偏移在 Z 轴（地面平面），不是 Y 轴（世界高度），避免相机缩放时屏幕投影飘移。
             /// </summary>
             private static void DrawMapMarker(Pawn pawn)
             {
-                // 复用 RimWorld 原生坐标变换：GenMapUI.LabelDrawPosFor(pawn, -0.6f) 与
-                // 原生 PawnUIOverlay.DrawPawnGUIOverlay 内部调用完全一致。
-                // Z 轴 -0.6 偏移让位置在 Pawn 名字标签的基准点（屏幕上方一点）。
-                Vector2 pos = GenMapUI.LabelDrawPosFor(pawn, -0.6f);
+                // 头顶锚点与原生问号图标一致：z + (def.size.z - 0.45f)。
+                // Z 轴地面平面偏移随相机缩放与 Pawn 精灵同步缩放，缩放过程不飘移。
+                Vector2 pos = GenMapUI.LabelDrawPosFor(pawn, pawn.def.size.z - 0.45f);
 
-                // 标记向上偏移（屏幕 y 减小），避开 Pawn 名字标签：
-                // LabelDrawPosFor 返回的 pos.y 是标签顶部 y，标签向下绘制 12-16 像素；
-                // 标记底部应在 pos.y 之上（更小 y），中心 = pos.y - 间距 - 半径
+                // 标记底部在头顶上方 2px（屏幕 y 减小方向），不遮挡头部
                 pos.y -= MarkerSize * 0.5f + 2f;
 
                 // 防御性：相机视角外跳过（用 Verse.UI.screenWidth/Height 与原生坐标系一致）
