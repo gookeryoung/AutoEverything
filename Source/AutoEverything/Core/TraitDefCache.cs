@@ -27,11 +27,6 @@ namespace AutoEverything.Core
         // 沉鱼落雁（Beauty degree=2）+ 社交双火 = S
         public static readonly TraitDef Beauty = DefDatabase<TraitDef>.GetNamed("Beauty", false);
 
-        // 负面特质（用于 D 档降级判定）
-        public static readonly TraitDef Pyromaniac = DefDatabase<TraitDef>.GetNamed("Pyromaniac", false);
-        public static readonly TraitDef SlowLearner = DefDatabase<TraitDef>.GetNamed("SlowLearner", false);
-        public static readonly TraitDef Wimp = DefDatabase<TraitDef>.GetNamed("Wimp", false);
-
         // 特殊天赋特质（Anomaly DLC，未加载时返回 null 跳过）
         public static readonly TraitDef TooSmart = DefDatabase<TraitDef>.GetNamed("TooSmart", false);
         public static readonly TraitDef Joyous = DefDatabase<TraitDef>.GetNamed("Joyous", false);

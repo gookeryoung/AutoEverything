@@ -250,7 +250,7 @@ namespace AutoEverything.RoleEvaluation
         /// 获取自动计算的战斗价值档次（忽略自定义评级覆盖）。
         /// 供面板显示与"自动档"对比使用。
         ///
-        /// 新评级规则（三大维度取最高档 + 原S条件4/5 + A/B + 降档）：
+        /// 新评级规则（三大维度取最高档 + 原S条件4/5 + A/B）：
         ///   SSS：顶级组合
         ///     1. 乱开枪 + 坚韧 + 射击双火
         ///     2. 坚韧 + 格斗双火 + 敏捷或格斗者
@@ -268,11 +268,14 @@ namespace AutoEverything.RoleEvaluation
         ///   A：≥ 2 个双 Major + ≥ 1 个 Minor 以上
         ///   B：≥ 1 个双 Major + ≥ 2 个 Minor 以上（合计 ≥ 3）
         ///   C：其他情况
-        ///   D：有负面特质且原档 > D 时降一档（纵火狂/脑子慢/脆弱/工作懒惰/工作怠惰）
-        ///   X：无法从事暴力活动（先于一切判定，不受降档影响）
+        ///   D：自动评级不产生此档（仅供玩家自定义评级使用）
+        ///   X：无法从事暴力活动（先于一切判定）
         ///
         /// 用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级，
         /// degree 要求从 == 2 放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）。
+        ///
+        /// 用户决策（2026-07-26）：移除负面特质降档逻辑，S/SS/SSS 一律按命中档次标记，
+        /// 不再因纵火狂/脑子慢/脆弱/工作懒惰怠惰等负面特质降一档。
         /// </summary>
         public static CombatTier GetAutoCombatTier(Pawn pawn)
         {
@@ -300,7 +303,6 @@ namespace AutoEverything.RoleEvaluation
             public bool HasNeurotic;       // 神经质 Neurotic degree >= 1（轻度/严重）
             public bool Beauty2;           // 沉鱼落雁 Beauty degree=2
             public bool HasSpecialTalent;  // 特殊天赋特质之一
-            public bool HasNegativeTrait;  // 负面特质（用于降档）
 
             // 技能兴趣状态
             public bool ShootingMajor;
@@ -317,8 +319,9 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 评级纯逻辑核心（不依赖 Pawn，便于单元测试）。
-        /// 从 C 档开始，按三大维度取最高档，再处理特殊天赋/沉鱼落雁/A-B 判定/负面特质降档。
+        /// 从 C 档开始，按三大维度取最高档，再处理特殊天赋/沉鱼落雁/A-B 判定。
         /// X 档（无法从事暴力活动）在 GetAutoCombatTier 入口判定，不在此函数处理。
+        /// 注：负面特质不再触发降档（用户决策 2026-07-26），S/SS/SSS 一律按命中档次返回。
         /// </summary>
         internal static CombatTier EvaluateAutoTierCore(TierEvaluationInput input)
         {
@@ -399,15 +402,8 @@ namespace AutoEverything.RoleEvaluation
                 }
             }
 
-            // 降档：有负面特质且 tier > D 时降一档
-            //   纵火狂 Pyromaniac / 脑子慢 SlowLearner / 脆弱 Wimp
-            //   工作懒惰 Industriousness degree=-1 / 工作怠惰 Industriousness degree=-2
-            // D 不再降；X 先于一切判定不受影响
-            if (tier > CombatTier.D && input.HasNegativeTrait)
-            {
-                tier = (CombatTier)(tier - 1);
-            }
-
+            // 注：原负面特质降档逻辑已移除（用户决策 2026-07-26）。
+            //   S/SS/SSS 一律按命中档次返回，纵火狂/脑子慢/脆弱/工作懒惰怠惰不再降档。
             return tier;
         }
 
@@ -446,7 +442,6 @@ namespace AutoEverything.RoleEvaluation
 
             input.WorkMajors = CountWorkMajors(pawn);
             input.HasSpecialTalent = HasSpecialTalentTrait(pawn);
-            input.HasNegativeTrait = HasNegativeTrait(pawn);
 
             return input;
         }
@@ -512,25 +507,6 @@ namespace AutoEverything.RoleEvaluation
             if (TraitDefCache.VoidFascination != null && pawn.story.traits.HasTrait(TraitDefCache.VoidFascination)) return true;
             if (TraitDefCache.Occultist != null && pawn.story.traits.HasTrait(TraitDefCache.Occultist)) return true;
             if (TraitDefCache.Disturbing != null && pawn.story.traits.HasTrait(TraitDefCache.Disturbing)) return true;
-            return false;
-        }
-
-        /// <summary>
-        /// 检查是否拥有"负面"特质之一（用于 D 档判定）。
-        /// 纵火狂 Pyromaniac / 脑子慢 SlowLearner / 脆弱 Wimp
-        /// 工作懒惰 Industriousness degree=-1 / 工作怠惰 Industriousness degree=-2
-        /// </summary>
-        private static bool HasNegativeTrait(Pawn pawn)
-        {
-            if (pawn.story?.traits == null) return false;
-            if (TraitDefCache.Pyromaniac != null && pawn.story.traits.HasTrait(TraitDefCache.Pyromaniac)) return true;
-            if (TraitDefCache.SlowLearner != null && pawn.story.traits.HasTrait(TraitDefCache.SlowLearner)) return true;
-            if (TraitDefCache.Wimp != null && pawn.story.traits.HasTrait(TraitDefCache.Wimp)) return true;
-            if (TraitDefCache.Industriousness != null)
-            {
-                int deg = pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness);
-                if (deg == -1 || deg == -2) return true;
-            }
             return false;
         }
 

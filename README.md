@@ -72,15 +72,15 @@
 | **S** | 1. 乱开枪 + 射击单火<br>2. 坚韧 + 格斗有火（Minor 或 Major）<br>3. 工作狂 + 神经质（组合即 S，无需工作双火）<br>4. 拥有任一特殊天赋特质：博闻强识（TooSmart）/开心果（Joyous）/极致体能（BodyMastery）/痴迷虚空（VoidFascination）/神秘学者（Occultist）/怪诞不经（Disturbing）<br>5. 沉鱼落雁（Beauty degree=2）+ 社交双火 | 全局高价值 |
 | **A** | 不满足以上，但所有 9 大兴趣技能中至少 2 个双 Major + 1 个单 Minor 以上 | 多面手高价值 |
 | **B** | 不满足以上，但所有 9 大兴趣技能中至少 1 个双 Major + 2 个单 Minor 以上 | 中等价值 |
-| **C** | 其他情况（无特殊组合、未触达负面特质降档） | 普通价值 |
-| **D** | 拥有任一负面特质且原档 > D 时降一档：纵火狂（Pyromaniac）/脑子慢（SlowLearner）/脆弱（Wimp）/工作懒惰（Industriousness degree=-1）/工作怠惰（Industriousness degree=-2） | 低价值（降档） |
+| **C** | 其他情况（无特殊组合） | 普通价值 |
+| **D** | 自动评级不产生此档（仅供玩家自定义评级手动设置） | 自定义低价值 |
 | **X** | `WorkTagIsDisabled(WorkTags.Violent)` | 无法从事暴力活动（医疗/未成年等） |
 
 **三大维度取最高档（MaxTier，不互斥）：** 乱开枪系列 / 坚韧格斗系列 / 工作狂神经质系列。
 
 **专业工作技能（用于工作狂神经质系列判定）：** 手工、建造、艺术、烹饪、种植、采矿（共 6 项，统计 Major 数量）。
 
-**降档规则：** 三大维度与原 S 条件 4/5 计算出 tier 后，若拥有任一负面特质且 `tier > D`，则 `tier` 降一档（D 不再降，X 先于一切判定不受影响）。
+**负面特质不降档：** 用户决策（2026-07-26）移除原降档逻辑，S/SS/SSS 一律按命中档次标记，纵火狂（Pyromaniac）/脑子慢（SlowLearner）/脆弱（Wimp）/工作懒惰怠惰（Industriousness degree=-1/-2）等负面特质不再影响评级。
 
 **配偶评级豁免：** 与 S 级以上（S/SS/SSS）人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）。配偶评级用 `GetAutoCombatTier` 计算，避免递归。自定义评级优先于配偶豁免。
 

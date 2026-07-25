@@ -7,7 +7,8 @@ namespace AutoEverything.Tests
     /// <summary>
     /// EvaluateAutoTierCore 评级纯逻辑核心的单元测试。
     /// 覆盖三大维度（乱开枪/坚韧格斗/工作狂神经质）、特殊天赋、沉鱼落雁、
-    /// A/B 判定、负面特质降档等核心评级契约。
+    /// A/B 判定等核心评级契约。
+    /// 注：负面特质降档逻辑已移除（用户决策 2026-07-26），S/SS/SSS 不再因负面特质降级。
     /// </summary>
     public static class EvaluateAutoTierCoreTests
     {
@@ -59,15 +60,6 @@ namespace AutoEverything.Tests
             Check(Empty(majorCount: 2, minorCount: 1), CombatTier.A, "2双火+1单火 → A", ref failures, ref total);
             Check(Empty(majorCount: 3, minorCount: 0), CombatTier.A, "3双火+0单火 → A（合计≥3）", ref failures, ref total);
 
-            // ── 降档：有负面特质且 tier > D ────────────────────────
-            Check(Empty(negativeTrait: true), CombatTier.D, "负面特质+基础C → D（C>D降档）", ref failures, ref total);
-            var sInput = Empty(hasSpecialTalent: true);
-            sInput.HasNegativeTrait = true;
-            Check(sInput, CombatTier.A, "特殊天赋S+负面特质 → A（降档）", ref failures, ref total);
-            var ssInput = Empty(tough: true, meleeMajor: true);
-            ssInput.HasNegativeTrait = true;
-            Check(ssInput, CombatTier.S, "坚韧格斗双火SS+负面特质 → S（降档）", ref failures, ref total);
-
             // ── 维度组合（MaxTier 取最高）──────────────────────────
             // 乱开枪+坚韧+射击双火 → SSS（维度1 SSS 条件，非 SS）
             var comboInput = Empty(triggerHappy: true, shootingMajor: true, tough: true, meleeMajor: true);
@@ -92,17 +84,11 @@ namespace AutoEverything.Tests
                 hasIndustrious: true, hasNeurotic: true, workMajors: 3);
             Check(allDim3Sss, CombatTier.SSS, "三维度全 SSS → SSS（MaxTier 不互斥）", ref failures, ref total);
 
-            // 三维度 SSS + 负面特质 → SS（最高档降一档，验证多维度与降档交互）
-            var allDim3SssNeg = allDim3Sss;
-            allDim3SssNeg.HasNegativeTrait = true;
-            Check(allDim3SssNeg, CombatTier.SS, "三维度全 SSS + 负面 → SS（降一档）", ref failures, ref total);
-
-            // 两维度 SS + 负面特质 → S（降一档：维度1 SS 乱开枪+射击双火 + 维度3 SS 工作狂组合+2双火）
+            // 两维度 SS：维度1 SS 乱开枪+射击双火 + 维度3 SS 工作狂组合+2双火 → SS（取最高）
             // 注：tough=true 会让维度1 升 SSS（triggerHappy+tough+shootingMajor），故此处不用 tough
             Check(Empty(triggerHappy: true, shootingMajor: true,
-                hasIndustrious: true, hasNeurotic: true, workMajors: 2,
-                negativeTrait: true),
-                CombatTier.S, "两维度 SS + 负面 → S（降一档）", ref failures, ref total);
+                hasIndustrious: true, hasNeurotic: true, workMajors: 2),
+                CombatTier.SS, "两维度 SS → SS（取最高）", ref failures, ref total);
 
             // A/B 边界：2 Major + 0 Minor → C（合计=2 < 3，不满足 A；满足 B 的 Major>=1 但合计<3 也不满足）
             Check(Empty(majorCount: 2, minorCount: 0), CombatTier.C, "2双火+0单火 → C（合计<3 不满足A/B）", ref failures, ref total);
@@ -117,9 +103,9 @@ namespace AutoEverything.Tests
             Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 10), CombatTier.SSS,
                 "工作狂+神经质+10双火 → SSS（远超阈值不越界）", ref failures, ref total);
 
-            // 维度3 SS + 负面特质 → S（降一档，验证维度3 与降档交互）
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2, negativeTrait: true),
-                CombatTier.S, "工作狂SS + 负面 → S（降一档）", ref failures, ref total);
+            // 维度3 SS：工作狂+神经质+2双火 → SS（验证维度3 升档阈值）
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2),
+                CombatTier.SS, "工作狂SS → SS（维度3 升档）", ref failures, ref total);
 
             // 沉鱼落雁边界：Beauty2 + 非社交双火（如 ShootingMajor）→ C（沉鱼落雁必须配 SocialMajor）
             Check(Empty(beauty2: true, shootingMajor: true), CombatTier.C,
@@ -133,11 +119,6 @@ namespace AutoEverything.Tests
                 majorCount: 9, minorCount: 0, workMajors: 6);
             Check(allMax, CombatTier.SSS, "全字段最大组合 → SSS（所有维度全开）", ref failures, ref total);
 
-            // 全字段最大 + 负面特质 → SS（SSS 降一档，验证最高档降档边界）
-            var allMaxNeg = allMax;
-            allMaxNeg.HasNegativeTrait = true;
-            Check(allMaxNeg, CombatTier.SS, "全字段最大 + 负面 → SS（SSS 降一档）", ref failures, ref total);
-
             Console.WriteLine($"[EvaluateAutoTierCoreTests] {total - failures}/{total} passed");
             return failures;
         }
@@ -150,7 +131,7 @@ namespace AutoEverything.Tests
         private static CombatEvaluator.TierEvaluationInput Empty(
             bool triggerHappy = false, bool tough = false, bool nimble = false, bool brawler = false,
             bool hasIndustrious = false, bool hasNeurotic = false, bool beauty2 = false,
-            bool hasSpecialTalent = false, bool negativeTrait = false,
+            bool hasSpecialTalent = false,
             bool shootingMajor = false, bool shootingMinor = false,
             bool meleeMajor = false, bool meleeMinor = false, bool socialMajor = false,
             int majorCount = 0, int minorCount = 0, int workMajors = 0)
@@ -165,7 +146,6 @@ namespace AutoEverything.Tests
                 HasNeurotic = hasNeurotic,
                 Beauty2 = beauty2,
                 HasSpecialTalent = hasSpecialTalent,
-                HasNegativeTrait = negativeTrait,
                 ShootingMajor = shootingMajor,
                 ShootingMinor = shootingMinor,
                 MeleeMajor = meleeMajor,
