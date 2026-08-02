@@ -201,5 +201,27 @@ namespace AutoEverything.RoleEvaluation
         {
             return GetArmorPreference(role) == ArmorPreference.Flexible;
         }
+
+        /// <summary>
+        /// 获取角色排序优先级：数字小的排前面。
+        /// 顺序设计：前排战斗（Brawler/Shooter）→ 后勤（Doctor/Worker/Pacifist）→ 其他（Hunter/Leader）→ 默认。
+        /// 用于殖民者栏按角色分组重排（AESettings.ReorderColonistBar）。
+        /// 注：原实现位于 AESettings.GetRoleOrder（private），因 AESettings 继承 ModSettings，
+        /// 测试项目无 Assembly-CSharp 引用无法直接调用，故迁移至此处便于单元测试。
+        /// </summary>
+        public static int GetRoleOrder(Role role)
+        {
+            switch (role)
+            {
+                case Role.Brawler: return 0;
+                case Role.Shooter: return 1;
+                case Role.Doctor: return 2;
+                case Role.Worker: return 3;
+                case Role.Pacifist: return 4;
+                case Role.Hunter: return 5;
+                case Role.Leader: return 6;
+                default: return 99;
+            }
+        }
     }
 }

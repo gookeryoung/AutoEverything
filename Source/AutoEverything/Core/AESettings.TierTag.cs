@@ -201,7 +201,7 @@ namespace AutoEverything.Core
             for (int i = 0; i < pawns.Count; i++)
             {
                 Pawn p = pawns[i];
-                sortRoleCache[p] = GetRoleOrder(RoleDetector.DetectRole(p));
+                sortRoleCache[p] = RoleDetector.GetRoleOrder(RoleDetector.DetectRole(p));
             }
 
             pawns.Sort(comparison);
@@ -251,25 +251,6 @@ namespace AutoEverything.Core
             int rb = sortRoleCache[b];
             if (ra != rb) return ra.CompareTo(rb);
             return ComparePawnByTierThenValueDesc(a, b);
-        }
-
-        /// <summary>
-        /// 获取角色排序优先级：数字小的排前面。
-        /// 顺序设计：前排战斗（Brawler/Shooter）→ 后勤（Doctor/Worker/Pacifist）→ 其他（Hunter/Leader）→ 默认。
-        /// </summary>
-        private static int GetRoleOrder(Role role)
-        {
-            switch (role)
-            {
-                case Role.Brawler: return 0;
-                case Role.Shooter: return 1;
-                case Role.Doctor: return 2;
-                case Role.Worker: return 3;
-                case Role.Pacifist: return 4;
-                case Role.Hunter: return 5;
-                case Role.Leader: return 6;
-                default: return 99;
-            }
         }
 
         /// <summary>

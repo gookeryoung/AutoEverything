@@ -36,6 +36,9 @@ namespace AutoEverything.Tests
                 failures += ApplySkillFloorCoreTests.RunAll();
                 failures += EvaluateAutoTierCoreTests.RunAll();
                 failures += PawnMarkerTests.RunAll();
+                failures += TierTagHelperTests.RunAll();
+                failures += RoleDetectorTests.RunAll();
+                failures += RoleOrderTests.RunAll();
 
                 if (failures == 0)
                 {

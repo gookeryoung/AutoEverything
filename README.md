@@ -563,6 +563,8 @@ RimWorld 运行时依赖 `Pawn`/`Map`/`Faction` 等游戏内对象，难以脱�
 | `PawnMarker` | `GetMarkerCategoryCore` | `PawnMarker.CategoryInput` | 派系/状态 → 类别判定 |
 | `PawnMarker` | `FormatMessageCore` | `List<MessageEntry>` + 文本参数 | 高价值列表消息拼装 |
 | `PawnMarker` | `ComputeNewlyMarkedIds` | `HashSet<int>` + `List<int>` | dedup 跟踪纯逻辑 |
+| `TierTagHelper` | `Strip` / `HasPrefix` | `string` | 评级前缀剥离/识别（已是纯 public，无需 `*Core` 抽离） |
+| `RoleDetector` | `GetArmorPreference` / `IsBackRow` / `GetRoleOrder` | `Role` | 角色 → 护甲偏好/后排/排序优先级（已是纯 public，无需 `*Core` 抽离） |
 
 **约定**：
 
@@ -571,7 +573,7 @@ RimWorld 运行时依赖 `Pawn`/`Map`/`Faction` 等游戏内对象，难以脱�
 3. `*Core` 标记 `internal`，通过 `InternalsVisibleTo` 暴露给测试程序集
 4. 性能敏感路径（如 `ScanAndMark`）保留内联实现，`*Core` 仅供测试，避免额外遍历分配
 
-当前覆盖：163 个用例（含 `ApplySkillFloorCoreTests` 30 / `EvaluateAutoTierCoreTests` 32 / `PawnMarkerTests` 101）。
+当前覆盖：196 个用例（含 `ApplySkillFloorCoreTests` 30 / `EvaluateAutoTierCoreTests` 38 / `PawnMarkerTests` 69 / `TierTagHelperTests` 35 / `RoleDetectorTests` 16 / `RoleOrderTests` 8）。
 
 ## 文档同步检查清单
 
