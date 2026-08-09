@@ -304,7 +304,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **入口**：由 `AutoEverythingGameComponent.GameComponentTick` 每 tick 调用 `AutoExecutor.TryTick()`。GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册
 - **静态门控**：每 60 tick 检查一次殖民者数量变化、全人类单位数量变化与周期触发
 - **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；自动携带每 6000 tick（约 100 秒）执行一次（战斗中暂停）；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（基于特质组合，无缓存），S+ 高价值扫描为人员变动事件触发，无周期执行
-- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
+- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（无殖民者征召 + 无战斗 Job）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
 - **全人类单位数量变化检测**：`CountAllHumanlikeSpawned()`（含殖民者/奴隶/囚犯/敌对/中立/盟友/野生）增加时，若 `autoMarkPawn` 开启则立即调用 `ExecuteMark(resetTracking=false)` 扫描新增高价值目标，有新发现时弹消息
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
 - **错误隔离**：工作、评级、标记、携带各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500 / Carry=0xA400）
@@ -507,7 +507,7 @@ Source/AutoEverything/
 |------|------|------|
 | `AutoEverythingGameComponent.GameComponentTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册 |
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `work.pending`；增加时立即触发评级 |
-| `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无敌对 Pawn）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
+| `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无征召+无战斗 Job）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
 | `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，统一深红色）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |

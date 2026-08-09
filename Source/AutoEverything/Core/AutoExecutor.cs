@@ -309,8 +309,15 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 战斗检测：检查所有地图是否有未 Downed 的敌对 Pawn。
-        /// 仅在 work.pending && 冷却到期时调用，平时无开销。
+        /// 战斗检测：检查所有地图是否有正在进行的战斗。
+        /// 判定标准（与 GearContext.GetContext 的战斗情境一致）：
+        /// 1. 殖民者被征召（Drafted）—— 玩家主动进入战斗状态
+        /// 2. 任何 Pawn 正在执行战斗 Job（alwaysShowWeapon=true，如 AttackStatic/AttackMelee/Wait_Combat）
+        ///
+        /// 不再使用"地图上有敌对 Pawn"作为判据，因为：
+        /// - 敌对派系访客/商队会在地图长期停留导致永远判定为战斗状态
+        /// - 某些 MOD 生成的永久敌对 NPC 会导致自动模块永远无法执行
+        /// - 战斗 Job 是"实际正在战斗"的明确信号，比"存在敌对单位"更精确
         /// </summary>
         private static bool AnyCombatActive()
         {
@@ -322,7 +329,10 @@ namespace AutoEverything.Core
                 {
                     Pawn p = allPawns[i];
                     if (p.Downed || p.Dead) continue;
-                    if (p.HostileTo(Faction.OfPlayer)) return true;
+                    // 殖民者被征召 = 玩家主动进入战斗状态
+                    if (p.Faction == Faction.OfPlayer && p.Drafted) return true;
+                    // 任何 Pawn 正在执行战斗 Job（alwaysShowWeapon=true）
+                    if (p.CurJob != null && p.CurJob.def.alwaysShowWeapon) return true;
                 }
             }
             return false;
