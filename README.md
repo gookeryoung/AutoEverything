@@ -397,9 +397,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 | 物品 | 数量 | 过滤规则 | 设计意图 |
 |------|------|----------|----------|
 | 食物 | x3 | 始终携带 | 短期远征或战斗中的口粮 |
-| 活力水（Luciferium） | x1 | 药品政策禁用时跳过 | 上瘾者维持补给，不会让无瘾者强制上瘾 |
-| 清醒丸（WakeUp） | x1 | 不需要睡眠者跳过 | 抵抗突发疲劳/睡眠 |
-| 思滞血清（Penoxycyline） | x1 | 始终携带 | 预防机械孢子/瘟疫/疟疾 |
+| 活力水（Luciferium） | 药品政策"携带"列 | 政策无条目/不允许/携带=0 时跳过 | 尊重玩家在药品政策中的配置，避免被游戏丢地上 |
+| 清醒丸（WakeUp） | 药品政策"携带"列 | 不需要睡眠者跳过 + 政策有携带才带 | 尊重药品政策，不需要睡眠的殖民者带了也没用 |
+| 思滞血清（Penoxycyline） | 药品政策"携带"列 | 政策有携带才带 | 尊重药品政策配置 |
+
+**重要**：药品数量不再硬编码为 x1，必须读取药品政策 UI 中"携带"列的值（`takeToInventory`）。
+RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列就会把多余的丢地上——硬塞 0 携带的药品必然立刻被丢弃。
+玩家在"药品政策"里把活力水/清醒丸/思滞血清的"携带"列改成 ≥1，AutoCarry 才会去仓库补对应数量。
 
 ### 食物优先级
 
@@ -425,7 +429,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **医疗中/卧床休养**：跳过（复用 `PawnJobGuard.ShouldSkipForMedical`，避免打断手术）
 - **死亡/倒下**：跳过（无法去仓库拾取）
 - **不需要睡眠者**：跳过清醒丸（`PawnCarryChecker.NeedSleep` 判定 `pawn.needs.rest == null`）
-- **药品政策禁用活力水者**：跳过活力水（`PawnCarryChecker.LuciferiumAllowed` 通过反射读取 `DrugPolicy.entries` 查找 Luciferium 条目的 `allowed` 字段）
+- **药品政策"携带"列为 0**：跳过对应药品（`PawnCarryChecker.GetDrugCarryCount` 反射读取 `DrugPolicyEntry.takeToInventory`；政策无条目/不允许/携带=0 都视为不带，避免被游戏丢地上）
 
 ### 派发机制
 

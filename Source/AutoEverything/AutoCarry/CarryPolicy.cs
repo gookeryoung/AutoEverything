@@ -9,30 +9,27 @@ namespace AutoEverything.AutoCarry
     ///
     /// 设计意图：
     /// - 食物 x3：殖民者短期远征或战斗中的口粮
-    /// - 活力水（Luciferium）x1：上瘾者维持补给（不会让无瘾者强制上瘾，玩家政策禁用时不带）
-    /// - 清醒丸（WakeUp）x1：抵抗突发疲劳/睡眠（不需要睡眠的殖民者不带）
-    /// - 思滞血清（Penoxycyline）x1：预防机械孢子/瘟疫/疟疾
+    /// - 活力水（Luciferium）：数量来源于药品政策"携带"列（takeToInventory）；政策无条目/不携带则跳过（避免被游戏丢地上）
+    /// - 清醒丸（WakeUp）：数量来源于药品政策"携带"列；不需要睡眠的殖民者额外跳过（即使政策有也没意义）
+    /// - 思滞血清（Penoxycyline）：数量来源于药品政策"携带"列
+    ///
+    /// 重要：药品携带量不再硬编码为 1，必须尊重药品政策的 takeToInventory 字段！
+    /// 因为 RimWorld 药品政策系统每 tick 检查背包，如果实际数量超过 takeToInventory，
+    /// 就会把超出部分丢地上。硬塞 takeToInventory=0 的药品必然会立刻被丢弃。
+    /// 玩家在"药品政策→携带"列设多少，AutoCarry 就补多少。默认 0 的药品直接跳过。
     ///
     /// 食物优先级（用户决策 2026-08-09）：
     /// 包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐
-    /// 取舍逻辑：地图仓库中第一个可用的食物类型即为该殖民者的目标食物
-    /// （包装食物优先因为不腐坏、便于远征；干粮次之；新鲜餐按品质降级兜底）
-    ///
-    /// 注：硬编码数量与列表遵循 KISS 原则。如未来需可配置，可改为 Mod 选项滑块。
     /// </summary>
     public static class CarryPolicy
     {
         // 食物目标数量：3 个
         public const int FoodCount = 3;
 
-        // 药品目标数量：各 1 个
-        public const int LuciferiumCount = 1;
-        public const int WakeUpCount = 1;
-        public const int PenoxycylineCount = 1;
+        // 药品"携带"列默认值（无政策条目或反射失败时的兜底数量——0 = 不携带，避免丢地上）
+        private const int DefaultDrugCarryCount = 0;
 
         // 食物 DefName 列表（按优先级从高到低排序）
-        // 顺序依据用户需求：包装食物 → 干粮 → 奢侈 → 精致 → 一般
-        // 注：使用 defName 字符串而非 ThingDef 直接缓存，避免静态字段初始化器跨线程访问 DefDatabase
         // internal 暴露供测试验证优先级顺序
         internal static readonly string[] FoodDefNames =
         {
@@ -70,25 +67,10 @@ namespace AutoEverything.AutoCarry
         /// <summary>
         /// 填充殖民者应携带的物品清单到外部缓冲区（避免每次分配新 List）。
         /// 调用方负责在调用前 Clear 缓冲区。
-        /// 根据殖民者状态过滤：
-        /// - 不需要睡眠者：不带清醒丸（WakeUp 主要用于抵抗睡眠，无睡眠需求则无意义）
-        /// - 禁止活力水者：不带活力水（玩家在药品政策中禁用 Luciferium 时不带）
+        /// 药品数量完全来源于药品政策"携带"列（takeToInventory），
+        /// 避免硬编码数量与游戏药品库存管理机制冲突导致物品被丢地上。
         /// </summary>
         public static void FillCarryItems(Pawn pawn, List<CarryEntry> result)
-        {
-            bool needSleep = PawnCarryChecker.NeedSleep(pawn);
-            bool luciferiumAllowed = PawnCarryChecker.LuciferiumAllowed(pawn);
-            FillCarryItemsCore(needSleep, luciferiumAllowed, result);
-        }
-
-        /// <summary>
-        /// 纯逻辑版本：根据需求判定填充应携带的物品清单。
-        /// 仅供测试调用，生产路径请用 FillCarryItems(Pawn, List)。
-        /// </summary>
-        /// <param name="needSleep">true 表示殖民者需要睡眠（带清醒丸）；false 不需要睡眠（不带）</param>
-        /// <param name="luciferiumAllowed">true 表示药品政策允许活力水；false 禁止</param>
-        /// <param name="result">输出缓冲区，调用方负责 Clear</param>
-        internal static void FillCarryItemsCore(bool needSleep, bool luciferiumAllowed, List<CarryEntry> result)
         {
             // 食物：始终携带（无个性化过滤）
             List<ThingDef> foodDefs = GetFoodDefs();
@@ -97,26 +79,44 @@ namespace AutoEverything.AutoCarry
                 result.Add(new CarryEntry { Def = foodDefs[i], Count = FoodCount });
             }
 
-            // 活力水：仅当药品政策允许时携带
-            if (luciferiumAllowed)
+            // 活力水：根据药品政策 takeToInventory 决定数量
+            ThingDef luciferium = GetLuciferiumDef();
+            if (luciferium != null)
             {
-                ThingDef luciferium = GetLuciferiumDef();
-                if (luciferium != null)
-                    result.Add(new CarryEntry { Def = luciferium, Count = LuciferiumCount });
+                int carryCount = GetDrugPolicyCarryCount(pawn, luciferium);
+                if (carryCount > 0)
+                    result.Add(new CarryEntry { Def = luciferium, Count = carryCount });
             }
 
-            // 清醒丸：仅当殖民者需要睡眠时携带
-            if (needSleep)
+            // 清醒丸：不需要睡眠 + 政策有"携带"列才带
+            ThingDef wakeUp = GetWakeUpDef();
+            if (wakeUp != null && PawnCarryChecker.NeedSleep(pawn))
             {
-                ThingDef wakeUp = GetWakeUpDef();
-                if (wakeUp != null)
-                    result.Add(new CarryEntry { Def = wakeUp, Count = WakeUpCount });
+                int carryCount = GetDrugPolicyCarryCount(pawn, wakeUp);
+                if (carryCount > 0)
+                    result.Add(new CarryEntry { Def = wakeUp, Count = carryCount });
             }
 
-            // 思滞血清：始终携带（预防疾病，无个性化过滤）
+            // 思滞血清：根据药品政策 takeToInventory 决定数量
             ThingDef penoxycyline = GetPenoxycylineDef();
             if (penoxycyline != null)
-                result.Add(new CarryEntry { Def = penoxycyline, Count = PenoxycylineCount });
+            {
+                int carryCount = GetDrugPolicyCarryCount(pawn, penoxycyline);
+                if (carryCount > 0)
+                    result.Add(new CarryEntry { Def = penoxycyline, Count = carryCount });
+            }
+        }
+
+        /// <summary>
+        /// 从药品政策查询指定药品的目标携带数量。
+        /// - 政策有条目且 takeToInventory > 0 → 返回该值
+        /// - 政策无条目 / allowed=false / takeToInventory=0 → 返回 0（不携带，避免丢地上）
+        /// </summary>
+        private static int GetDrugPolicyCarryCount(Pawn pawn, ThingDef drugDef)
+        {
+            int policyCount = PawnCarryChecker.GetDrugCarryCount(pawn, drugDef);
+            // -1（无条目/反射失败）或 0 都视为不携带
+            return policyCount > 0 ? policyCount : DefaultDrugCarryCount;
         }
 
         /// <summary>活力水 ThingDef（懒加载，缺失返回 null）</summary>

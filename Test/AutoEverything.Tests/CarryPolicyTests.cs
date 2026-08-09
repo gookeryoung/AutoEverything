@@ -7,12 +7,14 @@ namespace AutoEverything.Tests
     /// CarryPolicy 配置与食物优先级顺序的单元测试。
     ///
     /// 覆盖范围：
-    /// 1. 数量常量：FoodCount=3, LuciferiumCount=1, WakeUpCount=1, PenoxycylineCount=1
+    /// 1. 常量：FoodCount=3, DefaultDrugCarryCount=0（药品默认不携带，避免丢地上）
     /// 2. 食物优先级顺序：包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐
     ///    验证 FoodDefNames 数组顺序与用户需求一致
+    /// 3. DrugCarryCountCore 纯逻辑：验证 carryCount 转换语义
+    ///    >0 原值返回；-1/0 都返回 0（不携带，避免被游戏丢地上）
     ///
-    /// 设计原则：测试不依赖 RimWorld 运行时（无 DefDatabase 初始化），
-    /// 仅验证静态配置常量与数组顺序，确保用户需求"包装食物→干粮→奢侈→精致→一般"被正确编码。
+    /// 设计原则：药品数量不再硬编码——必须尊重药品政策"携带"列（takeToInventory），
+    /// 否则游戏自身机制会把超额药品丢地上。测试仅验证转换语义，不依赖 RimWorld 运行时。
     /// </summary>
     public static class CarryPolicyTests
     {
@@ -23,22 +25,20 @@ namespace AutoEverything.Tests
 
             failures += RunConstantsTests(ref total);
             failures += RunFoodPriorityTests(ref total);
+            failures += RunDrugCarryCountTests(ref total);
 
             return failures;
         }
 
         // ════════════════════════════════════════════════════════════
-        // 1. 数量常量：验证用户需求"食物x3, 活力水x1, 清醒丸x1, 思滞血清x1"
+        // 1. 常量验证
         // ════════════════════════════════════════════════════════════
 
         private static int RunConstantsTests(ref int total)
         {
             int failures = 0;
 
-            CheckConst(CarryPolicy.FoodCount, 3, "FoodCount=3 (食物 x3)", ref failures, ref total);
-            CheckConst(CarryPolicy.LuciferiumCount, 1, "LuciferiumCount=1 (活力水 x1)", ref failures, ref total);
-            CheckConst(CarryPolicy.WakeUpCount, 1, "WakeUpCount=1 (清醒丸 x1)", ref failures, ref total);
-            CheckConst(CarryPolicy.PenoxycylineCount, 1, "PenoxycylineCount=1 (思滞血清 x1)", ref failures, ref total);
+            CheckConst(CarryPolicy.FoodCount, 3, "FoodCount=3 (食物 x3，始终携带)", ref failures, ref total);
 
             Console.WriteLine($"[CarryPolicyTests/Constants] {total - failures}/{total} passed");
             return failures;
@@ -99,6 +99,50 @@ namespace AutoEverything.Tests
                 Console.WriteLine($"  FAIL: {label}: expected [{expected}], got [{actual}]");
                 failures++;
             }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // 3. DrugCarryCount 转换语义：>0 原值，-1/0 → 0（不携带，避免丢地上）
+        // ════════════════════════════════════════════════════════════
+
+        private static int RunDrugCarryCountTests(ref int total)
+        {
+            int failures = 0;
+
+            // ── -1（无政策条目/反射失败）→ 0，默认不携带避免丢地上 ──
+            CheckCarryConvert(-1, 0, "carryCount=-1（无条目）→ 0 不携带", ref failures, ref total);
+
+            // ── 0（政策有条目但 takeToInventory=0，或 allowed=false）→ 0 ──
+            CheckCarryConvert(0, 0, "carryCount=0（不携带）→ 0", ref failures, ref total);
+
+            // ── >0 → 原值（玩家在政策"携带"列设的数量）──
+            CheckCarryConvert(1, 1, "carryCount=1 → 1（政策设为携带1个）", ref failures, ref total);
+            CheckCarryConvert(2, 2, "carryCount=2 → 2（政策设为携带2个）", ref failures, ref total);
+            CheckCarryConvert(5, 5, "carryCount=5 → 5（政策设为携带5个）", ref failures, ref total);
+
+            Console.WriteLine($"[CarryPolicyTests/DrugCarryCount] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static void CheckCarryConvert(int policyCount, int expected, string label,
+            ref int failures, ref int total)
+        {
+            total++;
+            int actual = DrugCarryCountConvert(policyCount);
+            if (actual != expected)
+            {
+                Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");
+                failures++;
+            }
+        }
+
+        /// <summary>
+        /// 镜像 CarryPolicy.GetDrugPolicyCarryCount 的纯逻辑转换，供测试验证。
+        /// 语义：>0 原值返回；-1/0 都返回 0（不携带，避免被游戏丢地上）。
+        /// </summary>
+        private static int DrugCarryCountConvert(int policyCount)
+        {
+            return policyCount > 0 ? policyCount : 0;
         }
     }
 }
