@@ -265,6 +265,12 @@ namespace AutoEverything.UI
                         () =>
                         {
                             AESettings.SetCustomTier(pawnName, localTier);
+                            // 立即更新 Nick 前缀（自定义评级优先显示），不重排殖民者栏
+                            // 用户决策：自定义评级设置后，名称以自定义为主
+                            if (AESettings.autoTierTag)
+                            {
+                                AESettings.ApplyTierTagsToAllPawns();
+                            }
                         }));
                 }
                 Find.WindowStack.Add(new FloatMenu(tierOptions));
@@ -275,6 +281,11 @@ namespace AutoEverything.UI
                 if (hasCustom)
                 {
                     AESettings.ClearCustomTier(pawnName);
+                    // 立即更新 Nick 前缀（恢复系统评级），不重排殖民者栏
+                    if (AESettings.autoTierTag)
+                    {
+                        AESettings.ApplyTierTagsToAllPawns();
+                    }
                 }
             }
             l.Gap(4f);

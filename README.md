@@ -84,6 +84,19 @@
 
 **配偶评级豁免：** 与 S 级以上（S/SS/SSS）人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）。配偶评级用 `GetAutoCombatTier` 计算，避免递归。自定义评级优先于配偶豁免。
 
+**名字评级着色与加粗：** 殖民者栏与地图名字标签按最终评级（含自定义）着色，S 级以上加粗。
+
+| 评级 | 名字颜色 | 加粗 |
+|------|---------|------|
+| SSS | 金黄 | 是 |
+| SS | 橙色 | 是 |
+| S | 黄色 | 是 |
+| A / B | 白色 | 否 |
+| C / D | 灰色 | 否 |
+| X | 原生浅灰（不覆盖） | 否 |
+
+实现：Harmony Postfix `PawnNameColorUtility.PawnNameColorOf` 覆盖颜色，Prefix/Postfix `GenMapUI.DrawPawnLabel` 临时修改 `Text.CurFontStyle.fontStyle` 实现加粗。仅对玩家阵营人类 like 殖民者生效（排除囚犯/奴隶/精神状态，保留原生身份颜色）。
+
 **统计范围（9 大可兴趣技能）：** 射击、近战、社交、手工、建造、艺术、烹饪、种植、采矿。
 
 **特殊天赋特质来源：**
@@ -97,8 +110,8 @@
 
 | 方法 | 自定义评级 | 配偶豁免 | 用途 |
 |------|-----------|---------|------|
-| `GetCombatTier` | 优先 | 含 | 全局重配排序、工作分配评级分档（自定义优先，与面板标签一致） |
-| `GetSystemTier` | 不含 | 含 | 评级标签 Nick 前缀、ITab 面板"当前档次"显示、AEDebug.Label、腰带/副武器排序 |
+| `GetCombatTier` | 优先 | 含 | 全局重配排序、工作分配评级分档、评级标签 Nick 前缀、名字着色与加粗（自定义优先） |
+| `GetSystemTier` | 不含 | 含 | ITab 面板"当前档次"显示、AEDebug.Label、腰带/副武器排序 |
 | `GetAutoCombatTier` | 不含 | 不含 | 配偶豁免内部递归调用，避免无限递归 |
 
 ### 自定义评级识别码（玩家可调）
@@ -301,7 +314,8 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
 - **机制**：
   - 周期/事件触发：调用 `AESettings.ApplyTierTagsToAllPawns()`，仅更新 Nick 前缀，不重排殖民者栏（避免覆盖玩家手动排序）
-  - 玩家主动触发（ITab 勾选）：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上系统评级前缀（格式 `S#王五`），并按 Mod 选项配置的默认排序重排殖民者栏
+  - 玩家主动触发（ITab 勾选）：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上最终评级前缀（格式 `S#王五`，命中自定义评级时用自定义档），并按 Mod 选项配置的默认排序重排殖民者栏
+  - 自定义评级变更：ITab 设置/清除自定义评级后立即调用 `ApplyTierTagsToAllPawns()` 更新前缀（不重排殖民者栏）
 - **取消勾选**：调用 `ClearTierTagsFromAllPawns()`，清除所有评级前缀恢复原名
 - **入口**：殖民者装备面板（ITab）底部 → "人员自动评级"勾选框（`AESettings.autoTierTag`，默认勾选）
 

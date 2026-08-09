@@ -14,9 +14,10 @@ namespace AutoEverything.Core
     public partial class AESettings
     {
         // ===================== 全局评级标签 =====================
-        // 设计：玩家点击"全局人物评级"按钮后，自动给所有殖民者的 Nick 加上系统评级前缀，
-        //   格式："S#王五"（系统档 S + # + 原 Nick）
-        //   自定义评级时仍按系统档计算前缀（与 AEDebug.Label 不同，此处只显示系统档）
+        // 设计：玩家点击"全局人物评级"按钮后，自动给所有殖民者的 Nick 加上评级前缀，
+        //   格式："S#王五"（最终档 S + # + 原 Nick）
+        //   最终档 = GetCombatTier：命中自定义评级时用自定义档，否则用系统档（含配偶豁免）
+        //   用户决策：自定义评级设置后，名称以自定义为主（前缀显示自定义档）
         // 用 thingIDNumber → 原 Nick 映射保存原名，便于恢复
         // 持久化：通过 tierTagOriginalEntries 存档，避免重启后丢失导致误剥离玩家手动改的 Nick
         private static readonly Dictionary<int, string> tierTagOriginals = new Dictionary<int, string>();
@@ -30,10 +31,11 @@ namespace AutoEverything.Core
         private static readonly Dictionary<Pawn, int> sortRoleCache = new Dictionary<Pawn, int>();
 
         /// <summary>
-        /// 给所有玩家殖民者（含食尸鬼）的 Nick 加上系统评级前缀，格式 "S#王五"。
+        /// 给所有玩家殖民者（含食尸鬼）的 Nick 加上评级前缀，格式 "S#王五"。
         /// 已加过前缀的会先剥离再重加，保证评级最新。
         /// 跳过动物、机械族、奴隶、未成年。
         /// 注：食尸鬼也按相同规则评级，但不参与装备分配——玩家可一眼分辨其价值。
+        /// 评级档位取 GetCombatTier：命中自定义评级时用自定义档，否则用系统档（含配偶豁免）。
         /// </summary>
         public static int ApplyTierTagsToAllPawns()
         {
@@ -67,8 +69,9 @@ namespace AutoEverything.Core
                     cleanNick = tierTagOriginals[pid];
                 }
 
-                // 计算当前系统评级（含配偶豁免，不含自定义评级覆盖）
-                CombatTier tier = CombatEvaluator.GetSystemTier(pawn);
+                // 计算最终评级：命中自定义评级时用自定义档，否则用系统档（含配偶豁免）
+                // 用户决策：自定义评级设置后，名称以自定义为主（前缀显示自定义档）
+                CombatTier tier = CombatEvaluator.GetCombatTier(pawn);
                 string newNick = tier + TIER_TAG_PREFIX_SEPARATOR + cleanNick;
 
                 if (newNick != currentNick)
