@@ -4,7 +4,7 @@
 >
 > packageId: `gookeryoung.autoeverything`
 
-为殖民者自动执行**人员评级**、**工作优先级分配**与**高价值单位自动标记**，让玩家从繁琐的微调中解放出来。
+为殖民者自动执行**人员评级**、**工作优先级分配**、**高价值单位自动标记**与**自动携带物品**，让玩家从繁琐的微调中解放出来。
 
 > 装备管理使用 RimWorld 原生换装（玩家手动管理装备）。
 
@@ -17,6 +17,7 @@
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
 | **AutoMarkPawn**（高价值自动标记） | 殖民者栏角色定位图标（前排盾/远程弓/手工锤/贸易钱袋）+ 地图高价值标记（敌方/中立/野生 S+ 单位圆形标记）+ S+ 单位扫描消息通知 | 殖民者栏 Postfix + 地图 Postfix + 人员变动事件 + ITab 切换 |
+| **AutoCarry**（自动携带） | 自动为殖民者背包补充食物 x3 + 活力水 x1 + 清醒丸 x1 + 思滞血清 x1，按优先级查找仓库可用物品 | 周期 6000 tick + ITab 勾选 |
 
 ## 设计思路
 
@@ -298,15 +299,15 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ## 自动执行（AutoExecutor）
 
-`Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级（周期触发）与高价值标记扫描（事件驱动）的自动执行。
+`Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级（周期触发）、高价值标记扫描（事件驱动）与自动携带（周期触发）的自动执行。
 
 - **入口**：由 `AutoEverythingGameComponent.GameComponentTick` 每 tick 调用 `AutoExecutor.TryTick()`。GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册
 - **静态门控**：每 60 tick 检查一次殖民者数量变化、全人类单位数量变化与周期触发
-- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（基于特质组合，无缓存），S+ 高价值扫描为人员变动事件触发，无周期执行
+- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；自动携带每 6000 tick（约 100 秒）执行一次（战斗中暂停）；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（基于特质组合，无缓存），S+ 高价值扫描为人员变动事件触发，无周期执行
 - **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（地图无未 Downed 敌对 Pawn）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
 - **全人类单位数量变化检测**：`CountAllHumanlikeSpawned()`（含殖民者/奴隶/囚犯/敌对/中立/盟友/野生）增加时，若 `autoMarkPawn` 开启则立即调用 `ExecuteMark(resetTracking=false)` 扫描新增高价值目标，有新发现时弹消息
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
-- **错误隔离**：工作、评级、标记各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500）
+- **错误隔离**：工作、评级、标记、携带各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500 / Carry=0xA400）
 - **自动周期路径不弹消息框**（避免刷屏），仅走 `AEDebug.Log`；手动触发路径弹 `Messages.Message` 给玩家反馈
 
 ### 人员自动评级
@@ -387,6 +388,62 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **坐标变换**：`pawn.DrawPos + 头顶偏移(1.6f)` → 世界坐标 → `Find.Camera.WorldToScreenPoint(worldPos) / Prefs.UIScale` → `screenPos.y = Screen.height - screenPos.y`（Y 翻转，与 RimWorld 原生 PawnUIOverlay 一致）
 - **Harmony 补丁降级**：`PawnUIOverlay.DrawPawnGUIOverlay` 方法缺失时仅 `Log.Warning`，地图标记不显示但不崩溃。补丁优先级 `Priority.Last`
 
+## 自动携带（AutoCarry）
+
+`AutoCarry/` 模块自动为殖民者背包补充生存物资，让玩家无需手动管理远征/战斗携带。
+
+### 携带清单
+
+| 物品 | 数量 | 过滤规则 | 设计意图 |
+|------|------|----------|----------|
+| 食物 | x3 | 始终携带 | 短期远征或战斗中的口粮 |
+| 活力水（Luciferium） | x1 | 药品政策禁用时跳过 | 上瘾者维持补给，不会让无瘾者强制上瘾 |
+| 清醒丸（WakeUp） | x1 | 不需要睡眠者跳过 | 抵抗突发疲劳/睡眠 |
+| 思滞血清（Penoxycyline） | x1 | 始终携带 | 预防机械孢子/瘟疫/疟疾 |
+
+### 食物优先级
+
+按以下顺序查找仓库可用物品，第一个有货的类型即为目标食物：
+
+| 优先级 | DefName | 说明 |
+|--------|---------|------|
+| 0 | `PackagedSurvivalMeal` | 包装食物：不腐坏、便于远征 |
+| 1 | `Pemmican` | 干粮：长久保存 |
+| 2 | `JerkedDriedMeat` | 干粮：风干肉（CORE 1.4+） |
+| 3 | `MealLavish` | 奢侈餐 |
+| 4 | `MealFine` | 精致餐 |
+| 5 | `MealSimple` | 一般餐 |
+| 6 | `MealNutrientPaste` | 营养糊（最低优先级兜底） |
+
+缺失的 DefName（如 DLC 差异）静默跳过，自动降级到下一优先级。
+
+### 适用范围过滤
+
+- **食尸鬼**：跳过（用户明确要求"请勿为食尸鬼配置"）
+- **机器人（机械族）**：跳过（通过 `PawnSuitabilityChecker.CanManageGear` 过滤，仅人类 like 通过）
+- **奴隶**：跳过（用户决策"仅自由殖民者"）
+- **医疗中/卧床休养**：跳过（复用 `PawnJobGuard.ShouldSkipForMedical`，避免打断手术）
+- **死亡/倒下**：跳过（无法去仓库拾取）
+- **不需要睡眠者**：跳过清醒丸（`PawnCarryChecker.NeedSleep` 判定 `pawn.needs.rest == null`）
+- **药品政策禁用活力水者**：跳过活力水（`PawnCarryChecker.LuciferiumAllowed` 通过反射读取 `DrugPolicy.entries` 查找 Luciferium 条目的 `allowed` 字段）
+
+### 派发机制
+
+- **触发**：周期 6000 tick（约 100 秒）+ ITab 勾选时立即触发
+- **战斗过滤**：复用 `AutoExecutor.AnyCombatActive()`，战斗中暂停派发
+- **单次单 Pawn 单物品**：每周期每 Pawn 最多派发一个 `TakeInventory` Job，避免互相覆盖；缺其他物品下周期再处理
+- **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）
+- **派发数量**：`Math.Min(缺失量, 目标堆叠数)`，避免一次拿空整个仓库堆
+- **错误隔离**：单 Pawn 失败 `Log.ErrorOnce` 不影响其他 Pawn，salt=0xA400
+
+### 入口
+
+- **MOD 选项** → 启用/禁用"自动携带"（`AESettings.autoCarryEnabled`，默认关闭）
+- **殖民者装备面板（ITab）底部** → "自动携带"勾选框
+  - **勾选时**：立即执行一次携带分配（受战斗过滤），并启用周期自动
+  - **取消勾选时**：仅停止自动派发，保留当前背包物品（不主动清空）
+  - **默认关闭**（与评级/工作/标记的默认勾选不同，避免无需求玩家被自动派发 Job 打扰）
+
 ## 架构模型
 
 ### 目录结构
@@ -425,6 +482,10 @@ Source/AutoEverything/
 │   ├── PawnMarker.cs                      # S+ 高价值扫描通知（全人类单位扫描 + 消息通知）
 │   ├── RoleIconDef.cs                     # 角色定位判定（前排/远程/手工/贸易 4 种 + 统一深红色常量）
 │   └── RoleIconTextures.cs                # 角色定位纹理（程序化生成 4 个 32x32 RGBA 纹理）
+├── AutoCarry/                             # → namespace AutoEverything.AutoCarry
+│   ├── CarryPolicy.cs                     # 携带物品清单（食物优先级 + 药品数量常量 + CarryEntry struct）
+│   ├── CarryAllocator.cs                  # 携带分配器（周期派发 TakeInventory Job）
+│   └── PawnCarryChecker.cs                # 殖民者携带适用性检查（硬过滤 + 软过滤）
 └── UI/                                    # → namespace AutoEverything.UI
     └── ITab_GearManager.cs                # 殖民者检视面板（角色/情境/评级徽章 + 自定义评级 + 勾选框）
 ```

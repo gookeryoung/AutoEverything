@@ -4,11 +4,12 @@ using RimWorld;
 using Verse;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoCarry;
 
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 全局自动执行器：事件驱动工作重配、周期触发人员评级、事件驱动高价值标记扫描。
+    /// 全局自动执行器：事件驱动工作重配、周期触发人员评级、事件驱动高价值标记扫描、周期触发自动携带。
     ///
     /// 设计模式：静态门控模式，
     /// 由 <see cref="AutoEverythingGameComponent"/>.Tick 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
@@ -24,6 +25,8 @@ namespace AutoEverything.Core
     /// - 高价值标记（事件 + 殖民者栏绘制）：人类单位数量增加时扫描新增高价值目标并弹消息；
     ///   角色定位图标在殖民者栏固定位置由 Harmony ColonistBarColonistDrawer.DrawColonist Postfix 绘制
     ///   （基于特质组合判定，无评级缓存依赖），无需周期触发
+    /// - 自动携带（周期 + ITab 触发）：每 6000 tick（约 100 秒）周期触发；
+    ///   ITab 勾选时立即触发。需战斗过滤避免战斗中离开战位；医疗守卫避免打断手术/休养
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈，含完整目标列表）
     ///
     /// 首次初始化守卫：work.lastTick 等 &lt; 0 时设为当前 tick，不触发执行，
@@ -49,8 +52,13 @@ namespace AutoEverything.Core
         // 勾选状态下定期重新分配工作，避免长期无人员变动时工作分配过时
         private const int WorkExecuteInterval = 3600;
 
+        // 自动携带周期：6000 tick ≈ 100 秒
+        // 殖民者周期性从仓库拾取食物与药品到背包，需战斗过滤避免战斗中离开战位
+        private const int CarryExecuteInterval = 6000;
+
         // 阶段状态：把 lastTick + pending 打包为 struct，集中管理各自动阶段的状态
         // work：工作重配（事件触发 ReallocCooldown 冷却 + 周期触发 WorkExecuteInterval 间隔，均需战斗过滤）
+        // carry：自动携带（周期触发 CarryExecuteInterval 间隔，需战斗过滤）
         // tier：评级（周期 ExecuteInterval 触发，无 pending——非事件驱动）
         private struct PhaseState
         {
@@ -59,6 +67,7 @@ namespace AutoEverything.Core
         }
 
         private static PhaseState work = new PhaseState { lastTick = -9999 };
+        private static PhaseState carry = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
         // 注：Mark 无周期触发——角色定位图标在殖民者栏固定位置由 Harmony
@@ -80,6 +89,7 @@ namespace AutoEverything.Core
         // 错误去重 salt
         private const int WorkErrorSalt = 0xA200;
         private const int TierErrorSalt = 0xA300;
+        private const int CarryErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
 
         /// <summary>
@@ -97,6 +107,7 @@ namespace AutoEverything.Core
             if (work.lastTick < 0)
             {
                 work.lastTick = tick;
+                carry.lastTick = tick;
                 lastTierTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 lastAllHumanlikeCount = CountAllHumanlikeSpawned();
@@ -149,6 +160,10 @@ namespace AutoEverything.Core
             // 周期触发：仅评级（Mark 无周期——Postfix 每帧自检）
             if (tick - lastTierTick >= ExecuteInterval)
                 ExecuteTier(tick, showMessage: false);
+
+            // 周期触发：自动携带（战斗过滤——避免殖民者战斗中离开战位去拿物品）
+            if (tick - carry.lastTick >= CarryExecuteInterval && !AnyCombatActive())
+                ExecuteCarry(tick, showMessage: false);
         }
 
         /// <summary>
@@ -176,6 +191,21 @@ namespace AutoEverything.Core
         public static void TriggerMarkNow()
         {
             ExecuteMark(Find.TickManager.TicksGame, showMessage: true, resetTracking: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行自动携带分配并弹消息框。
+        /// 注：手动触发也受战斗过滤约束——战斗中派发 TakeInventory Job 会让殖民者离开战位导致伤亡。
+        /// 若战斗中调用，弹提示消息但不执行分配。
+        /// </summary>
+        public static void TriggerCarryNow()
+        {
+            if (AnyCombatActive())
+            {
+                Messages.Message("AE_AutoCarry_SkippedInCombat".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+            ExecuteCarry(Find.TickManager.TicksGame, showMessage: true);
         }
 
         private static void ExecuteWork(int tick, bool showMessage)
@@ -257,6 +287,24 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 高价值标记扫描失败: " + ex.Message, MarkErrorSalt);
+            }
+        }
+
+        private static void ExecuteCarry(int tick, bool showMessage)
+        {
+            carry.lastTick = tick;
+            if (!AESettings.autoCarryEnabled) return;
+
+            try
+            {
+                int n = CarryAllocator.ReallocateAll();
+                AEDebug.Log(() => $"[AutoExecutor] 自动携带分配: {n} 个殖民者 (tick={tick})");
+                if (showMessage)
+                    Messages.Message("AE_AutoCarry_Result".Translate(n), MessageTypeDefOf.TaskCompletion);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 自动携带分配失败: " + ex.Message, CarryErrorSalt);
             }
         }
 

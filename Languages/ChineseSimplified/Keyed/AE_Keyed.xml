@@ -33,6 +33,7 @@
   <AE_AutoWork>工作自动配置</AE_AutoWork>
   <AE_AutoTierTag>人员自动评级</AE_AutoTierTag>
   <AE_AutoMarkPawn>高价值自动标记</AE_AutoMarkPawn>
+  <AE_AutoCarry>自动携带</AE_AutoCarry>
   <AE_DebugLogging>调试日志</AE_DebugLogging>
   <AE_DebugLogging_Desc>启用详细日志记录以便排查问题。</AE_DebugLogging_Desc>
 
@@ -139,5 +140,13 @@
   <AE_MarkCat_WildHuman>野生</AE_MarkCat_WildHuman>
   <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
   <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
+
+  <!-- AutoCarry 自动携带 -->
+  <AE_AutoCarry_Result>已为 {0} 个殖民者派发携带物品任务</AE_AutoCarry_Result>
+  <AE_AutoCarry_SkippedInCombat>战斗中暂停自动携带，待战斗结束后再试</AE_AutoCarry_SkippedInCombat>
+  <AE_TT_AutoCarry>勾选后殖民者自动携带食物 x3、活力水 x1、清醒丸 x1、思滞血清 x1。
+每 6000 tick（约 100 秒）扫描一次背包缺物品时派发搬运任务；战斗中暂停触发避免离开战位；正在手术/休养的殖民者跳过。
+食物优先级：包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐；不需要睡眠者不带清醒丸；药品政策禁用活力水者不带活力水；食尸鬼与机器人不参与。
+勾选时立即执行一次；取消勾选仅停止自动执行，保留当前背包物品。</AE_TT_AutoCarry>
 
 </LanguageData>
