@@ -15,7 +15,8 @@ namespace AutoEverything.Core
     /// 不再依赖 Pawn 上的 ThingComp（CompGearManager 已移除，避免与其他装备管理类 MOD 冲突）。
     ///
     /// 触发条件：
-    /// - 工作重配（事件驱动）：殖民者数量变化时标记待触发；ITab 勾选时立即触发（弹消息框）
+    /// - 工作重配（事件 + 周期）：殖民者数量变化时标记待触发；ITab 勾选时立即触发（弹消息框）；
+    ///   每 3600 tick（约 1 分钟）周期触发一次，避免长期无人员变动时分配过时
     ///   工作重配需战斗过滤：SetPriority 会取消当前 Job，战斗中执行可能打断手术
     /// - 评级（周期 + 事件）：每 3000 tick 周期触发；殖民者数量增加时立即触发
     ///   周期/事件触发仅更新 Nick 前缀（评级变化时），不重排殖民者栏——避免覆盖玩家手动排序；
@@ -44,8 +45,12 @@ namespace AutoEverything.Core
         // 殖民者数量变化后延迟触发，避免战斗中连续死亡连锁触发工作重配打断医疗 Job
         private const int ReallocCooldown = 2500;
 
+        // 工作重配周期：3600 tick ≈ 1 分钟
+        // 勾选状态下定期重新分配工作，避免长期无人员变动时工作分配过时
+        private const int WorkExecuteInterval = 3600;
+
         // 阶段状态：把 lastTick + pending 打包为 struct，集中管理各自动阶段的状态
-        // work：工作重配（需战斗过滤，ReallocCooldown 冷却）
+        // work：工作重配（事件触发 ReallocCooldown 冷却 + 周期触发 WorkExecuteInterval 间隔，均需战斗过滤）
         // tier：评级（周期 ExecuteInterval 触发，无 pending——非事件驱动）
         private struct PhaseState
         {
@@ -131,6 +136,13 @@ namespace AutoEverything.Core
             if (work.pending && tick - work.lastTick >= ReallocCooldown && !AnyCombatActive())
             {
                 work.pending = false;
+                ExecuteWork(tick, showMessage: false);
+            }
+            // 周期触发：勾选状态下每 1 分钟重新分配工作，避免长期无人员变动时分配过时
+            // 需战斗过滤：与事件触发一致，避免战斗中打断医疗 Job
+            // 复用 work.lastTick：周期触发后同样刷新冷却计时，事件触发也基于此计算
+            else if (tick - work.lastTick >= WorkExecuteInterval && !AnyCombatActive())
+            {
                 ExecuteWork(tick, showMessage: false);
             }
 
