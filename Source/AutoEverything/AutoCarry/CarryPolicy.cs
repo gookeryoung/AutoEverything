@@ -55,6 +55,7 @@ namespace AutoEverything.AutoCarry
         // 血清类 DefName（Anomaly DLC，缺失时 GetNamedSilentFail 返回 null 自动跳过）
         private const string JuggernautSerumDefName = "JuggernautSerum";   // 强力血清
         private const string MetalbloodSerumDefName = "MetalbloodSerum";   // 钢血血清
+        private const string MindNumbSerumDefName = "MindNumbSerum";       // 思滞血清
 
         // ThingDef 缓存：懒加载避免跨线程访问 DefDatabase
         private static List<ThingDef> cachedFoodDefs;
@@ -63,6 +64,7 @@ namespace AutoEverything.AutoCarry
         private static ThingDef cachedPenoxycyline;
         private static ThingDef cachedJuggernautSerum;
         private static ThingDef cachedMetalbloodSerum;
+        private static ThingDef cachedMindNumbSerum;
         private static bool serumDefsResolved = false;
 
         /// <summary>
@@ -107,11 +109,12 @@ namespace AutoEverything.AutoCarry
             }
             AddDrugIfPolicyCarry(pawn, GetPenoxycylineDef(), result);
 
-            // 3. 血清类：S 档（S/SS/SSS）携带强力+钢血血清（AutoCarry 直接携带，不走 DrugPolicy）
+            // 3. 血清类：S 档（S/SS/SSS）携带强力+钢血+思滞血清（AutoCarry 直接携带，DrugPolicy 配 takeToInventory 防卸下）
             if (IsTierS(pawn))
             {
                 AddSerumIfAvailable(GetJuggernautSerumDef(), result);
                 AddSerumIfAvailable(GetMetalbloodSerumDef(), result);
+                AddSerumIfAvailable(GetMindNumbSerumDef(), result);
             }
         }
 
@@ -164,7 +167,7 @@ namespace AutoEverything.AutoCarry
             return cachedWakeUp;
         }
 
-        /// <summary>思滞血清 ThingDef（懒加载，缺失返回 null）</summary>
+        /// <summary>佩诺西林（抗疟药）ThingDef（懒加载，缺失返回 null）</summary>
         internal static ThingDef GetPenoxycylineDef()
         {
             if (cachedPenoxycyline == null)
@@ -193,6 +196,16 @@ namespace AutoEverything.AutoCarry
         }
 
         /// <summary>
+        /// 思滞血清 ThingDef（Anomaly DLC，懒加载，缺失返回 null）。
+        /// 缺 DLC 时 GetNamedSilentFail 返回 null，AutoCarry 自动跳过该血清。
+        /// </summary>
+        internal static ThingDef GetMindNumbSerumDef()
+        {
+            ResolveSerumDefsOnce();
+            return cachedMindNumbSerum;
+        }
+
+        /// <summary>
         /// 一次性解析血清 DefName（避免重复 GetNamedSilentFail）。
         /// null 也作为已解析结果缓存（缺 DLC 时不会再查）。
         /// </summary>
@@ -202,6 +215,7 @@ namespace AutoEverything.AutoCarry
             serumDefsResolved = true;
             cachedJuggernautSerum = DefDatabase<ThingDef>.GetNamedSilentFail(JuggernautSerumDefName);
             cachedMetalbloodSerum = DefDatabase<ThingDef>.GetNamedSilentFail(MetalbloodSerumDefName);
+            cachedMindNumbSerum = DefDatabase<ThingDef>.GetNamedSilentFail(MindNumbSerumDefName);
         }
     }
 

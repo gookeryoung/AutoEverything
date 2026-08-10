@@ -166,6 +166,10 @@ namespace AutoEverything.AutoDrugPolicy
                 SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("MetalbloodSerum"),
                     allowedForJoy: false, allowedForAddiction: false,
                     allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
+                // 思滞血清（MindNumbSerum）：思维迟钝，防止精神崩溃
+                SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("MindNumbSerum"),
+                    allowedForJoy: false, allowedForAddiction: false,
+                    allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
             }
         }
 
