@@ -115,40 +115,42 @@ namespace AutoEverything.AutoDrugPolicy
             EnsureEntriesComplete(policy);
 
             // ── 基本配置：所有档启用啤酒 + 烟叶 + 精神茶 ──
-            // 社交用药：娱乐 + 满足依赖
+            // 社交用药：娱乐 + 满足依赖，不计划服用，不预支
             SetEntry(policy, ThingDefOf.Beer,
-                allowedForJoy: true, allowedForAddiction: true);
+                allowedForJoy: true, allowedForAddiction: true,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 0);
             SetEntry(policy, ThingDefOf.SmokeleafJoint,
-                allowedForJoy: true, allowedForAddiction: true);
+                allowedForJoy: true, allowedForAddiction: true,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 0);
             // 精神茶：娱乐 + 满足依赖 + 计划服用 2 天 1 次 + 携带 1 个
-            // （计划服用需 takeToInventory=1 让殖民者背包持有备用）
             SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("PsychiteTea"),
                 allowedForJoy: true, allowedForAddiction: true,
                 allowScheduled: true, daysFrequency: PsychiteTeaDaysFrequency,
                 takeToInventory: 1);
 
-            // ── 所有档：魔鬼素不预支不计划服用（仅满足依赖）──
-            // Luciferium 是永久成瘾必要药，每天自动服用；不预支不计划服用
+            // ── 所有档：魔鬼素不预支不计划服用不娱乐（仅满足依赖）──
+            // Luciferium 是永久成瘾必要药，每天自动服用
             SetEntry(policy, ThingDefOf.Luciferium,
-                allowedForAddiction: true);
+                allowedForJoy: false, allowedForAddiction: true,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 0);
 
-            // ── 所有档：清醒丸预支 1 个，不计划服用 ──
-            // WakeUp 是战斗增强药，预支 1 个备用，不计划服用
+            // ── 所有档：清醒丸预支 1 个，不计划服用不娱乐 ──
             SetEntry(policy, ThingDefOf.WakeUp,
-                allowedForAddiction: true, takeToInventory: 1);
+                allowedForJoy: false, allowedForAddiction: true,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
 
             // ── AB/S 档叠加：活力水 + 佩诺西林 ──
             if (tier >= DrugTier.AB)
             {
-                // 活力水（GoJuice）：预支 1 个，不计划服用
-                // GoJuice 是战斗增强药，预支 1 个备用
+                // 活力水（GoJuice）：预支 1 个，不计划服用不娱乐
                 SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("GoJuice"),
-                    allowedForAddiction: true, takeToInventory: 1);
-                // 佩诺西林（Penoxycyline）：计划服用 5 天 1 次 + 预支 1 个
-                // 抗疟药，预防性疾病，定期服用预防
+                    allowedForJoy: false, allowedForAddiction: true,
+                    allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
+                // 佩诺西林（Penoxycyline）：计划服用 5 天 1 次 + 预支 1 个，不娱乐
                 SetEntry(policy, ThingDefOf.Penoxycyline,
-                    allowedForAddiction: true, allowScheduled: true,
-                    daysFrequency: PenoxycylineDaysFrequency, takeToInventory: 1);
+                    allowedForJoy: false, allowedForAddiction: true,
+                    allowScheduled: true, daysFrequency: PenoxycylineDaysFrequency,
+                    takeToInventory: 1);
             }
 
             // S 档的强力血清/钢血血清不在 DrugPolicy 系统中（无 Comp_Drug），
@@ -158,21 +160,23 @@ namespace AutoEverything.AutoDrugPolicy
         /// <summary>
         /// 修改（或添加）DrugPolicy 中指定药品的条目字段。
         ///
-        /// 实现：
-        /// - 遍历 entriesInt 查找 drug==targetDef 的条目
-        /// - 找到则修改字段（仅修改非 null 参数）
+        /// 关键设计（2026-08-10 修复）：
+        /// - 显式设置所有字段（非 nullable），覆盖旧条目残留值
+        ///   旧版本 SetEntry 用 nullable 参数只修改显式传入字段，
+        ///   导致旧 policy 中 allowedForJoy=true / allowScheduled=true 残留无法清除
+        /// - 遍历 entriesInt 查找 drug==targetDef 的条目（引用相等）
         /// - 找不到则创建新条目并反射添加到 entriesInt 列表
-        /// - 设置 takeToInventory 时同步更新 takeToInventoryTempBuffer（UI 文本框缓冲）
+        /// - 同步设置 takeToInventoryTempBuffer（UI 文本框缓冲）
         ///
         /// 注意：DrugPolicy.this[ThingDef] 索引器找不到时抛 ArgumentException，
         /// 故不能用索引器查找，必须手动遍历。
         /// </summary>
         private static void SetEntry(DrugPolicy policy, ThingDef drug,
-            bool? allowedForJoy = null,
-            bool? allowedForAddiction = null,
-            bool? allowScheduled = null,
-            float? daysFrequency = null,
-            int? takeToInventory = null)
+            bool allowedForJoy,
+            bool allowedForAddiction,
+            bool allowScheduled,
+            float daysFrequency,
+            int takeToInventory)
         {
             if (policy == null || drug == null) return;
 
@@ -192,26 +196,18 @@ namespace AutoEverything.AutoDrugPolicy
             // 找不到则创建新条目并反射添加到 entriesInt
             if (entry == null)
             {
-                entry = new DrugPolicyEntry
-                {
-                    drug = drug,
-                    // 新建条目保持 RimWorld 默认值：allowedForAddiction=true
-                    allowedForAddiction = true
-                };
+                entry = new DrugPolicyEntry { drug = drug };
                 AddEntryToList(policy, entry);
             }
 
-            // 修改字段（仅修改非 null 参数）
-            if (allowedForJoy.HasValue) entry.allowedForJoy = allowedForJoy.Value;
-            if (allowedForAddiction.HasValue) entry.allowedForAddiction = allowedForAddiction.Value;
-            if (allowScheduled.HasValue) entry.allowScheduled = allowScheduled.Value;
-            if (daysFrequency.HasValue) entry.daysFrequency = daysFrequency.Value;
-            if (takeToInventory.HasValue)
-            {
-                entry.takeToInventory = takeToInventory.Value;
-                // 同步 UI 文本框缓冲，避免政策 UI 显示空
-                entry.takeToInventoryTempBuffer = takeToInventory.Value.ToString();
-            }
+            // 显式设置所有字段（覆盖旧条目残留值）
+            entry.allowedForJoy = allowedForJoy;
+            entry.allowedForAddiction = allowedForAddiction;
+            entry.allowScheduled = allowScheduled;
+            entry.daysFrequency = daysFrequency;
+            entry.takeToInventory = takeToInventory;
+            // 同步 UI 文本框缓冲，避免政策 UI 显示空
+            entry.takeToInventoryTempBuffer = takeToInventory.ToString();
         }
 
         /// <summary>
