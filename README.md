@@ -411,13 +411,12 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 | 优先级 | DefName | 说明 |
 |--------|---------|------|
-| 0 | `PackagedSurvivalMeal` | 包装食物：不腐坏、便于远征 |
+| 0 | `MealSurvivalPack` | 包装食物（生存口粮）：不腐坏、便于远征 |
 | 1 | `Pemmican` | 干粮：长久保存 |
-| 2 | `JerkedDriedMeat` | 干粮：风干肉（CORE 1.4+） |
-| 3 | `MealLavish` | 奢侈餐 |
-| 4 | `MealFine` | 精致餐 |
-| 5 | `MealSimple` | 一般餐 |
-| 6 | `MealNutrientPaste` | 营养糊（最低优先级兜底） |
+| 2 | `MealLavish` | 奢侈餐 |
+| 3 | `MealFine` | 精致餐 |
+| 4 | `MealSimple` | 一般餐 |
+| 5 | `MealNutrientPaste` | 营养糊（最低优先级兜底） |
 
 缺失的 DefName（如 DLC 差异）静默跳过，自动降级到下一优先级。
 

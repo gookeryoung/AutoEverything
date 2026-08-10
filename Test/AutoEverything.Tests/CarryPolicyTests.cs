@@ -63,27 +63,29 @@ namespace AutoEverything.Tests
         {
             int failures = 0;
 
-            // ── 验证数组长度（7 项：包装食物1 + 干粮2 + 奢侈1 + 精致1 + 一般2）──
+            // ── 验证数组长度（6 项：包装食物1 + 干粮1 + 奢侈1 + 精致1 + 一般1 + 营养糊1）──
+            // RimWorld 1.6 中实际存在的食物 DefName（已校验 Data/Core/Defs/ThingDefs_Items/Items_Food.xml）：
+            //   MealSurvivalPack / Pemmican / MealLavish / MealFine / MealSimple / MealNutrientPaste
+            // 注意：不存在 PackagedSurvivalMeal（旧名误用）和 JerkedDriedMeat（凭空编造）
             total++;
             if (CarryPolicy.FoodDefNames == null)
             {
                 Console.WriteLine("  FAIL: FoodDefNames 不应为 null");
                 failures++;
             }
-            else if (CarryPolicy.FoodDefNames.Length != 7)
+            else if (CarryPolicy.FoodDefNames.Length != 6)
             {
-                Console.WriteLine($"  FAIL: FoodDefNames 长度应为 7, 实际 {CarryPolicy.FoodDefNames.Length}");
+                Console.WriteLine($"  FAIL: FoodDefNames 长度应为 6, 实际 {CarryPolicy.FoodDefNames.Length}");
                 failures++;
             }
 
             // ── 验证顺序：用户需求"包装食物 → 干粮 → 奢侈 → 精致 → 一般" ──
-            CheckFoodName(0, "PackagedSurvivalMeal", "优先级 0: 包装食物（不腐坏、便于远征）", ref failures, ref total);
+            CheckFoodName(0, "MealSurvivalPack", "优先级 0: 包装食物（生存口粮，不腐坏、便于远征）", ref failures, ref total);
             CheckFoodName(1, "Pemmican", "优先级 1: 干粮（长久保存）", ref failures, ref total);
-            CheckFoodName(2, "JerkedDriedMeat", "优先级 2: 干粮（风干肉，CORE 1.4+）", ref failures, ref total);
-            CheckFoodName(3, "MealLavish", "优先级 3: 奢侈餐", ref failures, ref total);
-            CheckFoodName(4, "MealFine", "优先级 4: 精致餐", ref failures, ref total);
-            CheckFoodName(5, "MealSimple", "优先级 5: 一般餐", ref failures, ref total);
-            CheckFoodName(6, "MealNutrientPaste", "优先级 6: 营养糊（最低优先级兜底）", ref failures, ref total);
+            CheckFoodName(2, "MealLavish", "优先级 2: 奢侈餐", ref failures, ref total);
+            CheckFoodName(3, "MealFine", "优先级 3: 精致餐", ref failures, ref total);
+            CheckFoodName(4, "MealSimple", "优先级 4: 一般餐", ref failures, ref total);
+            CheckFoodName(5, "MealNutrientPaste", "优先级 5: 营养糊（最低优先级兜底）", ref failures, ref total);
 
             Console.WriteLine($"[CarryPolicyTests/FoodPriority] {total - failures}/{total} passed");
             return failures;

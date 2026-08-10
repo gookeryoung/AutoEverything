@@ -30,12 +30,12 @@ namespace AutoEverything.AutoCarry
         private const int DefaultDrugCarryCount = 0;
 
         // 食物 DefName 列表（按优先级从高到低排序）
+        // DefName 已校验：e:\SteamLibrary\steamapps\common\RimWorld\Data\Core\Defs\ThingDefs_Items\Items_Food.xml
         // internal 暴露供测试验证优先级顺序
         internal static readonly string[] FoodDefNames =
         {
-            "PackagedSurvivalMeal", // 包装食物：不腐坏、便于远征
+            "MealSurvivalPack",     // 包装食物（生存口粮）：不腐坏、便于远征
             "Pemmican",             // 干粮：长久保存
-            "JerkedDriedMeat",      // 干粮：风干肉（CORE 1.4+）
             "MealLavish",           // 奢侈餐
             "MealFine",             // 精致餐
             "MealSimple",           // 一般餐
