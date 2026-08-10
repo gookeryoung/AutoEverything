@@ -42,12 +42,7 @@ jobs:
 
       - name: Build test project (CI mode)
         run: dotnet build -c Release -p:CI=true Test/AutoEverything.Tests/AutoEverything.Tests.csproj
-
-      - name: Install mono-runtime
-        run: sudo apt-get update && sudo apt-get install -y mono-runtime
-
-      - name: Run unit tests
-        run: dotnet run -c Release --no-build --project Test/AutoEverything.Tests/AutoEverything.Tests.csproj
+        # 测试运行需要 RimWorld 运行时 DLL，仅在本地运行
 
       - name: Package release zip
         run: |
