@@ -8,7 +8,7 @@
     <LangVersion>7.3</LangVersion>
     <DebugType>portable</DebugType>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-    <Version>1.4.4</Version>
+    <Version>1.4.5</Version>
   </PropertyGroup>
   <PropertyGroup>
     <RimWorldPath>e:\SteamLibrary\steamapps\common\RimWorld</RimWorldPath>
