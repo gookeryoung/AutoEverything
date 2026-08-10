@@ -73,9 +73,9 @@ test-check: check test
 BUMP_PART := $(filter-out bump,$(MAKECMDGOALS))
 
 bump:
-	@echo "[bump] 当前版本: $(VERSION)"
+	@echo "[bump] current version: $(VERSION)"
 	@uvx bump-my-version bump $(if $(BUMP_PART),$(firstword $(BUMP_PART)),patch) --tag --allow-dirty
-	@echo "[bump] 完成，新 tag 已创建"
+	@echo "[bump] done, new tag created"
 
 patch minor major:
 	@:
@@ -86,35 +86,21 @@ patch minor major:
 
 # 打包发布 zip（先跑 check 确保质量，再打包 MOD 文件）
 release: check
-	@echo "[release] 准备打包版本 $(VERSION)..."
+	@echo "[release] packaging version $(VERSION)..."
 	@if exist $(DIST) rmdir /s /q $(DIST)
 	@mkdir $(DIST)
 	@powershell -NoProfile -Command "$$files = '@(About,Assemblies,Defs,Languages,Patches,Textures,README.md,CHANGELOG.md)' -split ','; $$exist = @(); foreach ($$f in $$files) { if (Test-Path $$f) { $$exist += $$f } }; Compress-Archive -Path $$exist -DestinationPath $(DIST)/AutoEverything-v$(VERSION).zip -Force"
-	@echo "[release] 完成: $(DIST)/AutoEverything-v$(VERSION).zip"
+	@echo "[release] done: $(DIST)/AutoEverything-v$(VERSION).zip"
 
 # 推送代码与所有 tag 到 origin
 push:
 	@git push origin
 	@git push origin --tags
-	@echo "[push] 代码与 tag 已推送"
+	@echo "[push] code and tags pushed"
 
 # ════════════════════════════════════════════════════════════
 # 帮助
 # ════════════════════════════════════════════════════════════
 
 help:
-	echo AutoEverything Makefile 目标:
-	echo   make build         构建项目 (默认)
-	echo   make check         验证零警告零错误 (规则强制)
-	echo   make clean         清理构建产物
-	echo   make rebuild       清理后重新构建
-	echo   make rebuild-check 清理后重新构建并验证
-	echo   make restore       还原 NuGet 依赖
-	echo   make test          构建并运行单元测试
-	echo   make test-check    check + test 完整门禁
-	echo   make bump          版本号 patch bump (默认)
-	echo   make bump minor    版本号 minor bump
-	echo   make bump major    版本号 major bump
-	echo   make release       打包发布 zip 到 dist/
-	echo   make push          推送代码与 tag 到 origin
-	echo   make help          显示此帮助信息
+	@powershell -NoProfile -Command "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Host 'AutoEverything Makefile 目标:'; Write-Host '  make build         构建项目 (默认)'; Write-Host '  make check         验证零警告零错误 (规则强制)'; Write-Host '  make clean         清理构建产物'; Write-Host '  make rebuild       清理后重新构建'; Write-Host '  make rebuild-check 清理后重新构建并验证'; Write-Host '  make restore       还原 NuGet 依赖'; Write-Host '  make test          构建并运行单元测试'; Write-Host '  make test-check    check + test 完整门禁'; Write-Host '  make bump          版本号 patch bump (默认)'; Write-Host '  make bump minor    版本号 minor bump'; Write-Host '  make bump major    版本号 major bump'; Write-Host '  make release       打包发布 zip 到 dist/'; Write-Host '  make push          推送代码与 tag 到 origin'; Write-Host '  make help          显示此帮助信息'
