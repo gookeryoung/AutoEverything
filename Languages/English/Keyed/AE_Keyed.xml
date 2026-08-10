@@ -153,10 +153,11 @@ Executes once immediately when checked; when unchecked, only stops auto-executio
   <!-- AutoDrugPolicy -->
   <AE_AutoDrugPolicy_Result>Reassigned drug policy for {0} colonists</AE_AutoDrugPolicy_Result>
   <AE_TT_AutoDrugPolicy>When checked, auto-creates 3 drug policies and assigns by tier:
-- AE-S (S/SS/SSS): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
+- AE-S (S/SS/SSS): social drugs (beer+smokeleaf+psychite tea) + Luciferium1 + Wake-Up1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
 - AE-AB (A/B): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1
 - AE-CDX (C/D/X): social drugs + Luciferium1 + Wake-Up1
-Base config is RimWorld default "Social Drugs" policy (Beer + Smokeleaf allowedForJoy=true).
+Base config: beer+smokeleaf+psychite tea (allowedForJoy=true); psychite tea additionally scheduled every 2 days.
+Carry drugs all set allowScheduled=true + takeToInventory=1 to avoid being dropped by game.
 Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are not overwritten, player adjustments are preserved.
 When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 

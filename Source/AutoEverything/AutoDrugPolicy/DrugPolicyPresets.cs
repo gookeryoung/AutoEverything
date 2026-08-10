@@ -9,14 +9,21 @@ namespace AutoEverything.AutoDrugPolicy
     /// 用药方案预设：按评级档位定义 3 套 DrugPolicy 的内容。
     ///
     /// 用户需求（2026-08-10）：
-    /// - 基本配置：复用 RimWorld 默认 SocialDrugs 政策（啤酒+烟叶 allowedForJoy=true，其他 allowed=false）
-    /// - CDX 档（C/D/X）：基本 + 活力水 takeToInventory=1 + 清醒丸 takeToInventory=1
-    /// - AB 档（A/B）：CDX + 思滞血清 takeToInventory=1
+    /// - 基本配置：所有档启用啤酒 + 烟叶 + 精神茶（allowedForJoy=true，娱乐目的）
+    /// - 精神茶额外配置计划服用：allowScheduled=true + daysFrequency=2（2 天 1 次，所有人生效）
+    /// - CDX 档（C/D/X）：基本 + 活力水 + 清醒丸（takeToInventory=1 + allowScheduled=true）
+    /// - AB 档（A/B）：CDX + 思滞血清（takeToInventory=1 + allowScheduled=true）
     /// - S 档（S/SS/SSS）：AB 配置（强力血清/钢血血清不在 DrugPolicy 系统中，由 AutoCarry 直接携带）
+    ///
+    /// 关键修复（2026-08-10）：
+    /// DrugPolicyEntry 的字段全部公开，没有 allowed 字段（之前反射 GetField("allowed") 返回 null）。
+    /// 让"携带列"真正生效必须同时设置：
+    /// - takeToInventory=N：携带数量
+    /// - allowScheduled=true：启用计划服用（否则游戏判定"无消费计划"会把携带的药品丢地上）
+    /// - daysFrequency=N：服用频率（天）
     ///
     /// 注意：血清类（JuggernautSerum/MetalbloodSerum）没有 Comp_Drug 组件，
     /// 不属于 RimWorld 药品政策系统的"药品"，无法在药品政策 UI 中显示条目。
-    /// 用户决策：血清类由 AutoCarry 按评级直接派发 TakeInventory Job 携带，不走 DrugPolicy。
     /// </summary>
     public static class DrugPolicyPresets
     {
@@ -24,6 +31,12 @@ namespace AutoEverything.AutoDrugPolicy
         public const string PolicyLabelS = "AE-S";
         public const string PolicyLabelAB = "AE-AB";
         public const string PolicyLabelCDX = "AE-CDX";
+
+        // 精神茶计划服用频率：2 天 1 次（用户需求 3）
+        private const float PsychiteTeaDaysFrequency = 2f;
+
+        // 携带药品的计划服用频率默认值：1 天 1 次（活力水/清醒丸/思滞血清等）
+        private const float DefaultCarryDaysFrequency = 1f;
 
         /// <summary>
         /// 用药评级档位（与 CombatTier 的映射关系）：
@@ -38,12 +51,9 @@ namespace AutoEverything.AutoDrugPolicy
             S = 2
         }
 
-        // 反射缓存：DrugPolicyEntry 的非公开字段（RimWorld 1.6 中可见性受限）
-        private static readonly FieldInfo entriesField = typeof(DrugPolicy).GetField("entries",
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        private static readonly FieldInfo allowedField = typeof(DrugPolicyEntry).GetField("allowed",
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
-        private static readonly FieldInfo takeToInventoryField = typeof(DrugPolicyEntry).GetField("takeToInventory",
+        // 反射缓存：DrugPolicy.entriesInt 字段（私有，无公开 setter，初始化时需反射赋值整个列表）
+        // 探针验证：Field: entriesInt : List`1 (Private=True, Public=False)
+        private static readonly FieldInfo entriesIntField = typeof(DrugPolicy).GetField("entriesInt",
             BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
         /// <summary>
@@ -68,24 +78,34 @@ namespace AutoEverything.AutoDrugPolicy
 
         /// <summary>
         /// 按档位填充 DrugPolicy 的 entries 列表。
-        /// 调用方负责提供 DrugPolicy 实例，本方法通过反射赋值 entries 字段。
+        /// 调用方负责提供 DrugPolicy 实例，本方法通过反射赋值 entriesInt 字段（私有字段无公开 setter）。
+        ///
+        /// 字段设置原则（关键修复）：
+        /// - 社交药品（啤酒/烟叶/精神茶）：allowedForJoy=true，无 takeToInventory（娱乐用）
+        /// - 精神茶：额外 allowScheduled=true + daysFrequency=2（2 天 1 次计划服用）
+        /// - 携带药品（活力水/清醒丸/思滞血清）：allowedForJoy=true + allowScheduled=true
+        ///   + takeToInventory=1 + daysFrequency=1（必须 allowScheduled=true，否则携带会被丢地上）
         /// </summary>
         public static void FillPolicyEntries(DrugPolicy policy, DrugTier tier)
         {
             var entries = new List<DrugPolicyEntry>();
 
-            // ── 基本配置：SocialDrugs 内容（啤酒 + 烟叶 allowedForJoy=true）──
-            AddSocialDrugEntry(entries, ThingDefOf.Beer);
-            AddSocialDrugEntry(entries, ThingDefOf.SmokeleafJoint);
+            // ── 基本配置：所有档启用啤酒 + 烟叶 + 精神茶（娱乐目的）──
+            // 烟叶保留 RimWorld 默认 SocialDrugs 配置
+            AddJoyDrugEntry(entries, ThingDefOf.Beer);
+            AddJoyDrugEntry(entries, ThingDefOf.SmokeleafJoint);
+            // 精神茶：娱乐 + 计划服用 2 天 1 次（用户需求 2 + 3）
+            AddScheduledJoyDrugEntry(entries, DefDatabase<ThingDef>.GetNamedSilentFail("PsychiteTea"),
+                PsychiteTeaDaysFrequency);
 
-            // ── CDX 档叠加：活力水 + 清醒丸（takeToInventory=1）──
+            // ── CDX 档叠加：活力水 + 清醒丸（携带 1 个 + 计划服用 1 天 1 次）──
             if (tier >= DrugTier.CDX)
             {
                 AddCarryDrugEntry(entries, ThingDefOf.Luciferium, 1);
                 AddCarryDrugEntry(entries, ThingDefOf.WakeUp, 1);
             }
 
-            // ── AB 档叠加：思滞血清（takeToInventory=1）──
+            // ── AB 档叠加：思滞血清（携带 1 个 + 计划服用 1 天 1 次）──
             if (tier >= DrugTier.AB)
             {
                 AddCarryDrugEntry(entries, ThingDefOf.Penoxycyline, 1);
@@ -93,15 +113,15 @@ namespace AutoEverything.AutoDrugPolicy
 
             // S 档的强力血清/钢血血清由 AutoCarry 直接携带，不放入 DrugPolicy
 
-            // 反射赋值 entries 到 DrugPolicy 实例
-            SetEntries(policy, entries);
+            // 反射赋值 entriesInt 到 DrugPolicy 实例
+            SetEntriesInt(policy, entries);
         }
 
         /// <summary>
-        /// 添加社交用药条目（allowedForJoy=true，其他字段默认）。
+        /// 添加社交用药条目（仅 allowedForJoy=true，无计划服用，无携带）。
         /// 对应 RimWorld 默认 SocialDrugs 政策中的条目格式。
         /// </summary>
-        private static void AddSocialDrugEntry(List<DrugPolicyEntry> entries, ThingDef drug)
+        private static void AddJoyDrugEntry(List<DrugPolicyEntry> entries, ThingDef drug)
         {
             if (drug == null) return;
             var entry = new DrugPolicyEntry
@@ -113,54 +133,64 @@ namespace AutoEverything.AutoDrugPolicy
         }
 
         /// <summary>
-        /// 添加携带列条目（allowed=true + takeToInventory=count）。
-        /// allowed=true 让殖民者可以在合适时机服用，
-        /// takeToInventory=count 让游戏自动管理背包库存（AutoCarry 读此字段补充库存）。
+        /// 添加娱乐+计划服用条目（allowedForJoy=true + allowScheduled=true + daysFrequency=N）。
+        /// 用于精神茶等需要定期服用的社交药品。
+        /// </summary>
+        private static void AddScheduledJoyDrugEntry(List<DrugPolicyEntry> entries, ThingDef drug, float daysFrequency)
+        {
+            if (drug == null) return;
+            var entry = new DrugPolicyEntry
+            {
+                drug = drug,
+                allowedForJoy = true,
+                allowScheduled = true,
+                daysFrequency = daysFrequency
+            };
+            entries.Add(entry);
+        }
+
+        /// <summary>
+        /// 添加携带列条目（allowedForJoy=true + allowScheduled=true + takeToInventory=N + daysFrequency=1）。
         ///
-        /// 注：allowed 与 takeToInventory 字段在 RimWorld 1.6 中可见性受限，需反射设置。
+        /// 关键：必须设置 allowScheduled=true，否则游戏判定"无消费计划"会把殖民者携带的药品丢地上。
+        /// 这是用户反馈"携带了会自己丢掉"的根本原因——之前漏设 allowScheduled。
         /// </summary>
         private static void AddCarryDrugEntry(List<DrugPolicyEntry> entries, ThingDef drug, int carryCount)
         {
             if (drug == null) return;
             var entry = new DrugPolicyEntry
             {
-                drug = drug
+                drug = drug,
+                allowedForJoy = true,
+                allowScheduled = true,
+                takeToInventory = carryCount,
+                daysFrequency = DefaultCarryDaysFrequency
             };
-            // 反射设置 allowed=true
-            if (allowedField != null)
-            {
-                allowedField.SetValue(entry, true);
-            }
-            // 反射设置 takeToInventory=carryCount
-            if (takeToInventoryField != null)
-            {
-                takeToInventoryField.SetValue(entry, carryCount);
-            }
             entries.Add(entry);
         }
 
         /// <summary>
-        /// 反射设置 DrugPolicy.entries 字段。
+        /// 反射设置 DrugPolicy.entriesInt 字段（私有，无公开 setter）。
         /// 失败时 Log.ErrorOnce 警告，不影响其他逻辑。
         /// </summary>
-        private static void SetEntries(DrugPolicy policy, List<DrugPolicyEntry> entries)
+        private static void SetEntriesInt(DrugPolicy policy, List<DrugPolicyEntry> entries)
         {
-            if (entriesField == null)
+            if (entriesIntField == null)
             {
-                Log.ErrorOnce("[AutoEverything] DrugPolicy.entries 字段反射失败，无法配置用药方案",
+                Log.ErrorOnce("[AutoEverything] DrugPolicy.entriesInt 字段反射失败，无法配置用药方案",
                     0xA500);
                 return;
             }
-            entriesField.SetValue(policy, entries);
+            entriesIntField.SetValue(policy, entries);
         }
 
         /// <summary>
-        /// 反射读取 DrugPolicy.entries 字段。供 AutoCarry 查询 takeToInventory 复用。
+        /// 反射读取 DrugPolicy.entriesInt 字段。供 AutoCarry 查询 takeToInventory 复用。
         /// </summary>
         public static List<DrugPolicyEntry> GetEntries(DrugPolicy policy)
         {
-            if (policy == null || entriesField == null) return null;
-            return entriesField.GetValue(policy) as List<DrugPolicyEntry>;
+            if (policy == null || entriesIntField == null) return null;
+            return entriesIntField.GetValue(policy) as List<DrugPolicyEntry>;
         }
     }
 }

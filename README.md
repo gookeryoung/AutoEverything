@@ -456,7 +456,7 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 | 评级范围 | 药品政策 | 政策内容 |
 |----------|---------|---------|
-| S / SS / SSS | **AE-S** | 社交用药（啤酒+烟叶 allowedForJoy=true）+ 活力水1 + 清醒丸1 + 思滞血清1 |
+| S / SS / SSS | **AE-S** | 社交用药 + 活力水1 + 清醒丸1 + 思滞血清1 |
 | A / B | **AE-AB** | AE-S 配置相同（强力血清/钢血血清由 AutoCarry 直接携带，不走 DrugPolicy） |
 | C / D / X | **AE-CDX** | 社交用药 + 活力水1 + 清醒丸1 |
 
@@ -464,18 +464,35 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 ### 基本配置
 
-3 套政策的基本配置均为 RimWorld 默认 [`SocialDrugs`](file:///e:/SteamLibrary/steamapps/common/RimWorld/Data/Core/Defs/DrugPolicyDefs/DrugPolicyDefs.xml) 政策：
-- 啤酒（Beer）`allowedForJoy=true`
-- 烟叶（SmokeleafJoint）`allowedForJoy=true`
-- 其他药品不在 entries 中，默认 `allowed=false`
+3 套政策的基本配置均为 RimWorld 默认 [`SocialDrugs`](file:///e:/SteamLibrary/steamapps/common/RimWorld/Data/Core/Defs/DrugPolicyDefs/DrugPolicyDefs.xml) 政策的扩展：
+- 啤酒（Beer）`allowedForJoy=true` — 娱乐目的
+- 烟叶（SmokeleafJoint）`allowedForJoy=true` — 娱乐目的
+- 精神茶（PsychiteTea）`allowedForJoy=true` + `allowScheduled=true` + `daysFrequency=2` — 娱乐 + 计划服用 2 天 1 次
 
 ### 叠加规则
 
-按评级档位叠加药品的"携带"列（takeToInventory=1）：
+按评级档位叠加药品的"携带"列（`takeToInventory=1`）与计划服用（`allowScheduled=true` + `daysFrequency=1`）：
 
-- **CDX 档**：基本 + 活力水 + 清醒丸（`takeToInventory=1`，`allowed=true`）
-- **AB 档**：CDX + 思滞血清（`takeToInventory=1`，`allowed=true`）
+- **CDX 档**：基本 + 活力水 + 清醒丸
+- **AB 档**：CDX + 思滞血清
 - **S 档**：AB（血清由 AutoCarry 直接携带，不放入 DrugPolicy）
+
+### 关键字段说明
+
+`DrugPolicyEntry` 字段（探针验证全部公开）：
+
+| 字段 | 类型 | 含义 |
+|------|------|------|
+| `drug` | ThingDef | 药品定义 |
+| `allowedForJoy` | bool | 是否允许娱乐服用 |
+| `allowedForAddiction` | bool | 是否允许戒断缓解服用 |
+| `allowScheduled` | bool | **必须为 true 才能让"携带"列生效** |
+| `takeToInventory` | int | 携带到背包的目标数量 |
+| `daysFrequency` | float | 计划服用频率（天） |
+| `onlyIfMoodBelow` | float | 仅当心情低于此值时服用 |
+| `onlyIfJoyBelow` | float | 仅当娱乐低于此值时服用 |
+
+**关键修复**（2026-08-10）：之前漏设 `allowScheduled=true`，游戏判定"无消费计划"会把殖民者携带的药品丢地上。现在携带药品全部设置 `allowScheduled=true` + `daysFrequency=1`，游戏正常管理背包库存。
 
 ### 政策生命周期
 

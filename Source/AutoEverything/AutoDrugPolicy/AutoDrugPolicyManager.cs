@@ -1,5 +1,4 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using RimWorld;
@@ -21,10 +20,9 @@ namespace AutoEverything.AutoDrugPolicy
     /// - 药品类（活力水/清醒丸/思滞血清）走 DrugPolicy 的 takeToInventory
     /// - 血清类（强力血清/钢血血清）由 AutoCarry 按评级直接携带（不走 DrugPolicy）
     ///
-    /// 不破坏玩家自定义政策：
-    /// - 只自动分配 label 以 "AE-" 开头的政策
-    /// - 玩家手动给某个殖民者分配了非 AE- 政策，下次 ReassignAll 会覆盖回 AE- 政策
-    ///   （这是用户决策"按评级自动分配"的预期行为）
+    /// 关键修复（2026-08-10）：
+    /// 探针验证 DrugPolicyDatabase.AllPolicies 是公开属性，无需反射访问 policies 字段。
+    /// 之前用反射读取 policies，现改为直接用 AllPoliciesForReading 风格的公开 API。
     /// </summary>
     public static class AutoDrugPolicyManager
     {
@@ -39,7 +37,9 @@ namespace AutoEverything.AutoDrugPolicy
         // 静态标志：是否已执行过 EnsurePoliciesCreated
         private static bool policiesInitialized = false;
 
-        // 反射缓存：DrugPolicyDatabase.policies 字段（不同 RimWorld 版本可见性可能不同）
+        // 反射缓存：DrugPolicyDatabase.policies 字段（私有，但用于添加新政策到列表）
+        // 探针验证：Field: policies : List`1 (Private=True, Public=False)
+        // 公开属性 AllPolicies 只读，添加新政策必须反射写 policies 列表
         private static readonly FieldInfo policiesListField = typeof(DrugPolicyDatabase)
             .GetField("policies", BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
 
@@ -47,11 +47,6 @@ namespace AutoEverything.AutoDrugPolicy
         /// 启动时检查并创建 3 个 DrugPolicy（如果不存在）。
         /// 在 GameComponentTick 或 ITab 勾选时调用。
         /// 幂等：重复调用不会创建重复政策，已存在的政策不会被重置内容（避免覆盖玩家手动调整）。
-        ///
-        /// 设计权衡：
-        /// - 已存在同名政策时，**不重置内容**——避免覆盖玩家手动调整后的政策
-        /// - 仅在首次创建时按预设填充 entries
-        /// - 如需强制重置，玩家可手动删除政策，下次启动会按预设重建
         /// </summary>
         public static void EnsurePoliciesCreated()
         {
@@ -82,8 +77,9 @@ namespace AutoEverything.AutoDrugPolicy
             DrugPolicyDatabase db = Current.Game?.drugPolicyDatabase;
             if (db == null) return null;
 
-            // 反射读取 policies 列表（List<DrugPolicy>）
-            List<DrugPolicy> policies = GetPoliciesList(db);
+            // 探针验证：DrugPolicyDatabase.AllPolicies 是公开属性 (Get only)
+            // 遍历查找同名政策
+            List<DrugPolicy> policies = db.AllPolicies;
             if (policies != null)
             {
                 for (int i = 0; i < policies.Count; i++)
@@ -95,16 +91,22 @@ namespace AutoEverything.AutoDrugPolicy
                 }
             }
 
-            // 创建新政策：new DrugPolicy(label, id) + 加入数据库
-            // RimWorld 1.6 中 DrugPolicy 构造需要唯一 id，从数据库生成
+            // 创建新政策：new DrugPolicy(id, label) + 反射添加到 policies 列表
+            // 探针验证：DrugPolicy 构造函数接受 (int id, string label)
             int newId = GeneratePolicyId(policies);
             var policy = new DrugPolicy(newId, label);
             DrugPolicyPresets.FillPolicyEntries(policy, tier);
 
-            // 加入数据库（反射添加到 policies 列表）
-            if (policies != null)
+            // 反射添加到数据库的 policies 列表（公开属性 AllPolicies 只读，必须反射写）
+            List<DrugPolicy> policiesList = GetPoliciesListForWrite(db);
+            if (policiesList != null)
             {
-                policies.Add(policy);
+                policiesList.Add(policy);
+            }
+            else
+            {
+                Log.ErrorOnce("[AutoEverything] DrugPolicyDatabase.policies 字段反射失败，无法添加用药方案: " + label,
+                    PolicyErrorSalt ^ label.GetHashCode());
             }
 
             if (AEDebug.IsActive)
@@ -114,10 +116,10 @@ namespace AutoEverything.AutoDrugPolicy
         }
 
         /// <summary>
-        /// 反射获取 DrugPolicyDatabase.policies 列表。
-        /// RimWorld 1.6 中该字段可见性受限，需要反射访问。
+        /// 反射获取 DrugPolicyDatabase.policies 列表用于添加新政策。
+        /// 公开属性 AllPolicies 只读，写操作必须反射。
         /// </summary>
-        private static List<DrugPolicy> GetPoliciesList(DrugPolicyDatabase db)
+        private static List<DrugPolicy> GetPoliciesListForWrite(DrugPolicyDatabase db)
         {
             if (policiesListField == null) return null;
             return policiesListField.GetValue(db) as List<DrugPolicy>;
@@ -125,7 +127,6 @@ namespace AutoEverything.AutoDrugPolicy
 
         /// <summary>
         /// 生成唯一的 DrugPolicy id（在现有列表中取最大 id + 1）。
-        /// RimWorld 1.6 中 DrugPolicy.id 用于数据库内部索引。
         /// </summary>
         private static int GeneratePolicyId(List<DrugPolicy> policies)
         {
@@ -141,17 +142,12 @@ namespace AutoEverything.AutoDrugPolicy
         /// <summary>
         /// 全局重新分配：遍历所有自由殖民者，按评级自动分配对应 DrugPolicy。
         /// 返回受影响的殖民者数量（实际改变政策的 Pawn 数）。
-        ///
-        /// 调用方职责：
-        /// - autoDrugPolicyEnabled 开关由调用方检查
-        /// - 战斗过滤由调用方控制（用药方案分配不像工作重配那样打断 Job，可不禁用战斗中分配）
         /// </summary>
         public static int ReassignAll()
         {
             EnsurePoliciesCreated();
             if (policyS == null || policyAB == null || policyCDX == null)
             {
-                // 政策创建失败，无法分配
                 return 0;
             }
 
@@ -188,20 +184,17 @@ namespace AutoEverything.AutoDrugPolicy
         /// </summary>
         private static bool TryAssignPolicy(Pawn pawn)
         {
-            // 仅人类 like 通过（与 AutoCarry 一致，排除机械族/食尸鬼/奴隶由调用方过滤）
             if (!PawnSuitabilityChecker.CanManageGear(pawn)) return false;
 
-            // 评级 → DrugTier → DrugPolicy
             Core.CombatTier combatTier = CombatEvaluator.GetCombatTier(pawn);
             DrugPolicyPresets.DrugTier drugTier = DrugPolicyPresets.CombatTierToDrugTier(combatTier);
             DrugPolicy targetPolicy = GetPolicyByTier(drugTier);
             if (targetPolicy == null) return false;
 
-            // 当前政策已正确则跳过
+            // 探针验证：Pawn_DrugPolicyTracker.CurrentPolicy 是公开属性 (Get/Set)
             DrugPolicy currentPolicy = pawn.drugs?.CurrentPolicy;
             if (currentPolicy == targetPolicy) return false;
 
-            // 分配新政策
             if (pawn.drugs == null) return false;
             pawn.drugs.CurrentPolicy = targetPolicy;
 
@@ -211,9 +204,6 @@ namespace AutoEverything.AutoDrugPolicy
             return true;
         }
 
-        /// <summary>
-        /// 按 DrugTier 取对应 DrugPolicy 实例。
-        /// </summary>
         private static DrugPolicy GetPolicyByTier(DrugPolicyPresets.DrugTier tier)
         {
             switch (tier)
@@ -226,7 +216,6 @@ namespace AutoEverything.AutoDrugPolicy
 
         /// <summary>
         /// 重置初始化标志：存档加载后允许重新创建政策（应对 DrugPolicyDatabase 实例变化）。
-        /// 由 GameComponentTick 首次调用 EnsurePoliciesCreated 前自动触发。
         /// </summary>
         public static void ResetInitialization()
         {

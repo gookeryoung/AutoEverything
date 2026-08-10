@@ -64,9 +64,10 @@ namespace AutoEverything.Tests
         {
             int failures = 0;
 
-            // ── 无条目：默认允许（RimWorld 原生默认未禁用）──────────
-            CheckLuciferium(false, false, true, "无条目 → 默认允许", ref failures, ref total);
-            CheckLuciferium(false, true, true, "无条目（entryAllowed 忽略）→ 默认允许", ref failures, ref total);
+            // ── 无条目：不允许携带（GetDrugCarryCount 返回 -1 → LuciferiumAllowed 返回 false）──
+            // 语义：政策未配置该药品，玩家没说要带，AutoCarry 不主动带
+            CheckLuciferium(false, false, false, "无条目 → 不允许（政策未配置）", ref failures, ref total);
+            CheckLuciferium(false, true, false, "无条目（entryAllowed 忽略）→ 不允许", ref failures, ref total);
 
             // ── 有条目且 allowed=true：允许 ─────────────────────────
             CheckLuciferium(true, true, true, "有条目 allowed=true → 允许", ref failures, ref total);

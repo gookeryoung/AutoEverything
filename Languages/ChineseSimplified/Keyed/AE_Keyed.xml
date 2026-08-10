@@ -154,10 +154,11 @@
   <!-- AutoDrugPolicy 用药方案自动配置 -->
   <AE_AutoDrugPolicy_Result>已为 {0} 个殖民者重新分配用药方案</AE_AutoDrugPolicy_Result>
   <AE_TT_AutoDrugPolicy>勾选后自动创建 3 套用药方案并按评级自动分配：
-- AE-S（S/SS/SSS）：社交用药 + 活力水1 + 清醒丸1 + 思滞血清1；强力血清与钢血血清由"自动携带"模块携带
+- AE-S（S/SS/SSS）：社交用药（啤酒+烟叶+精神茶）+ 活力水1 + 清醒丸1 + 思滞血清1；强力血清与钢血血清由"自动携带"模块携带
 - AE-AB（A/B）：社交用药 + 活力水1 + 清醒丸1 + 思滞血清1
 - AE-CDX（C/D/X）：社交用药 + 活力水1 + 清醒丸1
-基本配置为 RimWorld 默认"社交用药"政策（啤酒+烟叶 allowedForJoy=true）。
+基本配置：啤酒+烟叶+精神茶（allowedForJoy=true）；精神茶额外启用计划服用 2 天 1 次。
+携带药品均设置 allowScheduled=true + takeToInventory=1，避免被游戏丢地上。
 每 3000 tick 与殖民者数量变化时自动重分配。已存在同名政策不会被覆盖，玩家可手动调整后保留。
 取消勾选仅停止自动执行，已分配的政策不变。</AE_TT_AutoDrugPolicy>
 
