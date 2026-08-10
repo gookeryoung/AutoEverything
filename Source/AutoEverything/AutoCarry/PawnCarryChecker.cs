@@ -44,6 +44,8 @@ namespace AutoEverything.AutoCarry
             if (pawn.IsSlaveOfColony) return true;
             // 死亡/倒下：无法去仓库拾取
             if (pawn.Dead || pawn.Downed) return true;
+            // 无意识/昏迷：无法主动服药与拾取（意识水平极低时跳过）
+            if (pawn.health?.capacities != null && !pawn.health.capacities.CanBeAwake) return true;
             // 医疗 Job / 卧床休养：避免打断手术与休养
             if (PawnJobGuard.ShouldSkipForMedical(pawn)) return true;
             return false;

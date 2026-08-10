@@ -61,10 +61,12 @@ namespace AutoEverything.AutoCarry
         private static List<ThingDef> cachedFoodDefs;
         private static ThingDef cachedLuciferium;
         private static ThingDef cachedWakeUp;
+        private static ThingDef cachedGoJuice;
         private static ThingDef cachedPenoxycyline;
         private static ThingDef cachedJuggernautSerum;
         private static ThingDef cachedMetalbloodSerum;
         private static ThingDef cachedMindNumbSerum;
+        private static HediffDef cachedLuciferiumAddiction;
         private static bool serumDefsResolved = false;
 
         /// <summary>
@@ -87,35 +89,75 @@ namespace AutoEverything.AutoCarry
         /// 填充殖民者应携带的物品清单到外部缓冲区（避免每次分配新 List）。
         /// 调用方负责在调用前 Clear 缓冲区。
         ///
-        /// 物品分层：
-        /// 1. 食物：始终携带 x3
-        /// 2. 药品类：读 DrugPolicy 的 takeToInventory（由 AutoDrugPolicyManager 按评级配置）
-        /// 3. 血清类：按评级直接判定（S 档携带强力+钢血血清）
+        /// 物品按类别分组（2026-08-10 重构，避免规则混用）：
+        /// 1. 食物类：始终携带 x3
+        /// 2. 永久成瘾药类（Luciferium）：有渴求固定 1 个，无渴求按 DrugPolicy
+        /// 3. 战斗增强药类（WakeUp/GoJuice）：按 DrugPolicy takeToInventory
+        /// 4. 预防药类（Penoxycyline）：按 DrugPolicy takeToInventory
+        /// 5. 血清类（Juggernaut/Metalblood/MindNumb）：S 档固定 1 个
         /// </summary>
         public static void FillCarryItems(Pawn pawn, List<CarryEntry> result)
         {
-            // 1. 食物：始终携带
+            // ── 类别 1：食物（所有适用 Pawn 固定携带 x3）──
             List<ThingDef> foodDefs = GetFoodDefs();
             for (int i = 0; i < foodDefs.Count; i++)
             {
                 result.Add(new CarryEntry { Def = foodDefs[i], Count = FoodCount });
             }
 
-            // 2. 药品类：读 DrugPolicy 的 takeToInventory
-            AddDrugIfPolicyCarry(pawn, GetLuciferiumDef(), result);
+            // ── 类别 2：永久成瘾药（Luciferium）──
+            // 有 Luciferium 渴求：固定携带 1 个（每天必须服用，否则死亡）
+            // 无渴求：按 DrugPolicy takeToInventory（默认 0，不预支）
+            if (HasLuciferiumAddiction(pawn))
+            {
+                ThingDef luciferium = GetLuciferiumDef();
+                if (luciferium != null)
+                {
+                    result.Add(new CarryEntry { Def = luciferium, Count = 1 });
+                }
+            }
+            else
+            {
+                AddDrugIfPolicyCarry(pawn, GetLuciferiumDef(), result);
+            }
+
+            // ── 类别 3：战斗增强药（按 DrugPolicy takeToInventory）──
+            // 清醒丸：需要睡眠的 Pawn 才带（抵抗睡眠）
             if (PawnCarryChecker.NeedSleep(pawn))
             {
                 AddDrugIfPolicyCarry(pawn, GetWakeUpDef(), result);
             }
+            // 活力水：AB/S 档由 DrugPolicy 配置 takeToInventory=1
+            AddDrugIfPolicyCarry(pawn, GetGoJuiceDef(), result);
+
+            // ── 类别 4：预防药（按 DrugPolicy takeToInventory）──
+            // 佩诺西林：AB/S 档由 DrugPolicy 配置，计划服用 5 天 1 次
             AddDrugIfPolicyCarry(pawn, GetPenoxycylineDef(), result);
 
-            // 3. 血清类：S 档（S/SS/SSS）携带强力+钢血+思滞血清（AutoCarry 直接携带，DrugPolicy 配 takeToInventory 防卸下）
+            // ── 类别 5：血清（S 档固定携带 1 个，DrugPolicy 配 takeToInventory=1 防卸下）──
             if (IsTierS(pawn))
             {
                 AddSerumIfAvailable(GetJuggernautSerumDef(), result);
                 AddSerumIfAvailable(GetMetalbloodSerumDef(), result);
                 AddSerumIfAvailable(GetMindNumbSerumDef(), result);
             }
+        }
+
+        /// <summary>
+        /// 检查 Pawn 是否有 Luciferium 成瘾（永久成瘾，每天必须服用）。
+        /// 有成瘾的 Pawn 必须携带 Luciferium，否则会死亡。
+        /// HediffDefOf 无此字段，用 DefDatabase 缓存 HediffDef。
+        /// </summary>
+        private static bool HasLuciferiumAddiction(Pawn pawn)
+        {
+            if (pawn?.health?.hediffSet == null) return false;
+            if (cachedLuciferiumAddiction == null)
+            {
+                cachedLuciferiumAddiction = DefDatabase<HediffDef>.GetNamedSilentFail("LuciferiumAddiction");
+                if (cachedLuciferiumAddiction == null) return false;
+            }
+            Hediff addiction = pawn.health.hediffSet.GetFirstHediffOfDef(cachedLuciferiumAddiction);
+            return addiction != null;
         }
 
         /// <summary>
@@ -173,6 +215,14 @@ namespace AutoEverything.AutoCarry
             if (cachedPenoxycyline == null)
                 cachedPenoxycyline = ThingDefOf.Penoxycyline;
             return cachedPenoxycyline;
+        }
+
+        /// <summary>活力水（GoJuice）ThingDef（懒加载，缺失返回 null）</summary>
+        internal static ThingDef GetGoJuiceDef()
+        {
+            if (cachedGoJuice == null)
+                cachedGoJuice = DefDatabase<ThingDef>.GetNamedSilentFail("GoJuice");
+            return cachedGoJuice;
         }
 
         /// <summary>
