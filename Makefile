@@ -12,7 +12,15 @@ OUTPUT := Assemblies/AutoEverything.dll
 DOTNET := dotnet
 DOTNET_FLAGS := -clp:Force
 
-.PHONY: all build check clean restore rebuild rebuild-check test test-check help
+# 发布产物目录
+DIST := dist
+# 发布 zip 包含的 MOD 文件/目录（排除开发文件）
+RELEASE_FILES := About Assemblies Defs Languages Patches Textures README.md CHANGELOG.md
+
+# 当前版本号（从 About.xml 读取，供 release target 使用）
+VERSION := $(shell powershell -NoProfile -Command "(Select-Xml -Path About/About.xml -XPath '//modVersion').Node.InnerText" 2>nul)
+
+.PHONY: all build check clean restore rebuild rebuild-check test test-check help bump patch minor major release push
 
 # 默认目标：构建
 all: build
@@ -55,7 +63,45 @@ test:
 # 检查 + 测试：完整门禁（规则强制 check 通过 + 单元测试通过）
 test-check: check test
 
-# 查看可用目标
+# ════════════════════════════════════════════════════════════
+# 版本管理（bump-my-version）
+# ════════════════════════════════════════════════════════════
+
+# 版本号 bump（默认 patch，用法: make bump [minor|major]）
+# 自动更新 About.xml modVersion + csproj Version + commit + tag
+# bump 前请在 CHANGELOG.md [Unreleased] 下补充变更说明
+BUMP_PART := $(filter-out bump,$(MAKECMDGOALS))
+
+bump:
+	@echo "[bump] 当前版本: $(VERSION)"
+	@uvx bump-my-version bump $(if $(BUMP_PART),$(firstword $(BUMP_PART)),patch) --tag --allow-dirty
+	@echo "[bump] 完成，新 tag 已创建"
+
+patch minor major:
+	@:
+
+# ════════════════════════════════════════════════════════════
+# 发布
+# ════════════════════════════════════════════════════════════
+
+# 打包发布 zip（先跑 check 确保质量，再打包 MOD 文件）
+release: check
+	@echo "[release] 准备打包版本 $(VERSION)..."
+	@if exist $(DIST) rmdir /s /q $(DIST)
+	@mkdir $(DIST)
+	@powershell -NoProfile -Command "$$files = '@(About,Assemblies,Defs,Languages,Patches,Textures,README.md,CHANGELOG.md)' -split ','; $$exist = @(); foreach ($$f in $$files) { if (Test-Path $$f) { $$exist += $$f } }; Compress-Archive -Path $$exist -DestinationPath $(DIST)/AutoEverything-v$(VERSION).zip -Force"
+	@echo "[release] 完成: $(DIST)/AutoEverything-v$(VERSION).zip"
+
+# 推送代码与所有 tag 到 origin
+push:
+	@git push origin
+	@git push origin --tags
+	@echo "[push] 代码与 tag 已推送"
+
+# ════════════════════════════════════════════════════════════
+# 帮助
+# ════════════════════════════════════════════════════════════
+
 help:
 	echo AutoEverything Makefile 目标:
 	echo   make build         构建项目 (默认)
@@ -66,4 +112,9 @@ help:
 	echo   make restore       还原 NuGet 依赖
 	echo   make test          构建并运行单元测试
 	echo   make test-check    check + test 完整门禁
+	echo   make bump          版本号 patch bump (默认)
+	echo   make bump minor    版本号 minor bump
+	echo   make bump major    版本号 major bump
+	echo   make release       打包发布 zip 到 dist/
+	echo   make push          推送代码与 tag 到 origin
 	echo   make help          显示此帮助信息

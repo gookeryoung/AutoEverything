@@ -19,10 +19,11 @@
 
   <ItemGroup>
     <!-- 主项目依赖 UnityEngine（HarmonyPatches 等），测试运行时需传递加载 -->
-    <Reference Include="UnityEngine.CoreModule">
+    <Reference Condition="'$(CI)' != 'true'" Include="UnityEngine.CoreModule">
       <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <!-- CI 模式：UnityEngine 由 Krafs.Rimworld.Ref 传递引用 -->
   </ItemGroup>
 
   <ItemGroup>

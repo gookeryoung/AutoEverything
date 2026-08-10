@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（如 1.4.5，留空则从最新 tag 读取）'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Determine version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            # 从 tag 名提取版本号（v1.4.5 → 1.4.5）
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build (CI mode)
+        run: dotnet build -c Release -p:CI=true Source/AutoEverything/AutoEverything.csproj
+
+      - name: Build test project (CI mode)
+        run: dotnet build -c Release -p:CI=true Test/AutoEverything.Tests/AutoEverything.Tests.csproj
+
+      - name: Run unit tests
+        run: dotnet run -c Release --no-build --project Test/AutoEverything.Tests/AutoEverything.Tests.csproj
+
+      - name: Package release zip
+        run: |
+          mkdir -p dist
+          # 收集存在的 MOD 文件/目录
+          FILES=""
+          for f in About Assemblies Defs Languages Patches Textures README.md CHANGELOG.md; do
+            if [ -e "$f" ]; then FILES="$FILES $f"; fi
+          done
+          zip -r "dist/AutoEverything-v${{ steps.version.outputs.version }}.zip" $FILES
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          body: |
+            # AutoEverything v${{ steps.version.outputs.version }}
+
+            ## 变更说明
+            请参阅 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/v${{ steps.version.outputs.version }}/CHANGELOG.md)
+
+            ## 安装
+            1. 下载 `AutoEverything-v${{ steps.version.outputs.version }}.zip`
+            2. 解压到 RimWorld Mods 目录（`Steam/steamapps/common/RimWorld/Mods/`）
+            3. 启动游戏，在 MOD 管理器启用 "Auto Everything"
+          files: dist/AutoEverything-v${{ steps.version.outputs.version }}.zip
+          draft: false
+          prerelease: false

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Build Check (零警告零错误)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build with NuGet RimWorld ref (CI mode)
+        run: dotnet build -c Release -warnaserror -p:CI=true Source/AutoEverything/AutoEverything.csproj
+
+      - name: Build test project
+        run: dotnet build -c Release -p:CI=true Test/AutoEverything.Tests/AutoEverything.Tests.csproj
+
+      - name: Run unit tests
+        run: dotnet run -c Release --no-build --project Test/AutoEverything.Tests/AutoEverything.Tests.csproj

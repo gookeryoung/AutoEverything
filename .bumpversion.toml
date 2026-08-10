@@ -1,0 +1,23 @@
+[tool.bumpversion]
+current_version = "1.4.4"
+commit = true
+message = "chore: 更新版本 {current_version} → {new_version}"
+tag = true
+tag_name = "v{new_version}"
+tag_message = "release {new_version}"
+
+# 版本号写入 About.xml 的 <modVersion> 标签（RimWorld 1.6 原生支持，显示在 MOD 列表）
+[[tool.bumpversion.files]]
+filename = "About/About.xml"
+regex = true
+search = '<modVersion>{current_version}</modVersion>'
+replace = '<modVersion>{new_version}</modVersion>'
+
+# 版本号写入 csproj 的 <Version> 字段（DLL 文件属性可见）
+[[tool.bumpversion.files]]
+filename = "Source/AutoEverything/AutoEverything.csproj"
+regex = true
+search = '<Version>{current_version}</Version>'
+replace = '<Version>{new_version}</Version>'
+
+# CHANGELOG.md 由玩家手动维护（bump 前在 [Unreleased] 下写变更，bump 后手动改版本号与日期）
