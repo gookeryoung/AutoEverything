@@ -153,8 +153,20 @@ namespace AutoEverything.AutoDrugPolicy
                     takeToInventory: 1);
             }
 
-            // S 档的强力血清/钢血血清不在 DrugPolicy 系统中（无 Comp_Drug），
-            // 由 AutoCarry 模块直接携带
+            // ── S 档叠加：血清预支 1 个（防止 FirstUnloadableThing 卸下）──
+            // 血清无 Comp_Drug，不在 DrugPolicy 默认列表，需手动添加条目
+            // AutoCarry 派发 TakeInventory Job 携带血清，此处配置 takeToInventory=1 避免被卸下
+            if (tier >= DrugTier.S)
+            {
+                // 强力血清（JuggernautSerum）：力量+速度增强
+                SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("JuggernautSerum"),
+                    allowedForJoy: false, allowedForAddiction: false,
+                    allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
+                // 钢血血清（MetalbloodSerum）：伤害抗性增强
+                SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("MetalbloodSerum"),
+                    allowedForJoy: false, allowedForAddiction: false,
+                    allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
+            }
         }
 
         /// <summary>
