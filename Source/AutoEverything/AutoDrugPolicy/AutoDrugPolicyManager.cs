@@ -70,7 +70,12 @@ namespace AutoEverything.AutoDrugPolicy
 
         /// <summary>
         /// 查找或创建指定 label 的 DrugPolicy。
-        /// 已存在时返回现有政策（不重置内容），不存在时创建并按预设填充。
+        /// 已存在时也重新填充 entries（覆盖旧内容）——确保最新预设生效，修复旧版本创建的错误政策。
+        ///
+        /// 设计权衡（2026-08-10 修复）：
+        /// 之前"已存在不重置"导致旧 bug 版本创建的政策（漏设 allowScheduled、没精神茶）无法修复。
+        /// 用户决策"按评级自动配置"，自动覆盖是预期行为。
+        /// 玩家如需手动调整，可取消勾选"用药方案"开关停止自动重分配，或重命名为非 AE- 前缀。
         /// </summary>
         private static DrugPolicy FindOrCreatePolicy(string label, DrugPolicyPresets.DrugTier tier)
         {
@@ -78,21 +83,33 @@ namespace AutoEverything.AutoDrugPolicy
             if (db == null) return null;
 
             // 探针验证：DrugPolicyDatabase.AllPolicies 是公开属性 (Get only)
-            // 遍历查找同名政策
             List<DrugPolicy> policies = db.AllPolicies;
+            DrugPolicy existing = null;
             if (policies != null)
             {
                 for (int i = 0; i < policies.Count; i++)
                 {
                     if (policies[i].label == label)
                     {
-                        return policies[i];
+                        existing = policies[i];
+                        break;
                     }
                 }
             }
 
+            if (existing != null)
+            {
+                // 已存在：重新填充 entries（覆盖旧内容，确保最新预设生效）
+                DrugPolicyPresets.FillPolicyEntries(existing, tier);
+                if (AEDebug.IsActive)
+                {
+                    int entryCount = existing.Count;
+                    AEDebug.Log(() => $"[AutoDrugPolicy] 重置已有政策: {label} (entries={entryCount})");
+                }
+                return existing;
+            }
+
             // 创建新政策：new DrugPolicy(id, label) + 反射添加到 policies 列表
-            // 探针验证：DrugPolicy 构造函数接受 (int id, string label)
             int newId = GeneratePolicyId(policies);
             var policy = new DrugPolicy(newId, label);
             DrugPolicyPresets.FillPolicyEntries(policy, tier);
@@ -110,7 +127,10 @@ namespace AutoEverything.AutoDrugPolicy
             }
 
             if (AEDebug.IsActive)
-                AEDebug.Log(() => $"[AutoDrugPolicy] 创建政策: {label} (tier={tier}, id={newId})");
+            {
+                int entryCount = policy.Count;
+                AEDebug.Log(() => $"[AutoDrugPolicy] 创建政策: {label} (tier={tier}, id={newId}, entries={entryCount})");
+            }
 
             return policy;
         }

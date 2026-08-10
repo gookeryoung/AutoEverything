@@ -171,7 +171,12 @@ namespace AutoEverything.AutoDrugPolicy
 
         /// <summary>
         /// 反射设置 DrugPolicy.entriesInt 字段（私有，无公开 setter）。
-        /// 失败时 Log.ErrorOnce 警告，不影响其他逻辑。
+        ///
+        /// 关键修复（2026-08-10）：
+        /// 之前用 SetValue 替换整个列表引用，但 DrugPolicy 构造函数可能已初始化 entriesInt 为空列表，
+        /// 其他代码（如 Item 索引器、Count 属性）可能持有旧引用导致设置不生效。
+        /// 现改为：获取现有列表 → Clear → Add 逐个添加，保留列表引用不变。
+        /// 如果现有列表为 null（构造函数未初始化），才用 SetValue 设置新列表。
         /// </summary>
         private static void SetEntriesInt(DrugPolicy policy, List<DrugPolicyEntry> entries)
         {
@@ -181,7 +186,23 @@ namespace AutoEverything.AutoDrugPolicy
                     0xA500);
                 return;
             }
-            entriesIntField.SetValue(policy, entries);
+
+            // 获取现有列表（构造函数可能已初始化为空列表）
+            var existingList = entriesIntField.GetValue(policy) as List<DrugPolicyEntry>;
+            if (existingList == null)
+            {
+                // 现有列表为 null，直接设置新列表
+                entriesIntField.SetValue(policy, entries);
+            }
+            else
+            {
+                // 现有列表存在，清空后逐个添加（保留列表引用，避免其他代码持有的引用失效）
+                existingList.Clear();
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    existingList.Add(entries[i]);
+                }
+            }
         }
 
         /// <summary>
