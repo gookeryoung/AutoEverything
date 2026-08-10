@@ -9,9 +9,12 @@ namespace AutoEverything.AutoDrugPolicy
     /// 用药方案预设：按评级档位定义 3 套 DrugPolicy 的内容。
     ///
     /// 用户需求（2026-08-10）：
-    /// 1. 计划服用（allowScheduled）只允许配置精神茶（2 天 1 次）
-    /// 2. 血清、活力水、清醒丸等通过 takeToInventory 预支携带
-    /// 3. 所有成瘾品勾选 allowedForAddiction=true（满足依赖）
+    /// 1. 计划服用（allowScheduled）只允许配置精神茶（2 天 1 次）与佩诺西林（AB/S 档，5 天 1 次）
+    /// 2. 魔鬼素（Luciferium）不预支不计划服用（仅满足依赖）
+    /// 3. 清醒丸（WakeUp）不计划服用（所有档预支 1 个）
+    /// 4. 活力水（GoJuice）AB/S 档预支 1 个，不计划服用
+    /// 5. 佩诺西林（Penoxycyline）AB/S 档计划服用 5 天 1 次 + 预支 1 个
+    /// 6. 所有成瘾品勾选 allowedForAddiction=true（满足依赖，RimWorld 默认）
     ///
     /// RimWorld 机制（反编译验证 2026-08-10）：
     /// - DrugPolicy(id, label) 构造函数调用 InitializeIfNeeded()，
@@ -35,6 +38,9 @@ namespace AutoEverything.AutoDrugPolicy
 
         // 精神茶计划服用频率：2 天 1 次（用户需求 1）
         private const float PsychiteTeaDaysFrequency = 2f;
+
+        // 佩诺西林计划服用频率：5 天 1 次（用户需求 2）
+        private const float PenoxycylineDaysFrequency = 5f;
 
         // 反射缓存：DrugPolicy.entriesInt 字段（私有，添加新条目时需反射）
         // 探针验证：Field: entriesInt : List`1 (Private=True, Public=False)
@@ -91,13 +97,14 @@ namespace AutoEverything.AutoDrugPolicy
         /// - 遍历查找目标药品修改字段，找不到时手动添加新条目
         /// - 同步设置 takeToInventoryTempBuffer 避免 UI 显示空
         ///
-        /// 字段设置规则：
-        /// - 啤酒/烟叶：allowedForJoy=true（娱乐），allowedForAddiction=true（满足依赖）
-        /// - 精神茶：上述 + allowScheduled=true + daysFrequency=2 + takeToInventory=1
-        ///   （计划服用只允许精神茶——用户需求 1；计划服用需携带，故 takeToInventory=1）
-        /// - 携带药品（Luciferium/WakeUp/Penoxycyline）：
-        ///   allowedForAddiction=true + takeToInventory=1（预支携带——用户需求 2）
-        ///   不勾 allowScheduled（计划服用只允许精神茶）
+        /// 字段设置规则（用户需求 2026-08-10）：
+        /// - 啤酒/烟叶：allowedForJoy=true, allowedForAddiction=true（所有档）
+        /// - 精神茶：上述 + allowScheduled=true + daysFrequency=2 + takeToInventory=1（所有档）
+        /// - 魔鬼素（Luciferium）：allowedForAddiction=true，不预支不计划服用（所有档）
+        /// - 清醒丸（WakeUp）：allowedForAddiction=true + takeToInventory=1，不计划服用（所有档）
+        /// - 活力水（GoJuice）：allowedForAddiction=true + takeToInventory=1，不计划服用（仅 AB/S 档）
+        /// - 佩诺西林（Penoxycyline）：allowedForAddiction=true + allowScheduled=true
+        ///   + daysFrequency=5 + takeToInventory=1（仅 AB/S 档）
         /// </summary>
         public static void FillPolicyEntries(DrugPolicy policy, DrugTier tier)
         {
@@ -120,19 +127,28 @@ namespace AutoEverything.AutoDrugPolicy
                 allowScheduled: true, daysFrequency: PsychiteTeaDaysFrequency,
                 takeToInventory: 1);
 
-            // ── CDX 档叠加：活力水 + 清醒丸（预支携带 1 个）──
-            // 注意：Luciferium 是必要药物（每天必须服用），WakeUp 是战斗增强药
+            // ── 所有档：魔鬼素不预支不计划服用（仅满足依赖）──
+            // Luciferium 是永久成瘾必要药，每天自动服用；不预支不计划服用
             SetEntry(policy, ThingDefOf.Luciferium,
-                allowedForAddiction: true, takeToInventory: 1);
+                allowedForAddiction: true);
+
+            // ── 所有档：清醒丸预支 1 个，不计划服用 ──
+            // WakeUp 是战斗增强药，预支 1 个备用，不计划服用
             SetEntry(policy, ThingDefOf.WakeUp,
                 allowedForAddiction: true, takeToInventory: 1);
 
-            // ── AB 档叠加：抗疟药（预支携带 1 个）──
-            // 抗疟药 Penoxycyline 非成瘾但预防性疾病，allowedForAddiction 无害
+            // ── AB/S 档叠加：活力水 + 佩诺西林 ──
             if (tier >= DrugTier.AB)
             {
-                SetEntry(policy, ThingDefOf.Penoxycyline,
+                // 活力水（GoJuice）：预支 1 个，不计划服用
+                // GoJuice 是战斗增强药，预支 1 个备用
+                SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("GoJuice"),
                     allowedForAddiction: true, takeToInventory: 1);
+                // 佩诺西林（Penoxycyline）：计划服用 5 天 1 次 + 预支 1 个
+                // 抗疟药，预防性疾病，定期服用预防
+                SetEntry(policy, ThingDefOf.Penoxycyline,
+                    allowedForAddiction: true, allowScheduled: true,
+                    daysFrequency: PenoxycylineDaysFrequency, takeToInventory: 1);
             }
 
             // S 档的强力血清/钢血血清不在 DrugPolicy 系统中（无 Comp_Drug），

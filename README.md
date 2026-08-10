@@ -456,11 +456,11 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 | 评级范围 | 药品政策 | 政策内容 |
 |----------|---------|---------|
-| S / SS / SSS | **AE-S** | 社交用药 + 活力水1 + 清醒丸1 + 思滞血清1 |
-| A / B | **AE-AB** | AE-S 配置相同（强力血清/钢血血清由 AutoCarry 直接携带，不走 DrugPolicy） |
-| C / D / X | **AE-CDX** | 社交用药 + 活力水1 + 清醒丸1 |
+| S / SS / SSS | **AE-S** | 社交用药 + 清醒丸1 + 活力水1 + 佩诺西林1（强力血清/钢血血清由 AutoCarry 直接携带） |
+| A / B | **AE-AB** | 同 AE-S 配置 |
+| C / D / X | **AE-CDX** | 社交用药 + 清醒丸1（魔鬼素不预支，活力水/佩诺西林仅 AB/S 档） |
 
-**为什么 AB 与 S 政策内容相同**：强力血清（JuggernautSerum）与钢血血清（MetalbloodSerum）是 Anomaly DLC 的特殊血清，**没有 Comp_Drug 组件**，不属于 RimWorld 药品政策系统的"药品"（无法在药品政策 UI 中显示条目）。因此 S 档的血清由 AutoCarry 直接派发 TakeInventory Job 携带，DrugPolicy 只管理活力水/清醒丸/思滞血清。
+**为什么 AB 与 S 政策内容相同**：强力血清（JuggernautSerum）与钢血血清（MetalbloodSerum）是 Anomaly DLC 的特殊血清，**没有 Comp_Drug 组件**，不属于 RimWorld 药品政策系统的"药品"（无法在药品政策 UI 中显示条目）。因此 S 档的血清由 AutoCarry 直接派发 TakeInventory Job 携带，DrugPolicy 只管理标准药品。
 
 ### RimWorld DrugPolicy 机制（反编译验证 2026-08-10）
 
@@ -478,18 +478,26 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 | 啤酒（Beer） | true | true | false | — | 0 |
 | 烟叶（SmokeleafJoint） | true | true | false | — | 0 |
 | 精神茶（PsychiteTea） | true | true | **true** | **2** | **1** |
+| 魔鬼素（Luciferium） | false | true | false | — | 0 |
+| 清醒丸（WakeUp） | false | true | false | — | **1** |
 
 **设计要点**：
-- 计划服用（`allowScheduled`）**只允许精神茶**（2 天 1 次），其他药品不勾
+- 计划服用（`allowScheduled`）只允许精神茶（2 天 1 次）与佩诺西林（AB/S 档，5 天 1 次）
+- 魔鬼素不预支不计划服用（仅满足依赖，永久成瘾者每天自动服用）
+- 清醒丸不计划服用但预支 1 个备用
 - 所有成瘾品默认 `allowedForAddiction=true`（RimWorld 自带，满足依赖）
-- 精神茶 `takeToInventory=1`：计划服用需携带备用
 
 ### 叠加规则
 
-按评级档位叠加药品的"携带"列（`takeToInventory=1`，`allowedForAddiction=true`，**不勾 allowScheduled**）：
+AB/S 档额外叠加：
 
-- **CDX 档**：基本 + 活力水（Luciferium）+ 清醒丸（WakeUp）
-- **AB 档**：CDX + 思滞血清（Penoxycyline）
+| 药品 | allowedForAddiction | allowScheduled | daysFrequency | takeToInventory |
+|------|--------------------|---------------|--------------|----------------|
+| 活力水（GoJuice） | true | false | — | **1** |
+| 佩诺西林（Penoxycyline） | true | **true** | **5** | **1** |
+
+- **CDX 档**：基本配置（不含活力水/佩诺西林）
+- **AB 档**：基本 + 活力水 + 佩诺西林
 - **S 档**：AB（血清由 AutoCarry 直接携带，不放入 DrugPolicy）
 
 ### 关键字段说明

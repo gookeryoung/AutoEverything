@@ -153,12 +153,12 @@ Executes once immediately when checked; when unchecked, only stops auto-executio
   <!-- AutoDrugPolicy -->
   <AE_AutoDrugPolicy_Result>Reassigned drug policy for {0} colonists</AE_AutoDrugPolicy_Result>
   <AE_TT_AutoDrugPolicy>When checked, auto-creates 3 drug policies and assigns by tier:
-- AE-S (S/SS/SSS): social drugs (beer+smokeleaf+psychite tea) + Luciferium1 + Wake-Up1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
-- AE-AB (A/B): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1
-- AE-CDX (C/D/X): social drugs + Luciferium1 + Wake-Up1
+- AE-S (S/SS/SSS): social drugs (beer+smokeleaf+psychite tea) + Wake-Up1 + Go-Juice1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
+- AE-AB (A/B): same as AE-S
+- AE-CDX (C/D/X): social drugs + Wake-Up1 (Luciferium not carried, Go-Juice/Penoxycyline only for AB/S tiers)
 Base config: beer+smokeleaf+psychite tea (allowedForJoy=true, allowedForAddiction=true).
-Scheduled use (allowScheduled) only for psychite tea (every 2 days, takeToInventory=1).
-Carry drugs takeToInventory=1 + allowedForAddiction=true (allowScheduled=false).
+Scheduled use (allowScheduled) only for psychite tea (every 2 days) and Penoxycyline (AB/S, every 5 days).
+Luciferium: no carry, no scheduled (addiction only). Wake-Up: no scheduled, carry 1. Go-Juice: AB/S carry 1.
 Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are refilled to ensure latest preset takes effect.
 When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 
