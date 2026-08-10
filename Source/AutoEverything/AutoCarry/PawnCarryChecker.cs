@@ -72,6 +72,24 @@ namespace AutoEverything.AutoCarry
         }
 
         /// <summary>
+        /// 纯逻辑版本：综合判定是否跳过 Pawn 的自动携带配置。
+        /// 仅供测试调用，参数对应 ShouldSkipForCarry 的各检查项。
+        /// </summary>
+        internal static bool ShouldSkipForCarryCore(
+            bool isNull, bool canManageGear, bool isGhoul, bool isSlave,
+            bool isDeadOrDowned, bool canBeAwake, bool shouldSkipForMedical)
+        {
+            if (isNull) return true;
+            if (!canManageGear) return true;
+            if (isGhoul) return true;
+            if (isSlave) return true;
+            if (isDeadOrDowned) return true;
+            if (!canBeAwake) return true;
+            if (shouldSkipForMedical) return true;
+            return false;
+        }
+
+        /// <summary>
         /// 查询药品政策中指定药品的"目标携带数量"takeToInventory。
         /// 玩家在药品政策 UI 的"携带"列设置的值就是这个字段。
         ///

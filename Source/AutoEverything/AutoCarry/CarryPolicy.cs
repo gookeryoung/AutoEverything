@@ -67,6 +67,7 @@ namespace AutoEverything.AutoCarry
         private static ThingDef cachedMetalbloodSerum;
         private static ThingDef cachedMindNumbSerum;
         private static HediffDef cachedLuciferiumAddiction;
+        private static HediffDef cachedWakeUpAddiction;
         private static bool serumDefsResolved = false;
 
         /// <summary>
@@ -122,8 +123,8 @@ namespace AutoEverything.AutoCarry
             }
 
             // ── 类别 3：战斗增强药（按 DrugPolicy takeToInventory）──
-            // 清醒丸：需要睡眠的 Pawn 才带（抵抗睡眠）
-            if (PawnCarryChecker.NeedSleep(pawn))
+            // 清醒丸：需要睡眠或已成瘾的 Pawn 才带（抵抗睡眠/满足渴求）
+            if (PawnCarryChecker.NeedSleep(pawn) || HasWakeUpAddiction(pawn))
             {
                 AddDrugIfPolicyCarry(pawn, GetWakeUpDef(), result);
             }
@@ -158,6 +159,78 @@ namespace AutoEverything.AutoCarry
             }
             Hediff addiction = pawn.health.hediffSet.GetFirstHediffOfDef(cachedLuciferiumAddiction);
             return addiction != null;
+        }
+
+        /// <summary>
+        /// 检查 Pawn 是否有清醒丸成瘾。
+        /// 有成瘾的 Pawn 即使不需要睡眠也应携带清醒丸（满足渴求避免戒断）。
+        /// </summary>
+        private static bool HasWakeUpAddiction(Pawn pawn)
+        {
+            if (pawn?.health?.hediffSet == null) return false;
+            if (cachedWakeUpAddiction == null)
+            {
+                cachedWakeUpAddiction = DefDatabase<HediffDef>.GetNamedSilentFail("WakeUpAddiction");
+                if (cachedWakeUpAddiction == null) return false;
+            }
+            Hediff addiction = pawn.health.hediffSet.GetFirstHediffOfDef(cachedWakeUpAddiction);
+            return addiction != null;
+        }
+
+        /// <summary>
+        /// 纯逻辑版本：根据各状态参数决定携带物品清单。
+        /// 仅供测试调用，模拟 FillCarryItems 的决策逻辑。
+        /// 返回 "类别:数量" 字符串列表，测试验证携带决策正确性。
+        /// </summary>
+        internal static System.Collections.Generic.List<string> DecideCarryCore(
+            bool hasLuciferiumAddiction, int luciferiumCarryCount,
+            bool needSleep, bool hasWakeUpAddiction, int wakeUpCarryCount,
+            int goJuiceCarryCount,
+            int penoxycylineCarryCount,
+            bool isTierS)
+        {
+            var result = new System.Collections.Generic.List<string>();
+
+            // 类别 1：食物（固定 x3）
+            result.Add("Food:" + FoodCount);
+
+            // 类别 2：Luciferium（有渴求固定 1，否则按 DrugPolicy）
+            if (hasLuciferiumAddiction)
+            {
+                result.Add("Luciferium:1");
+            }
+            else if (luciferiumCarryCount > 0)
+            {
+                result.Add("Luciferium:" + luciferiumCarryCount);
+            }
+
+            // 类别 3：战斗增强药
+            // 清醒丸：需要睡眠或已成瘾 + DrugPolicy 配置 > 0
+            if ((needSleep || hasWakeUpAddiction) && wakeUpCarryCount > 0)
+            {
+                result.Add("WakeUp:" + wakeUpCarryCount);
+            }
+            // 活力水：按 DrugPolicy
+            if (goJuiceCarryCount > 0)
+            {
+                result.Add("GoJuice:" + goJuiceCarryCount);
+            }
+
+            // 类别 4：预防药（佩诺西林）
+            if (penoxycylineCarryCount > 0)
+            {
+                result.Add("Penoxycyline:" + penoxycylineCarryCount);
+            }
+
+            // 类别 5：血清（S 档固定 1 个）
+            if (isTierS)
+            {
+                result.Add("JuggernautSerum:" + SerumCount);
+                result.Add("MetalbloodSerum:" + SerumCount);
+                result.Add("MindNumbSerum:" + SerumCount);
+            }
+
+            return result;
         }
 
         /// <summary>
