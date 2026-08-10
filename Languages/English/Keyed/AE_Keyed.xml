@@ -156,9 +156,10 @@ Executes once immediately when checked; when unchecked, only stops auto-executio
 - AE-S (S/SS/SSS): social drugs (beer+smokeleaf+psychite tea) + Luciferium1 + Wake-Up1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
 - AE-AB (A/B): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1
 - AE-CDX (C/D/X): social drugs + Luciferium1 + Wake-Up1
-Base config: beer+smokeleaf+psychite tea (allowedForJoy=true); psychite tea additionally scheduled every 2 days.
-Carry drugs all set allowScheduled=true + takeToInventory=1 to avoid being dropped by game.
-Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are not overwritten, player adjustments are preserved.
+Base config: beer+smokeleaf+psychite tea (allowedForJoy=true, allowedForAddiction=true).
+Scheduled use (allowScheduled) only for psychite tea (every 2 days, takeToInventory=1).
+Carry drugs takeToInventory=1 + allowedForAddiction=true (allowScheduled=false).
+Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are refilled to ensure latest preset takes effect.
 When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 
 </LanguageData>

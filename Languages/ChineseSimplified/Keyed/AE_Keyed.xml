@@ -157,9 +157,10 @@
 - AE-S（S/SS/SSS）：社交用药（啤酒+烟叶+精神茶）+ 活力水1 + 清醒丸1 + 思滞血清1；强力血清与钢血血清由"自动携带"模块携带
 - AE-AB（A/B）：社交用药 + 活力水1 + 清醒丸1 + 思滞血清1
 - AE-CDX（C/D/X）：社交用药 + 活力水1 + 清醒丸1
-基本配置：啤酒+烟叶+精神茶（allowedForJoy=true）；精神茶额外启用计划服用 2 天 1 次。
-携带药品均设置 allowScheduled=true + takeToInventory=1，避免被游戏丢地上。
-每 3000 tick 与殖民者数量变化时自动重分配。已存在同名政策不会被覆盖，玩家可手动调整后保留。
+基本配置：啤酒+烟叶+精神茶（allowedForJoy=true，allowedForAddiction=true）。
+计划服用（allowScheduled）只允许精神茶（2 天 1 次，takeToInventory=1）。
+携带药品 takeToInventory=1 + allowedForAddiction=true（不勾 allowScheduled）。
+每 3000 tick 与殖民者数量变化时自动重分配。已存在同名政策会重新填充字段确保最新预设生效。
 取消勾选仅停止自动执行，已分配的政策不变。</AE_TT_AutoDrugPolicy>
 
 </LanguageData>

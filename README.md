@@ -462,19 +462,34 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 **为什么 AB 与 S 政策内容相同**：强力血清（JuggernautSerum）与钢血血清（MetalbloodSerum）是 Anomaly DLC 的特殊血清，**没有 Comp_Drug 组件**，不属于 RimWorld 药品政策系统的"药品"（无法在药品政策 UI 中显示条目）。因此 S 档的血清由 AutoCarry 直接派发 TakeInventory Job 携带，DrugPolicy 只管理活力水/清醒丸/思滞血清。
 
-### 基本配置
+### RimWorld DrugPolicy 机制（反编译验证 2026-08-10）
 
-3 套政策的基本配置均为 RimWorld 默认 [`SocialDrugs`](file:///e:/SteamLibrary/steamapps/common/RimWorld/Data/Core/Defs/DrugPolicyDefs/DrugPolicyDefs.xml) 政策的扩展：
-- 啤酒（Beer）`allowedForJoy=true` — 娱乐目的
-- 烟叶（SmokeleafJoint）`allowedForJoy=true` — 娱乐目的
-- 精神茶（PsychiteTea）`allowedForJoy=true` + `allowScheduled=true` + `daysFrequency=2` — 娱乐 + 计划服用 2 天 1 次
+- **默认初始化**：`new DrugPolicy(id, label)` 构造函数调用 `InitializeIfNeeded()`，为所有 `IsDrug` 物品创建默认条目（仅 `allowedForAddiction=true`，其他默认 false/0）
+- **`takeToInventory` 是核心**：`Pawn_InventoryTracker.FirstUnloadableThing` 遍历 DrugPolicy，`takeToInventory>0` 的药品加入"保留列表"，背包中 `takeToInventory=0` 的药品会被自动卸下——这是"携带了会自己丢掉"的根因
+- **自动补库存**：`JobGiver_MoveDrugsToInventory` 自动派发 TakeInventory Job，按 `takeToInventory - 当前背包数量` 补充
+- **`takeToInventoryTempBuffer`**：UI 文本框缓冲，需同步设置避免政策 UI 显示空
+
+### 基本配置（所有档共用）
+
+3 套政策的基本配置均在 RimWorld 默认条目基础上修改字段（**不清空列表**，保留默认所有药品条目）：
+
+| 药品 | allowedForJoy | allowedForAddiction | allowScheduled | daysFrequency | takeToInventory |
+|------|--------------|--------------------|---------------|--------------|----------------|
+| 啤酒（Beer） | true | true | false | — | 0 |
+| 烟叶（SmokeleafJoint） | true | true | false | — | 0 |
+| 精神茶（PsychiteTea） | true | true | **true** | **2** | **1** |
+
+**设计要点**：
+- 计划服用（`allowScheduled`）**只允许精神茶**（2 天 1 次），其他药品不勾
+- 所有成瘾品默认 `allowedForAddiction=true`（RimWorld 自带，满足依赖）
+- 精神茶 `takeToInventory=1`：计划服用需携带备用
 
 ### 叠加规则
 
-按评级档位叠加药品的"携带"列（`takeToInventory=1`）与计划服用（`allowScheduled=true` + `daysFrequency=1`）：
+按评级档位叠加药品的"携带"列（`takeToInventory=1`，`allowedForAddiction=true`，**不勾 allowScheduled**）：
 
-- **CDX 档**：基本 + 活力水 + 清醒丸
-- **AB 档**：CDX + 思滞血清
+- **CDX 档**：基本 + 活力水（Luciferium）+ 清醒丸（WakeUp）
+- **AB 档**：CDX + 思滞血清（Penoxycyline）
 - **S 档**：AB（血清由 AutoCarry 直接携带，不放入 DrugPolicy）
 
 ### 关键字段说明
@@ -485,20 +500,20 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 |------|------|------|
 | `drug` | ThingDef | 药品定义 |
 | `allowedForJoy` | bool | 是否允许娱乐服用 |
-| `allowedForAddiction` | bool | 是否允许戒断缓解服用 |
-| `allowScheduled` | bool | **必须为 true 才能让"携带"列生效** |
-| `takeToInventory` | int | 携带到背包的目标数量 |
+| `allowedForAddiction` | bool | 是否允许满足依赖服用（RimWorld 默认 true） |
+| `allowScheduled` | bool | 是否启用计划服用 |
+| `takeToInventory` | int | **携带到背包的目标数量（>0 才不会被游戏自动卸下）** |
 | `daysFrequency` | float | 计划服用频率（天） |
 | `onlyIfMoodBelow` | float | 仅当心情低于此值时服用 |
 | `onlyIfJoyBelow` | float | 仅当娱乐低于此值时服用 |
-
-**关键修复**（2026-08-10）：之前漏设 `allowScheduled=true`，游戏判定"无消费计划"会把殖民者携带的药品丢地上。现在携带药品全部设置 `allowScheduled=true` + `daysFrequency=1`，游戏正常管理背包库存。
+| `takeToInventoryTempBuffer` | string | UI 文本框缓冲（需同步 takeToInventory） |
 
 ### 政策生命周期
 
-- **创建**：MOD 启动后首次启用 `autoDrugPolicyEnabled` 时，检查 DrugPolicyDatabase 中是否存在 `AE-S`/`AE-AB`/`AE-CDX` 三套政策，不存在则创建并按预设填充 entries
-- **幂等**：已存在的同名政策**不会被重置内容**——玩家手动调整后保留
-- **强制重置**：玩家手动删除政策后下次启动会按预设重建
+- **创建**：MOD 启动后首次启用 `autoDrugPolicyEnabled` 时，检查 DrugPolicyDatabase 中是否存在 `AE-S`/`AE-AB`/`AE-CDX` 三套政策，不存在则创建并按预设修改字段
+- **幂等重置**：已存在的同名政策**重新填充字段**（覆盖旧内容，确保最新预设生效）——修复旧版本漏设字段的 bug
+- **补全条目**：`FillPolicyEntries` 反射调用 `InitializeIfNeeded(false)` 补全缺失的 RimWorld 默认药品条目
+- **保留列表**：不清空 entriesInt，只修改对应药品字段，其他药品保持 RimWorld 默认（`allowedForAddiction=true`）
 - **分配**：按 `CombatEvaluator.GetCombatTier` 评级自动分配对应政策到 `pawn.drugs.CurrentPolicy`
 
 ### 触发方式
@@ -510,8 +525,8 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 ### RimWorld 1.6 API 兼容
 
-`DrugPolicyEntry.allowed` / `takeToInventory` 与 `DrugPolicy.entries` 字段在编译 DLL 中可见性受限，统一用反射访问：
-- `DrugPolicyPresets`：反射设置 `entries`、`allowed`、`takeToInventory` 字段
+`DrugPolicy.entriesInt` 字段与 `InitializeIfNeeded` 方法在编译 DLL 中为私有，统一用反射访问：
+- `DrugPolicyPresets`：反射读取 `entriesInt` 字段、调用 `InitializeIfNeeded(false)` 补全条目、添加新条目到列表
 - `AutoDrugPolicyManager`：反射读取 `DrugPolicyDatabase.policies` 列表，构造 `new DrugPolicy(id, label)` 后添加
 
 ### 入口
