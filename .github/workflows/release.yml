@@ -47,7 +47,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y mono-runtime
 
       - name: Run unit tests
-        run: mono Test/AutoEverything.Tests/AutoEverything.Tests/bin/Release/AutoEverything.Tests.exe
+        run: dotnet run -c Release --no-build --project Test/AutoEverything.Tests/AutoEverything.Tests.csproj
 
       - name: Package release zip
         run: |
