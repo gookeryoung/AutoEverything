@@ -237,6 +237,109 @@ namespace AutoEverything.Tests
                 "清醒丸+魔鬼素渴求+S档：全携带（渴求绕过睡眠）",
                 ref failures, ref total);
 
+            // ════════════════════════════════════════════════════════════
+            // 边缘场景：药物数量不足 / 库存为 0 / 无条目
+            // ════════════════════════════════════════════════════════════
+
+            // ── 场景 8：魔鬼素渴求 + DrugPolicy 无条目（carryCount=-1）──
+            // 预期：仍携带 Luciferium:1（渴求固定携带，无视 DrugPolicy）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: true, luciferiumCarryCount: -1,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: 1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3", "Luciferium:1" },
+                expectedNotContains: new[] { "GoJuice" },
+                "魔鬼素渴求+无条目(-1)：固定携带Luciferium:1",
+                ref failures, ref total);
+
+            // ── 场景 9：魔鬼素渴求 + DrugPolicy takeToInventory=0 ──
+            // 预期：仍携带 Luciferium:1（渴求固定携带，不受 DrugPolicy 影响）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: true, luciferiumCarryCount: 0,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: 1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3", "Luciferium:1" },
+                expectedNotContains: new[] { "GoJuice" },
+                "魔鬼素渴求+DrugPolicy=0：固定携带Luciferium:1",
+                ref failures, ref total);
+
+            // ── 场景 10：魔鬼素渴求 + DrugPolicy takeToInventory=5 ──
+            // 预期：携带 Luciferium:1（渴求固定1个，不取 DrugPolicy 的5）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: true, luciferiumCarryCount: 5,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: 1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3", "Luciferium:1" },
+                expectedNotContains: new[] { "Luciferium:5", "GoJuice" },
+                "魔鬼素渴求+DrugPolicy=5：固定1个（不取DrugPolicy的5）",
+                ref failures, ref total);
+
+            // ── 场景 11：清醒丸渴求 + DrugPolicy 无条目（carryCount=-1）──
+            // 预期：不携带清醒丸（DrugPolicy优先，无条目=玩家未配置）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: 0,
+                needSleep: true, hasWakeUpAddiction: true, wakeUpCarryCount: -1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3" },
+                expectedNotContains: new[] { "WakeUp", "Luciferium" },
+                "清醒丸渴求+无条目(-1)：不携带（DrugPolicy优先）",
+                ref failures, ref total);
+
+            // ── 场景 12：清醒丸渴求 + DrugPolicy takeToInventory=2 ──
+            // 预期：携带 WakeUp:2（按 DrugPolicy 数量，渴求只影响"是否携带"不影响数量）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: 0,
+                needSleep: false, hasWakeUpAddiction: true, wakeUpCarryCount: 2,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3", "WakeUp:2" },
+                expectedNotContains: new[] { "Luciferium" },
+                "清醒丸渴求+DrugPolicy=2：携带WakeUp:2（按DrugPolicy数量）",
+                ref failures, ref total);
+
+            // ── 场景 13：无渴求 + DrugPolicy takeToInventory=-1 + 需要睡眠 ──
+            // 预期：不携带清醒丸（无条目=0）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: 0,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: -1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3" },
+                expectedNotContains: new[] { "WakeUp", "Luciferium" },
+                "无渴求+无条目(-1)+需睡眠：不携带清醒丸",
+                ref failures, ref total);
+
+            // ── 场景 14：无渴求 + DrugPolicy takeToInventory=5 + 不需要睡眠 ──
+            // 预期：不携带清醒丸（不需要睡眠且无渴求，即使 DrugPolicy=5 也不带）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: 0,
+                needSleep: false, hasWakeUpAddiction: false, wakeUpCarryCount: 5,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3" },
+                expectedNotContains: new[] { "WakeUp", "Luciferium" },
+                "无渴求+DrugPolicy=5+不需睡眠：不携带清醒丸",
+                ref failures, ref total);
+
+            // ── 场景 15：魔鬼素无渴求 + DrugPolicy takeToInventory=3 ──
+            // 预期：携带 Luciferium:3（按 DrugPolicy 数量）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: 3,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: 1,
+                goJuiceCarryCount: 0, penoxycylineCarryCount: 0, isTierS: false,
+                expectedContains: new[] { "Food:3", "Luciferium:3", "WakeUp:1" },
+                expectedNotContains: new[] { "GoJuice" },
+                "无魔鬼素渴求+DrugPolicy=3：携带Luciferium:3",
+                ref failures, ref total);
+
+            // ── 场景 16：所有药品都无条目（库存为0的等效场景）──
+            // 预期：仅食物（所有药品 carryCount=-1/0 都不带）
+            CheckDecideCarry(
+                hasLuciferiumAddiction: false, luciferiumCarryCount: -1,
+                needSleep: true, hasWakeUpAddiction: false, wakeUpCarryCount: -1,
+                goJuiceCarryCount: -1, penoxycylineCarryCount: -1, isTierS: false,
+                expectedContains: new[] { "Food:3" },
+                expectedNotContains: new[] { "Luciferium", "WakeUp", "GoJuice", "Penoxycyline", "Serum" },
+                "所有药品无条目：仅食物",
+                ref failures, ref total);
+
             Console.WriteLine($"[CarryPolicyTests/DecideCarryCore] {total - failures}/{total} passed");
             return failures;
         }
