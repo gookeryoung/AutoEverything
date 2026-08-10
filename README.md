@@ -4,7 +4,7 @@
 >
 > packageId: `gookeryoung.autoeverything`
 
-为殖民者自动执行**人员评级**、**工作优先级分配**、**高价值单位自动标记**与**自动携带物品**，让玩家从繁琐的微调中解放出来。
+为殖民者自动执行**人员评级**、**工作优先级分配**、**高价值单位自动标记**、**自动携带物品**与**用药方案自动配置**，让玩家从繁琐的微调中解放出来。
 
 > 装备管理使用 RimWorld 原生换装（玩家手动管理装备）。
 
@@ -17,7 +17,8 @@
 | **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 | **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
 | **AutoMarkPawn**（高价值自动标记） | 殖民者栏角色定位图标（前排盾/远程弓/手工锤/贸易钱袋）+ 地图高价值标记（敌方/中立/野生 S+ 单位圆形标记）+ S+ 单位扫描消息通知 | 殖民者栏 Postfix + 地图 Postfix + 人员变动事件 + ITab 切换 |
-| **AutoCarry**（自动携带） | 自动为殖民者背包补充食物 x3 + 活力水 x1 + 清醒丸 x1 + 思滞血清 x1，按优先级查找仓库可用物品 | 周期 6000 tick + ITab 勾选 |
+| **AutoCarry**（自动携带） | 自动为殖民者背包补充食物 x3 + 药品（按药品政策"携带"列）+ S 档血清（强力+钢血），按优先级查找仓库可用物品 | 周期 6000 tick + ITab 勾选 |
+| **AutoDrugPolicy**（用药方案自动配置） | 按 S/AB/CDX 评级自动创建并分配 3 套用药方案，药品"携带"列配置不同（活力水/清醒丸/思滞血清） | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
 
 ## 设计思路
 
@@ -446,6 +447,63 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
   - **勾选时**：立即执行一次携带分配（受战斗过滤），并启用周期自动
   - **取消勾选时**：仅停止自动派发，保留当前背包物品（不主动清空）
   - **默认关闭**（与评级/工作/标记的默认勾选不同，避免无需求玩家被自动派发 Job 打扰）
+
+## 用药方案自动配置（AutoDrugPolicy）
+
+`AutoDrugPolicy/` 模块按殖民者评级自动创建并分配 3 套用药方案（DrugPolicy），与 AutoCarry 协同——AutoDrugPolicy 配置药品政策的"携带"列（takeToInventory），AutoCarry 读此字段去仓库补库存。
+
+### 评级映射
+
+| 评级范围 | 药品政策 | 政策内容 |
+|----------|---------|---------|
+| S / SS / SSS | **AE-S** | 社交用药（啤酒+烟叶 allowedForJoy=true）+ 活力水1 + 清醒丸1 + 思滞血清1 |
+| A / B | **AE-AB** | AE-S 配置相同（强力血清/钢血血清由 AutoCarry 直接携带，不走 DrugPolicy） |
+| C / D / X | **AE-CDX** | 社交用药 + 活力水1 + 清醒丸1 |
+
+**为什么 AB 与 S 政策内容相同**：强力血清（JuggernautSerum）与钢血血清（MetalbloodSerum）是 Anomaly DLC 的特殊血清，**没有 Comp_Drug 组件**，不属于 RimWorld 药品政策系统的"药品"（无法在药品政策 UI 中显示条目）。因此 S 档的血清由 AutoCarry 直接派发 TakeInventory Job 携带，DrugPolicy 只管理活力水/清醒丸/思滞血清。
+
+### 基本配置
+
+3 套政策的基本配置均为 RimWorld 默认 [`SocialDrugs`](file:///e:/SteamLibrary/steamapps/common/RimWorld/Data/Core/Defs/DrugPolicyDefs/DrugPolicyDefs.xml) 政策：
+- 啤酒（Beer）`allowedForJoy=true`
+- 烟叶（SmokeleafJoint）`allowedForJoy=true`
+- 其他药品不在 entries 中，默认 `allowed=false`
+
+### 叠加规则
+
+按评级档位叠加药品的"携带"列（takeToInventory=1）：
+
+- **CDX 档**：基本 + 活力水 + 清醒丸（`takeToInventory=1`，`allowed=true`）
+- **AB 档**：CDX + 思滞血清（`takeToInventory=1`，`allowed=true`）
+- **S 档**：AB（血清由 AutoCarry 直接携带，不放入 DrugPolicy）
+
+### 政策生命周期
+
+- **创建**：MOD 启动后首次启用 `autoDrugPolicyEnabled` 时，检查 DrugPolicyDatabase 中是否存在 `AE-S`/`AE-AB`/`AE-CDX` 三套政策，不存在则创建并按预设填充 entries
+- **幂等**：已存在的同名政策**不会被重置内容**——玩家手动调整后保留
+- **强制重置**：玩家手动删除政策后下次启动会按预设重建
+- **分配**：按 `CombatEvaluator.GetCombatTier` 评级自动分配对应政策到 `pawn.drugs.CurrentPolicy`
+
+### 触发方式
+
+- **周期触发**：每 3000 tick（约 50 秒，与评级周期一致）自动重分配
+- **事件触发**：殖民者数量增加时立即重分配（新增殖民者需分配对应政策）
+- **ITab 勾选**：玩家在面板勾选时立即执行一次（弹消息框反馈）
+- **不需战斗过滤**：分配 DrugPolicy 不取消 Job，可在战斗中安全执行
+
+### RimWorld 1.6 API 兼容
+
+`DrugPolicyEntry.allowed` / `takeToInventory` 与 `DrugPolicy.entries` 字段在编译 DLL 中可见性受限，统一用反射访问：
+- `DrugPolicyPresets`：反射设置 `entries`、`allowed`、`takeToInventory` 字段
+- `AutoDrugPolicyManager`：反射读取 `DrugPolicyDatabase.policies` 列表，构造 `new DrugPolicy(id, label)` 后添加
+
+### 入口
+
+- **MOD 选项** → 启用/禁用"用药方案"（`AESettings.autoDrugPolicyEnabled`，默认关闭）
+- **殖民者装备面板（ITab）底部** → "用药方案"勾选框
+  - **勾选时**：立即创建政策并分配
+  - **取消勾选时**：仅停止自动执行，已分配的政策不变
+  - **默认关闭**
 
 ## 架构模型
 

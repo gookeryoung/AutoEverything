@@ -39,6 +39,7 @@ namespace AutoEverything.Tests
                 failures += TierTagHelperTests.RunAll();
                 failures += RoleDetectorTests.RunAll();
                 failures += RoleOrderTests.RunAll();
+                failures += DrugPolicyPresetsTests.RunAll();
                 failures += PawnCarryCheckerTests.RunAll();
                 failures += CarryPolicyTests.RunAll();
 

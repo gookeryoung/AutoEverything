@@ -5,6 +5,7 @@ using Verse;
 using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
 using AutoEverything.AutoCarry;
+using AutoEverything.AutoDrugPolicy;
 
 namespace AutoEverything.Core
 {
@@ -56,9 +57,14 @@ namespace AutoEverything.Core
         // 殖民者周期性从仓库拾取食物与药品到背包，需战斗过滤避免战斗中离开战位
         private const int CarryExecuteInterval = 6000;
 
+        // 用药方案周期：与评级周期一致（3000 tick ≈ 50 秒）
+        // 评级变化才会改变对应政策，复用评级周期避免独立计时
+        private const int DrugPolicyInterval = ExecuteInterval;
+
         // 阶段状态：把 lastTick + pending 打包为 struct，集中管理各自动阶段的状态
         // work：工作重配（事件触发 ReallocCooldown 冷却 + 周期触发 WorkExecuteInterval 间隔，均需战斗过滤）
         // carry：自动携带（周期触发 CarryExecuteInterval 间隔，需战斗过滤）
+        // drugPolicy：用药方案（事件触发 + 周期触发 DrugPolicyInterval 间隔，无战斗过滤——不取消 Job）
         // tier：评级（周期 ExecuteInterval 触发，无 pending——非事件驱动）
         private struct PhaseState
         {
@@ -68,6 +74,7 @@ namespace AutoEverything.Core
 
         private static PhaseState work = new PhaseState { lastTick = -9999 };
         private static PhaseState carry = new PhaseState { lastTick = -9999 };
+        private static PhaseState drugPolicy = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
         // 注：Mark 无周期触发——角色定位图标在殖民者栏固定位置由 Harmony
@@ -91,6 +98,7 @@ namespace AutoEverything.Core
         private const int TierErrorSalt = 0xA300;
         private const int CarryErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
+        private const int DrugPolicyErrorSalt = 0xA600;
 
         /// <summary>
         /// 由 <see cref="AutoEverythingGameComponent"/>.Tick 每 tick 调用。
@@ -108,6 +116,7 @@ namespace AutoEverything.Core
             {
                 work.lastTick = tick;
                 carry.lastTick = tick;
+                drugPolicy.lastTick = tick;
                 lastTierTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
                 lastAllHumanlikeCount = CountAllHumanlikeSpawned();
@@ -124,6 +133,9 @@ namespace AutoEverything.Core
                 {
                     // 评级立即触发：Nick 前缀更新（仅编辑 Nick 不取消 Job，安全）
                     ExecuteTier(tick, showMessage: false);
+                    // 用药方案立即触发：新增殖民者需分配对应评级政策
+                    // 不需战斗过滤——分配 DrugPolicy 不取消 Job
+                    drugPolicy.pending = true;
                 }
                 work.pending = true;
             }
@@ -164,6 +176,12 @@ namespace AutoEverything.Core
             // 周期触发：自动携带（战斗过滤——避免殖民者战斗中离开战位去拿物品）
             if (tick - carry.lastTick >= CarryExecuteInterval && !AnyCombatActive())
                 ExecuteCarry(tick, showMessage: false);
+
+            // 用药方案触发：事件待触发 或 周期触发
+            // 不需战斗过滤——分配 DrugPolicy 不会取消 Job，可在战斗中安全执行
+            // 设计意图：评级变化时立即重分配政策，让殖民者尽快获得对应评级药品配置
+            if (drugPolicy.pending || tick - drugPolicy.lastTick >= DrugPolicyInterval)
+                ExecuteDrugPolicy(tick, showMessage: false);
         }
 
         /// <summary>
@@ -206,6 +224,15 @@ namespace AutoEverything.Core
                 return;
             }
             ExecuteCarry(Find.TickManager.TicksGame, showMessage: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行用药方案分配并弹消息框。
+        /// 不需战斗过滤——分配 DrugPolicy 不取消 Job。
+        /// </summary>
+        public static void TriggerDrugPolicyNow()
+        {
+            ExecuteDrugPolicy(Find.TickManager.TicksGame, showMessage: true);
         }
 
         private static void ExecuteWork(int tick, bool showMessage)
@@ -305,6 +332,25 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 自动携带分配失败: " + ex.Message, CarryErrorSalt);
+            }
+        }
+
+        private static void ExecuteDrugPolicy(int tick, bool showMessage)
+        {
+            drugPolicy.lastTick = tick;
+            drugPolicy.pending = false;
+            if (!AESettings.autoDrugPolicyEnabled) return;
+
+            try
+            {
+                int n = AutoDrugPolicyManager.ReassignAll();
+                AEDebug.Log(() => $"[AutoExecutor] 用药方案分配: {n} 个殖民者变更政策 (tick={tick})");
+                if (showMessage)
+                    Messages.Message("AE_AutoDrugPolicy_Result".Translate(n), MessageTypeDefOf.TaskCompletion);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 用药方案分配失败: " + ex.Message, DrugPolicyErrorSalt);
             }
         }
 

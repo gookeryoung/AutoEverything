@@ -109,9 +109,9 @@ namespace AutoEverything.UI
         {
             labelKey = "AE_Tab";
 
-            // 高度容纳徽章区与状态摘要 + 底部 4 勾选框（4 列单行紧凑布局）
-            // 4 勾选框：评级/工作/星标/携带（AutoEquipment 已移除，改用 RimWorld 原生换装）
-            size = new Vector2(360f, 392f);
+            // 高度容纳徽章区与状态摘要 + 底部 5 勾选框（5 列单行紧凑布局）
+            // 5 勾选框：评级/工作/星标/携带/用药
+            size = new Vector2(440f, 392f);
         }
 
         public override bool IsVisible
@@ -134,8 +134,8 @@ namespace AutoEverything.UI
             // 食尸鬼不参与自动万物分配，但仍显示评级信息供玩家参考
             bool isGhoul = DLCCompat.IsGhoul(pawn);
 
-            // 底部区预留高度：4 勾选框 4 列单行 + 2 间隔（紧凑布局）
-            // 4 勾选框：评级/工作/星标/携带
+            // 底部区预留高度：5 勾选框 5 列单行 + 2 间隔（紧凑布局）
+            // 5 勾选框：评级/工作/星标/携带/用药
             float buttonGap = 6f;
             float checkboxHeight = 22f;
             const int CheckboxRows = 1;
@@ -295,9 +295,9 @@ namespace AutoEverything.UI
             cachedContentHeight = l.CurHeight + 20f;
             Widgets.EndScrollView();
 
-            // ===================== 底部区：4 勾选框 4 列单行紧凑布局 =====================
-            // 4 列布局：评级/工作/星标/携带（AutoEquipment 已移除，改用 RimWorld 原生换装）
-            float colWidth = (rect.width - 3f * buttonGap) / 4f;
+            // ===================== 底部区：5 勾选框 5 列单行紧凑布局 =====================
+            // 5 列布局：评级/工作/星标/携带/用药
+            float colWidth = (rect.width - 4f * buttonGap) / 5f;
 
             // 1. 人员自动评级勾选框（左1）：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
             Rect tierCheckRect = new Rect(
@@ -369,7 +369,7 @@ namespace AutoEverything.UI
                 AutoExecutor.TriggerMarkNow();
             }
 
-            // 4. 自动携带勾选框（右1）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前背包）
+            // 4. 自动携带勾选框（右2）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前背包）
             Rect carryCheckRect = new Rect(
                 rect.x + 3f * (colWidth + buttonGap),
                 contentRect.yMax + buttonGap,
@@ -387,6 +387,25 @@ namespace AutoEverything.UI
             if (AESettings.autoCarryEnabled && AESettings.autoCarryEnabled != prevCarry)
             {
                 AutoExecutor.TriggerCarryNow();
+            }
+
+            // 5. 用药方案自动配置勾选框（右1）：勾选立即创建并分配政策；取消勾选仅停止自动（保留当前政策）
+            Rect drugCheckRect = new Rect(
+                rect.x + 4f * (colWidth + buttonGap),
+                contentRect.yMax + buttonGap,
+                colWidth,
+                checkboxHeight);
+
+            bool prevWrap6 = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prevDrug = AESettings.autoDrugPolicyEnabled;
+            Widgets.CheckboxLabeled(drugCheckRect, "AE_AutoDrugPolicy".Translate(), ref AESettings.autoDrugPolicyEnabled);
+            Text.WordWrap = prevWrap6;
+            TooltipHandler.TipRegion(drugCheckRect, "AE_TT_AutoDrugPolicy".Translate());
+            // 状态变化检测：勾选时立即触发分配；取消勾选仅停止自动（无副作用，不撤销已分配政策）
+            if (AESettings.autoDrugPolicyEnabled && AESettings.autoDrugPolicyEnabled != prevDrug)
+            {
+                AutoExecutor.TriggerDrugPolicyNow();
             }
         }
 

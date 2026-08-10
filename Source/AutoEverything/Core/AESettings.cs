@@ -18,7 +18,10 @@ namespace AutoEverything.Core
         public static bool autoTierTag = true;           // 人员自动评级（周期触发 + 新增人员触发）
         public static bool autoMarkPawn = true;           // 高价值自动标记（S+ 人类单位扫描通知 + 殖民者栏角色定位图标：前排/远程/手工/贸易，事件触发 + ITab 切换全局重扫描）
         // 自动携带：默认关闭——携带是侵入性功能（会派发 HaulJob 打断当前工作），玩家主动开启更安全
-        public static bool autoCarryEnabled = false;      // AutoCarry 自动携带（食物 x3 + 活力水 x1 + 清醒丸 x1 + 思滞血清 x1，周期 6000 tick + 战斗过滤 + 医疗守卫）
+        public static bool autoCarryEnabled = false;      // AutoCarry 自动携带（食物 x3 + 药品按政策 takeToInventory + S 档血清，周期 6000 tick + 战斗过滤 + 医疗守卫）
+
+        // 用药方案自动配置：默认关闭——会修改殖民者的 DrugPolicy 分配（覆盖玩家手动设置），玩家主动开启更安全
+        public static bool autoDrugPolicyEnabled = false; // AutoDrugPolicy 用药方案（AE-S/AE-AB/AE-CDX 三套政策按评级自动分配）
 
         // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
         // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
@@ -73,6 +76,7 @@ namespace AutoEverything.Core
             LookCompat(ref autoTierTag, "autoTierTag", true);
             LookCompat(ref autoMarkPawn, "autoMarkPawn", true);
             LookCompat(ref autoCarryEnabled, "autoCarryEnabled", false);
+            LookCompat(ref autoDrugPolicyEnabled, "autoDrugPolicyEnabled", false);
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
@@ -235,6 +239,7 @@ namespace AutoEverything.Core
             l.CheckboxLabeled("AE_AutoTierTag".Translate(), ref autoTierTag);
             l.CheckboxLabeled("AE_AutoMarkPawn".Translate(), ref autoMarkPawn);
             l.CheckboxLabeled("AE_AutoCarry".Translate(), ref autoCarryEnabled);
+            l.CheckboxLabeled("AE_AutoDrugPolicy".Translate(), ref autoDrugPolicyEnabled);
 
             // 战斗价值公式权重
             l.GapLine();

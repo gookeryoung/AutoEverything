@@ -34,6 +34,7 @@
   <AE_AutoTierTag>Auto Tier Tag</AE_AutoTierTag>
   <AE_AutoMarkPawn>High-Value Auto Marker</AE_AutoMarkPawn>
   <AE_AutoCarry>Auto Carry</AE_AutoCarry>
+  <AE_AutoDrugPolicy>Drug Policy</AE_AutoDrugPolicy>
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
 
@@ -143,9 +144,20 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
   <!-- AutoCarry -->
   <AE_AutoCarry_Result>Dispatched carry jobs for {0} colonists</AE_AutoCarry_Result>
   <AE_AutoCarry_SkippedInCombat>Auto carry paused during combat, retry after combat ends</AE_AutoCarry_SkippedInCombat>
-  <AE_TT_AutoCarry>When checked, colonists auto-carry food x3, Luciferium x1, Wake-Up x1, Penoxycyline x1.
+  <AE_TT_AutoCarry>When checked, colonists auto-carry food x3, drugs per drug policy "take" column, plus S-tier serums (Juggernaut + Metalblood).
 Scans inventory every 6000 ticks (~100s) and dispatches haul jobs for missing items; paused during combat to avoid leaving positions; skips colonists in surgery/recovery.
-Food priority: packaged meal → pemican/jerky → lavish → fine → simple; non-sleeping pawns skip Wake-Up; pawns with drug policy forbidding Luciferium skip Luciferium; ghouls and mechanoids excluded.
+Food priority: packaged meal → pemmican → lavish → fine → simple; non-sleeping pawns skip Wake-Up; ghouls and mechanoids excluded.
+Recommend enabling "Drug Policy" together to auto-configure drug policy take column by tier.
 Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current inventory.</AE_TT_AutoCarry>
+
+  <!-- AutoDrugPolicy -->
+  <AE_AutoDrugPolicy_Result>Reassigned drug policy for {0} colonists</AE_AutoDrugPolicy_Result>
+  <AE_TT_AutoDrugPolicy>When checked, auto-creates 3 drug policies and assigns by tier:
+- AE-S (S/SS/SSS): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1; Juggernaut + Metalblood serums carried by AutoCarry module
+- AE-AB (A/B): social drugs + Luciferium1 + Wake-Up1 + Penoxycyline1
+- AE-CDX (C/D/X): social drugs + Luciferium1 + Wake-Up1
+Base config is RimWorld default "Social Drugs" policy (Beer + Smokeleaf allowedForJoy=true).
+Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are not overwritten, player adjustments are preserved.
+When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 
 </LanguageData>
