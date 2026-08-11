@@ -24,8 +24,7 @@ namespace AutoEverything.AutoCarry
     ///
     /// 关键修复（2026-08-10）：
     /// DrugPolicyEntry 字段全部公开（探针验证），无 allowed 字段。
-    /// 之前反射 GetField("allowed") 返回 null，导致 LuciferiumAllowed 永远返回 true。
-    /// 现改为直接访问公开字段 takeToInventory 判定。
+    /// 直接访问公开字段 takeToInventory 判定（GetDrugCarryCount 方法）。
     /// </summary>
     public static class PawnCarryChecker
     {
@@ -119,30 +118,6 @@ namespace AutoEverything.AutoCarry
             }
             // 无条目：政策未配置该药品，默认不携带（玩家没说要带）
             return -1;
-        }
-
-        /// <summary>
-        /// 判定殖民者药品政策是否允许活力水（Luciferium）。
-        /// 玩家在药品政策中禁用活力水时不带——避免与玩家意图冲突。
-        /// 保留原方法供 CarryPolicy 现有调用路径兼容，内部委托给 GetDrugCarryCount。
-        ///
-        /// 语义：takeToInventory > 0 视为允许携带；其他情况视为不允许。
-        /// </summary>
-        public static bool LuciferiumAllowed(Pawn pawn)
-        {
-            int count = GetDrugCarryCount(pawn, ThingDefOf.Luciferium);
-            return count > 0;
-        }
-
-        /// <summary>
-        /// 纯逻辑版本：根据药品政策条目判定是否允许活力水。
-        /// 仅供测试调用。
-        /// </summary>
-        internal static bool LuciferiumAllowedCore(bool hasEntry, bool entryAllowed)
-        {
-            // 无条目时默认不允许（与运行时 GetDrugCarryCount 返回 -1 一致）
-            if (!hasEntry) return false;
-            return entryAllowed;
         }
     }
 }
