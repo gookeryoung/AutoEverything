@@ -102,7 +102,7 @@ namespace AutoEverything.Core
             }
 
             // PawnNameColorUtility.PawnNameColorOf 补丁：按评级覆盖殖民者名字颜色
-            // SSS=金黄 / SS=橙 / S=黄 / A/B=白 / C/D=灰；X 档保持原生颜色
+            // SSS/SS/S=亮紫 / A/B=白 / C/D=灰；X 档保持原生颜色
             // 仅对玩家阵营人类 like 殖民者生效（非囚犯/非奴隶/非精神状态），保留原生身份颜色
             try
             {
@@ -124,33 +124,7 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] PawnNameColorUtility 补丁失败: " + ex.Message);
             }
 
-            // GenMapUI.DrawPawnLabel 补丁（重载二，bgRect 参数版本）：S+ 评级殖民者名字加粗
-            // Prefix 保存原 fontStyle 并设 Bold；Postfix 恢复，避免影响后续绘制
-            // 重载一（pos 参数版本）内部转调重载二，只需 Patch 重载二即可覆盖所有调用路径
-            try
-            {
-                var drawLabelMethod = AccessTools.Method(typeof(GenMapUI), nameof(GenMapUI.DrawPawnLabel),
-                    new[] { typeof(Pawn), typeof(Rect), typeof(float), typeof(float),
-                            typeof(Dictionary<string, string>), typeof(GameFont), typeof(bool), typeof(bool) });
-                if (drawLabelMethod != null)
-                {
-                    harmony.Patch(drawLabelMethod,
-                        prefix: new HarmonyMethod(typeof(GenMapUI_DrawPawnLabel_Patch),
-                            nameof(GenMapUI_DrawPawnLabel_Patch.Prefix)),
-                        postfix: new HarmonyMethod(typeof(GenMapUI_DrawPawnLabel_Patch),
-                            nameof(GenMapUI_DrawPawnLabel_Patch.Postfix)));
-                }
-                else
-                {
-                    Log.Warning("[AutoEverything] GenMapUI.DrawPawnLabel 未找到，名字加粗降级为无显示");
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Warning("[AutoEverything] GenMapUI.DrawPawnLabel 补丁失败: " + ex.Message);
-            }
-
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 角色图标 + 地图高价值标记 + 名字评级着色 + S+ 名字加粗)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 角色图标 + 地图高价值标记 + 名字评级着色)");
         }
 
         /// <summary>
@@ -451,7 +425,7 @@ namespace AutoEverything.Core
         ///
         /// 设计动机：
         /// - 用户需求：自动评级应当对名字进行颜色区分
-        ///   SSS=金黄 / SS=橙 / S=黄 / A/B=白 / C/D=灰
+        ///   SSS/SS/S=亮紫 / A/B=白 / C/D=灰
         /// - 自定义评级也按相同规则着色（颜色规则同自动）
         /// - PawnNameColorOf 是 RimWorld 原生名字颜色查询入口，被 GenMapUI.DrawPawnLabel 调用
         ///   Postfix 修改 __result 会同时影响殖民者栏与地图名字标签，视觉一致
@@ -461,8 +435,8 @@ namespace AutoEverything.Core
         /// - 排除囚犯/奴隶/精神状态：这些状态有原生身份颜色，不应被评级颜色覆盖
         /// - X 档（无法从事暴力活动）保持原生颜色，不参与评级着色
         ///
-        /// 颜色与评级对应（S+ 统一紫色，仅 SSS 加粗以区分顶级）：
-        /// - SSS：亮紫 (0.75, 0.30, 1.00) + 加粗
+        /// 颜色与评级对应（S+ 统一紫色）：
+        /// - SSS：亮紫 (0.75, 0.30, 1.00)
         /// - SS：亮紫 (0.75, 0.30, 1.00)
         /// - S：亮紫 (0.75, 0.30, 1.00)
         /// - A、B：白色 (1.0, 1.0, 1.0)
@@ -475,8 +449,8 @@ namespace AutoEverything.Core
         public static class PawnNameColorUtility_PawnNameColorOf_Patch
         {
             // 评级颜色常量（RGB，alpha 由原生逻辑处理）
-            // 颜色选择依据：S+ 统一紫色以突出高价值，仅 SSS 加粗以区分顶级
-            private static readonly Color TierColorSSS = new Color(0.75f, 0.30f, 1.00f);  // 亮紫（加粗）
+            // 颜色选择依据：S+ 统一紫色以突出高价值
+            private static readonly Color TierColorSSS = new Color(0.75f, 0.30f, 1.00f);  // 亮紫
             private static readonly Color TierColorSS = new Color(0.75f, 0.30f, 1.00f);   // 亮紫
             private static readonly Color TierColorS = new Color(0.75f, 0.30f, 1.00f);    // 亮紫
             private static readonly Color TierColorAB = new Color(1.00f, 1.00f, 1.00f);   // 白色
@@ -529,85 +503,6 @@ namespace AutoEverything.Core
                     case CombatTier.C:
                     case CombatTier.D: return TierColorCD;
                     default: return new Color(0f, 0f, 0f, 0f);  // X 档不覆盖
-                }
-            }
-        }
-
-        /// <summary>
-        /// GenMapUI.DrawPawnLabel 的 Prefix/Postfix：SSS 评级殖民者名字加粗。
-        ///
-        /// 设计动机：
-        /// - 用户需求：S+ 统一紫色，仅 SSS 加粗以区分顶级
-        /// - RimWorld 原生 Widgets.Label 用 Text.CurFontStyle 绘制文字，fontStyle 默认 Normal
-        /// - 在 DrawPawnLabel 执行期间临时修改 fontStyle 为 Bold，绘制完成后恢复
-        ///
-        /// 实现要点：
-        /// - Patch 重载二（bgRect 参数版本，实际绘制名字的方法）
-        /// - 重载一（pos 参数版本）内部转调重载二，无需重复 Patch
-        /// - Prefix：保存当前 fontStyle，SSS 评级 Pawn 设 Bold
-        /// - Postfix：恢复原 fontStyle（try-finally 语义，异常也恢复）
-        ///
-        /// 加粗范围：
-        /// - 仅对玩家阵营人类 like 殖民者生效
-        /// - 排除囚犯/奴隶/精神状态
-        /// - 仅 SSS 加粗，SS/S/A 及以下保持 Normal（SS/S 颜色虽为紫色但不加粗）
-        ///
-        /// 注：Text.CurFontStyle 返回 GUIStyle 引用（class），修改 .fontStyle 会修改原始 GUIStyle
-        ///   因此必须在 Postfix 恢复，否则会影响后续所有文字绘制
-        /// </summary>
-        public static class GenMapUI_DrawPawnLabel_Patch
-        {
-            // 保存当前调用栈的原 fontStyle，Postfix 恢复
-            // 用实例字段而非 static，避免嵌套调用（重载一→重载二）时状态被覆盖
-            // 但 Harmony patch 方法通常是 static，这里用 static 字段配合调用计数也能实现
-            // 实际上 GenMapUI.DrawPawnLabel 不会嵌套调用自身，简单的 static 字段即可
-            private static FontStyle prevFontStyle;
-            private static bool styleSaved;
-
-            public static void Prefix(Pawn pawn)
-            {
-                styleSaved = false;
-                if (!AESettings.enabled || !AESettings.autoTierTag) return;
-                if (pawn == null) return;
-                if (pawn.Faction != Faction.OfPlayer) return;
-                if (!PawnSuitabilityChecker.CanManageGear(pawn)) return;
-                if (pawn.IsPrisonerOfColony) return;
-                if (pawn.IsSlaveOfColony) return;
-                if (pawn.MentalStateDef != null) return;
-
-                try
-                {
-                    CombatTier tier = TierCacheService.GetTier(pawn);
-                    if (tier == CombatTier.SSS)
-                    {
-                        // 仅 SSS 评级加粗（SS/S 颜色相同但不加粗，以区分顶级）
-                        prevFontStyle = Text.CurFontStyle.fontStyle;
-                        Text.CurFontStyle.fontStyle = FontStyle.Bold;
-                        styleSaved = true;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Log.ErrorOnce("[AutoEverything] 名字加粗 Prefix 失败: " + ex.Message,
-                        pawn.thingIDNumber ^ 0xA900);
-                }
-            }
-
-            public static void Postfix(Pawn pawn)
-            {
-                if (!styleSaved) return;
-                try
-                {
-                    Text.CurFontStyle.fontStyle = prevFontStyle;
-                }
-                catch (Exception ex)
-                {
-                    Log.ErrorOnce("[AutoEverything] 名字加粗 Postfix 恢复失败: " + ex.Message,
-                        pawn.thingIDNumber ^ 0xA910);
-                }
-                finally
-                {
-                    styleSaved = false;
                 }
             }
         }

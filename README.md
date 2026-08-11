@@ -86,18 +86,18 @@
 
 **配偶评级豁免：** 与 S 级以上（S/SS/SSS）人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）。配偶评级用 `GetAutoCombatTier` 计算，避免递归。自定义评级优先于配偶豁免。
 
-**名字评级着色与加粗：** 殖民者栏与地图名字标签按最终评级（含自定义）着色，S+ 统一紫色，仅 SSS 加粗以区分顶级。
+**名字评级着色：** 殖民者栏与地图名字标签按最终评级（含自定义）着色，S+ 统一紫色。
 
-| 评级 | 名字颜色 | 加粗 |
-|------|---------|------|
-| SSS | 亮紫 | 是 |
-| SS | 亮紫 | 否 |
-| S | 亮紫 | 否 |
-| A / B | 白色 | 否 |
-| C / D | 灰色 | 否 |
-| X | 原生浅灰（不覆盖） | 否 |
+| 评级 | 名字颜色 |
+|------|---------|
+| SSS | 亮紫 |
+| SS | 亮紫 |
+| S | 亮紫 |
+| A / B | 白色 |
+| C / D | 灰色 |
+| X | 原生浅灰（不覆盖） |
 
-实现：Harmony Postfix `PawnNameColorUtility.PawnNameColorOf` 覆盖颜色，Prefix/Postfix `GenMapUI.DrawPawnLabel` 临时修改 `Text.CurFontStyle.fontStyle` 实现加粗。仅对玩家阵营人类 like 殖民者生效（排除囚犯/奴隶/精神状态，保留原生身份颜色）。
+实现：Harmony Postfix `PawnNameColorUtility.PawnNameColorOf` 覆盖颜色。仅对玩家阵营人类 like 殖民者生效（排除囚犯/奴隶/精神状态，保留原生身份颜色）。
 
 **统计范围（9 大可兴趣技能）：** 射击、近战、社交、手工、建造、艺术、烹饪、种植、采矿。
 
