@@ -461,10 +461,10 @@ namespace AutoEverything.Core
         /// - 排除囚犯/奴隶/精神状态：这些状态有原生身份颜色，不应被评级颜色覆盖
         /// - X 档（无法从事暴力活动）保持原生颜色，不参与评级着色
         ///
-        /// 颜色与评级对应（与 ITab_GearManager 评级徽章颜色系一致）：
-        /// - SSS：金黄 (1.0, 0.84, 0.0)
-        /// - SS：橙色 (1.0, 0.55, 0.0)
-        /// - S：黄色 (1.0, 0.92, 0.23)
+        /// 颜色与评级对应（S+ 统一紫色，仅 SSS 加粗以区分顶级）：
+        /// - SSS：亮紫 (0.75, 0.30, 1.00) + 加粗
+        /// - SS：亮紫 (0.75, 0.30, 1.00)
+        /// - S：亮紫 (0.75, 0.30, 1.00)
         /// - A、B：白色 (1.0, 1.0, 1.0)
         /// - C、D：灰色 (0.55, 0.55, 0.55)
         /// - X：不覆盖（保持原生 ColorColony 浅灰）
@@ -475,10 +475,10 @@ namespace AutoEverything.Core
         public static class PawnNameColorUtility_PawnNameColorOf_Patch
         {
             // 评级颜色常量（RGB，alpha 由原生逻辑处理）
-            // 颜色选择依据：与 ITab_GearManager 评级徽章颜色系协调，确保玩家在殖民者栏/地图/检视面板看到一致的颜色语义
-            private static readonly Color TierColorSSS = new Color(1.00f, 0.84f, 0.00f);  // 金黄
-            private static readonly Color TierColorSS = new Color(1.00f, 0.55f, 0.00f);   // 橙色
-            private static readonly Color TierColorS = new Color(1.00f, 0.92f, 0.23f);    // 黄色
+            // 颜色选择依据：S+ 统一紫色以突出高价值，仅 SSS 加粗以区分顶级
+            private static readonly Color TierColorSSS = new Color(0.75f, 0.30f, 1.00f);  // 亮紫（加粗）
+            private static readonly Color TierColorSS = new Color(0.75f, 0.30f, 1.00f);   // 亮紫
+            private static readonly Color TierColorS = new Color(0.75f, 0.30f, 1.00f);    // 亮紫
             private static readonly Color TierColorAB = new Color(1.00f, 1.00f, 1.00f);   // 白色
             private static readonly Color TierColorCD = new Color(0.55f, 0.55f, 0.55f);   // 灰色
 
@@ -534,23 +534,23 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// GenMapUI.DrawPawnLabel 的 Prefix/Postfix：S+ 评级殖民者名字加粗。
+        /// GenMapUI.DrawPawnLabel 的 Prefix/Postfix：SSS 评级殖民者名字加粗。
         ///
         /// 设计动机：
-        /// - 用户需求：S 级以上的名字加粗
+        /// - 用户需求：S+ 统一紫色，仅 SSS 加粗以区分顶级
         /// - RimWorld 原生 Widgets.Label 用 Text.CurFontStyle 绘制文字，fontStyle 默认 Normal
         /// - 在 DrawPawnLabel 执行期间临时修改 fontStyle 为 Bold，绘制完成后恢复
         ///
         /// 实现要点：
         /// - Patch 重载二（bgRect 参数版本，实际绘制名字的方法）
         /// - 重载一（pos 参数版本）内部转调重载二，无需重复 Patch
-        /// - Prefix：保存当前 fontStyle，S+ 评级 Pawn 设 Bold
+        /// - Prefix：保存当前 fontStyle，SSS 评级 Pawn 设 Bold
         /// - Postfix：恢复原 fontStyle（try-finally 语义，异常也恢复）
         ///
-        /// 加粗范围（与颜色 patch 一致）：
+        /// 加粗范围：
         /// - 仅对玩家阵营人类 like 殖民者生效
         /// - 排除囚犯/奴隶/精神状态
-        /// - S/SS/SSS 加粗，A 及以下保持 Normal
+        /// - 仅 SSS 加粗，SS/S/A 及以下保持 Normal（SS/S 颜色虽为紫色但不加粗）
         ///
         /// 注：Text.CurFontStyle 返回 GUIStyle 引用（class），修改 .fontStyle 会修改原始 GUIStyle
         ///   因此必须在 Postfix 恢复，否则会影响后续所有文字绘制
@@ -578,9 +578,9 @@ namespace AutoEverything.Core
                 try
                 {
                     CombatTier tier = TierCacheService.GetTier(pawn);
-                    if (tier >= CombatTier.S)
+                    if (tier == CombatTier.SSS)
                     {
-                        // S+ 评级：保存原 fontStyle 并设 Bold
+                        // 仅 SSS 评级加粗（SS/S 颜色相同但不加粗，以区分顶级）
                         prevFontStyle = Text.CurFontStyle.fontStyle;
                         Text.CurFontStyle.fontStyle = FontStyle.Bold;
                         styleSaved = true;
