@@ -9,7 +9,7 @@ namespace AutoEverything.AutoMarkPawn
     /// <summary>
     /// 角色定位图标判定：为殖民者栏 Rect 上的角色定位图标提供判定与取色。
     ///
-    /// 5 种角色定位（形状区分，颜色统一深红）：
+    /// 6 种角色定位（形状区分，颜色统一深红）：
     /// - <see cref="RoleIconType.Tough"/>（坚韧，盾）：坚韧（Tough）特质
     ///   设计意图：高生存力单位（减伤 50%），无论是否近战都值得标识
     ///   用户决策（2026-07-21）：带坚韧的角色一律标记 Tough 标识，与 Frontline 解耦
@@ -19,13 +19,18 @@ namespace AutoEverything.AutoMarkPawn
     ///   设计意图：DPS 突出的远程单位，应优先承担射击任务
     ///   用户决策（2026-07-21）：扩展到含单火（Minor），覆盖"乱开枪+单火"S 档高价值角色
     /// - <see cref="RoleIconType.Crafter"/>（手工，锤子铁砧）：工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1）
-    ///   设计意图：生产效率突出的单位，应优先承担专业工作
+    ///   设计意图：生产效率突出的单位（工作狂+神经质组合），应优先承担专业工作
+    /// - <see cref="RoleIconType.Worker"/>（工人，扳手螺丝刀）：工作狂（Industriousness degree≥1）或 严重神经质（Neurotic degree≥1）
+    ///   设计意图：工作倾向单位，单方面拥有工作狂或严重神经质即标记
+    ///   用户决策（2026-08-13）：新增工人图标，判定为 OR 关系
+    ///   与 Crafter 的关系：Crafter 判定为 AND（工作狂+神经质），是 Worker 的子集；
+    ///   工作狂+神经质的殖民者会同时显示 Crafter + Worker 两个图标（Crafter 标识精确组合，Worker 标识工作倾向）
     /// - <see cref="RoleIconType.Trader"/>（贸易，钱袋）：俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8）
     ///   设计意图：社交优势单位，适合外交与贸易
     ///
     /// 颜色策略（用户决策 2026-07-21）：
     /// - 所有图标统一深红色 RGB(0.6, 0.0, 0.0)，避免多色看不清
-    /// - 形状本身已足够区分 5 种角色定位，颜色不再做分类
+    /// - 形状本身已足够区分 6 种角色定位，颜色不再做分类
     ///
     /// 一个殖民者可同时符合多个角色定位（如坚韧格斗 + 工作狂神经质），图标横向排列显示。
     ///
@@ -43,6 +48,7 @@ namespace AutoEverything.AutoMarkPawn
             Frontline,  // 前排（盾）
             Ranged,     // 远程（弓箭）
             Crafter,    // 手工（锤子铁砧）
+            Worker,     // 工人（扳手螺丝刀）
             Trader      // 贸易（钱袋）
         }
 
@@ -54,7 +60,7 @@ namespace AutoEverything.AutoMarkPawn
 
         // 复用缓冲区：避免每帧分配（殖民者栏每帧绘制多个 Pawn，调用频繁）
         // 单线程主线程使用，无需并发保护
-        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(5);
+        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(6);
 
         // 社交技能等级阈值：达到此等级视为"高社交"，配合 Beauty 特质触发 Trader 图标
         private const int SocialLevelThreshold = 8;
@@ -107,10 +113,18 @@ namespace AutoEverything.AutoMarkPawn
             if (isTriggerHappy && (shootingMajor || shootingMinor))
                 buffer.Add(RoleIconType.Ranged);
 
-            // Crafter：工作狂 + 神经质
+            // Crafter：工作狂 + 神经质（AND，精确组合）
             // 设计：工作狂神经质组合是 S 评级核心，生产效率突出
+            // 注：Crafter 是 Worker 的子集——工作狂+神经质的殖民者会同时显示 Crafter + Worker
             if (hasIndustrious && hasNeurotic)
                 buffer.Add(RoleIconType.Crafter);
+
+            // Worker：工作狂 或 严重神经质（OR，工作倾向）
+            // 用户决策（2026-08-13）：单方面拥有工作狂或严重神经质即标记为工人
+            // 设计：工作狂（degree≥1，含勤奋+非常勤奋）或严重神经质（degree≥1，含神经质+非常神经质）
+            // 与 Crafter 关系：Crafter(AND) 是 Worker(OR) 的子集，两者可同时显示
+            if (hasIndustrious || hasNeurotic)
+                buffer.Add(RoleIconType.Worker);
 
             // Trader：俊俏/沉鱼落雁 + 高社交
             // 设计：Beauty degree≥1 含俊俏(1)/沉鱼落雁(2)，配合高社交（Major 或 Level≥8）触发
