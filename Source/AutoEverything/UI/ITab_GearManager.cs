@@ -407,6 +407,21 @@ namespace AutoEverything.UI
             {
                 AutoExecutor.TriggerDrugPolicyNow();
             }
+
+            // ===================== 设置持久化 =====================
+            // ITab 勾选框直接修改 static 字段，RimWorld 不会自动写盘——
+            // 必须在状态变化时显式 Write，否则重启游戏后开关恢复默认值
+            // （AutoCarry/AutoDrugPolicy 默认 false，玩家勾选后退出会丢失）
+            // 5 个开关统一检测，任一变化即写入一次，避免重复 IO
+            // 注：RimWorld 1.6 把 ModSettings.WriteSettings() 改名为 Write()
+            if (AESettings.autoTierTag != prevTierTag
+                || AESettings.autoWorkEnabled != prevWork
+                || AESettings.autoMarkPawn != prevMark
+                || AESettings.autoCarryEnabled != prevCarry
+                || AESettings.autoDrugPolicyEnabled != prevDrug)
+            {
+                AutoEverythingMod.settings?.Write();
+            }
         }
 
         // ===================== Section 卡片绘制 =====================
