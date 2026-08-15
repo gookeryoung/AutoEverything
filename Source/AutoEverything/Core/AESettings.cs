@@ -111,28 +111,49 @@ namespace AutoEverything.Core
 
         /// <summary>
         /// 兼容性 Scribe 读取：
-        /// - 加载模式：先读无前缀旧键（兼容旧存档），再读 ae_ 新键（若存在则覆盖）
+        /// - 加载模式：先读无前缀旧键（兼容旧存档），再读 ae_ 新键（若存在则覆盖，缺失时保持旧键结果）
         /// - 保存模式：只写 ae_ 新键，实现自动迁移
+        /// 关键：保存时必须传真实默认值——Scribe_Values 在 value == defaultValue 时会跳过写盘，
+        /// 若把 value 自身当默认值传入，所有标量键将永远不会写入（曾导致开关重启丢失）
         /// </summary>
         private static void LookCompat(ref bool value, string key, bool defaultValue)
         {
-            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            if (Scribe.mode == LoadSaveMode.Saving)
+            {
+                // 等于默认值时省略键；加载时键缺失自然回落默认值，语义自洽
+                Scribe_Values.Look(ref value, "ae_" + key, defaultValue);
+            }
+            else if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
                 Scribe_Values.Look(ref value, key, defaultValue);
-            Scribe_Values.Look(ref value, "ae_" + key, value);
+                Scribe_Values.Look(ref value, "ae_" + key, value);
+            }
         }
 
         private static void LookCompat(ref float value, string key, float defaultValue)
         {
-            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            if (Scribe.mode == LoadSaveMode.Saving)
+            {
+                Scribe_Values.Look(ref value, "ae_" + key, defaultValue);
+            }
+            else if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
                 Scribe_Values.Look(ref value, key, defaultValue);
-            Scribe_Values.Look(ref value, "ae_" + key, value);
+                Scribe_Values.Look(ref value, "ae_" + key, value);
+            }
         }
 
         private static void LookCompat(ref int value, string key, int defaultValue)
         {
-            if (Scribe.mode == LoadSaveMode.LoadingVars)
+            if (Scribe.mode == LoadSaveMode.Saving)
+            {
+                Scribe_Values.Look(ref value, "ae_" + key, defaultValue);
+            }
+            else if (Scribe.mode == LoadSaveMode.LoadingVars)
+            {
                 Scribe_Values.Look(ref value, key, defaultValue);
-            Scribe_Values.Look(ref value, "ae_" + key, value);
+                Scribe_Values.Look(ref value, "ae_" + key, value);
+            }
         }
 
         /// <summary>
