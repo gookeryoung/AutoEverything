@@ -13,8 +13,10 @@ namespace AutoEverything.Core
     /// 全局自动执行器：事件驱动工作重配、周期触发人员评级、事件驱动高价值标记扫描、周期触发自动携带。
     ///
     /// 设计模式：静态门控模式，
-    /// 由 <see cref="AutoEverythingGameComponent"/>.Tick 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
-    /// 不再依赖 Pawn 上的 ThingComp（CompGearManager 已移除，避免与其他装备管理类 MOD 冲突）。
+    /// 由 Harmony TickManager.DoSingleTick Postfix 每 tick 调用 TryTick()，内部静态门控每 60 tick 检查一次。
+    /// 不再依赖 Pawn 上的 ThingComp（CompGearManager 已移除，避免与其他装备管理类 MOD 冲突）；
+    /// 也不再注入 GameComponent（组件随存档持久化，卸载 MOD 后旧存档依赖残留类型）——
+    /// 旧存档中残留的 AutoEverythingGameComponent 仍会调用本方法，60 tick 门控保证幂等。
     ///
     /// 触发条件：
     /// - 工作重配（事件 + 周期）：殖民者数量变化时标记待触发；ITab 勾选时立即触发（弹消息框）；
@@ -155,8 +157,16 @@ namespace AutoEverything.Core
                 }
             }
 
+            // 战斗检测惰性单次计算：下方三个触发分支共享结果——
+            // AnyCombatActive 是全图全 Pawn 遍历，原实现一个检查周期内最多调 2 次（缓解卡滞）
+            // 仅在确有分支需要战斗过滤时才执行遍历，否则跳过
+            bool needCombatCheck = (work.pending && tick - work.lastTick >= ReallocCooldown)
+                || tick - work.lastTick >= WorkExecuteInterval
+                || tick - carry.lastTick >= CarryExecuteInterval;
+            bool combatActive = needCombatCheck && AnyCombatActive();
+
             // 待重配触发：工作重配需战斗过滤（SetPriority 取消 Job）
-            if (work.pending && tick - work.lastTick >= ReallocCooldown && !AnyCombatActive())
+            if (work.pending && tick - work.lastTick >= ReallocCooldown && !combatActive)
             {
                 work.pending = false;
                 ExecuteWork(tick, showMessage: false);
@@ -164,7 +174,7 @@ namespace AutoEverything.Core
             // 周期触发：勾选状态下每 1 分钟重新分配工作，避免长期无人员变动时分配过时
             // 需战斗过滤：与事件触发一致，避免战斗中打断医疗 Job
             // 复用 work.lastTick：周期触发后同样刷新冷却计时，事件触发也基于此计算
-            else if (tick - work.lastTick >= WorkExecuteInterval && !AnyCombatActive())
+            else if (tick - work.lastTick >= WorkExecuteInterval && !combatActive)
             {
                 ExecuteWork(tick, showMessage: false);
             }
@@ -174,7 +184,7 @@ namespace AutoEverything.Core
                 ExecuteTier(tick, showMessage: false);
 
             // 周期触发：自动携带（战斗过滤——避免殖民者战斗中离开战位去拿物品）
-            if (tick - carry.lastTick >= CarryExecuteInterval && !AnyCombatActive())
+            if (tick - carry.lastTick >= CarryExecuteInterval && !combatActive)
                 ExecuteCarry(tick, showMessage: false);
 
             // 用药方案触发：事件待触发 或 周期触发

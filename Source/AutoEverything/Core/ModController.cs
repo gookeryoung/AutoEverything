@@ -7,8 +7,8 @@ namespace AutoEverything.Core
 {
     /// <summary>
     /// MOD 启动引导类：游戏加载时由 RimWorld 自动调用静态构造函数。
-    /// 在此应用 Harmony 补丁（Game.FinalizeInit Postfix 注册 GameComponent +
-    /// ColonistBarColonistDrawer.DrawColonist Postfix 在殖民者栏固定位置绘制星标），并校验翻译键完整性。
+    /// 在此应用 Harmony 补丁（TickManager.DoSingleTick Postfix 全局 Tick 入口 +
+    /// ColonistBarColonistDrawer.DrawColonist Postfix 绘制角色图标），并校验翻译键完整性。
     /// </summary>
     [StaticConstructorOnStartup]
     public static class ModController
@@ -17,7 +17,7 @@ namespace AutoEverything.Core
         {
             HarmonyPatches.Init();
             ValidateTranslationKeys();
-            Log.Message("[AutoEverything] MOD 已初始化（Harmony GameComponent 注册 + ColonistBar 星标补丁）");
+            Log.Message("[AutoEverything] MOD 已初始化（Harmony DoSingleTick 入口 + ColonistBar 角色图标补丁）");
         }
 
         /// <summary>

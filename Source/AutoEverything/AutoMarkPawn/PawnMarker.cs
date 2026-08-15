@@ -86,6 +86,23 @@ namespace AutoEverything.AutoMarkPawn
         // FormatMessage 用的 MessageEntry 复用缓冲区（避免每次调用分配新 List）
         private static readonly List<MessageEntry> entryBuffer = new List<MessageEntry>();
 
+        // ===================== 类别缓存 =====================
+        // 缓解卡滞（2026-08-15）：地图高价值标记（DrawMapMarker）每帧对每个被标记的
+        // 非玩家阵营单位调用 GetMarkerCategory，其中 HostileTo 是派系关系链查询，
+        // 袭击时数十个敌对单位每帧重复计算。类别仅在派系/关押状态变化时改变，
+        // 缓存后命中路径仅 1 次字典查询。TTL 2500 tick 与 TierCacheService 一致。
+        private struct CategoryCacheEntry
+        {
+            public MarkerCategory category;
+            public int tick;
+        }
+
+        private const int CategoryCacheTTL = 2500;
+        private const int CategoryCacheCleanupInterval = 60000;
+        private static readonly Dictionary<Pawn, CategoryCacheEntry> categoryCache = new Dictionary<Pawn, CategoryCacheEntry>();
+        private static readonly List<Pawn> categoryCleanupBuffer = new List<Pawn>();
+        private static int lastCategoryCleanupTick = -9999;
+
         /// <summary>
         /// 判断 Pawn 是否为高价值（S+ 档次，含自定义评级覆盖）。
         /// CombatEvaluator.GetCombatTier 优先返回自定义评级，未命中则返回自动判定。
@@ -118,10 +135,20 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>
         /// 获取 Pawn 的标记类别（用于星标颜色与消息展示）。
         /// 优先级：囚犯 > 奴隶 > 殖民者 > 敌对 > 中立/盟友 > 野生人类。
+        /// 结果按 Pawn 缓存 2500 tick——HostileTo 是派系关系链查询，
+        /// 地图标记每帧调用，缓存避免袭击时的重复计算（见 CategoryCacheEntry 注释）。
         /// </summary>
         public static MarkerCategory GetMarkerCategory(Pawn pawn)
         {
-            return GetMarkerCategoryCore(new CategoryInput
+            if (pawn == null) return MarkerCategory.WildHuman;
+
+            int tick = Find.TickManager.TicksGame;
+            MaybeCleanupCategoryCache(tick);
+
+            if (categoryCache.TryGetValue(pawn, out CategoryCacheEntry e) && tick - e.tick < CategoryCacheTTL)
+                return e.category;
+
+            MarkerCategory category = GetMarkerCategoryCore(new CategoryInput
             {
                 IsPrisonerOfColony = pawn.IsPrisonerOfColony,
                 IsSlaveOfColony = pawn.IsSlaveOfColony,
@@ -129,6 +156,28 @@ namespace AutoEverything.AutoMarkPawn
                 IsHostileTo = pawn.HostileTo(Faction.OfPlayer),
                 HasFaction = pawn.Faction != null
             });
+            categoryCache[pawn] = new CategoryCacheEntry { category = category, tick = tick };
+            return category;
+        }
+
+        /// <summary>
+        /// 周期清理类别缓存：移除 Dead/!Spawned 的 Pawn，避免引用泄漏。
+        /// 模式与 TierCacheService.MaybeCleanup 一致，由 GetMarkerCategory 触发。
+        /// </summary>
+        private static void MaybeCleanupCategoryCache(int tick)
+        {
+            if (tick - lastCategoryCleanupTick < CategoryCacheCleanupInterval) return;
+            lastCategoryCleanupTick = tick;
+
+            categoryCleanupBuffer.Clear();
+            foreach (var kvp in categoryCache)
+            {
+                Pawn p = kvp.Key;
+                if (p == null || p.Dead || !p.Spawned)
+                    categoryCleanupBuffer.Add(p);
+            }
+            for (int i = 0; i < categoryCleanupBuffer.Count; i++)
+                categoryCache.Remove(categoryCleanupBuffer[i]);
         }
 
         /// <summary>

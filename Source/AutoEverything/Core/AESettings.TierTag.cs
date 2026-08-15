@@ -71,7 +71,10 @@ namespace AutoEverything.Core
 
                 // 计算最终评级：命中自定义评级时用自定义档，否则用系统档（含配偶豁免）
                 // 用户决策：自定义评级设置后，名称以自定义为主（前缀显示自定义档）
-                CombatTier tier = CombatEvaluator.GetCombatTier(pawn);
+                // 走 TierCacheService 缓存（缓解卡滞 2026-08-15）：裸调 GetCombatTier 含
+                // 配偶豁免递归 + 9 技能查询，每 3000 tick 全量重算纯浪费；
+                // 名字着色每帧路径已填充同一缓存，此处大概率命中
+                CombatTier tier = TierCacheService.GetTier(pawn);
                 string newNick = tier + TIER_TAG_PREFIX_SEPARATOR + cleanNick;
 
                 if (newNick != currentNick)

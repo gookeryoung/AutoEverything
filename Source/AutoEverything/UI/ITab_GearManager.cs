@@ -265,6 +265,9 @@ namespace AutoEverything.UI
                         () =>
                         {
                             AESettings.SetCustomTier(pawnName, localTier);
+                            // 立即失效评级缓存：ApplyTierTagsToAllPawns 走 TierCacheService，
+                            // 不失效的话新自定义档要等 2500 tick TTL 过期才反映到 Nick 前缀
+                            TierCacheService.Invalidate(pawn);
                             // 立即更新 Nick 前缀（自定义评级优先显示），不重排殖民者栏
                             // 用户决策：自定义评级设置后，名称以自定义为主
                             if (AESettings.autoTierTag)
@@ -281,6 +284,8 @@ namespace AutoEverything.UI
                 if (hasCustom)
                 {
                     AESettings.ClearCustomTier(pawnName);
+                    // 立即失效评级缓存：清除自定义后需立即恢复系统评级（理由同设置处）
+                    TierCacheService.Invalidate(pawn);
                     // 立即更新 Nick 前缀（恢复系统评级），不重排殖民者栏
                     if (AESettings.autoTierTag)
                     {

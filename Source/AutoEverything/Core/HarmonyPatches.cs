@@ -12,14 +12,21 @@ namespace AutoEverything.Core
     /// <summary>
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
-    /// 1) Game.FinalizeInit Postfix：注册 AutoEverythingGameComponent（作为 AutoExecutor 的 Tick 入口）
+    /// 1) TickManager.DoSingleTick Postfix：作为 AutoExecutor 的全局 Tick 入口
     /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标
     /// 3) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在地图上为非殖民者栏的高价值单位（敌方/中立/野生）绘制标记
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
     ///
     /// 注：原 Pawn.SpawnSetup Postfix 注入 CompGearManager 的逻辑已移除——
     /// 该机制修改所有人类like Pawn ThingDef.comps，与其他装备管理类 MOD 冲突。
-    /// 现改用 GameComponent 全局 Tick 驱动 AutoExecutor，零 ThingDef 修改。
+    /// 现改用全局 Tick（DoSingleTick Postfix）驱动 AutoExecutor，零 ThingDef 修改。
+    ///
+    /// 注：原 Game.FinalizeInit Postfix 注册 GameComponent 的方案已移除（2026-08-15）——
+    /// GameComponent 实例会被 RimWorld 写入存档（Game.components 深序列化），
+    /// 玩家卸载 MOD 后加载旧存档需依赖残留组件类型，存档纯净性差。
+    /// 改 hook DoSingleTick 后新存档零组件写入；AutoEverythingGameComponent 类保留
+    /// 仅供旧存档反序列化兼容，其 GameComponentTick 与本入口双路调用
+    /// AutoExecutor.TryTick——内部 60 tick 门控保证幂等，无双倍执行。
     ///
     /// 注：原 AutoEquipment 模块（自动装备分配）已整体移除——玩家反馈换装效果不理想，
     /// 改用 RimWorld 原生换装（玩家手动管理装备）。相关 Harmony 事件补丁
@@ -47,10 +54,11 @@ namespace AutoEverything.Core
             var harmony = new Harmony(HarmonyID);
             // 显式 Patch：避免 PatchAll 扫描整个程序集的开销
 
-            // Game.FinalizeInit Postfix：新游戏/加载存档后注册 GameComponent
+            // TickManager.DoSingleTick Postfix：AutoExecutor 的全局 Tick 入口
+            // 仅在游戏内 tick 时调用（与 GameComponentTick 等效），Postfix 零拦截
             harmony.Patch(
-                AccessTools.Method(typeof(Game), nameof(Game.FinalizeInit)),
-                postfix: new HarmonyMethod(typeof(Game_FinalizeInit_Patch), nameof(Game_FinalizeInit_Patch.Postfix)));
+                AccessTools.Method(typeof(TickManager), nameof(TickManager.DoSingleTick)),
+                postfix: new HarmonyMethod(typeof(TickManager_DoSingleTick_Patch), nameof(TickManager_DoSingleTick_Patch.Postfix)));
 
             // ColonistBarColonistDrawer.DrawColonist 补丁：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标
             // RimWorld 1.6 中类型为 RimWorld.ColonistBarColonistDrawer，公开实例方法 DrawColonist(Rect, Pawn, Map, bool, bool)
@@ -124,32 +132,34 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] PawnNameColorUtility 补丁失败: " + ex.Message);
             }
 
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (GameComponent 注册 + ColonistBar 角色图标 + 地图高价值标记 + 名字评级着色)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (DoSingleTick 入口 + ColonistBar 角色图标 + 地图高价值标记 + 名字评级着色)");
         }
 
         /// <summary>
-        /// Game.FinalizeInit Postfix：在新游戏/加载存档后注册 AutoEverythingGameComponent。
-        /// 已注册则跳过，避免重复添加。
-        /// FinalizeInit 在新游戏和加载存档两种场景都会被调用，是注册 GameComponent 的最佳时机。
+        /// TickManager.DoSingleTick 的 Postfix：AutoExecutor 的全局 Tick 入口。
+        ///
+        /// 设计动机（2026-08-15 由 GameComponent 注册方案演进）：
+        /// - 原方案 patch Game.FinalizeInit 注入 AutoEverythingGameComponent，
+        ///   组件实例随存档持久化（Game.components 深序列化）——玩家卸载 MOD 后
+        ///   加载旧存档需依赖残留组件类型，存档纯净性差
+        /// - 改 hook DoSingleTick：与 GameComponentTick 等效（仅游戏内每 tick 调用），
+        ///   但不向存档写入任何 MOD 组件，新存档零污染
+        /// - 幂等保障：旧存档中的 AutoEverythingGameComponent.GameComponentTick
+        ///   与本入口双路调用 AutoExecutor.TryTick，TryTick 入口的 60 tick 门控
+        ///   使同 tick 第二次调用直接 return，无双倍执行
         /// </summary>
-        public static class Game_FinalizeInit_Patch
+        public static class TickManager_DoSingleTick_Patch
         {
-            public static void Postfix(Game __instance)
+            public static void Postfix()
             {
                 try
                 {
-                    // 检查是否已注册（避免重复添加）
-                    List<GameComponent> comps = __instance.components;
-                    for (int i = 0; i < comps.Count; i++)
-                    {
-                        if (comps[i] is AutoEverythingGameComponent) return;
-                    }
-                    comps.Add(new AutoEverythingGameComponent(__instance));
-                    AEDebug.Log(() => "[AutoEverything] AutoEverythingGameComponent 已注册");
+                    AutoExecutor.TryTick();
                 }
                 catch (Exception ex)
                 {
-                    Log.ErrorOnce("[AutoEverything] GameComponent 注册失败: " + ex.Message, 0xA710);
+                    // 异常隔离：本 MOD Tick 失败不影响游戏原生 tick 逻辑
+                    Log.ErrorOnce("[AutoEverything] DoSingleTick 入口失败: " + ex.Message, 0xA710);
                 }
             }
         }

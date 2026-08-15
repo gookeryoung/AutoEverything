@@ -4,19 +4,23 @@ using Verse;
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// AutoEverything 的 GameComponent：作为 AutoExecutor 的全局 Tick 入口。
+    /// AutoEverything 的 GameComponent：仅用于旧存档兼容（2026-08-15 起不再注册新实例）。
     ///
-    /// 设计动机：
-    /// - 原方案通过 CompGearManager（Pawn 上的 ThingComp）驱动 AutoExecutor，
+    /// 演进历史：
+    /// - 早期方案通过 CompGearManager（Pawn 上的 ThingComp）驱动 AutoExecutor，
     ///   但 Pawn.SpawnSetup 注入 CompGearManager 与其他装备管理类 MOD 冲突，
     ///   且 CompGearManager 注入到所有人类like Pawn ThingDef 改变原生 ThingDef.comps。
-    /// - 改用 GameComponent 后，不再修改任何 ThingDef，不再注入 ThingComp，
-    ///   AutoExecutor 由 GameComponent.Tick 全局驱动，零侵入。
+    /// - 中期方案改为 GameComponent（Game.FinalizeInit Postfix 注册），零 ThingDef 修改，
+    ///   但组件实例会随存档深序列化持久化——玩家卸载 MOD 后加载旧存档
+    ///   需依赖残留组件类型，存档纯净性差。
+    /// - 当前方案（2026-08-15）：全局 Tick 入口改由 Harmony TickManager.DoSingleTick
+    ///   Postfix 直接驱动 AutoExecutor（见 HarmonyPatches），新存档不再写入本组件。
     ///
-    /// 注册机制：
-    /// - 通过 Harmony Postfix patch Game.FinalizeInit，在新游戏/加载存档后自动注册本组件。
-    /// - 已注册则跳过，避免重复添加。
-    /// - GameComponent 构造必须接受 Game 参数（ RimWorld 约定，用于 ExposeData 重建）。
+    /// 本类保留的原因：
+    /// - 旧版本保存的存档中含本组件节点，RimWorld 加载时需按类名反序列化重建实例；
+    /// 删除类会导致旧存档加载报错。
+    /// - 旧存档加载后 GameComponentTick 与 DoSingleTick 入口双路调用
+    ///   AutoExecutor.TryTick——TryTick 入口的 60 tick 门控保证幂等，无双倍执行。
     /// </summary>
     public class AutoEverythingGameComponent : GameComponent
     {
@@ -27,8 +31,7 @@ namespace AutoEverything.Core
 
         public override void GameComponentTick()
         {
-            // AutoExecutor.TryTick 内部有 60 tick 静态门控，每 tick 调用仅做一次 int 比较
-            // GameComponentTick 与 TickManager.DoSingleTick 等效，开销可忽略
+            // 仅旧存档走到这里（新存档无本组件实例）；与 DoSingleTick 入口幂等并存
             try
             {
                 AutoExecutor.TryTick();

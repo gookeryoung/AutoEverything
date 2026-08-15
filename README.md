@@ -302,9 +302,9 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 `Core/AutoExecutor.cs` 静态类负责工作重配（事件驱动）、人员评级（周期触发）、高价值标记扫描（事件驱动）与自动携带（周期触发）的自动执行。
 
-- **入口**：由 `AutoEverythingGameComponent.GameComponentTick` 每 tick 调用 `AutoExecutor.TryTick()`。GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册
+- **入口**：由 Harmony Postfix on `TickManager.DoSingleTick` 每 tick 调用 `AutoExecutor.TryTick()`。不向存档注入 GameComponent（新存档零 MOD 组件写入，卸载 MOD 后加载更干净）；旧存档中残留的 `AutoEverythingGameComponent` 仍会调用 `TryTick`，60 tick 门控保证幂等无双倍执行
 - **静态门控**：每 60 tick 检查一次殖民者数量变化、全人类单位数量变化与周期触发
-- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次；自动携带每 6000 tick（约 100 秒）执行一次（战斗中暂停）；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（基于特质组合，无缓存），S+ 高价值扫描为人员变动事件触发，无周期执行
+- **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次（走 `TierCacheService` 2500 tick 评级缓存）；自动携带每 6000 tick（约 100 秒）执行一次（战斗中暂停）；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（判定结果按 Pawn 缓存 2500 tick，特质/技能变化最迟 42 秒内反映），S+ 高价值扫描为人员变动事件触发，无周期执行；战斗检测在同一检查周期内惰性单次计算，多分支共享结果
 - **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（无殖民者征召 + 无战斗 Job）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
 - **全人类单位数量变化检测**：`CountAllHumanlikeSpawned()`（含殖民者/奴隶/囚犯/敌对/中立/盟友/野生）增加时，若 `autoMarkPawn` 开启则立即调用 `ExecuteMark(resetTracking=false)` 扫描新增高价值目标，有新发现时弹消息
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
@@ -324,7 +324,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 ### 高价值自动标记（AutoMarkPawn）
 
 `AutoMarkPawn/` 模块包含两个职责：
-- **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（坚韧盾/前排盾/远程弓/手工锤/工人扳手/贸易钱袋），基于特质与技能组合判定，与评级缓存解耦
+- **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（坚韧盾/前排盾/远程弓/手工锤/工人扳手/贸易钱袋），基于特质与技能组合判定；判定结果按 Pawn 缓存 2500 tick（与评级缓存独立），命中路径仅 1 次字典查询 + 掩码展开（零分配）
 - **S+ 高价值扫描通知**（`PawnMarker.cs`）：扫描所有人类单位中的 S+ 目标，通过消息通知玩家（不再绘制 ★）
 
 #### 角色定位图标（6 种）
@@ -561,9 +561,9 @@ Source/AutoEverything/
 ├── AutoEverything.csproj                  # C# 7.3 项目文件
 ├── Core/                                  # → namespace AutoEverything.Core
 │   ├── ModController.cs                   # MOD 入口，StaticConstructorOnStartup
-│   ├── HarmonyPatches.cs                  # Harmony 补丁：GameComponent 注册 + 角色定位图标 + 地图高价值标记
+│   ├── HarmonyPatches.cs                  # Harmony 补丁：DoSingleTick 全局入口 + 角色定位图标 + 地图高价值标记
 │   ├── AutoEverythingMod.cs               # Mod 设置入口
-│   ├── AutoEverythingGameComponent.cs     # GameComponent：AutoExecutor Tick 入口
+│   ├── AutoEverythingGameComponent.cs     # GameComponent：仅旧存档兼容（新存档不再写入，Tick 入口已改 DoSingleTick）
 │   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（主 partial）
 │   ├── AESettings.TierTag.cs              # AESettings partial：评级标签应用/清除/排序
 │   ├── ColonistBarSortMode.cs             # 殖民者栏排序枚举
@@ -613,7 +613,7 @@ Source/AutoEverything/
 
 | 路径 | 周期 | 说明 |
 |------|------|------|
-| `AutoEverythingGameComponent.GameComponentTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；GameComponent 通过 Harmony Postfix on `Game.FinalizeInit` 在新游戏/加载存档后自动注册 |
+| Harmony Postfix on `TickManager.DoSingleTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；不向存档注入 GameComponent，旧存档残留组件双路调用由 60 tick 门控保证幂等 |
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `work.pending`；增加时立即触发评级 |
 | `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无征召+无战斗 Job）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
 | `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
@@ -631,7 +631,7 @@ Source/AutoEverything/
 |------|------|
 | `PawnSuitabilityChecker.CanManageGear` | 仅 `race.Humanlike` 通过（食尸鬼通过），用于 ITab 可见性、工作分配候选收集、AutoMarkPawn 标记目标判定 |
 | `DLCCompat.IsGhoul` | 工作分配候选收集时跳过食尸鬼（食尸鬼不参与工作分配，但仍参与评级标签与高价值标记） |
-| `GameComponent` 入口 | 全局单例，零 ThingDef.comps 注入，从源头杜绝与其他 MOD 的 Comp 注入冲突 |
+| `TickManager.DoSingleTick` 入口 | Harmony Postfix 零拦截，零 ThingDef.comps 注入，零存档组件写入，从源头杜绝与其他 MOD 的 Comp 注入冲突与存档残留 |
 
 **食尸鬼处理策略**（分模块）：评级标签应用（`AESettings.ApplyTierTagsToAllPawns` 经 `PawnCollector.AllManagedPawns` 收集食尸鬼）、高价值标记（`PawnMarker.IsMarkableTarget` 不排除食尸鬼，归为 Colonist 类别标金星）；工作分配（`WorkAllocator.ReallocateAll` 通过 `DLCCompat.IsGhoul` 跳过食尸鬼，因为食尸鬼不参与 RimWorld 工作系统）。
 
@@ -778,7 +778,8 @@ RimWorld 运行时依赖 `Pawn`/`Map`/`Faction` 等游戏内对象，难以脱�
 | `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
 | `PawnMarker.cs` / `AutoMarkPawn` 模块 | `### 高价值自动标记（AutoMarkPawn）` |
 | `ITab_GearManager.cs` 底部勾选框 | `## 自动执行（AutoExecutor）` 入口章节 |
-| `AutoEverythingGameComponent.cs` | `### 评估周期` 表格 + `## 设计原则：逻辑杜绝而非事后清理` |
+| `HarmonyPatches.cs` Tick 入口 / `AutoEverythingGameComponent.cs` 兼容策略 | `## 自动执行（AutoExecutor）` 入口章节 + `### 评估周期` 表格 + `## 设计原则：逻辑杜绝而非事后清理` |
+| `RoleIconDef.cs` 图标缓存 / `PawnMarker.cs` 类别缓存 | `### 高价值自动标记（AutoMarkPawn）` + `### 评估周期` 表格 |
 | 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
 | 新增/删除源文件 | `### 目录结构` 代码块 |
 | 新增/修改图片资源 | `## 图片资源` 表格与 `### 资源加载时机` |
