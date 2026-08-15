@@ -483,12 +483,15 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 | 精神茶（PsychiteTea） | true | true | **true** | **2** | **1** |
 | 魔鬼素（Luciferium） | false | true | false | — | 0 |
 | 清醒丸（WakeUp） | false | true | false | — | **1** |
+| 薄片（Flake） | false | **false** | false | — | 0 |
+| 亚咯（Yayo） | false | **false** | false | — | 0 |
 
 **设计要点**：
+- **危险成瘾品禁止**：薄片（Flake）与亚咯（Yayo）为 psychite 系强成瘾品，显式设 `allowedForAddiction=false`（覆盖 RimWorld 默认 true），成瘾者不再自动服用，强制戒断
 - 计划服用（`allowScheduled`）只允许精神茶（2 天 1 次）与佩诺西林（AB/S 档，5 天 1 次）
 - 魔鬼素不预支不计划服用（仅满足依赖，永久成瘾者每天自动服用）
 - 清醒丸不计划服用但预支 1 个备用
-- 所有成瘾品默认 `allowedForAddiction=true`（RimWorld 自带，满足依赖）
+- 其他成瘾品默认 `allowedForAddiction=true`（RimWorld 自带，满足依赖；薄片/亚咯除外）
 
 ### 叠加规则
 

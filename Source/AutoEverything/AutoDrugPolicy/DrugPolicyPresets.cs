@@ -8,13 +8,14 @@ namespace AutoEverything.AutoDrugPolicy
     /// <summary>
     /// 用药方案预设：按评级档位定义 3 套 DrugPolicy 的内容。
     ///
-    /// 用户需求（2026-08-10）：
+    /// 用户需求（2026-08-10 + 2026-08-15）：
     /// 1. 计划服用（allowScheduled）只允许配置精神茶（2 天 1 次）与佩诺西林（AB/S 档，5 天 1 次）
     /// 2. 魔鬼素（Luciferium）不预支不计划服用（仅满足依赖）
     /// 3. 清醒丸（WakeUp）不计划服用（所有档预支 1 个）
     /// 4. 活力水（GoJuice）AB/S 档预支 1 个，不计划服用
     /// 5. 佩诺西林（Penoxycyline）AB/S 档计划服用 5 天 1 次 + 预支 1 个
-    /// 6. 所有成瘾品勾选 allowedForAddiction=true（满足依赖，RimWorld 默认）
+    /// 6. 其他成瘾品 allowedForAddiction=true（满足依赖，RimWorld 默认；薄片/亚咯除外）
+    /// 7. 危险成瘾品（薄片 Flake / 亚咯 Yayo）所有档禁止（allowedForAddiction=false 强制戒断）
     ///
     /// RimWorld 机制（反编译验证 2026-08-10）：
     /// - DrugPolicy(id, label) 构造函数调用 InitializeIfNeeded()，
@@ -105,6 +106,7 @@ namespace AutoEverything.AutoDrugPolicy
         /// - 活力水（GoJuice）：allowedForAddiction=true + takeToInventory=1，不计划服用（仅 AB/S 档）
         /// - 佩诺西林（Penoxycyline）：allowedForAddiction=true + allowScheduled=true
         ///   + daysFrequency=5 + takeToInventory=1（仅 AB/S 档）
+        /// - 薄片/亚咯（Flake/Yayo）：全部 false/0（所有档禁止，强制戒断危险成瘾品）
         /// </summary>
         public static void FillPolicyEntries(DrugPolicy policy, DrugTier tier)
         {
@@ -127,6 +129,17 @@ namespace AutoEverything.AutoDrugPolicy
                 allowedForJoy: true, allowedForAddiction: true,
                 allowScheduled: true, daysFrequency: PsychiteTeaDaysFrequency,
                 takeToInventory: 1);
+
+            // ── 所有档：危险成瘾品禁止（薄片/亚咯，psychite 系强成瘾品）──
+            // 用户需求（2026-08-15）：薄片等危险成瘾品应当禁止
+            // RimWorld 默认 allowedForAddiction=true 会自动满足依赖，必须显式 false 才能真正禁止
+            // 已成瘾殖民者会经历戒断（不再自动服用薄片），这是"禁止"的预期后果
+            SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("Flake"),
+                allowedForJoy: false, allowedForAddiction: false,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 0);
+            SetEntry(policy, DefDatabase<ThingDef>.GetNamedSilentFail("Yayo"),
+                allowedForJoy: false, allowedForAddiction: false,
+                allowScheduled: false, daysFrequency: 0f, takeToInventory: 0);
 
             // ── 所有档：魔鬼素不预支不计划服用不娱乐（仅满足依赖）──
             // Luciferium 是永久成瘾必要药，每天自动服用
