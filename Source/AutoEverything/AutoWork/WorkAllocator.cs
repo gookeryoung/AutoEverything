@@ -178,6 +178,8 @@ namespace AutoEverything.AutoWork
             // 奴隶也参与工作分配：Ideology DLC 的 SlavesOfColonySpawned 返回空列表时不影响
             // 医疗守卫：跳过正在执行医疗 Job/休养的 Pawn——SetPriority 会触发 Job 重评估，
             // 取消医生正在执行的 TendPatient/DoBill(Bill_Medical)，导致手术死循环或伤员失救
+            // 仪式守卫：仪式/聚会/商队组建参与者跳过，SetPriority 取消 Job 会中断仪式（下周期补配）
+            // 玩家命令守卫：playerForced 的 Job 是玩家手动指派，优先级变化触发重评估会取消玩家命令
             candidatePawns.Clear();
             foreach (Map map in Find.Maps)
             {
@@ -189,6 +191,8 @@ namespace AutoEverything.AutoWork
                     if (pawn.Dead || pawn.Downed) continue;
                     if (pawn.workSettings == null) continue;
                     if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
+                    if (PawnJobGuard.IsInRitualOrGathering(pawn)) continue;
+                    if (pawn.CurJob?.playerForced == true) continue;
                     candidatePawns.Add(pawn);
                 }
                 // 奴隶（Ideology DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
@@ -199,6 +203,8 @@ namespace AutoEverything.AutoWork
                     if (pawn.Dead || pawn.Downed) continue;
                     if (pawn.workSettings == null) continue;
                     if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
+                    if (PawnJobGuard.IsInRitualOrGathering(pawn)) continue;
+                    if (pawn.CurJob?.playerForced == true) continue;
                     candidatePawns.Add(pawn);
                 }
             }

@@ -15,6 +15,8 @@ namespace AutoEverything.AutoCarry
     /// 触发方式：AutoExecutor 周期触发（6000 tick）+ ITab 勾选时立即触发。
     /// 战斗过滤：复用 AutoExecutor.AnyCombatActive()，战斗中暂停派发。
     /// 医疗守卫：复用 PawnJobGuard.ShouldSkipForMedical()，正在手术/休养的殖民者跳过。
+    /// 仪式守卫：复用 PawnJobGuard.IsInRitualOrGathering()，仪式/聚会/商队组建参与者跳过。
+    /// 活动守卫：复用 PawnJobGuard.IsDoingProtectedActivity()，睡眠/冥想/死眠/实体研究/玩家命令不打断。
     ///
     /// 设计原则：
     /// - 单次只派发一个 Job：TryTakeOrderedJob 会取消当前 Job，避免一次给 Pawn 派发多个 Job 互相覆盖
@@ -176,6 +178,8 @@ namespace AutoEverything.AutoCarry
                 if (!map.reservationManager.CanReserve(pawn, t, 1, -1, null, false)) continue;
                 // 允许区域外（危险区）的物品跳过，防止殖民者跑出安全区拾取
                 if (allowedArea != null && !allowedArea[t.Position]) continue;
+                // 迷雾中的物品跳过：寻路不可达会导致 Job 卡死超时，且拾取迷雾物品等于探雾作弊
+                if (t.Position.Fogged(map)) continue;
 
                 float distSq = (t.Position - pawnPos).LengthHorizontalSquared;
                 if (distSq < nearestDistSq)

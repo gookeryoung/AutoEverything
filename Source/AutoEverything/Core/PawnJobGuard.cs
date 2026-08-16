@@ -47,21 +47,45 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 判断 Pawn 是否正在参与仪式（含心灵仪式）。
-        /// 仪式参与者由 Lord 系统管理，当前 Job 可能是等待/走向仪式地点/执行仪式动作，
-        /// 单看 JobDef 无法覆盖全部阶段，故查 Lord 的 LordJob 类型：
-        /// - Ideo 仪式（婚礼/葬礼/演讲/决斗/分娩等）：LordJob_Ritual 及其子类
-        /// - Anomaly 心灵仪式：LordJob_PsychicRitual 及其子类（Repeating）
-        /// 两条继承链互不相干（前者经 LordJob_Joinable_Gathering，后者直连 LordJob），必须分别判断。
-        /// TryTakeOrderedJob 取药会取消仪式 Job，导致仪式中断（质量下降甚至失败）。
+        /// 判断 Pawn 是否正在参与仪式/聚会/商队组建等 Lord 管理的集体活动。
+        /// 参与者当前 Job 可能是等待/走位/执行动作，单看 JobDef 无法覆盖全部阶段，故查 Lord 的 LordJob 类型：
+        /// - LordJob_VoluntarilyJoinable 基类：一次覆盖 Ideo 仪式（LordJob_Ritual 系，含授予仪式/演讲/鼓舞派对）
+        ///   及婚礼（LordJob_Joinable_MarriageCeremony 直连此类）/派对/音乐会（经 LordJob_Joinable_Gathering）
+        /// - LordJob_PsychicRitual：Anomaly 心灵仪式（含 Repeating 子类），独立继承链必须单独判断
+        /// - LordJob_FormAndSendCaravan：商队组建，打断会延迟商队出发
+        /// TryTakeOrderedJob 取药 / SetPriority 工作重配都会取消当前 Job，导致仪式中断或聚会散场。
         /// </summary>
-        public static bool IsInRitual(Pawn pawn)
+        public static bool IsInRitualOrGathering(Pawn pawn)
         {
             if (pawn == null) return false;
             Lord lord = pawn.GetLord();
             if (lord == null) return false;
             LordJob lordJob = lord.LordJob;
-            return lordJob is LordJob_Ritual || lordJob is LordJob_PsychicRitual;
+            return lordJob is LordJob_VoluntarilyJoinable
+                || lordJob is LordJob_PsychicRitual
+                || lordJob is LordJob_FormAndSendCaravan;
+        }
+
+        /// <summary>
+        /// 判断 Pawn 是否正在执行不应被自动功能打断的日常活动。
+        /// 覆盖：正常睡眠（LayDown，医疗休养已由 ShouldSkipForMedical 处理）、
+        /// 冥想（Meditate/MeditatePray，psyfocus 恢复被打断丢进度）、
+        /// 死眠（Deathrest，血族休眠加成失效）、实体研究（StudyInteract，Anomaly 长任务）、
+        /// 玩家手动命令（playerForced，玩家右键指派的 Job 优先级最高）。
+        /// 吃饭（Ingest）不在此列：原生各 Job 也会打断吃饭，属正常游戏节奏。
+        /// </summary>
+        public static bool IsDoingProtectedActivity(Pawn pawn)
+        {
+            if (pawn == null) return false;
+            Job job = pawn.CurJob;
+            if (job == null) return false;
+            if (job.playerForced) return true;
+            JobDef def = job.def;
+            return def == JobDefOf.LayDown
+                || def == JobDefOf.Meditate
+                || def == JobDefOf.MeditatePray
+                || def == JobDefOf.Deathrest
+                || def == JobDefOf.StudyInteract;
         }
 
         /// <summary>

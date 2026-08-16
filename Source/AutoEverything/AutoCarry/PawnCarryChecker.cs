@@ -47,8 +47,10 @@ namespace AutoEverything.AutoCarry
             if (pawn.health?.capacities != null && !pawn.health.capacities.CanBeAwake) return true;
             // 医疗 Job / 卧床休养：避免打断手术与休养
             if (PawnJobGuard.ShouldSkipForMedical(pawn)) return true;
-            // 仪式参与中（含心灵仪式）：取药/取食会中断仪式
-            if (PawnJobGuard.IsInRitual(pawn)) return true;
+            // 仪式/聚会/商队组建参与中（含心灵仪式）：取药/取食会中断
+            if (PawnJobGuard.IsInRitualOrGathering(pawn)) return true;
+            // 睡眠/冥想/死眠/实体研究/玩家手动命令：不打断
+            if (PawnJobGuard.IsDoingProtectedActivity(pawn)) return true;
             return false;
         }
 
@@ -79,7 +81,7 @@ namespace AutoEverything.AutoCarry
         internal static bool ShouldSkipForCarryCore(
             bool isNull, bool canManageGear, bool isGhoul, bool isSlave,
             bool isDeadOrDowned, bool canBeAwake, bool shouldSkipForMedical,
-            bool isInRitual)
+            bool isInRitual, bool isDoingProtectedActivity)
         {
             if (isNull) return true;
             if (!canManageGear) return true;
@@ -89,6 +91,7 @@ namespace AutoEverything.AutoCarry
             if (!canBeAwake) return true;
             if (shouldSkipForMedical) return true;
             if (isInRitual) return true;
+            if (isDoingProtectedActivity) return true;
             return false;
         }
 

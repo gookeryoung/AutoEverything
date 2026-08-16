@@ -429,7 +429,8 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 - **机器人（机械族）**：跳过（通过 `PawnSuitabilityChecker.CanManageGear` 过滤，仅人类 like 通过）
 - **奴隶**：跳过（用户决策"仅自由殖民者"）
 - **医疗中/卧床休养**：跳过（复用 `PawnJobGuard.ShouldSkipForMedical`，避免打断手术）
-- **仪式参与中（含心灵仪式）**：跳过（`PawnJobGuard.IsInRitual` 检查 Lord 的 `LordJob_Ritual`/`LordJob_PsychicRitual`，取药/取食会中断仪式）
+- **仪式/聚会/商队组建参与中（含心灵仪式/婚礼/派对/授予仪式）**：跳过（`PawnJobGuard.IsInRitualOrGathering`，取药/取食会中断活动）
+- **保护活动中**：跳过（`PawnJobGuard.IsDoingProtectedActivity`：睡眠/冥想/死眠/实体研究/玩家手动命令）
 - **死亡/倒下**：跳过（无法去仓库拾取）
 - **不需要睡眠者**：跳过清醒丸（`PawnCarryChecker.NeedSleep` 判定 `pawn.needs.rest == null`）
 - **药品政策"携带"列为 0**：跳过对应药品（`PawnCarryChecker.GetDrugCarryCount` 反射读取 `DrugPolicyEntry.takeToInventory`；政策无条目/不允许/携带=0 都视为不带，避免被游戏丢地上）
@@ -439,7 +440,7 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 - **触发**：周期 6000 tick（约 100 秒）+ ITab 勾选时立即触发
 - **战斗过滤**：复用 `AutoExecutor.AnyCombatActive()`，战斗中暂停派发
 - **单次单 Pawn 单物品**：每周期每 Pawn 最多派发一个 `TakeInventory` Job，避免互相覆盖；缺其他物品下周期再处理
-- **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）/ 允许区域外的目标（`EffectiveAreaRestrictionInPawnCurrentMap`，殖民者划定允许区域后只在区域内拾取，防止跑出安全区）
+- **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）/ 允许区域外的目标（`EffectiveAreaRestrictionInPawnCurrentMap`，殖民者划定允许区域后只在区域内拾取，防止跑出安全区）/ 迷雾中的目标（寻路不可达且拾取等于探雾作弊）
 - **派发数量**：`Math.Min(缺失量, 目标堆叠数)`，避免一次拿空整个仓库堆
 - **错误隔离**：单 Pawn 失败 `Log.ErrorOnce` 不影响其他 Pawn，salt=0xA400
 
@@ -571,7 +572,7 @@ Source/AutoEverything/
 │   ├── DLCCompat.cs                       # DLC API 安全包装（IsGhoul）
 │   ├── AEDebug.cs                         # AEDebug 日志工具
 │   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤（仅 Humanlike 通过）
-│   ├── PawnJobGuard.cs                    # 医疗/休养守卫（避免打断手术/休养）
+│   ├── PawnJobGuard.cs                    # 医疗/休养/仪式/聚会/保护活动守卫（避免打断手术/仪式/睡眠等）
 │   ├── PawnCollector.cs                   # 殖民者+食尸鬼统一收集（AllManagedPawns）
 │   ├── TierCacheService.cs                # 评级共享缓存（2500 tick TTL，自动 cleanup）
 │   ├── TierTagHelper.cs                   # 评级前缀剥离工具
@@ -600,7 +601,7 @@ Source/AutoEverything/
 ```
 
 **模块职责说明：**
-- **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗守卫、Pawn 收集、评级缓存、前缀工具、特质缓存、VSE 兼容、自动执行调度、战斗价值档次）
+- **Core**：基础工具与全局状态（MOD 入口、GameComponent、Harmony 补丁、设置、调试、DLC 兼容、Pawn 适配性、医疗/仪式/保护活动守卫、Pawn 收集、评级缓存、前缀工具、特质缓存、VSE 兼容、自动执行调度、战斗价值档次）
 - **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估）
 - **AutoWork**：工作优先级自动分配（主分配器 + 分配 + 比较器三 partial）
 - **AutoMarkPawn**：殖民者栏角色定位图标（前排/远程/手工/贸易 4 种，基于特质组合判定）+ S+ 全人类单位扫描消息通知
@@ -637,6 +638,12 @@ Source/AutoEverything/
 **食尸鬼处理策略**（分模块）：评级标签应用（`AESettings.ApplyTierTagsToAllPawns` 经 `PawnCollector.AllManagedPawns` 收集食尸鬼）、高价值标记（`PawnMarker.IsMarkableTarget` 不排除食尸鬼，归为 Colonist 类别标金星）；工作分配（`WorkAllocator.ReallocateAll` 通过 `DLCCompat.IsGhoul` 跳过食尸鬼，因为食尸鬼不参与 RimWorld 工作系统）。
 
 **医疗/休养守卫**：全局工作重配入口 `WorkAllocator.ReallocateAll` 调用 `PawnJobGuard.ShouldSkipForMedical(pawn)` 跳过正在执行医疗工作（治疗/手术/救援）或卧床休养的殖民者，避免 `SetPriority` 取消手术 Job 导致手术死循环或重伤者死亡。
+
+**仪式/聚会守卫**：`PawnJobGuard.IsInRitualOrGathering(pawn)` 跳过仪式/聚会/商队组建参与者（Lord 的 `LordJob_VoluntarilyJoinable` 覆盖 Ideo 仪式/婚礼/派对/音乐会/演讲/授予仪式，`LordJob_PsychicRitual` 覆盖 Anomaly 心灵仪式，`LordJob_FormAndSendCaravan` 覆盖商队组建），`SetPriority`/`TryTakeOrderedJob` 取消 Job 都会中断活动；参与者下个周期（仪式结束后）补配。
+
+**玩家命令守卫**：`pawn.CurJob?.playerForced == true`（玩家右键手动指派）时跳过工作重配与取药派发——玩家命令优先级最高，优先级变化触发的 Job 重评估会取消玩家命令。
+
+**保护活动守卫**（仅 AutoCarry）：`PawnJobGuard.IsDoingProtectedActivity(pawn)` 跳过正常睡眠（`LayDown`）、冥想（`Meditate`/`MeditatePray`）、死眠（`Deathrest`）、实体研究（`StudyInteract`）——取药打断会丢 psyfocus/deathrest 加成与研究进度；吃饭（`Ingest`）不拦，原生 Job 也常打断吃饭属正常节奏。
 
 ## 奴隶处理
 
