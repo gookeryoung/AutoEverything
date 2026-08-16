@@ -66,42 +66,47 @@ namespace AutoEverything.Tests
 
             // ── 正常殖民者：不跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: false, "正常殖民者：不跳过", ref failures, ref total);
 
             // ── 昏迷状态（canBeAwake=false）：跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: false, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: false, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "昏迷状态（CanBeAwake=false）：跳过", ref failures, ref total);
 
             // ── 死亡：跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: false,
-                isDeadOrDowned: true, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: true, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "死亡/倒下：跳过", ref failures, ref total);
 
             // ── 食尸鬼：跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: true, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "食尸鬼：跳过", ref failures, ref total);
 
             // ── 奴隶：跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: true,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "奴隶：跳过", ref failures, ref total);
 
             // ── 医疗中：跳过 ──
             CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: true,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: true, isInRitual: false,
                 expected: true, "医疗中：跳过", ref failures, ref total);
+
+            // ── 仪式参与中（含心灵仪式）：跳过 ──
+            CheckSkip(isNull: false, canManageGear: true, isGhoul: false, isSlave: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: true,
+                expected: true, "仪式参与中：跳过", ref failures, ref total);
 
             // ── 机械族（canManageGear=false）：跳过 ──
             CheckSkip(isNull: false, canManageGear: false, isGhoul: false, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "机械族：跳过", ref failures, ref total);
 
             // ── null Pawn：跳过 ──
             CheckSkip(isNull: true, canManageGear: true, isGhoul: false, isSlave: false,
-                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false,
+                isDeadOrDowned: false, canBeAwake: true, shouldSkipForMedical: false, isInRitual: false,
                 expected: true, "null Pawn：跳过", ref failures, ref total);
 
             Console.WriteLine($"[PawnCarryCheckerTests/ShouldSkipForCarry] {total - failures}/{total} passed");
@@ -109,13 +114,13 @@ namespace AutoEverything.Tests
         }
 
         private static void CheckSkip(bool isNull, bool canManageGear, bool isGhoul, bool isSlave,
-            bool isDeadOrDowned, bool canBeAwake, bool shouldSkipForMedical,
+            bool isDeadOrDowned, bool canBeAwake, bool shouldSkipForMedical, bool isInRitual,
             bool expected, string label, ref int failures, ref int total)
         {
             total++;
             bool actual = PawnCarryChecker.ShouldSkipForCarryCore(
                 isNull, canManageGear, isGhoul, isSlave,
-                isDeadOrDowned, canBeAwake, shouldSkipForMedical);
+                isDeadOrDowned, canBeAwake, shouldSkipForMedical, isInRitual);
             if (actual != expected)
             {
                 Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");

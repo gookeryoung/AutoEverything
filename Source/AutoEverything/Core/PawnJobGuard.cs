@@ -1,6 +1,7 @@
 using RimWorld;
 using Verse;
 using Verse.AI;
+using Verse.AI.Group;
 
 namespace AutoEverything.Core
 {
@@ -43,6 +44,24 @@ namespace AutoEverything.Core
         {
             if (pawn == null) return false;
             return pawn.InBed() && HealthAIUtility.ShouldSeekMedicalRest(pawn);
+        }
+
+        /// <summary>
+        /// 判断 Pawn 是否正在参与仪式（含心灵仪式）。
+        /// 仪式参与者由 Lord 系统管理，当前 Job 可能是等待/走向仪式地点/执行仪式动作，
+        /// 单看 JobDef 无法覆盖全部阶段，故查 Lord 的 LordJob 类型：
+        /// - Ideo 仪式（婚礼/葬礼/演讲/决斗/分娩等）：LordJob_Ritual 及其子类
+        /// - Anomaly 心灵仪式：LordJob_PsychicRitual 及其子类（Repeating）
+        /// 两条继承链互不相干（前者经 LordJob_Joinable_Gathering，后者直连 LordJob），必须分别判断。
+        /// TryTakeOrderedJob 取药会取消仪式 Job，导致仪式中断（质量下降甚至失败）。
+        /// </summary>
+        public static bool IsInRitual(Pawn pawn)
+        {
+            if (pawn == null) return false;
+            Lord lord = pawn.GetLord();
+            if (lord == null) return false;
+            LordJob lordJob = lord.LordJob;
+            return lordJob is LordJob_Ritual || lordJob is LordJob_PsychicRitual;
         }
 
         /// <summary>

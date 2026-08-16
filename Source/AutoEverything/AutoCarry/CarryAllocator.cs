@@ -145,7 +145,7 @@ namespace AutoEverything.AutoCarry
 
         /// <summary>
         /// 在 Pawn 所在地图上找该 ThingDef 最近的可用 Thing。
-        /// 可用条件：Spawned &amp;&amp; !Forbidden &amp;&amp; !reservedByOther。
+        /// 可用条件：Spawned &amp;&amp; !Forbidden &amp;&amp; !reservedByOther &amp;&amp; 在允许区域内。
         /// 不用 GenClosest.ClosestThingReachable（含路径检查开销大），
         /// 改用 listerThings.ThingsOfDef + 手动最近搜索，性能更可控。
         /// </summary>
@@ -156,6 +156,11 @@ namespace AutoEverything.AutoCarry
 
             List<Thing> things = map.listerThings.ThingsOfDef(def);
             if (things.Count == 0) return null;
+
+            // 允许区域（安全区）：玩家划定允许区域后，殖民者只应在区域内活动。
+            // EffectiveAreaRestrictionInPawnCurrentMap 已处理地图切换等边缘情况；null 表示未限制。
+            // 区域外的物品（如战场/危险区）不可作为拾取目标。
+            Area allowedArea = pawn.playerSettings?.EffectiveAreaRestrictionInPawnCurrentMap;
 
             Thing nearest = null;
             float nearestDistSq = float.MaxValue;
@@ -169,6 +174,8 @@ namespace AutoEverything.AutoCarry
                 // 跳过已被他人预约的（避免抢夺他人 Job 目标）
                 // map.reservationManager.CanReserve 检查目标是否可被当前 Pawn 预约（含他人预约检查）
                 if (!map.reservationManager.CanReserve(pawn, t, 1, -1, null, false)) continue;
+                // 允许区域外（危险区）的物品跳过，防止殖民者跑出安全区拾取
+                if (allowedArea != null && !allowedArea[t.Position]) continue;
 
                 float distSq = (t.Position - pawnPos).LengthHorizontalSquared;
                 if (distSq < nearestDistSq)

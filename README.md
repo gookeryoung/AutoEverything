@@ -429,6 +429,7 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 - **机器人（机械族）**：跳过（通过 `PawnSuitabilityChecker.CanManageGear` 过滤，仅人类 like 通过）
 - **奴隶**：跳过（用户决策"仅自由殖民者"）
 - **医疗中/卧床休养**：跳过（复用 `PawnJobGuard.ShouldSkipForMedical`，避免打断手术）
+- **仪式参与中（含心灵仪式）**：跳过（`PawnJobGuard.IsInRitual` 检查 Lord 的 `LordJob_Ritual`/`LordJob_PsychicRitual`，取药/取食会中断仪式）
 - **死亡/倒下**：跳过（无法去仓库拾取）
 - **不需要睡眠者**：跳过清醒丸（`PawnCarryChecker.NeedSleep` 判定 `pawn.needs.rest == null`）
 - **药品政策"携带"列为 0**：跳过对应药品（`PawnCarryChecker.GetDrugCarryCount` 反射读取 `DrugPolicyEntry.takeToInventory`；政策无条目/不允许/携带=0 都视为不带，避免被游戏丢地上）
@@ -438,7 +439,7 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 - **触发**：周期 6000 tick（约 100 秒）+ ITab 勾选时立即触发
 - **战斗过滤**：复用 `AutoExecutor.AnyCombatActive()`，战斗中暂停派发
 - **单次单 Pawn 单物品**：每周期每 Pawn 最多派发一个 `TakeInventory` Job，避免互相覆盖；缺其他物品下周期再处理
-- **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）
+- **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）/ 允许区域外的目标（`EffectiveAreaRestrictionInPawnCurrentMap`，殖民者划定允许区域后只在区域内拾取，防止跑出安全区）
 - **派发数量**：`Math.Min(缺失量, 目标堆叠数)`，避免一次拿空整个仓库堆
 - **错误隔离**：单 Pawn 失败 `Log.ErrorOnce` 不影响其他 Pawn，salt=0xA400
 
