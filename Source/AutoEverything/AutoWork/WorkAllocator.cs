@@ -44,7 +44,7 @@ namespace AutoEverything.AutoWork
         // 工作分配配置（静态只读，避免每次分配重复构造）
         // ════════════════════════════════════════════════════════════
 
-        // 重要专业工作（Doctor/Warden/Childcare/Cooking/PlantCutting）：保底2，双火1/单火2/无火3(保底)/超出无火0
+        // 重要专业工作（Doctor/Childcare/Cooking/PlantCutting）：保底2，双火1/单火2/无火3(保底)/超出无火0
         private static readonly WorkAllocationConfig KeyWorkConfig = new WorkAllocationConfig
         {
             GuaranteeCount = 2,
@@ -54,6 +54,22 @@ namespace AutoEverything.AutoWork
             FloorMajorPriority = 1,
             FloorMinorPriority = 2,
             FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 监管工作（Warden，囚犯管理）：与 KeyWorkConfig 唯一差异是超出保底的无火者也给 3。
+        // 用户决策（2026-08-16）：囚犯的喂食/医疗/谈话需求频繁，仅保底 2 人会导致囚犯没人管
+        // （饿肚子/越狱/招募停滞），所有能监管者即使无火也至少优先级 3，全员分担监管
+        private static readonly WorkAllocationConfig WardenConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 2,
+            GuaranteeMajorPriority = 1,
+            GuaranteeMinorPriority = 2,
+            GuaranteeNonPassionatePriority = 3,
+            FloorMajorPriority = 1,
+            FloorMinorPriority = 2,
+            FloorNonPassionatePriority = 3,
             RequireRangedWeapon = false,
             UseBackRowSort = false
         };
@@ -134,6 +150,7 @@ namespace AutoEverything.AutoWork
         private static readonly List<WorkTypeDef> otherSkillWorkDefs = new List<WorkTypeDef>();
         private static WorkTypeDef cachedHuntingDef;
         private static WorkTypeDef cachedFishingDef;
+        private static WorkTypeDef cachedWardenDef;
         private static WorkTypeDef cachedHandlingDef;
         private static WorkTypeDef cachedResearchDef;
         private static WorkTypeDef cachedDarkStudyDef;
@@ -264,12 +281,14 @@ namespace AutoEverything.AutoWork
             {
                 WorkTypeDef wt = cachedWorkTypes[i];
 
-                // 重要专业工作白名单（Doctor/Warden/Childcare，defName 判断避免 WorkTags 漏掉 Warden）
-                if (wt.defName == "Doctor" || wt.defName == "Warden" || wt.defName == "Childcare")
+                // 重要专业工作白名单（Doctor/Childcare，defName 判断避免 WorkTags 漏掉）
+                if (wt.defName == "Doctor" || wt.defName == "Childcare")
                 {
                     keyWorkDefs.Add(wt);
                     continue;
                 }
+                // 监管工作（Warden）单独缓存：走 WardenConfig（无火者全员至少 3）
+                if (wt.defName == "Warden") { cachedWardenDef = wt; continue; }
                 // 重要专业工作（Cooking/PlantCutting）单独缓存以便控制阶段顺序
                 if (wt.defName == "Cooking") { cachedCookingDef = wt; continue; }
                 if (wt.defName == "PlantCutting") { cachedPlantCuttingDef = wt; continue; }
@@ -308,13 +327,17 @@ namespace AutoEverything.AutoWork
         {
             skillWorkPhases = new List<WorkPhase>();
 
-            // 1. 重要专业工作（Doctor/Warden/Childcare/Cooking/PlantCutting）：保底2，三因素高者1低者3
+            // 1. 重要专业工作（Doctor/Childcare/Cooking/PlantCutting）：保底2，三因素高者1低者3
             for (int i = 0; i < keyWorkDefs.Count; i++)
                 skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { keyWorkDefs[i] }, Config = KeyWorkConfig });
             if (cachedCookingDef != null)
                 skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedCookingDef }, Config = KeyWorkConfig });
             if (cachedPlantCuttingDef != null)
                 skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedPlantCuttingDef }, Config = KeyWorkConfig });
+
+            // 1.5 监管工作（Warden）：同 KeyWorkConfig 但无火者全员至少 3（囚犯管理需全员分担）
+            if (cachedWardenDef != null)
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedWardenDef }, Config = WardenConfig });
 
             // 2. 普通专业工作（Construction/Mining/Growing/Smithing/Tailoring/Crafting/Art）：保底2，三因素高者2低者3
             // 手工组（Smithing/Tailoring/Crafting）使用组分配（共享 Crafting 技能 + 1 workCount）

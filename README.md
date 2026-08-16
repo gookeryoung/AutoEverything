@@ -243,7 +243,8 @@
 | 顺序 | 工作分类 | 包含类型 | 保底 | 双火 | 单火 | 无火(top N) | 无火(超出) | 特殊约束 |
 |------|---------|---------|------|------|------|-------------|------------|---------|
 | 1 | 紧急 | Firefighter / Patient / PatientBedRest | — | 1 | 1 | 1 | — | 不计入 workCount |
-| 2 | 重要专业 | Doctor / Warden / Childcare / Cooking / PlantCutting | 2 | 1 | 2 | 3 | 0 | — |
+| 2 | 重要专业 | Doctor / Childcare / Cooking / PlantCutting | 2 | 1 | 2 | 3 | 0 | — |
+| 2.5 | 监管 | Warden | 2 | 1 | 2 | 3 | 3 | 无火者全员至少 3（囚犯管理需全员分担，避免仅保底 2 人管不住囚犯） |
 | 3 | 普通专业 | Construction / Mining / Growing / Smithing / Tailoring / Crafting / Art | 2 | 2 | 3 | 3 | 0 | Crafting 组分配共享 1 workCount |
 | 4 | 次级专业 | Handling / Fishing / Hunting | 2 | 2 | 4 | 3 | 0 | Hunting 需远程武器+后排排序 |
 | 5 | 研究 | Research / DarkStudy | 1 | 2 | 3 | 0 | 0 | 最后分配；神秘学者强制 DarkStudy priority=1（绕过硬上限） |
@@ -253,7 +254,7 @@
 
 **无火(top N)**：保底人数内按三因子排序选取，无火者给此优先级（保底3，实现"保底2人即使无火也3"）。
 
-**无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。**例外**：相关技能 ≥12 者保底 priority=2，≥8 者保底 priority=3（`ApplySkillFloor`），高技能无火者仍参与工作。
+**无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。**例外**：① 相关技能 ≥12 者保底 priority=2，≥8 者保底 priority=3（`ApplySkillFloor`），高技能无火者仍参与工作；② 监管（Warden）无火者全员 priority=3（`WardenConfig`），含满载者。
 
 **工作计数**：跟踪每 Pawn 的 priority ≤ 2 的专业工作数量（紧急/辅助不计入）。
 用于「同等兴趣下优先安排其他工作少的」实现均衡负载。
