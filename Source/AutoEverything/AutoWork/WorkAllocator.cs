@@ -116,13 +116,29 @@ namespace AutoEverything.AutoWork
             UseBackRowSort = true
         };
 
-        // 研究工作（Research/DarkStudy）：保底1，双火2/单火3/无火0/超出无火0，最后分配
+        // 研究工作（Research）：保底1，双火2/单火3/无火0/超出无火0，最后分配
         private static readonly WorkAllocationConfig ResearchConfig = new WorkAllocationConfig
         {
             GuaranteeCount = 1,
             GuaranteeMajorPriority = 2,
             GuaranteeMinorPriority = 3,
             GuaranteeNonPassionatePriority = 0,
+            FloorMajorPriority = 2,
+            FloorMinorPriority = 3,
+            FloorNonPassionatePriority = 0,
+            RequireRangedWeapon = false,
+            UseBackRowSort = false
+        };
+
+        // 暗研工作（DarkStudy，异常实体/方尖碑交互，按智识评估）：与 ResearchConfig 唯一差异是保底无火者也给 3。
+        // 用户决策（2026-08-16）：DarkStudy 保底无火 0 会导致智识最高者（无火且技能<8）被给 0，
+        // 全殖民地没人开 DarkStudy，方尖碑等异常实体没人管——保底者（智识排序最高）无火也至少 3
+        private static readonly WorkAllocationConfig DarkStudyConfig = new WorkAllocationConfig
+        {
+            GuaranteeCount = 1,
+            GuaranteeMajorPriority = 2,
+            GuaranteeMinorPriority = 3,
+            GuaranteeNonPassionatePriority = 3,
             FloorMajorPriority = 2,
             FloorMinorPriority = 3,
             FloorNonPassionatePriority = 0,
@@ -362,12 +378,13 @@ namespace AutoEverything.AutoWork
             if (cachedHuntingDef != null)
                 skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedHuntingDef }, Config = SecondaryRangedConfig });
 
-            // 4. 研究工作（Research/DarkStudy）：保底1，专业工作<3的三因素最高者1，其他有火者3
+            // 4. 研究工作（Research）：保底1，双火2/单火3/无火0，最后分配
+            // 4.5 暗研工作（DarkStudy）：保底1，无火保底也 3（智识排序最高者必管异常实体/方尖碑）
             // 最后分配，让其他专家先累加 workCount，研究时硬上限拦截
             if (cachedResearchDef != null)
                 skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedResearchDef }, Config = ResearchConfig });
             if (cachedDarkStudyDef != null)
-                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedDarkStudyDef }, Config = ResearchConfig });
+                skillWorkPhases.Add(new WorkPhase { WorkTypes = new[] { cachedDarkStudyDef }, Config = DarkStudyConfig });
 
             // 调试：dump 阶段列表，确认所有工作类型（如 Mining）被正确纳入
             if (AEDebug.IsActive) AEDebug.Log(() =>

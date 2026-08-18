@@ -247,7 +247,8 @@
 | 2.5 | 监管 | Warden | 2 | 1 | 2 | 3 | 3 | 无火者全员至少 3（囚犯管理需全员分担，避免仅保底 2 人管不住囚犯） |
 | 3 | 普通专业 | Construction / Mining / Growing / Smithing / Tailoring / Crafting / Art | 2 | 2 | 3 | 3 | 0 | Crafting 组分配共享 1 workCount |
 | 4 | 次级专业 | Handling / Fishing / Hunting | 2 | 2 | 4 | 3 | 0 | Hunting 需远程武器+后排排序 |
-| 5 | 研究 | Research / DarkStudy | 1 | 2 | 3 | 0 | 0 | 最后分配；神秘学者强制 DarkStudy priority=1（绕过硬上限） |
+| 5 | 研究 | Research | 1 | 2 | 3 | 0 | 0 | 最后分配 |
+| 5.5 | 暗研 | DarkStudy | 1 | 2 | 3 | 3 | 0 | 方尖碑等异常实体交互按智识评估；保底者（智识排序最高）无火也 3，确保有人管；神秘学者强制 priority=1（绕过硬上限） |
 | 6 | 辅助 | Hauling / Cleaning / BasicWorker 等 | — | 见辅助工作规则 | — | — | — | 不计入 workCount，按评级分档 |
 
 **双火/单火**：对应 Passion.Major / Passion.Minor，整个候选列表中（含超出保底）双火/单火分别给"双火"/"单火"列优先级。
