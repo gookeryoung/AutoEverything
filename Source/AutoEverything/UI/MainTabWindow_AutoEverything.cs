@@ -429,16 +429,36 @@ namespace AutoEverything.UI
             BeginSection(l, "AE_CFG_Section_Carry".Translate());
 
             DrawCheckbox(l, "AE_AutoCarry", ref AESettings.autoCarryEnabled, "AE_TT_AutoCarry");
-            DrawIntSlider(l, "AE_CFG_CarryFoodCount", ref AESettings.carryFoodCount, 0, 10, "AE_TT_CarryFoodCount");
-            DrawIntSlider(l, "AE_CFG_CarrySerumCount", ref AESettings.carrySerumCount, 0, 5, "AE_TT_CarrySerumCount");
+            DrawIntSlider(l, "AE_CFG_CarryFoodCount", ref AESettings.carryFoodCount, 0, 20, "AE_TT_CarryFoodCount");
             DrawSecondsSlider(l, "AE_CFG_CarryInterval", ref AESettings.carryIntervalTicks, 30, 300, "AE_TT_CarryInterval");
             l.Gap(2f);
 
-            Rect btnRect = l.GetRect(28f);
-            if (Widgets.ButtonText(btnRect, "AE_CFG_ApplyCarryNow".Translate()))
+            // 立即执行 / 恢复默认：并排放置，节省垂直空间
+            Rect btnRow = l.GetRect(28f);
+            float halfWidth = (btnRow.width - 8f) * 0.5f;
+            Rect applyRect = new Rect(btnRow.x, btnRow.y, halfWidth, btnRow.height);
+            Rect resetRect = new Rect(btnRow.x + halfWidth + 8f, btnRow.y, halfWidth, btnRow.height);
+            if (Widgets.ButtonText(applyRect, "AE_CFG_ApplyCarryNow".Translate()))
             {
                 AutoExecutor.TriggerCarryNow();
             }
+            if (Widgets.ButtonText(resetRect, "AE_CFG_ResetCarryItems".Translate()))
+            {
+                AESettings.ResetCarryItemsToDefault();
+                settingsDirty = true;
+            }
+            TooltipHandler.TipRegion(resetRect, "AE_TT_ResetCarryItems".Translate());
+            EndSection(l);
+
+            BeginSection(l, "AE_CFG_Section_CarryDrugs".Translate());
+            DrawCarryItemGrid(l, CarryItemKind.Drug);
+            DrawRuleText(l, "AE_CFG_CarryDrugHint".Translate());
+            EndSection(l);
+
+            BeginSection(l, "AE_CFG_Section_CarrySerums".Translate());
+            DrawCheckbox(l, "AE_CFG_CarrySerumHighValueOnly", ref AESettings.carrySerumHighValueOnly,
+                "AE_TT_CarrySerumHighValueOnly");
+            DrawCarryItemGrid(l, CarryItemKind.Serum);
             EndSection(l);
 
             BeginSection(l, "AE_CFG_Section_Drug".Translate());
@@ -454,8 +474,65 @@ namespace AutoEverything.UI
             EndSection(l);
         }
 
-        // ===================== 通用与调试 =====================
+        // 携带物品网格绘制缓冲（每帧重建，避免反复分配）
+        private static readonly List<CarryItemDef> carryItemBuffer = new List<CarryItemDef>();
 
+        // 单项携带数量上限（背包容量有限，超过意义不大）
+        private const int CarryItemMaxCount = 10;
+
+        /// <summary>
+        /// 逐项携带数量：两列网格，每项"物品名 xN + 滑条"。
+        /// 缺失 Def 的物品（缺 DLC/被 MOD 移除）不显示，避免出现空白行。
+        /// </summary>
+        private static void DrawCarryItemGrid(Listing_Standard l, CarryItemKind kind)
+        {
+            carryItemBuffer.Clear();
+            CarryItemDef[] items = CarryItemCatalog.Items;
+            for (int i = 0; i < items.Length; i++)
+            {
+                if (items[i].Kind != kind) continue;
+                if (DefDatabase<ThingDef>.GetNamedSilentFail(items[i].DefName) == null) continue;
+                carryItemBuffer.Add(items[i]);
+            }
+
+            const float rowHeight = 26f;
+            const float gap = 8f;
+            for (int i = 0; i < carryItemBuffer.Count; i += 2)
+            {
+                Rect row = l.GetRect(rowHeight);
+                float cellWidth = (row.width - gap) * 0.5f;
+                DrawCarryItemCell(new Rect(row.x, row.y, cellWidth, rowHeight), carryItemBuffer[i]);
+                if (i + 1 < carryItemBuffer.Count)
+                {
+                    DrawCarryItemCell(new Rect(row.x + cellWidth + gap, row.y, cellWidth, rowHeight),
+                        carryItemBuffer[i + 1]);
+                }
+            }
+            l.Gap(4f);
+        }
+
+        private static void DrawCarryItemCell(Rect rect, CarryItemDef item)
+        {
+            ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(item.DefName);
+            if (def == null) return;
+
+            int count = AESettings.GetCarryItemCount(item.DefName);
+
+            // 标签："物品名 xN"，关闭换行避免中文撑乱两列布局
+            Rect labelRect = new Rect(rect.x, rect.y, Mathf.Max(0f, rect.width - 96f), rect.height);
+            DrawGrayLabel(labelRect, def.LabelCap + " x" + count);
+            TooltipHandler.TipRegion(labelRect, "AE_TT_CarryItemCount".Translate());
+
+            Rect sliderRect = new Rect(rect.xMax - 92f, rect.y + 3f, 92f, rect.height - 6f);
+            int newCount = Mathf.RoundToInt(Widgets.HorizontalSlider(sliderRect, count, 0, CarryItemMaxCount));
+            if (newCount != count)
+            {
+                AESettings.SetCarryItemCount(item.DefName, newCount);
+                settingsDirty = true;
+            }
+        }
+
+        // ===================== 通用与调试 =====================
         private static void DrawGeneralTab(Listing_Standard l)
         {
             BeginSection(l, "AE_CFG_Section_General".Translate());

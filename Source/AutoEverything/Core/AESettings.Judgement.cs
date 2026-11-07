@@ -153,14 +153,81 @@ namespace AutoEverything.Core
         // 自动携带判定
         // ════════════════════════════════
 
-        // 食物携带数量
+        // 食物总携带数量（按优先级选择具体食物类型，见 CarryPolicy.FoodDefNames）
         public static int carryFoodCount = 3;
 
-        // 血清携带数量（仅高价值档位携带）
-        public static int carrySerumCount = 1;
+        // 血清是否仅高价值档位携带（档位阈值复用 markHighValueTier）
+        public static bool carrySerumHighValueOnly = true;
+
+        // 药品/血清逐项携带数量：存档载体 "defName#count"，运行时映射见 carryItemMap
+        public static List<string> carryItemEntries = CarryItemCatalog.CreateDefaultEntries();
+        public static Dictionary<string, int> carryItemMap = new Dictionary<string, int>();
 
         // 携带周期（tick），默认 6000 ≈ 100 秒
         public static int carryIntervalTicks = 6000;
+
+        /// <summary>
+        /// 查询某物品的配置携带数量。优先取玩家配置，缺失时回落目录默认值。
+        /// </summary>
+        public static int GetCarryItemCount(string defName)
+        {
+            if (string.IsNullOrEmpty(defName)) return 0;
+            int count;
+            if (carryItemMap != null && carryItemMap.TryGetValue(defName, out count)) return count;
+            return CarryItemCatalog.GetDefaultCount(defName);
+        }
+
+        /// <summary>
+        /// 设置某物品的配置携带数量（0 表示不携带），同步更新存档载体与运行时映射。
+        /// 调用方负责触发 ModSettings.Write()。
+        /// </summary>
+        public static void SetCarryItemCount(string defName, int count)
+        {
+            if (string.IsNullOrEmpty(defName)) return;
+            if (count < 0) count = 0;
+
+            if (carryItemMap == null) carryItemMap = new Dictionary<string, int>();
+            carryItemMap[defName] = count;
+
+            if (carryItemEntries == null) carryItemEntries = new List<string>();
+            string entry = defName + "#" + count;
+            for (int i = 0; i < carryItemEntries.Count; i++)
+            {
+                string current = carryItemEntries[i];
+                int sep = current.IndexOf('#');
+                if (sep > 0 && current.Substring(0, sep) == defName)
+                {
+                    carryItemEntries[i] = entry;
+                    return;
+                }
+            }
+            carryItemEntries.Add(entry);
+        }
+
+        /// <summary>恢复目录默认携带数量（食物数量与携带周期不受影响）。</summary>
+        public static void ResetCarryItemsToDefault()
+        {
+            carryItemEntries = CarryItemCatalog.CreateDefaultEntries();
+            RebuildCarryItemMap();
+        }
+
+        /// <summary>把存档载体 "defName#count" 解析为运行时映射。</summary>
+        public static void RebuildCarryItemMap()
+        {
+            if (carryItemMap == null) carryItemMap = new Dictionary<string, int>();
+            else carryItemMap.Clear();
+
+            if (carryItemEntries == null) return;
+            for (int i = 0; i < carryItemEntries.Count; i++)
+            {
+                string entry = carryItemEntries[i];
+                if (string.IsNullOrEmpty(entry)) continue;
+                int sep = entry.IndexOf('#');
+                if (sep <= 0 || sep >= entry.Length - 1) continue;
+                if (!int.TryParse(entry.Substring(sep + 1), out int count)) continue;
+                carryItemMap[entry.Substring(0, sep)] = count < 0 ? 0 : count;
+            }
+        }
 
         /// <summary>
         /// 读取/写入判定参数。由 AESettings.ExposeData 调用。
@@ -222,8 +289,12 @@ namespace AutoEverything.Core
 
             // 自动携带
             LookCompat(ref carryFoodCount, "carryFoodCount", 3);
-            LookCompat(ref carrySerumCount, "carrySerumCount", 1);
+            LookCompat(ref carrySerumHighValueOnly, "carrySerumHighValueOnly", true);
             LookCompat(ref carryIntervalTicks, "carryIntervalTicks", 6000);
+            // 逐项携带数量：集合无法双读旧键，直接用新键；旧存档缺失时回落目录默认值
+            Scribe_Collections.Look(ref carryItemEntries, "ae_carryItemEntries", LookMode.Value);
+            if (carryItemEntries == null) carryItemEntries = CarryItemCatalog.CreateDefaultEntries();
+            RebuildCarryItemMap();
         }
 
         /// <summary>

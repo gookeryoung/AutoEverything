@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Tests
@@ -8,10 +9,13 @@ namespace AutoEverything.Tests
     /// RoleDetector.EvaluateRoleGroupCore 五类角色分组判定的单元测试。
     ///
     /// 覆盖点：
-    /// 1. 强制判定条件（前排/射手/工人/贸易逐角色勾选，默认全部勾选）；
-    /// 2. 强制条件的优先级顺序（无法施暴 &gt; 食尸鬼 &gt; 格斗者 &gt; 格斗专家 &gt; 射击专家 &gt; 猎人 &gt; 生产专家 &gt; 道德家）；
-    /// 3. 关闭开关后不应生效，回落到技能/兴趣补充判定；
-    /// 4. 技能/兴趣补充判定的各分支与兜底（其他）。
+    /// 1. 强制判定条件（前排/射手/工人/贸易逐角色勾选，默认全部勾选），
+    ///    含乱开枪特质、工作狂特质、生产/社交兴趣双火、俊俏/沉鱼落雁特质；
+    /// 2. 强制条件的优先级顺序（无法施暴 &gt; 食尸鬼 &gt; 格斗者 &gt; 格斗专家 &gt; 射击专家 &gt; 乱开枪 &gt; 猎人
+    ///    &gt; 生产专家 &gt; 工作狂 &gt; 生产双火 &gt; 道德家 &gt; 俊俏 &gt; 社交双火）；
+    /// 3. 关闭开关后不应生效，回落到技能/兴趣补充判定，且新开关彼此独立；
+    /// 4. 特质 degree 与兴趣 tier 的边界判定；
+    /// 5. 技能/兴趣补充判定的各分支与兜底（其他）。
     ///
     /// 注：这里只使用 RoleGroupRules.Default，不读取 AESettings，测试进程无需加载游戏程序集。
     /// </summary>
@@ -50,6 +54,22 @@ namespace AutoEverything.Tests
                 RoleGroup.Trade, "俊俏/沉鱼落雁 → 贸易", ref failures, ref total);
             Check(rules, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 20 },
                 RoleGroup.Trade, "社交兴趣双火 → 贸易", ref failures, ref total);
+
+            // ── 新增条件与既有条件的优先级交叉 ──
+            Check(rules, new RoleGroupInput { ViolentDisabled = true, HasBeauty = true },
+                RoleGroup.Worker, "无法施暴优先于俊俏特质", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasBrawlerTrait = true, HasIndustrious = true },
+                RoleGroup.Front, "格斗者特质优先于工作狂", ref failures, ref total);
+            Check(rules, new RoleGroupInput { IsTriggerHappy = true, HasBeauty = true },
+                RoleGroup.Shooter, "乱开枪优先于俊俏特质（射手先于贸易）", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasIndustrious = true, IsSocialSpecialist = true },
+                RoleGroup.Worker, "工作狂优先于道德家（工人先于贸易）", ref failures, ref total);
+            Check(rules, new RoleGroupInput { CraftingPassionMajor = true, SocialPassionMajor = true },
+                RoleGroup.Worker, "生产双火优先于社交双火", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasBeauty = true, SocialPassionMajor = true },
+                RoleGroup.Trade, "俊俏与社交双火同归贸易", ref failures, ref total);
+            Check(rules, new RoleGroupInput { IsShootingSpecialist = true, IsTriggerHappy = true },
+                RoleGroup.Shooter, "射击专家与乱开枪同归射手", ref failures, ref total);
 
             // ── 强制条件优先级 ──
             Check(rules, new RoleGroupInput { ViolentDisabled = true, HasBrawlerTrait = true },
@@ -106,6 +126,27 @@ namespace AutoEverything.Tests
             Check(noSocialMajor, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 0 },
                 RoleGroup.Shooter, "关闭社交双火开关后回落到射手", ref failures, ref total);
 
+            // 新开关彼此独立：关闭一个不应影响另一个条件
+            RoleGroupRules noBeautyKeepSocial = RoleGroupRules.Default;
+            noBeautyKeepSocial.BeautyToTrade = false;
+            Check(noBeautyKeepSocial, new RoleGroupInput { HasBeauty = true, SocialPassionMajor = true, Shooting = 20 },
+                RoleGroup.Trade, "关闭俊俏开关后社交双火仍归贸易", ref failures, ref total);
+
+            RoleGroupRules noIndustriousKeepCrafting = RoleGroupRules.Default;
+            noIndustriousKeepCrafting.IndustriousToWorker = false;
+            Check(noIndustriousKeepCrafting, new RoleGroupInput { HasIndustrious = true, CraftingPassionMajor = true },
+                RoleGroup.Worker, "关闭工作狂开关后生产双火仍归工人", ref failures, ref total);
+
+            RoleGroupRules noCraftingKeepIndustrious = RoleGroupRules.Default;
+            noCraftingKeepIndustrious.CraftingMajorToWorker = false;
+            Check(noCraftingKeepIndustrious, new RoleGroupInput { HasIndustrious = true, CraftingPassionMajor = true },
+                RoleGroup.Worker, "关闭生产双火开关后工作狂仍归工人", ref failures, ref total);
+
+            RoleGroupRules noTriggerHappyKeepSpecialist = RoleGroupRules.Default;
+            noTriggerHappyKeepSpecialist.TriggerHappyToShooter = false;
+            Check(noTriggerHappyKeepSpecialist, new RoleGroupInput { IsTriggerHappy = true, IsShootingSpecialist = true },
+                RoleGroup.Shooter, "关闭乱开枪开关后射击专家仍归射手", ref failures, ref total);
+
             // ── 技能/兴趣补充判定 ──
             Check(rules, new RoleGroupInput { Melee = 9, Shooting = 3, MeleePassion = true },
                 RoleGroup.Front, "近战兴趣优先 → 前排", ref failures, ref total);
@@ -126,8 +167,52 @@ namespace AutoEverything.Tests
 
             failures += RunOrderTests(ref total);
             failures += RunDiffTests(ref total);
+            failures += RunDegreeRuleTests(ref total);
             failures += RunLayoutTests(ref total);
             Console.WriteLine($"[RoleGroupTests] 含顺序/变更检测/布局契约共 {total - failures}/{total} passed");
+            return failures;
+        }
+
+        /// <summary>
+        /// 特质 degree / 兴趣 tier 边界判定：
+        /// 1. 乱开枪仅认 degree=-1，冷枪手(+1)不得命中；
+        /// 2. 工作狂/俊俏认 >=1，懒惰/丑陋等负值不得命中；
+        /// 3. 双火兴趣认 Major 及以上，单火及以下不得命中。
+        /// 这些边界直接决定 Pawn → RoleGroupInput 的布尔值，错一位就会误分组。
+        /// </summary>
+        public static int RunDegreeRuleTests(ref int total)
+        {
+            int failures = 0;
+
+            CheckBool(RoleGroupRules.IsTriggerHappyDegree(-1), true, "乱开枪 degree=-1 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsTriggerHappyDegree(0), false, "乱开枪 degree=0 不命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsTriggerHappyDegree(1), false, "冷枪手 degree=1 不命中乱开枪", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsTriggerHappyDegree(2), false, "乱开枪 degree=2 不命中", ref failures, ref total);
+
+            CheckBool(RoleGroupRules.IsIndustriousDegree(2), true, "工作狂 degree=2 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsIndustriousDegree(1), true, "工作狂 degree=1 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsIndustriousDegree(0), false, "工作狂 degree=0 不命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsIndustriousDegree(-1), false, "懒惰 degree=-1 不命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsIndustriousDegree(-2), false, "极度懒惰 degree=-2 不命中", ref failures, ref total);
+
+            CheckBool(RoleGroupRules.IsBeautyDegree(2), true, "沉鱼落雁 degree=2 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsBeautyDegree(1), true, "俊俏 degree=1 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsBeautyDegree(0), false, "俊俏 degree=0 不命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsBeautyDegree(-1), false, "丑陋 degree=-1 不命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsBeautyDegree(-2), false, "奇丑无比 degree=-2 不命中", ref failures, ref total);
+
+            CheckBool(RoleGroupRules.IsMajorPassionTier(PassionHelper.PassionTier.Critical), true,
+                "Critical 兴趣命中双火", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsMajorPassionTier(PassionHelper.PassionTier.Major), true,
+                "Major 兴趣命中双火", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsMajorPassionTier(PassionHelper.PassionTier.Minor), false,
+                "Minor 兴趣不命中双火", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsMajorPassionTier(PassionHelper.PassionTier.None), false,
+                "None 兴趣不命中双火", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsMajorPassionTier(PassionHelper.PassionTier.Apathy), false,
+                "Apathy 兴趣不命中双火", ref failures, ref total);
+
+            Console.WriteLine($"[RoleGroupDegreeTests] 累计 {total - failures}/{total} passed");
             return failures;
         }
 

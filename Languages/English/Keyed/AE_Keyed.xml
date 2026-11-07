@@ -150,10 +150,10 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
   <!-- AutoCarry -->
   <AE_AutoCarry_Result>Dispatched carry jobs for {0} colonists</AE_AutoCarry_Result>
   <AE_AutoCarry_SkippedInCombat>Auto carry paused during combat, retry after combat ends</AE_AutoCarry_SkippedInCombat>
-  <AE_TT_AutoCarry>When checked, colonists auto-carry food x3, drugs per drug policy "take" column, plus S-tier serums (Juggernaut + Metalblood).
-Scans inventory every 6000 ticks (~100s) and dispatches haul jobs for missing items; paused during combat to avoid leaving positions; skips colonists in surgery/recovery.
-Food priority: packaged meal → pemmican → lavish → fine → simple; non-sleeping pawns skip Wake-Up; ghouls and mechanoids excluded.
-Recommend enabling "Drug Policy" together to auto-configure drug policy take column by tier.
+  <AE_TT_AutoCarry>When checked, colonists auto-carry food, drugs and enhancement serums per the per-item settings below; 0 means do not carry.
+Scans inventory every 6000 ticks (~100s, adjustable) and dispatches haul jobs for missing items; paused during combat to avoid leaving positions; skips colonists in surgery/recovery.
+Food is controlled by total amount, preferring packaged meals/pemmican; non-sleeping pawns skip Wake-Up; ghouls and mechanoids excluded.
+Actual drug amounts are limited by the drug policy "take" column; enabling "Drug Policy" syncs these amounts automatically.
 Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current inventory.</AE_TT_AutoCarry>
 
   <!-- AutoDrugPolicy -->
@@ -182,6 +182,8 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Section_MarkSwitch>High-value marker switches</AE_CFG_Section_MarkSwitch>
   <AE_CFG_Section_MarkRules>High-value rules</AE_CFG_Section_MarkRules>
   <AE_CFG_Section_Carry>Auto carry</AE_CFG_Section_Carry>
+  <AE_CFG_Section_CarryDrugs>Drugs to carry</AE_CFG_Section_CarryDrugs>
+  <AE_CFG_Section_CarrySerums>Enhancement serums to carry</AE_CFG_Section_CarrySerums>
   <AE_CFG_Section_Drug>Auto drug policy</AE_CFG_Section_Drug>
   <AE_CFG_Section_General>General</AE_CFG_Section_General>
   <AE_CFG_Section_ColonistBar>Colonist bar</AE_CFG_Section_ColonistBar>
@@ -218,8 +220,10 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_MarkTier>High-value tier threshold</AE_CFG_MarkTier>
   <AE_CFG_MarkRulesHint>Pawns reaching the threshold show a tier badge in the colonist bar or above their head; the tier also sets the minimum rating for carrying serum.</AE_CFG_MarkRulesHint>
 
-  <AE_CFG_CarryFoodCount>Food to carry</AE_CFG_CarryFoodCount>
-  <AE_CFG_CarrySerumCount>Serum to carry</AE_CFG_CarrySerumCount>
+  <AE_CFG_CarryFoodCount>Total food to carry</AE_CFG_CarryFoodCount>
+  <AE_CFG_CarrySerumHighValueOnly>High-value units only for serums</AE_CFG_CarrySerumHighValueOnly>
+  <AE_CFG_CarryDrugHint>0 means do not carry. Actual drug amounts are also limited by the drug policy "take" column: enabling "Drug Policy" syncs these amounts into the AE-* policies; otherwise the smaller of the two is carried so items are not dropped.</AE_CFG_CarryDrugHint>
+  <AE_CFG_ResetCarryItems>Reset carry defaults</AE_CFG_ResetCarryItems>
   <AE_CFG_CarryInterval>Carry interval</AE_CFG_CarryInterval>
   <AE_CFG_GeneralHint>Rule changes take effect immediately (tier cache is cleared) and are saved automatically.</AE_CFG_GeneralHint>
 
@@ -242,8 +246,10 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_MarkNotify>Show a message when new high-value pawns are found.</AE_TT_MarkNotify>
   <AE_TT_MarkIncludeNonPlayer>When off, only player-faction pawns (colonists/slaves/prisoners) are scanned and marked.</AE_TT_MarkIncludeNonPlayer>
   <AE_TT_MarkTier>Pawns at or above this tier are treated as high value; it also sets the minimum tier for serum carrying.</AE_TT_MarkTier>
-  <AE_TT_CarryFoodCount>Food carried per colonist. 0 disables food carrying.</AE_TT_CarryFoodCount>
-  <AE_TT_CarrySerumCount>Serum of each type carried by high-value pawns. 0 disables serum carrying.</AE_TT_CarrySerumCount>
+  <AE_TT_CarryFoodCount>Total food carried per colonist (summed across food types); concrete food is chosen by priority: packaged meal → pemmican → lavish → fine → simple → nutrient paste. 0 disables food carrying.</AE_TT_CarryFoodCount>
+  <AE_TT_CarrySerumHighValueOnly>When checked, only units reaching the high-value tier threshold (configured on the High-value tab) carry serums; uncheck to let all eligible colonists carry them.</AE_TT_CarrySerumHighValueOnly>
+  <AE_TT_CarryItemCount>Drag to 0 to disable. Also keep the drug policy "take" column at least this high.</AE_TT_CarryItemCount>
+  <AE_TT_ResetCarryItems>Restore drug and serum amounts to defaults (total food and carry interval are unchanged).</AE_TT_ResetCarryItems>
   <AE_TT_CarryInterval>Interval of automatic carrying.</AE_TT_CarryInterval>
   <AE_TT_cvSkillWeight>Weight of overall skill level in the combat value formula.</AE_TT_cvSkillWeight>
   <AE_TT_cvPassionMult>Multiplier applied per passion level (none/single/double) in the combat value formula.</AE_TT_cvPassionMult>

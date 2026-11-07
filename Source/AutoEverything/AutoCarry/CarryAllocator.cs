@@ -96,6 +96,30 @@ namespace AutoEverything.AutoCarry
             for (int i = 0; i < carryEntries.Count; i++)
             {
                 CarryEntry entry = carryEntries[i];
+
+                if (entry.IsFoodGroup)
+                {
+                    // 食物：按总量控制，当前背包已有多少食物就只补差额；
+                    // 具体食物类型按优先级（包装食物 → 干粮 → …）选取第一个有货的
+                    int haveFood = CountFoodInInventory(pawn);
+                    int needFood = entry.Count - haveFood;
+                    if (needFood <= 0) continue;
+
+                    Thing foodThing = FindFirstAvailableFood(pawn);
+                    if (foodThing == null) continue;
+
+                    int foodTake = Math.Min(needFood, foodThing.stackCount);
+                    if (foodTake <= 0) continue;
+
+                    if (TryDispatchTakeJob(pawn, foodThing, foodTake))
+                    {
+                        if (AEDebug.IsActive) AEDebug.Log(() =>
+                            $"[CarryAllocator] {AEDebug.Label(pawn)} 派发食物: {foodThing.def.defName} x{foodTake}");
+                        return true;
+                    }
+                    continue;
+                }
+
                 ThingDef def = entry.Def;
                 int target = entry.Count;
 
@@ -112,11 +136,7 @@ namespace AutoEverything.AutoCarry
                 int takeCount = Math.Min(needed, target_thing.stackCount);
                 if (takeCount <= 0) continue;
 
-                Job job = JobMaker.MakeJob(JobDefOf.TakeInventory, target_thing);
-                job.count = takeCount;
-                // JobTag.MiscWork：常规工作标签，可被高优先级 Job 打断
-                bool ok = pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
-                if (ok)
+                if (TryDispatchTakeJob(pawn, target_thing, takeCount))
                 {
                     if (AEDebug.IsActive) AEDebug.Log(() =>
                         $"[CarryAllocator] {AEDebug.Label(pawn)} 派发 TakeInventory: {def.defName} x{takeCount}");
@@ -125,6 +145,45 @@ namespace AutoEverything.AutoCarry
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// 派发 TakeInventory Job：单次只派发一个，避免互相覆盖。
+        /// </summary>
+        private static bool TryDispatchTakeJob(Pawn pawn, Thing target, int count)
+        {
+            Job job = JobMaker.MakeJob(JobDefOf.TakeInventory, target);
+            job.count = count;
+            // JobTag.MiscWork：常规工作标签，可被高优先级 Job 打断
+            return pawn.jobs.TryTakeOrderedJob(job, JobTag.Misc);
+        }
+
+        /// <summary>
+        /// 统计背包中的食物总量（跨食物类型合计），用于"食物总量"目标控制。
+        /// </summary>
+        private static int CountFoodInInventory(Pawn pawn)
+        {
+            List<ThingDef> foodDefs = CarryPolicy.FoodDefs;
+            int count = 0;
+            for (int i = 0; i < foodDefs.Count; i++)
+            {
+                count += CountInInventory(pawn, foodDefs[i]);
+            }
+            return count;
+        }
+
+        /// <summary>
+        /// 按优先级找第一个有货且可拾取的食物类型（包装食物 → 干粮 → …）。
+        /// </summary>
+        private static Thing FindFirstAvailableFood(Pawn pawn)
+        {
+            List<ThingDef> foodDefs = CarryPolicy.FoodDefs;
+            for (int i = 0; i < foodDefs.Count; i++)
+            {
+                Thing thing = FindNearestAvailableThing(pawn, foodDefs[i]);
+                if (thing != null) return thing;
+            }
+            return null;
         }
 
         /// <summary>

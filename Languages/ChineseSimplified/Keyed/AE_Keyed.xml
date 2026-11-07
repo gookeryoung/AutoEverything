@@ -151,10 +151,10 @@
   <!-- AutoCarry 自动携带 -->
   <AE_AutoCarry_Result>已为 {0} 个殖民者派发携带物品任务</AE_AutoCarry_Result>
   <AE_AutoCarry_SkippedInCombat>战斗中暂停自动携带，待战斗结束后再试</AE_AutoCarry_SkippedInCombat>
-  <AE_TT_AutoCarry>勾选后殖民者自动携带食物 x3，药品数量根据药品政策"携带"列决定，S 档额外携带强力血清与钢血血清。
-每 6000 tick（约 100 秒）扫描一次背包缺物品时派发搬运任务；战斗中暂停触发避免离开战位；正在手术/休养的殖民者跳过。
-食物优先级：包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐；不需要睡眠者不带清醒丸；食尸鬼与机器人不参与。
-建议配合"用药方案"勾选，由 MOD 自动按评级配置药品政策的"携带"列。
+  <AE_TT_AutoCarry>勾选后按下方逐项配置为殖民者补充食物、药品与强化血清，数量为 0 表示不携带。
+每 6000 tick（约 100 秒，可在面板调整）扫描一次背包，缺物品时派发搬运任务；战斗中暂停触发避免离开战位；正在手术/休养的殖民者跳过。
+食物按总量控制并优先选包装食物/干粮；不需要睡眠者不带清醒丸；食尸鬼与机器人不参与。
+药品实际携带量受药品政策“携带”列限制，建议同时开启“用药方案”自动同步数量。
 勾选时立即执行一次；取消勾选仅停止自动执行，保留当前背包物品。</AE_TT_AutoCarry>
 
   <!-- AutoDrugPolicy 用药方案自动配置 -->
@@ -183,6 +183,8 @@
   <AE_CFG_Section_MarkSwitch>高价值标记开关</AE_CFG_Section_MarkSwitch>
   <AE_CFG_Section_MarkRules>高价值判定</AE_CFG_Section_MarkRules>
   <AE_CFG_Section_Carry>自动携带</AE_CFG_Section_Carry>
+  <AE_CFG_Section_CarryDrugs>携带药品（成瘾品）</AE_CFG_Section_CarryDrugs>
+  <AE_CFG_Section_CarrySerums>携带强化血清</AE_CFG_Section_CarrySerums>
   <AE_CFG_Section_Drug>自动用药方案</AE_CFG_Section_Drug>
   <AE_CFG_Section_General>通用</AE_CFG_Section_General>
   <AE_CFG_Section_ColonistBar>殖民者栏</AE_CFG_Section_ColonistBar>
@@ -219,8 +221,10 @@
   <AE_CFG_MarkTier>高价值档位阈值</AE_CFG_MarkTier>
   <AE_CFG_MarkRulesHint>达到阈值的单位会在殖民者栏或地图头顶显示档位标记；该档位同时决定血清携带的最低评级。</AE_CFG_MarkRulesHint>
 
-  <AE_CFG_CarryFoodCount>携带食物数量</AE_CFG_CarryFoodCount>
-  <AE_CFG_CarrySerumCount>携带血清数量</AE_CFG_CarrySerumCount>
+  <AE_CFG_CarryFoodCount>携带食物总量</AE_CFG_CarryFoodCount>
+  <AE_CFG_CarrySerumHighValueOnly>仅高价值单位携带血清</AE_CFG_CarrySerumHighValueOnly>
+  <AE_CFG_CarryDrugHint>滑条为 0 表示不携带。药品实际携带量还受药品政策“携带”列限制：开启“用药方案”后会自动把这里的数量同步进 AE-* 政策；未开启时按两者较小值携带，避免被游戏丢在地上。</AE_CFG_CarryDrugHint>
+  <AE_CFG_ResetCarryItems>恢复默认携带</AE_CFG_ResetCarryItems>
   <AE_CFG_CarryInterval>携带周期</AE_CFG_CarryInterval>
   <AE_CFG_GeneralHint>判定参数改动会立即清空评级缓存并按新规则重算，修改后自动写盘保存。</AE_CFG_GeneralHint>
 
@@ -243,8 +247,10 @@
   <AE_TT_MarkNotify>扫描到新高价值单位时弹消息通知</AE_TT_MarkNotify>
   <AE_TT_MarkIncludeNonPlayer>关闭后只扫描并标记玩家阵营（殖民者/奴隶/囚犯）</AE_TT_MarkIncludeNonPlayer>
   <AE_TT_MarkTier>达到该档位的单位被视为高价值；同时决定血清携带的最低评级</AE_TT_MarkTier>
-  <AE_TT_CarryFoodCount>每名殖民者背包携带的食物数量，0 表示不携带</AE_TT_CarryFoodCount>
-  <AE_TT_CarrySerumCount>高价值单位携带的每种血清数量，0 表示不携带</AE_TT_CarrySerumCount>
+  <AE_TT_CarryFoodCount>每名殖民者背包中的食物总量（跨食物类型合计），按优先级选取具体食物：包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐 → 营养糊。0 表示不携带。</AE_TT_CarryFoodCount>
+  <AE_TT_CarrySerumHighValueOnly>勾选后只有评级达到“高价值档位阈值”（高价值自动页配置）的单位才携带血清；取消勾选则所有适用殖民者都携带。</AE_TT_CarrySerumHighValueOnly>
+  <AE_TT_CarryItemCount>拖到 0 表示不携带；需要同时保证药品政策“携带”列不低于该值。</AE_TT_CarryItemCount>
+  <AE_TT_ResetCarryItems>把药品与血清数量恢复为默认值（食物总量与携带周期不受影响）。</AE_TT_ResetCarryItems>
   <AE_TT_CarryInterval>自动携带的执行周期</AE_TT_CarryInterval>
   <AE_TT_cvSkillWeight>技能整体等级对战斗价值的影响权重</AE_TT_cvSkillWeight>
   <AE_TT_cvPassionMult>按兴趣等级（无/单火/双火）对战斗价值的加成倍率</AE_TT_cvPassionMult>

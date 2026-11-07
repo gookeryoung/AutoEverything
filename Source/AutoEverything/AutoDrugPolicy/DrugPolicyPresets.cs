@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using RimWorld;
 using Verse;
+using AutoEverything.Core;
 
 namespace AutoEverything.AutoDrugPolicy
 {
@@ -100,13 +101,16 @@ namespace AutoEverything.AutoDrugPolicy
         ///
         /// 字段设置规则（用户需求 2026-08-10）：
         /// - 啤酒/烟叶：allowedForJoy=true, allowedForAddiction=true（所有档）
-        /// - 精神茶：上述 + allowScheduled=true + daysFrequency=2 + takeToInventory=1（所有档）
+        /// - 精神茶：上述 + allowScheduled=true + daysFrequency=2（所有档）
         /// - 魔鬼素（Luciferium）：allowedForAddiction=true，不预支不计划服用（所有档）
-        /// - 清醒丸（WakeUp）：allowedForAddiction=true + takeToInventory=1，不计划服用（所有档）
-        /// - 活力水（GoJuice）：allowedForAddiction=true + takeToInventory=1，不计划服用（仅 AB/S 档）
-        /// - 佩诺西林（Penoxycyline）：allowedForAddiction=true + allowScheduled=true
-        ///   + daysFrequency=5 + takeToInventory=1（仅 AB/S 档）
-        /// - 薄片/亚咯（Flake/Yayo）：全部 false/0（所有档禁止，强制戒断危险成瘾品）
+        /// - 清醒丸（WakeUp）：allowedForAddiction=true，不计划服用（所有档）
+        /// - 活力水（GoJuice）：allowedForAddiction=true，不计划服用（仅 AB/S 档）
+        /// - 佩诺西林（Penoxycyline）：allowedForAddiction=true + allowScheduled=true（仅 AB/S 档）
+        /// - 薄片/亚咯（Flake/Yayo）：全部 false（所有档禁止，强制戒断危险成瘾品）
+        ///
+        /// 携带列（takeToInventory）统一由 SyncConfiguredCarryCounts 覆盖为
+        /// 【自动】→ 携带用药面板的逐项数量；上面的 0/1 只是"面板缺省值"的兜底写法，
+        /// 避免玩家没打开面板时政策出现意外预支。
         /// </summary>
         public static void FillPolicyEntries(DrugPolicy policy, DrugTier tier)
         {
@@ -184,6 +188,62 @@ namespace AutoEverything.AutoDrugPolicy
                     allowedForJoy: false, allowedForAddiction: false,
                     allowScheduled: false, daysFrequency: 0f, takeToInventory: 1);
             }
+
+            // ── 逐项携带数量同步 ──
+            // 【自动】→ 携带用药面板中的数量即目标"携带"列（takeToInventory）；
+            // 低于该档位允许范围的药品强制 0，保持评级门槛（活力水/佩诺西林仅 AB+，血清仅 S+）。
+            SyncConfiguredCarryCounts(policy, tier);
+        }
+
+        /// <summary>
+        /// 把玩家在携带面板配置的逐项数量写入政策"携带"列。
+        /// 只在 count>0 时新建条目：新建 0 数量条目会让游戏把背包中该物品当作"可卸下"。
+        /// </summary>
+        private static void SyncConfiguredCarryCounts(DrugPolicy policy, DrugTier tier)
+        {
+            CarryItemDef[] items = CarryItemCatalog.Items;
+            for (int i = 0; i < items.Length; i++)
+            {
+                CarryItemDef item = items[i];
+                ThingDef def = DefDatabase<ThingDef>.GetNamedSilentFail(item.DefName);
+                if (def == null) continue;
+
+                int count = AESettings.GetCarryItemCount(item.DefName);
+                if (item.Kind == CarryItemKind.Serum && tier < DrugTier.S) count = 0;
+                else if ((item.DefName == "GoJuice" || item.DefName == "Penoxycyline")
+                         && tier < DrugTier.AB) count = 0;
+
+                SetTakeToInventory(policy, def, count);
+            }
+        }
+
+        /// <summary>只修改"携带"列（takeToInventory），不触碰其他用药字段。</summary>
+        private static void SetTakeToInventory(DrugPolicy policy, ThingDef drug, int count)
+        {
+            if (policy == null || drug == null) return;
+
+            DrugPolicyEntry entry = FindEntry(policy, drug);
+            if (entry == null)
+            {
+                if (count <= 0) return;
+                entry = new DrugPolicyEntry { drug = drug };
+                AddEntryToList(policy, entry);
+            }
+            entry.takeToInventory = count;
+            entry.takeToInventoryTempBuffer = count.ToString();
+        }
+
+        /// <summary>遍历查找政策中指定药品的条目（索引器找不到会抛异常，不能直接用）。</summary>
+        private static DrugPolicyEntry FindEntry(DrugPolicy policy, ThingDef drug)
+        {
+            if (policy == null || drug == null) return null;
+            int count = policy.Count;
+            for (int i = 0; i < count; i++)
+            {
+                DrugPolicyEntry e = policy[i];
+                if (e != null && e.drug == drug) return e;
+            }
+            return null;
         }
 
         /// <summary>
@@ -210,17 +270,7 @@ namespace AutoEverything.AutoDrugPolicy
             if (policy == null || drug == null) return;
 
             // 遍历查找已有条目
-            DrugPolicyEntry entry = null;
-            int count = policy.Count;
-            for (int i = 0; i < count; i++)
-            {
-                DrugPolicyEntry e = policy[i];
-                if (e != null && e.drug == drug)
-                {
-                    entry = e;
-                    break;
-                }
-            }
+            DrugPolicyEntry entry = FindEntry(policy, drug);
 
             // 找不到则创建新条目并反射添加到 entriesInt
             if (entry == null)

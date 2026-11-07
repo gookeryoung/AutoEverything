@@ -156,6 +156,30 @@ namespace AutoEverything.RoleEvaluation
                 || SocialMajorToTrade != other.SocialMajorToTrade;
         }
 
+        /// <summary>乱开枪：ShootingAccuracy degree = -1；degree 0/1 为冷枪手，不命中。</summary>
+        public static bool IsTriggerHappyDegree(int degree)
+        {
+            return degree == -1;
+        }
+
+        /// <summary>工作狂：Industriousness degree ≥ 1（hard worker / industrious），懒惰为负值。</summary>
+        public static bool IsIndustriousDegree(int degree)
+        {
+            return degree >= 1;
+        }
+
+        /// <summary>俊俏/沉鱼落雁：Beauty degree ≥ 1（pretty / beautiful），丑陋为负值。</summary>
+        public static bool IsBeautyDegree(int degree)
+        {
+            return degree >= 1;
+        }
+
+        /// <summary>兴趣是否达到双火：Major 及以上（VSE Natural 归入 Major，Critical 亦命中）。</summary>
+        public static bool IsMajorPassionTier(PassionHelper.PassionTier tier)
+        {
+            return tier >= PassionHelper.PassionTier.Major;
+        }
+
         public static RoleGroupRules FromSettings()
         {
             RoleGroupRules rules = new RoleGroupRules();
@@ -356,11 +380,11 @@ namespace AutoEverything.RoleEvaluation
             // 特质类强制条件：Def 可能因 DLC/模组缺失为 null，查询前逐一判空
             TraitSet traits = pawn.story.traits;
             input.IsTriggerHappy = traits != null && TraitDefCache.ShootingAccuracy != null
-                && traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
+                && RoleGroupRules.IsTriggerHappyDegree(traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy));
             input.HasIndustrious = traits != null && TraitDefCache.Industriousness != null
-                && traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1;
+                && RoleGroupRules.IsIndustriousDegree(traits.DegreeOfTrait(TraitDefCache.Industriousness));
             input.HasBeauty = traits != null && TraitDefCache.Beauty != null
-                && traits.DegreeOfTrait(TraitDefCache.Beauty) >= 1;
+                && RoleGroupRules.IsBeautyDegree(traits.DegreeOfTrait(TraitDefCache.Beauty));
 
             // 兴趣双火：生产（手工）与社交，VSE 兼容按 Major 及以上处理
             input.CraftingPassionMajor = IsMajorPassion(pawn, SkillDefOf.Crafting);
@@ -376,7 +400,7 @@ namespace AutoEverything.RoleEvaluation
         {
             SkillRecord skill = pawn.skills?.GetSkill(skillDef);
             if (skill == null) return false;
-            return PassionHelper.GetPassionTier(skill.passion) >= PassionHelper.PassionTier.Major;
+            return RoleGroupRules.IsMajorPassionTier(PassionHelper.GetPassionTier(skill.passion));
         }
 
         /// <summary>
