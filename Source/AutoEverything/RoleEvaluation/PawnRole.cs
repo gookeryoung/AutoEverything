@@ -61,6 +61,13 @@ namespace AutoEverything.RoleEvaluation
         public bool ShootingPassion;
         public bool IsHunter;
         public bool ViolentDisabled;
+
+        // 强制判定条件（在【自动】→ 人员自动面板逐角色勾选）
+        public bool IsGhoul;                    // 食尸鬼 → 前排
+        public bool IsMeleeSpecialist;          // 格斗专家职位 → 前排
+        public bool IsShootingSpecialist;       // 射击专家职位 → 射手
+        public bool IsProductionSpecialist;     // 生产专家职位 → 工人
+        public bool IsSocialSpecialist;         // 道德家职位 → 贸易
     }
 
     /// <summary>
@@ -77,6 +84,14 @@ namespace AutoEverything.RoleEvaluation
         public bool BrawlerTraitToFront;
         public bool HunterAsShooter;
 
+        // 强制判定开关：勾选后符合条件者直接归入对应角色，优先于技能/兴趣判定
+        public bool GhoulToFront;
+        public bool MeleeSpecialistToFront;
+        public bool ShootingSpecialistToShooter;
+        public bool PacifistToWorker;
+        public bool ProductionSpecialistToWorker;
+        public bool SocialSpecialistToTrade;
+
         public static RoleGroupRules Default
         {
             get
@@ -89,6 +104,12 @@ namespace AutoEverything.RoleEvaluation
                 rules.PassionPriority = true;
                 rules.BrawlerTraitToFront = true;
                 rules.HunterAsShooter = true;
+                rules.GhoulToFront = true;
+                rules.MeleeSpecialistToFront = true;
+                rules.ShootingSpecialistToShooter = true;
+                rules.PacifistToWorker = true;
+                rules.ProductionSpecialistToWorker = true;
+                rules.SocialSpecialistToTrade = true;
                 return rules;
             }
         }
@@ -103,6 +124,12 @@ namespace AutoEverything.RoleEvaluation
             rules.PassionPriority = AESettings.groupPassionPriority;
             rules.BrawlerTraitToFront = AESettings.groupBrawlerTraitFront;
             rules.HunterAsShooter = AESettings.groupHunterAsShooter;
+            rules.GhoulToFront = AESettings.groupFrontGhoul;
+            rules.MeleeSpecialistToFront = AESettings.groupFrontMeleeSpecialist;
+            rules.ShootingSpecialistToShooter = AESettings.groupShooterSpecialist;
+            rules.PacifistToWorker = AESettings.groupWorkerPacifist;
+            rules.ProductionSpecialistToWorker = AESettings.groupWorkerProductionSpecialist;
+            rules.SocialSpecialistToTrade = AESettings.groupTradeMoralist;
             return rules;
         }
     }
@@ -247,7 +274,14 @@ namespace AutoEverything.RoleEvaluation
         /// </summary>
         public static RoleGroup DetectRoleGroup(Pawn pawn)
         {
-            if (pawn?.skills == null || pawn?.story == null) return RoleGroup.Other;
+            if (pawn == null) return RoleGroup.Other;
+
+            RoleGroupRules rules = RoleGroupRules.FromSettings();
+
+            // 食尸鬼不是殖民者，勾选"食尸鬼 → 前排"时允许其进入分组判定
+            if (rules.GhoulToFront && DLCCompat.IsGhoul(pawn)) return RoleGroup.Front;
+
+            if (pawn.skills == null || pawn.story == null) return RoleGroup.Other;
             if (!pawn.IsColonistPlayerControlled) return RoleGroup.Other;
 
             RoleGroupInput input = new RoleGroupInput();
@@ -255,6 +289,12 @@ namespace AutoEverything.RoleEvaluation
             input.Melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
             input.Social = pawn.skills.GetSkill(SkillDefOf.Social)?.Level ?? 0;
             input.HasBrawlerTrait = pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true;
+
+            // 意识形态职位：专家/道德家按职位强制归组（开关由玩家控制）
+            input.IsMeleeSpecialist = HasIdeoRole(pawn, "IdeoRole_MeleeSpecialist");
+            input.IsShootingSpecialist = HasIdeoRole(pawn, "IdeoRole_ShootingSpecialist");
+            input.IsProductionSpecialist = HasIdeoRole(pawn, "IdeoRole_ProductionSpecialist");
+            input.IsSocialSpecialist = HasIdeoRole(pawn, "IdeoRole_Moralist");
 
             // 兴趣优先：用 PassionHelper 兼容 VSE（Apathy 视为无火及以下）
             Passion shootingPassion = pawn.skills.GetSkill(SkillDefOf.Shooting)?.passion ?? Passion.None;
@@ -266,28 +306,54 @@ namespace AutoEverything.RoleEvaluation
                 && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1;
             input.ViolentDisabled = pawn.WorkTagIsDisabled(WorkTags.Violent);
 
-            return EvaluateRoleGroupCore(input, RoleGroupRules.FromSettings());
+            return EvaluateRoleGroupCore(input, rules);
+        }
+
+        /// <summary>
+        /// 判断 Pawn 是否持有指定 defName 的意识形态职位/专家。
+        /// 未启用 Ideology 或无 Ideoligion 时返回 false（pawn.Ideo 为 null）。
+        /// </summary>
+        private static bool HasIdeoRole(Pawn pawn, string defName)
+        {
+            Precept_Role role = pawn.Ideo?.GetRole(pawn);
+            return role?.def != null && role.def.defName == defName;
         }
 
         /// <summary>
         /// 分组判定纯逻辑核心（不依赖 Pawn/ModSettings，便于单元测试）。
         /// 规则按优先级自上而下，命中即返回：
-        /// 1. 无法施暴 → 工人（专注后勤）
+        ///
+        /// 强制判定（面板逐角色勾选，优先于技能/兴趣）：
+        /// 0. 无法施暴 → 工人（可关闭）
+        /// 1. 食尸鬼 → 前排（可关闭）
         /// 2. 格斗者特质 → 前排（可关闭）
-        /// 3. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
-        /// 4. 近战 ≥ 前排阈值且高于射击 → 前排
-        /// 5. 射击 ≥ 射手阈值且高于近战 → 射手
-        /// 6. 被指派狩猎 → 射手（可关闭）
-        /// 7. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
-        /// 8. 射击与近战均低于工人阈值 → 工人
-        /// 9. 其余 → 其他
+        /// 3. 格斗专家职位 → 前排（可关闭）
+        /// 4. 射击专家职位 → 射手（可关闭）
+        /// 5. 被指派狩猎 → 射手（可关闭）
+        /// 6. 生产专家职位 → 工人（可关闭）
+        /// 7. 道德家职位 → 贸易（可关闭）
+        ///
+        /// 技能/兴趣补充判定（强制条件未命中时）：
+        /// 8. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
+        /// 9. 近战 ≥ 前排阈值且高于射击 → 前排
+        /// 10. 射击 ≥ 射手阈值且高于近战 → 射手
+        /// 11. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
+        /// 12. 射击与近战均低于工人阈值 → 工人
+        /// 13. 其余 → 其他
         /// </summary>
         public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
         {
-            if (input.ViolentDisabled) return RoleGroup.Worker;
-
+            // ── 强制判定条件 ──
+            if (rules.PacifistToWorker && input.ViolentDisabled) return RoleGroup.Worker;
+            if (rules.GhoulToFront && input.IsGhoul) return RoleGroup.Front;
             if (rules.BrawlerTraitToFront && input.HasBrawlerTrait) return RoleGroup.Front;
+            if (rules.MeleeSpecialistToFront && input.IsMeleeSpecialist) return RoleGroup.Front;
+            if (rules.ShootingSpecialistToShooter && input.IsShootingSpecialist) return RoleGroup.Shooter;
+            if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
+            if (rules.ProductionSpecialistToWorker && input.IsProductionSpecialist) return RoleGroup.Worker;
+            if (rules.SocialSpecialistToTrade && input.IsSocialSpecialist) return RoleGroup.Trade;
 
+            // ── 技能/兴趣补充判定 ──
             if (rules.PassionPriority)
             {
                 if (input.MeleePassion && !input.ShootingPassion) return RoleGroup.Front;
@@ -296,8 +362,6 @@ namespace AutoEverything.RoleEvaluation
 
             if (input.Melee >= rules.FrontSkillMin && input.Melee > input.Shooting) return RoleGroup.Front;
             if (input.Shooting >= rules.ShooterSkillMin && input.Shooting > input.Melee) return RoleGroup.Shooter;
-
-            if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
 
             if (input.Social >= rules.TradeSkillMin
                 && input.Social >= input.Shooting

@@ -70,6 +70,14 @@ namespace AutoEverything.Core
         // 被指派狩猎（Hunting 优先级 1）归入射手
         public static bool groupHunterAsShooter = true;
 
+        // ── 强制判定条件（勾选后符合条件的殖民者直接归入对应角色，优先于技能/兴趣判定）──
+        public static bool groupFrontGhoul = true;                  // 食尸鬼 → 前排
+        public static bool groupFrontMeleeSpecialist = true;        // 格斗专家职位 → 前排
+        public static bool groupShooterSpecialist = true;           // 射击专家职位 → 射手
+        public static bool groupWorkerPacifist = true;              // 无法施暴 → 工人
+        public static bool groupWorkerProductionSpecialist = true;  // 生产专家职位 → 工人
+        public static bool groupTradeMoralist = true;               // 道德家职位 → 贸易
+
         // 五类分组在殖民者栏中的显示顺序（存 RoleGroup 的 int 值，顺序即可视顺序）。
         // 玩家可在殖民者栏分组框上右键拖拽调整，重新分组时按该顺序排列人员。
         public static List<int> roleGroupOrder = DefaultRoleGroupOrder();
@@ -182,6 +190,12 @@ namespace AutoEverything.Core
             LookCompat(ref groupPassionPriority, "groupPassionPriority", true);
             LookCompat(ref groupBrawlerTraitFront, "groupBrawlerTraitFront", true);
             LookCompat(ref groupHunterAsShooter, "groupHunterAsShooter", true);
+            LookCompat(ref groupFrontGhoul, "groupFrontGhoul", true);
+            LookCompat(ref groupFrontMeleeSpecialist, "groupFrontMeleeSpecialist", true);
+            LookCompat(ref groupShooterSpecialist, "groupShooterSpecialist", true);
+            LookCompat(ref groupWorkerPacifist, "groupWorkerPacifist", true);
+            LookCompat(ref groupWorkerProductionSpecialist, "groupWorkerProductionSpecialist", true);
+            LookCompat(ref groupTradeMoralist, "groupTradeMoralist", true);
 
             // 分组显示顺序：List<int>，加载后校验必须是 0-4 的完整排列
             Scribe_Collections.Look(ref roleGroupOrder, "ae_roleGroupOrder", LookMode.Value);

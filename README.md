@@ -14,11 +14,11 @@
 
 | 模块 | 功能 | 触发方式 |
 |------|------|----------|
-| **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
-| **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + ITab 勾选 |
-| **AutoMarkPawn**（高价值自动标记） | 殖民者栏角色定位图标（前排盾/远程弓/手工锤/贸易钱袋）+ 地图高价值标记（敌方/中立/野生 S+ 单位圆形标记）+ S+ 单位扫描消息通知 | 殖民者栏 Postfix + 地图 Postfix + 人员变动事件 + ITab 切换 |
-| **AutoCarry**（自动携带） | 自动为殖民者背包补充食物 x3 + 药品（按药品政策"携带"列）+ S 档血清（强力+钢血），按优先级查找仓库可用物品 | 周期 6000 tick + ITab 勾选 |
-| **AutoDrugPolicy**（用药方案自动配置） | 按 S/AB/CDX 评级自动创建并分配 3 套用药方案，药品"携带"列配置不同（活力水/清醒丸/思滞血清） | 周期 3000 tick + 新增殖民者 + ITab 勾选 |
+| **AutoTier**（人员自动评级） | 按 SSS/SS/S/A/B/C/D/X 档次评级，可选应用评级前缀到 Nick 并重排殖民者栏 | 周期 3000 tick + 新增殖民者 + 【自动】面板"立即评级" |
+| **AutoWork**（工作自动配置） | 按工作类别与兴趣/技能多遍协调分配工作优先级 | 事件驱动（殖民者增减）+ 冷却 2500 tick + 【自动】面板开关 |
+| **AutoMarkPawn**（高价值自动标记） | 殖民者栏角色定位图标（前排盾/远程弓/手工锤/贸易钱袋）+ 地图高价值标记（敌方/中立/野生 S+ 单位圆形标记）+ S+ 单位扫描消息通知 | 殖民者栏 Postfix + 地图 Postfix + 人员变动事件 + 【自动】面板开关 |
+| **AutoCarry**（自动携带） | 自动为殖民者背包补充食物 x3 + 药品（按药品政策"携带"列）+ S 档血清（强力+钢血），按优先级查找仓库可用物品 | 周期 6000 tick + 【自动】面板开关 |
+| **AutoDrugPolicy**（用药方案自动配置） | 按 S/AB/CDX 评级自动创建并分配 3 套用药方案，药品"携带"列配置不同（活力水/清醒丸/思滞血清） | 周期 3000 tick + 新增殖民者 + 【自动】面板开关 |
 
 ## 配置入口：底部【自动】面板
 
@@ -39,7 +39,7 @@
 1. **角色驱动**：殖民者不是无差别的劳动力，而是有专长的个体。评级系统综合射击、近战、工作、社交、特质等维度评判全局价值，让玩家一眼分辨主力与辅助。
 2. **情境感知**：同一殖民者在不同情境下角色不同。情境检测器识别战斗/工作/狩猎/寒冷/炎热等状态，供面板展示与工作分配参考。
 3. **工作均衡**：工作分配按兴趣 → 技能 → 工作计数三因子排序，保证关键工作有人做、专业工作兴趣者优先、辅助工作按评级分档，避免高价值殖民者被杂务拖累。
-4. **逻辑杜绝而非事后清理**：食尸鬼、动物等不适用类别在入口（ITab 可见性、工作分配前过滤）就被排除，绝不进入自动管理流程。
+4. **逻辑杜绝而非事后清理**：食尸鬼、动物等不适用类别在入口（工作分配前过滤）就被排除，绝不进入自动管理流程。
 5. **安全可逆**：评级标签与角色定位图标均为纯前端展示，不修改 Pawn 核心数据；工作优先级可随时手动调整。
 
 ## 角色检测规则
@@ -58,11 +58,11 @@
 | 8 | `Worker`（工人）| 射击与近战均 < 5 |
 | 9 | `Shooter`/`Brawler` | 中等技能按高低判定 |
 
-**护甲偏好（`ArmorPreference`）**：角色检测同时输出护甲偏好（`Heavy`/`Flexible`/`Light`），仅用于 ITab 面板徽章展示与工作分配中的"后排角色"判定（`IsBackRow` = Shooter/Hunter/Leader）。
+**护甲偏好（`ArmorPreference`）**：角色检测同时输出护甲偏好（`Heavy`/`Flexible`/`Light`），用于工作分配中的"后排角色"判定（`IsBackRow` = Shooter/Hunter/Leader）。
 
 ## 情境检测规则
 
-`GearContext.cs` 中的 `ContextDetector.GetContext(pawn)` 判定以下情境，仅用于 ITab 面板徽章展示：
+`GearContext.cs` 中的 `ContextDetector.GetContext(pawn)` 用于内部情境判定（殖民者检视面板已移除，不再有界面展示）：
 
 | 情境 | 触发条件 |
 |------|----------|
@@ -127,27 +127,21 @@
 | 方法 | 自定义评级 | 配偶豁免 | 用途 |
 |------|-----------|---------|------|
 | `GetCombatTier` | 优先 | 含 | 全局重配排序、工作分配评级分档、评级标签 Nick 前缀、名字着色与加粗（自定义优先） |
-| `GetSystemTier` | 不含 | 含 | ITab 面板"当前档次"显示、AEDebug.Label、腰带/副武器排序 |
+| `GetSystemTier` | 不含 | 含 | AEDebug.Label、腰带/副武器排序 |
 | `GetAutoCombatTier` | 不含 | 不含 | 配偶豁免内部递归调用，避免无限递归 |
 
 ### 自定义评级识别码（玩家可调）
 
-玩家可在殖民者装备面板（ITab）"自定义评级识别码"区为指定殖民者手动指定档次，**跳过自动公式计算**。
-
-| 操作 | 入口 | 说明 |
-|------|------|------|
-| 设置自定义档次 | 面板内"设置自定义档次"按钮 | 弹出 SSS/SS/S/A/B/C/D/X 选项 FloatMenu，选定后写入存档 |
-| 清除自定义档次 | 面板内"清除自定义"按钮 | 移除自定义条目，恢复自动判定 |
+自定义评级可为指定殖民者手动指定档次，**跳过自动公式计算**。设置/清除 UI 已随殖民者检视面板移除，现有存档中的条目继续生效。
 
 - **存档格式**：`List<string>`，元素格式 `档次#Pawn名字`，如 `S#王五`
 - **运行时**：解析为 `Dictionary<名字, CombatTier>` 供快速查询
-- **DEBUG 显示**：命中自定义评级的 Pawn 在面板与日志中显示 `S(A)#王五`（系统档 S 在前，括号内 A 为玩家指定档）；自动档仅显示 `S#王五`
-- **面板对比**：面板"当前档次"行直接显示完整识别码，括号区分自定义与系统档
+- **DEBUG 显示**：命中自定义评级的 Pawn 在日志中显示 `S(A)#王五`（系统档 S 在前，括号内 A 为玩家指定档）；自动档仅显示 `S#王五`
 - **排序规则**：自定义评级档次映射为代表分（D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110, X=-1）+0.5 微量偏向，让同档自定义略优先于同档自动
 
 ### 全局人物评级标签（Nick 改名 + 殖民者栏重排）
 
-面板底部"人员自动评级"勾选框控制评级标签的自动应用：
+【自动】→ 人员自动面板的"人员自动评级"勾选框控制评级标签的自动应用：
 
 - **勾选时**：立即执行一次评级应用，并启用自动执行（每 3000 tick + 新增殖民者时立即触发）
 - **取消勾选时**：清除所有殖民者（含食尸鬼）Nick 上的评级前缀，恢复原名；保留殖民者栏当前顺序不重置
@@ -175,15 +169,15 @@
 
 **角色分组顺序**（`GetRoleGroupOrder`，用于"按角色+评级"模式与角色分组）：
 
-| 默认顺序 | 分组 | 默认判定条件 |
-|------|------|--------------|
-| 0 | 前排 | 格斗者特质；或近战 ≥ 8 且高于射击；或近战有火且射击无火 |
-| 1 | 射手 | 射击 ≥ 8 且高于近战；或射击有火且近战无火；或指派狩猎（优先级 1） |
-| 2 | 工人 | 无法施暴；或射击与近战均低于 5 |
-| 3 | 贸易 | 社交 ≥ 8，且不低于射击与近战 |
-| 4 | 其他 | 未命中上述规则者（含意识形态领袖等） |
+| 默认顺序 | 分组 | 强制判定（默认勾选，可在面板关闭）| 技能/兴趣补充判定（强制条件未命中时）|
+|------|------|--------------|--------------|
+| 0 | 前排 | 食尸鬼；格斗者特质；格斗专家职位 | 近战 ≥ 8 且高于射击；或近战有火且射击无火 |
+| 1 | 射手 | 射击专家职位；被指派狩猎（优先级 1）| 射击 ≥ 8 且高于近战；或射击有火且近战无火 |
+| 2 | 工人 | 无法施暴；生产专家职位 | 射击与近战均低于 5 |
+| 3 | 贸易 | 道德家职位 | 社交 ≥ 8，且不低于射击与近战 |
+| 4 | 其他 | — | 未命中上述规则者（含意识形态领袖等）|
 
-> 上表为默认顺序，玩家可在殖民者栏**右键拖拽分组框**（标签或边框）自定义顺序，顺序持久化到 `ae_roleGroupOrder`，"按角色+评级"排序与角色分组都会遵循该顺序。阈值与"兴趣优先/格斗者特质/猎人归射手"三个开关均可在底部【自动】→ 人员自动面板调整；面板下方实时显示当前生效的判定准则。原 `GetRoleOrder`（8 类细分角色）保留用于徽章/护甲/狩猎判定。
+> 强制判定按 前排 → 射手 → 工人 → 贸易 的顺序检查，命中即归入该角色，优先于技能/兴趣判定。上表为默认顺序，玩家可在殖民者栏**右键拖拽分组框**（标签或边框）自定义顺序，顺序持久化到 `ae_roleGroupOrder`，"按角色+评级"排序与角色分组都会遵循该顺序。所有强制条件、技能阈值与"兴趣优先"开关均可在底部【自动】→ 人员自动面板逐角色勾选调整；面板下方实时显示当前生效的判定准则。原 `GetRoleOrder`（8 类细分角色）保留用于护甲/狩猎判定。
 
 **防双重前缀**：
 - `CombatEvaluator.GetPawnLookupName` 会自动剥离 Nick 上的评级前缀返回纯净名，确保自定义评级查询仍能命中（玩家设置时用的是原名），面板"当前档次"行拼接出 `S#王五` 而非 `S#S#王五`
@@ -193,9 +187,10 @@
 
 ### 殖民者栏按角色分组（底部【自动】→ 人员自动）
 
-在底部【自动】→ "人员自动"标签页的"殖民者栏角色分组"分区开关，`AESettings.groupColonistBarByRole` 字段，存档键 `ae_groupColonistBarByRole`，默认关闭。同分区可调整四类技能阈值与三个判定开关，下方实时显示判定准则。
+在底部【自动】→ "人员自动"标签页顶部的"殖民者栏角色分组"分区开关，`AESettings.groupColonistBarByRole` 字段，存档键 `ae_groupColonistBarByRole`，默认关闭。同分区按角色列出**强制判定勾选框**（默认勾选）、技能阈值滑块与"兴趣优先"开关，下方实时显示判定准则。
 
 - **五类分组**：前排 → 射手 → 工人 → 贸易 → 其他（`RoleGroup`），判定核心 `RoleDetector.EvaluateRoleGroupCore`（纯函数，便于测试）
+- **强制判定勾选列**：前排（食尸鬼 / 格斗者特质 / 格斗专家职位）、射手（射击专家职位 / 猎人）、工人（无法施暴 / 生产专家职位）、贸易（道德家职位）；勾选后符合条件的殖民者直接归入对应角色，优先于技能/兴趣判定，全部默认勾选
 - **图标与边界**：每个分组框左上角叠加"角色图标 + 中文文字"标签（`DrawGroupFrame` Postfix），并用角色专属颜色描边（前排红 / 射手黄 / 工人绿 / 贸易紫 / 其他灰），便于快速区分
 - **右键拖拽换序**：右键按住分组框的标签或 5px 边框带拖动到另一分组即可调整顺序；顺序写入 `ae_roleGroupOrder`，重新分组与"按角色+评级"排序都按新顺序执行（头像区域保留原生右键菜单）
 - **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`）
@@ -223,7 +218,7 @@
 
 ### 价值评分（ComputePawnValueScore）
 
-用于 ITab 面板"价值评分"徽章展示，综合反映殖民者培养深度。评分公式：
+用于内部价值评估（调试日志等），综合反映殖民者培养深度。评分公式：
 
 ```
 综合价值分 = 特质数量 × 5 + Σ(兴趣分) + Σ(技能等级)
@@ -320,7 +315,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 ### 入口
 
 - **MOD 选项** → 启用/禁用"工作自动配置"（`AESettings.autoWorkEnabled`，默认勾选）
-- **殖民者装备面板（ITab）底部** → "工作自动配置"勾选框
+- **底部【自动】→ 工作自动面板** → "工作自动配置"勾选框
   - **勾选时**：立即执行一次工作重配，并启用自动执行（殖民者增减时标记待触发，冷却+非战斗中执行）
   - **取消勾选时**：仅停止自动执行，保留当前工作分配（工作优先级无法撤销）
   - **默认勾选**
@@ -332,7 +327,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **入口**：由 Harmony Postfix on `TickManager.DoSingleTick` 每 tick 调用 `AutoExecutor.TryTick()`。不向存档注入 GameComponent（新存档零 MOD 组件写入，卸载 MOD 后加载更干净）；旧存档中残留的 `AutoEverythingGameComponent` 仍会调用 `TryTick`，60 tick 门控保证幂等无双倍执行
 - **静态门控**：每 60 tick 检查一次殖民者数量变化、全人类单位数量变化与周期触发
 - **周期触发**：人员评级每 3000 tick（约 50 秒）执行一次（走 `TierCacheService` 2500 tick 评级缓存）；自动携带每 6000 tick（约 100 秒）执行一次（战斗中暂停）；工作重配为事件驱动，无周期触发；角色定位图标由殖民者栏 Postfix 每帧绘制（判定结果按 Pawn 缓存 2500 tick，特质/技能变化最迟 42 秒内反映），S+ 高价值扫描为人员变动事件触发，无周期执行；战斗检测在同一检查周期内惰性单次计算，多分支共享结果
-- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（无殖民者征召 + 无战斗 Job）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。ITab 手动勾选（`TriggerWorkNow`）不受冷却限制，立即执行
+- **殖民者数量变化检测**：`PawnsFinder.AllMaps_FreeColonists.Count` 增加或减少 → 标记 `work.pending` 待触发（不立即执行）。增加时额外触发评级（仅更新 Nick 前缀，不打断 Job）。工作重配延迟到冷却 2500 tick 结束且 `AnyCombatActive()` 返回 false（无殖民者征召 + 无战斗 Job）时才真正执行。延迟机制避免战斗中死亡连锁触发 `ReallocateAll`，打断医生正在执行的手术/治疗 Job。【自动】面板手动开启（`TriggerWorkNow`）不受冷却限制，立即执行
 - **全人类单位数量变化检测**：`CountAllHumanlikeSpawned()`（含殖民者/奴隶/囚犯/敌对/中立/盟友/野生）增加时，若 `autoMarkPawn` 开启则立即调用 `ExecuteMark(resetTracking=false)` 扫描新增高价值目标，有新发现时弹消息
 - **首次初始化守卫**：`work.lastTick`/`lastTierTick` < 0 时设为当前 tick 不触发，避免存档加载误触发
 - **错误隔离**：工作、评级、标记、携带各自独立 try-catch + `Log.ErrorOnce`，salt 独立（Work=0xA200 / Tier=0xA300 / Mark=0xA500 / Carry=0xA400）
@@ -340,13 +335,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 ### 人员自动评级
 
-- **触发**：周期 3000 tick + 新增殖民者立即触发 + ITab 勾选时立即触发
+- **触发**：周期 3000 tick + 新增殖民者立即触发 + 【自动】面板"立即评级"按钮
 - **机制**：
   - 周期/事件触发：调用 `AESettings.ApplyTierTagsToAllPawns()`，仅更新 Nick 前缀，不重排殖民者栏（避免覆盖玩家手动排序）
-  - 玩家主动触发（ITab 勾选）：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上最终评级前缀（格式 `S#王五`，命中自定义评级时用自定义档），并按 Mod 选项配置的默认排序重排殖民者栏
-  - 自定义评级变更：ITab 设置/清除自定义评级后立即调用 `ApplyTierTagsToAllPawns()` 更新前缀（不重排殖民者栏）
+  - 玩家主动触发（【自动】面板"立即评级"）：调用 `AESettings.ApplyTierTagsWithDefaultSort()`，给所有殖民者（含食尸鬼）Nick 加上最终评级前缀（格式 `S#王五`，命中自定义评级时用自定义档），并按 Mod 选项配置的默认排序重排殖民者栏
+  - 自定义评级变更：数据变更后调用 `ApplyTierTagsToAllPawns()` 更新前缀（不重排殖民者栏）
 - **取消勾选**：调用 `ClearTierTagsFromAllPawns()`，清除所有评级前缀恢复原名
-- **入口**：殖民者装备面板（ITab）底部 → "人员自动评级"勾选框（`AESettings.autoTierTag`，默认勾选）
+- **入口**：底部【自动】→ 人员自动面板 → "人员自动评级"勾选框（`AESettings.autoTierTag`，默认勾选）
 
 ### 高价值自动标记（AutoMarkPawn）
 
@@ -391,13 +386,13 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **类别**（`PawnMarker.GetMarkerCategory`）：用于消息展示中的类别名翻译（如"殖民者"/"敌对"）
 
 - **触发**：
-  - ITab 勾选切换（任一方向）：立即全局重扫描并弹消息列出所有当前高价值单位（`resetTracking=true` 清空已通知集合，所有目标都视为"新发现"）
+  - 【自动】面板开关切换（任一方向）：立即全局重扫描并弹消息列出所有当前高价值单位（`resetTracking=true` 清空已通知集合，所有目标都视为"新发现"）
   - 人员变动事件：全人类单位数量增加时扫描新增高价值目标，有新发现时弹消息提示（`resetTracking=false`，仅通知首次出现的目标）
   - 周期路径不执行（无 Nick 修改，无需周期刷新）
 - **消息格式**（`PawnMarker.FormatMessage`）：标题 + 列表项 `- 类别 名字 (档位)`，超过 8 个时显示前 8 个加"... 等 N 个"；空列表显示"未发现高价值单位"
 - **取消勾选**：`ExecuteMark` 检测 `autoMarkPawn=false` 后静默返回；殖民者栏图标由 Harmony 补丁实时检查开关自动停止绘制；`notifiedMarkedIds` 留待下次勾选时由 `resetTracking=true` 清空
 - **Harmony 补丁降级**：`ColonistBarColonistDrawer.DrawColonist` 方法缺失时仅 `Log.Warning`，图标不显示但不崩溃。补丁优先级 `Priority.Last`，避免与其他 MOD 的同方法 patch 顺序冲突
-- **入口**：殖民者装备面板（ITab）底部 → "高价值自动标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
+- **入口**：底部【自动】→ 高价值自动面板 → "高价值自动标记"勾选框（`AESettings.autoMarkPawn`，默认勾选）
 
 #### 地图高价值标记（PawnUIOverlay Postfix）
 
@@ -464,7 +459,7 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 
 ### 派发机制
 
-- **触发**：周期 6000 tick（约 100 秒）+ ITab 勾选时立即触发
+- **触发**：周期 6000 tick（约 100 秒）+ 【自动】面板开启时立即触发
 - **战斗过滤**：复用 `AutoExecutor.AnyCombatActive()`，战斗中暂停派发
 - **单次单 Pawn 单物品**：每周期每 Pawn 最多派发一个 `TakeInventory` Job，避免互相覆盖；缺其他物品下周期再处理
 - **物品查找**：`map.listerThings.ThingsOfDef(def)` + 手动最近搜索，跳过 Spawned=false / Forbidden / 已被他人预约的目标（`map.reservationManager.CanReserve` 检查）/ 允许区域外的目标（`EffectiveAreaRestrictionInPawnCurrentMap`，殖民者划定允许区域后只在区域内拾取，防止跑出安全区）/ 迷雾中的目标（寻路不可达且拾取等于探雾作弊）
@@ -474,11 +469,11 @@ RimWorld 药品政策系统每 tick 检查背包，实际数量超过"携带"列
 ### 入口
 
 - **MOD 选项** → 启用/禁用"自动携带"（`AESettings.autoCarryEnabled`，默认关闭）
-- **殖民者装备面板（ITab）底部** → "自动携带"勾选框
+- **底部【自动】→ 携带用药面板** → "自动携带"勾选框
   - **勾选时**：立即执行一次携带分配（受战斗过滤），并启用周期自动
   - **取消勾选时**：仅停止自动派发，保留当前背包物品（不主动清空）
   - **默认关闭**（与评级/工作/标记的默认勾选不同，避免无需求玩家被自动派发 Job 打扰）
-  - **持久化**：ITab 底部 5 个勾选框（评级/工作/星标/携带/用药）状态变化时立即调用 `ModSettings.Write()` 写盘（存档键 `ae_autoCarryEnabled` 等），重启游戏后保留；无需打开 Mod 选项窗口手动保存
+  - **持久化**：面板内开关状态变化时立即调用 `ModSettings.Write()` 写盘（存档键 `ae_autoCarryEnabled` 等），重启游戏后保留
 
 ## 用药方案自动配置（AutoDrugPolicy）
 
@@ -563,7 +558,7 @@ AB/S 档额外叠加：
 
 - **周期触发**：每 3000 tick（约 50 秒，与评级周期一致）自动重分配
 - **事件触发**：殖民者数量增加时立即重分配（新增殖民者需分配对应政策）
-- **ITab 勾选**：玩家在面板勾选时立即执行一次（弹消息框反馈）
+- **【自动】面板开启**：玩家在面板勾选时立即执行一次（弹消息框反馈）
 - **不需战斗过滤**：分配 DrugPolicy 不取消 Job，可在战斗中安全执行
 
 ### RimWorld 1.6 API 兼容
@@ -575,7 +570,7 @@ AB/S 档额外叠加：
 ### 入口
 
 - **MOD 选项** → 启用/禁用"用药方案"（`AESettings.autoDrugPolicyEnabled`，默认关闭）
-- **殖民者装备面板（ITab）底部** → "用药方案"勾选框
+- **底部【自动】→ 携带用药面板** → "用药方案"勾选框
   - **勾选时**：立即创建政策并分配
   - **取消勾选时**：仅停止自动执行，已分配的政策不变
   - **默认关闭**
@@ -610,7 +605,7 @@ Source/AutoEverything/
 │   └── CombatTier.cs                      # 战斗价值档次枚举
 ├── RoleEvaluation/                        # → namespace AutoEverything.RoleEvaluation
 │   ├── PawnRole.cs                        # 角色检测 + ArmorPreference（用于 IsBackRow 狩猎判定）
-│   ├── GearContext.cs                     # 情境检测（仅 ITab 徽章展示）
+│   ├── GearContext.cs                     # 情境检测（内部判定，无界面展示）
 │   └── CombatEvaluator.cs                 # 战斗价值/评级计算
 ├── AutoWork/                              # → namespace AutoEverything.AutoWork
 │   ├── WorkAllocator.cs                   # 工作优先级自动分配（主 partial + WorkAllocationConfig 内嵌 struct）
@@ -625,7 +620,7 @@ Source/AutoEverything/
 │   ├── CarryAllocator.cs                  # 携带分配器（周期派发 TakeInventory Job）
 │   └── PawnCarryChecker.cs                # 殖民者携带适用性检查（硬过滤 + 软过滤）
 └── UI/                                    # → namespace AutoEverything.UI
-    └── ITab_GearManager.cs                # 殖民者检视面板（角色/情境/评级徽章 + 自定义评级 + 勾选框）
+    └── MainTabWindow_AutoEverything.cs    # 底部【自动】配置窗口（人员/工作/高价值/携带/通用）
 ```
 
 **模块职责说明：**
@@ -633,7 +628,7 @@ Source/AutoEverything/
 - **RoleEvaluation**：角色与情境评价（角色检测、情境检测、战斗价值评估）
 - **AutoWork**：工作优先级自动分配（主分配器 + 分配 + 比较器三 partial）
 - **AutoMarkPawn**：殖民者栏角色定位图标（前排/远程/手工/贸易 4 种，基于特质组合判定）+ S+ 全人类单位扫描消息通知
-- **UI**：玩家界面（ITab 面板）
+- **UI**：玩家界面（底部【自动】配置窗口）
 
 > AutoEquipment 模块（自动装备分配）已移除，改用 RimWorld 原生换装（玩家手动管理装备）。
 
@@ -645,12 +640,11 @@ Source/AutoEverything/
 |------|------|------|
 | Harmony Postfix on `TickManager.DoSingleTick` | 每 tick | 调用 `AutoExecutor.TryTick()`；不向存档注入 GameComponent，旧存档残留组件双路调用由 60 tick 门控保证幂等 |
 | `AutoExecutor` 殖民者检查 | 60 tick | 殖民者数量增减时标记 `work.pending`；增加时立即触发评级 |
-| `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无征召+无战斗 Job）才执行；ITab 手动勾选时立即执行。避免战斗中死亡连锁打断手术 |
-| `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + ITab 勾选时触发 |
+| `AutoExecutor` 工作重配 | 事件驱动 + 冷却 2500 tick + 战斗过滤 | 殖民者增减时标记待触发，冷却结束且 `AnyCombatActive()`=false（无征召+无战斗 Job）才执行；【自动】面板手动开启时立即执行。避免战斗中死亡连锁打断手术 |
+| `AutoExecutor` 人员评级 | 3000 tick | 周期 + 新增殖民者 + 【自动】面板"立即评级"触发 |
 | `AutoExecutor` 全人类单位检查 | 60 tick | 全人类单位数量增加时立即触发 Mark 扫描，有新高价值目标时弹消息 |
-| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，统一深红色）；S+ 单位扫描消息通知；与相机缩放解耦；ITab 切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
+| `AutoExecutor` 高价值标记 | 殖民者栏 Postfix 绘制 + 人员变动事件 | 殖民者栏 Rect 右上角绘制角色定位图标（前排盾/远程弓/手工锤/贸易钱袋，统一深红色）；S+ 单位扫描消息通知；与相机缩放解耦；【自动】面板切换时全局重扫描并弹消息；取消勾选自动停止绘制 |
 | 角色缓存 | `RoleCacheInterval`（2500 tick） | 避免每 tick 重复检测 |
-| 检视面板缓存 | 60 tick | ITab 角色徽章/数值摘要刷新 |
 | 死亡 Pawn 字典清理 | 60000 tick | `RoleDetector`/`ContextDetector` 残留条目清理 |
 
 ## 设计原则：逻辑杜绝而非事后清理
@@ -659,7 +653,7 @@ Source/AutoEverything/
 
 | 入口 | 防御 |
 |------|------|
-| `PawnSuitabilityChecker.CanManageGear` | 仅 `race.Humanlike` 通过（食尸鬼通过），用于 ITab 可见性、工作分配候选收集、AutoMarkPawn 标记目标判定 |
+| `PawnSuitabilityChecker.CanManageGear` | 仅 `race.Humanlike` 通过（食尸鬼通过），用于工作分配候选收集、AutoMarkPawn 标记目标判定 |
 | `DLCCompat.IsGhoul` | 工作分配候选收集时跳过食尸鬼（食尸鬼不参与工作分配，但仍参与评级标签与高价值标记） |
 | `TickManager.DoSingleTick` 入口 | Harmony Postfix 零拦截，零 ThingDef.comps 注入，零存档组件写入，从源头杜绝与其他 MOD 的 Comp 注入冲突与存档残留 |
 
@@ -733,18 +727,16 @@ VSE 扩展的 6 种 passion 按以下规则统一处理：
 |------|------|------|
 | Preview | `About/Preview.png` | Steam Workshop 预览图 |
 | ModIcon | `Textures/UI/Icons/ModIcon.png` | Mod 列表图标（`About.xml` 的 `modIconPath`） |
-| 评级徽章 | `Textures/UI/Icons/Tier/Tier_{SSS,SS,S,A,B,C,D,X}.png` | ITab 评级徽章，替代纯色块（SS/SSS 暂无图，回退纯色块） |
-| 角色徽章 | `Textures/UI/Icons/Role/Role_{Brawler,Shooter,Doctor,Hunter,Worker,Pacifist,Leader,Default}.png` | ITab 角色徽章，左侧图标 + 右侧角色名 |
+| 角色图标 | `Textures/UI/Icons/Role/Role_{Frontline,Ranged,Worker,Trader,Default}.png` | 殖民者栏分组框标签图标 |
 
 ### 资源加载时机
 
-`ITab_GearManager` 标记 `[StaticConstructorOnStartup]`，纹理通过 `LongEventHandler.ExecuteWhenFinished` 延迟到主线程加载完成后填充，避免跨线程 `ContentFinder` 访问崩溃：
+`ColonistBarRoleGrouping` 标记 `[StaticConstructorOnStartup]`，角色图标通过 `LongEventHandler.ExecuteWhenFinished` 延迟到主线程加载完成后填充，避免跨线程 `ContentFinder` 访问崩溃：
 
 - **禁止**在普通类的静态字段初始化器中调用 `ContentFinder`——类型首次访问可能在非主线程（DefDatabase 扫描、Harmony 反射），触发 `Tried to get a resource from a different thread` 异常
-- `reportFailure=false` 时未找到返回 null，调用方处理 null 回退纯色块 + 文字
-- 角色徽章因图标内无文字，绘制时在图标右侧显示中文角色名（`DrawRoleBadgeWithIcon`）
+- `reportFailure=false` 时未找到返回 null，调用方处理 null 回退为纯色标签
 
-### ITab 面板文字防换行
+### 面板文字防换行
 
 中文文字超宽时 `Widgets.Label` 默认换行，会撑乱单行布局导致显示不全。本 MOD 强制约定：
 
@@ -813,14 +805,14 @@ RimWorld 运行时依赖 `Pawn`/`Map`/`Faction` 等游戏内对象，难以脱�
 | `WorkAllocator.cs` 奴隶收集/狩猎限制 | `## 奴隶处理` |
 | `AutoExecutor.cs` | `## 自动执行（AutoExecutor）` + `### 评估周期` 表格 |
 | `PawnMarker.cs` / `AutoMarkPawn` 模块 | `### 高价值自动标记（AutoMarkPawn）` |
-| `ITab_GearManager.cs` 底部勾选框 | `## 自动执行（AutoExecutor）` 入口章节 |
+| `MainTabWindow_AutoEverything.cs` 底部开关与配置项 | `## 自动执行（AutoExecutor）` 入口章节 |
 | `HarmonyPatches.cs` Tick 入口 / `AutoEverythingGameComponent.cs` 兼容策略 | `## 自动执行（AutoExecutor）` 入口章节 + `### 评估周期` 表格 + `## 设计原则：逻辑杜绝而非事后清理` |
 | `RoleIconDef.cs` 图标缓存 / `PawnMarker.cs` 类别缓存 | `### 高价值自动标记（AutoMarkPawn）` + `### 评估周期` 表格 |
 | 设计原则（不适用 Pawn 处理） | `## 设计原则：逻辑杜绝而非事后清理` |
 | 新增/删除源文件 | `### 目录结构` 代码块 |
 | 新增/修改图片资源 | `## 图片资源` 表格与 `### 资源加载时机` |
-| `ITab_GearManager.cs` 静态资源加载 | `### 资源加载时机` |
-| `ITab_GearManager.cs` 文字绘制逻辑 | `### ITab 面板文字防换行` |
+| `ColonistBarRoleGrouping.cs` 静态资源加载 | `### 资源加载时机` |
+| 面板文字绘制逻辑 | `### 面板文字防换行` |
 
 ## 许可证
 

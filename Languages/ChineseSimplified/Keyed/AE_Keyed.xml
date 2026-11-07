@@ -259,6 +259,26 @@
   <AE_CFG_GroupBrawlerTraitFront>格斗者特质归前排</AE_CFG_GroupBrawlerTraitFront>
   <AE_CFG_GroupHunterAsShooter>猎人归射手</AE_CFG_GroupHunterAsShooter>
 
+  <AE_CFG_RoleGroup_ForceHint>勾选下方条件后，符合条件的殖民者直接归入该角色，优先于技能/兴趣判定。</AE_CFG_RoleGroup_ForceHint>
+  <AE_CFG_RoleGroup_SkillTitle>技能与兴趣补充判定（强制条件未命中时生效）：</AE_CFG_RoleGroup_SkillTitle>
+  <AE_CFG_Front_Ghoul>食尸鬼</AE_CFG_Front_Ghoul>
+  <AE_CFG_Front_Brawler>格斗者特质</AE_CFG_Front_Brawler>
+  <AE_CFG_Front_MeleeSpecialist>格斗专家职位</AE_CFG_Front_MeleeSpecialist>
+  <AE_CFG_Shooter_Specialist>射击专家职位</AE_CFG_Shooter_Specialist>
+  <AE_CFG_Shooter_Hunter>猎人</AE_CFG_Shooter_Hunter>
+  <AE_CFG_Worker_Pacifist>无法施暴</AE_CFG_Worker_Pacifist>
+  <AE_CFG_Worker_ProductionSpecialist>生产专家职位</AE_CFG_Worker_ProductionSpecialist>
+  <AE_CFG_Trade_Moralist>道德家职位</AE_CFG_Trade_Moralist>
+
+  <AE_TT_Front_Ghoul>食尸鬼（Anomaly）直接归入前排</AE_TT_Front_Ghoul>
+  <AE_TT_Front_Brawler>拥有“格斗者”特质的殖民者直接归入前排</AE_TT_Front_Brawler>
+  <AE_TT_Front_MeleeSpecialist>担任“格斗专家”意识形态职位的殖民者直接归入前排</AE_TT_Front_MeleeSpecialist>
+  <AE_TT_Shooter_Specialist>担任“射击专家”意识形态职位的殖民者直接归入射手</AE_TT_Shooter_Specialist>
+  <AE_TT_Shooter_Hunter>狩猎工作优先级为 1 的殖民者直接归入射手</AE_TT_Shooter_Hunter>
+  <AE_TT_Worker_Pacifist>无法进行暴力工作的殖民者（和平主义者）直接归入工人</AE_TT_Worker_Pacifist>
+  <AE_TT_Worker_ProductionSpecialist>担任“生产专家”意识形态职位的殖民者直接归入工人</AE_TT_Worker_ProductionSpecialist>
+  <AE_TT_Trade_Moralist>担任“道德家”意识形态职位的殖民者直接归入贸易</AE_TT_Trade_Moralist>
+
   <AE_TT_GroupFrontSkillMin>近战技能达到该值且高于射击时归入前排</AE_TT_GroupFrontSkillMin>
   <AE_TT_GroupShooterSkillMin>射击技能达到该值且高于近战时归入射手</AE_TT_GroupShooterSkillMin>
   <AE_TT_GroupTradeSkillMin>社交技能达到该值且不低于射击/近战时归入贸易</AE_TT_GroupTradeSkillMin>

@@ -54,6 +54,12 @@ namespace AutoEverything.UI
         private static readonly Color ColorSectionTitle = new Color(0.88f, 0.88f, 0.92f);
         private static readonly Color ColorSectionBg = new Color(0.18f, 0.20f, 0.22f, 0.45f);
 
+        // 角色标题颜色：与殖民者栏分组框边框颜色保持一致，便于玩家对照
+        private static readonly Color ColorRoleFront = new Color(0.85f, 0.30f, 0.25f);
+        private static readonly Color ColorRoleShooter = new Color(0.90f, 0.70f, 0.20f);
+        private static readonly Color ColorRoleWorker = new Color(0.35f, 0.70f, 0.40f);
+        private static readonly Color ColorRoleTrade = new Color(0.65f, 0.50f, 0.85f);
+
         public override Vector2 InitialSize
         {
             get { return new Vector2(920f, 640f); }
@@ -177,16 +183,67 @@ namespace AutoEverything.UI
             // 置于人员自动页顶部，玩家打开即见；分组框支持右键拖拽换序
             BeginSection(l, "AE_CFG_Section_RoleGroup".Translate());
 
+            // 记录原值：任一变化后立即重排殖民者栏
             bool prevGroup = AESettings.groupColonistBarByRole;
+            bool prevFrontGhoul = AESettings.groupFrontGhoul;
+            bool prevBrawler = AESettings.groupBrawlerTraitFront;
+            bool prevMeleeSpec = AESettings.groupFrontMeleeSpecialist;
+            bool prevShooterSpec = AESettings.groupShooterSpecialist;
+            bool prevHunter = AESettings.groupHunterAsShooter;
+            bool prevPacifist = AESettings.groupWorkerPacifist;
+            bool prevProdSpec = AESettings.groupWorkerProductionSpecialist;
+            bool prevMoralist = AESettings.groupTradeMoralist;
             int prevFront = AESettings.groupFrontSkillMin;
             int prevShooter = AESettings.groupShooterSkillMin;
             int prevTrade = AESettings.groupTradeSkillMin;
             int prevWorker = AESettings.groupWorkerMaxCombatSkill;
             bool prevPassion = AESettings.groupPassionPriority;
-            bool prevBrawler = AESettings.groupBrawlerTraitFront;
-            bool prevHunter = AESettings.groupHunterAsShooter;
 
             DrawCheckbox(l, "AE_GroupByRole", ref AESettings.groupColonistBarByRole, "AE_TT_GroupByRole");
+            DrawRuleText(l, "AE_CFG_RoleGroup_ForceHint".Translate());
+
+            // 前排：食尸鬼 / 格斗者特质 / 格斗专家职位
+            DrawRoleTitle(l, "AE_RoleGroup_Front", ColorRoleFront);
+            bool[] front = { AESettings.groupFrontGhoul, AESettings.groupBrawlerTraitFront, AESettings.groupFrontMeleeSpecialist };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_Front_Ghoul", "AE_CFG_Front_Brawler", "AE_CFG_Front_MeleeSpecialist" },
+                front,
+                new[] { "AE_TT_Front_Ghoul", "AE_TT_Front_Brawler", "AE_TT_Front_MeleeSpecialist" });
+            AESettings.groupFrontGhoul = front[0];
+            AESettings.groupBrawlerTraitFront = front[1];
+            AESettings.groupFrontMeleeSpecialist = front[2];
+
+            // 射手：射击专家职位 / 猎人
+            DrawRoleTitle(l, "AE_RoleGroup_Shooter", ColorRoleShooter);
+            bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupHunterAsShooter };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_Hunter" },
+                shooter,
+                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_Hunter" });
+            AESettings.groupShooterSpecialist = shooter[0];
+            AESettings.groupHunterAsShooter = shooter[1];
+
+            // 工人：无法施暴 / 生产专家职位
+            DrawRoleTitle(l, "AE_RoleGroup_Worker", ColorRoleWorker);
+            bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_Worker_Pacifist", "AE_CFG_Worker_ProductionSpecialist" },
+                worker,
+                new[] { "AE_TT_Worker_Pacifist", "AE_TT_Worker_ProductionSpecialist" });
+            AESettings.groupWorkerPacifist = worker[0];
+            AESettings.groupWorkerProductionSpecialist = worker[1];
+
+            // 贸易：道德家职位
+            DrawRoleTitle(l, "AE_RoleGroup_Trade", ColorRoleTrade);
+            bool[] trade = { AESettings.groupTradeMoralist };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_Trade_Moralist" },
+                trade,
+                new[] { "AE_TT_Trade_Moralist" });
+            AESettings.groupTradeMoralist = trade[0];
+
+            // 技能/兴趣补充判定：强制条件未命中时的兜底规则
+            DrawRuleText(l, "AE_CFG_RoleGroup_SkillTitle".Translate());
 
             DrawIntSlider(l, "AE_CFG_GroupFrontSkillMin", ref AESettings.groupFrontSkillMin, 5, 18, "AE_TT_GroupFrontSkillMin");
             DrawIntSlider(l, "AE_CFG_GroupShooterSkillMin", ref AESettings.groupShooterSkillMin, 5, 18, "AE_TT_GroupShooterSkillMin");
@@ -195,8 +252,6 @@ namespace AutoEverything.UI
                 "AE_TT_GroupWorkerMaxCombatSkill");
 
             DrawCheckbox(l, "AE_CFG_GroupPassionPriority", ref AESettings.groupPassionPriority, "AE_TT_GroupPassionPriority");
-            DrawCheckbox(l, "AE_CFG_GroupBrawlerTraitFront", ref AESettings.groupBrawlerTraitFront, "AE_TT_GroupBrawlerTraitFront");
-            DrawCheckbox(l, "AE_CFG_GroupHunterAsShooter", ref AESettings.groupHunterAsShooter, "AE_TT_GroupHunterAsShooter");
 
             // 判定准则说明：数值随滑块实时变化，玩家可对照调整
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Order".Translate());
@@ -208,15 +263,21 @@ namespace AutoEverything.UI
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Drag".Translate());
             EndSection(l);
 
-            // 分组开关或任一判定阈值变化 → 立即重排殖民者栏
+            // 分组开关或任一判定条件变化 → 立即重排殖民者栏
             if (prevGroup != AESettings.groupColonistBarByRole
+                || prevFrontGhoul != AESettings.groupFrontGhoul
+                || prevBrawler != AESettings.groupBrawlerTraitFront
+                || prevMeleeSpec != AESettings.groupFrontMeleeSpecialist
+                || prevShooterSpec != AESettings.groupShooterSpecialist
+                || prevHunter != AESettings.groupHunterAsShooter
+                || prevPacifist != AESettings.groupWorkerPacifist
+                || prevProdSpec != AESettings.groupWorkerProductionSpecialist
+                || prevMoralist != AESettings.groupTradeMoralist
                 || prevFront != AESettings.groupFrontSkillMin
                 || prevShooter != AESettings.groupShooterSkillMin
                 || prevTrade != AESettings.groupTradeSkillMin
                 || prevWorker != AESettings.groupWorkerMaxCombatSkill
-                || prevPassion != AESettings.groupPassionPriority
-                || prevBrawler != AESettings.groupBrawlerTraitFront
-                || prevHunter != AESettings.groupHunterAsShooter)
+                || prevPassion != AESettings.groupPassionPriority)
             {
                 AESettings.OnGroupByRoleChanged();
             }
@@ -556,6 +617,53 @@ namespace AutoEverything.UI
             GUI.color = Color.white;
             Text.Font = GameFont.Small;
             l.Gap(2f);
+        }
+
+        /// <summary>
+        /// 角色标题：左侧彩色竖条 + 角色名（与殖民者栏分组框颜色一致）。
+        /// </summary>
+        private static void DrawRoleTitle(Listing_Standard l, string labelKey, Color color)
+        {
+            Rect rect = l.GetRect(20f);
+            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 4f, 4f, 12f), color);
+
+            bool prevWrap = Text.WordWrap;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = color;
+            Widgets.Label(new Rect(rect.x + 8f, rect.y, rect.width - 8f, rect.height), labelKey.Translate());
+            GUI.color = Color.white;
+            Text.Anchor = TextAnchor.UpperLeft;
+            Text.WordWrap = prevWrap;
+        }
+
+        /// <summary>
+        /// 单行多列勾选框：用于"逐角色强制定位条件"，比逐行 Checkbox 节省垂直空间。
+        /// 关闭换行避免中文标签换行撑乱列宽；返回值通过 values 数组回写。
+        /// </summary>
+        private static void DrawCheckboxRow(Listing_Standard l, string[] labelKeys, bool[] values,
+            string[] tooltipKeys)
+        {
+            Rect row = l.GetRect(24f);
+            int count = labelKeys.Length;
+            const float gap = 8f;
+            float width = (row.width - gap * (count - 1)) / count;
+
+            for (int i = 0; i < count; i++)
+            {
+                Rect rect = new Rect(row.x + i * (width + gap), row.y, width, 24f);
+                bool prevWrap = Text.WordWrap;
+                Text.WordWrap = false;
+                bool prev = values[i];
+                Widgets.CheckboxLabeled(rect, labelKeys[i].Translate(), ref values[i]);
+                Text.WordWrap = prevWrap;
+
+                if (tooltipKeys != null && i < tooltipKeys.Length && tooltipKeys[i] != null)
+                {
+                    TooltipHandler.TipRegion(rect, tooltipKeys[i].Translate());
+                }
+                if (values[i] != prev) settingsDirty = true;
+            }
         }
 
         /// <summary>

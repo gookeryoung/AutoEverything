@@ -19,9 +19,6 @@ namespace AutoEverything.Core
     /// - PawnMarker.IsHighValue（Harmony Postfix 每帧调用）
     /// - AESettings.ReorderColonistBar 比较器（玩家点排序按钮触发）
     /// - WorkAllocator.AssignServiceWorkType（工作分配周期触发）
-    ///
-    /// 不覆盖：
-    /// - ITab_GearManager 单 Pawn 多字段缓存（涉及 Role/Context/ArmorPref 等多字段，单 Pawn 结构与多 Pawn 字典差异大，保留独立）
     /// </summary>
     internal static class TierCacheService
     {
