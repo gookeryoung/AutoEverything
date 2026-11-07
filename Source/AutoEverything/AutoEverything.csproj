@@ -13,10 +13,18 @@
   <PropertyGroup>
     <RimWorldPath>e:\SteamLibrary\steamapps\common\RimWorld</RimWorldPath>
     <HarmonyPath>e:\SteamLibrary\steamapps\workshop\content\294100\2009463077\Current\Assemblies</HarmonyPath>
+    <RimWorldManagedPath>$(RimWorldPath)\RimWorldWin64_Data\Managed</RimWorldManagedPath>
   </PropertyGroup>
 
-  <!-- CI 模式：用 Krafs.Rimworld.Ref NuGet 包提供 RimWorld DLL（无需本地游戏文件） -->
-  <ItemGroup Condition="'$(CI)' == 'true'">
+  <!-- 引用模式自动探测：本地游戏 DLL 缺失（精简安装/CI 环境）时回退到 Krafs NuGet 包，
+       避免开发者终端未设 CI 时整包类型解析失败（CS0246） -->
+  <PropertyGroup>
+    <UseLocalRimWorldRefs Condition="'$(CI)' != 'true' AND Exists('$(RimWorldManagedPath)\Assembly-CSharp.dll')">true</UseLocalRimWorldRefs>
+    <UseLocalRimWorldRefs Condition="'$(UseLocalRimWorldRefs)' == ''">false</UseLocalRimWorldRefs>
+  </PropertyGroup>
+
+  <!-- NuGet 模式：用 Krafs.Rimworld.Ref 包提供 RimWorld DLL（无需本地游戏文件） -->
+  <ItemGroup Condition="'$(UseLocalRimWorldRefs)' != 'true'">
     <PackageReference Include="Krafs.Rimworld.Ref" Version="1.6.*">
       <Private>false</Private>
     </PackageReference>
@@ -26,7 +34,7 @@
   </ItemGroup>
 
   <!-- 本地模式：用 HintPath 引用本地 RimWorld DLL -->
-  <ItemGroup Condition="'$(CI)' != 'true'">
+  <ItemGroup Condition="'$(UseLocalRimWorldRefs)' == 'true'">
     <Reference Include="Assembly-CSharp">
       <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>

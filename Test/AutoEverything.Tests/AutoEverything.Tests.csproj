@@ -18,12 +18,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- 主项目依赖 UnityEngine（HarmonyPatches 等），测试运行时需传递加载 -->
-    <Reference Condition="'$(CI)' != 'true'" Include="UnityEngine.CoreModule">
+    <!-- 主项目依赖 UnityEngine（HarmonyPatches 等），测试运行时需传递加载；
+         本地 DLL 缺失时由 Krafs.Rimworld.Ref 传递引用（仅编译，不运行测试） -->
+    <Reference Condition="'$(CI)' != 'true' AND Exists('$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll')" Include="UnityEngine.CoreModule">
       <HintPath>$(RimWorldPath)\RimWorldWin64_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- CI 模式：UnityEngine 由 Krafs.Rimworld.Ref 传递引用（仅编译，不运行测试） -->
   </ItemGroup>
 
   <ItemGroup>
