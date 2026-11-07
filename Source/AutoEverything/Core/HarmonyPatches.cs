@@ -109,6 +109,31 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] PawnUIOverlay 补丁失败: " + ex.Message);
             }
 
+            // ColonistBar.MarkColonistsDirty / CheckRecacheEntries 补丁：殖民者栏按角色分组
+            // MarkColonistsDirty Postfix 置脏标记；CheckRecacheEntries Postfix 消费并重编 Entry.group，
+            // 使原生分组框绘制（DrawGroupFrame）与组内拖拽按角色生效。详见 ColonistBarRoleGrouping。
+            // CheckRecacheEntries 为私有方法，用 AccessTools 按名解析；缺失时降级为原生分组
+            try
+            {
+                var recacheMethod = AccessTools.Method(typeof(ColonistBar), "CheckRecacheEntries");
+                if (recacheMethod != null)
+                {
+                    harmony.Patch(recacheMethod,
+                        postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.TryApply))
+                        { priority = Priority.Last });
+                    harmony.Patch(AccessTools.Method(typeof(ColonistBar), nameof(ColonistBar.MarkColonistsDirty)),
+                        postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.NotifyDirty)));
+                }
+                else
+                {
+                    Log.Warning("[AutoEverything] ColonistBar.CheckRecacheEntries 未找到，殖民者栏角色分组降级为无显示");
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[AutoEverything] ColonistBar 分组补丁失败: " + ex.Message);
+            }
+
             // PawnNameColorUtility.PawnNameColorOf 补丁：按评级覆盖殖民者名字颜色
             // SSS/SS/S=亮紫 / A/B=白 / C/D=灰；X 档保持原生颜色
             // 仅对玩家阵营人类 like 殖民者生效（非囚犯/非奴隶/非精神状态），保留原生身份颜色
@@ -132,7 +157,7 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] PawnNameColorUtility 补丁失败: " + ex.Message);
             }
 
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (DoSingleTick 入口 + ColonistBar 角色图标 + 地图高价值标记 + 名字评级着色)");
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (DoSingleTick 入口 + ColonistBar 角色图标 + 殖民者栏角色分组 + 地图高价值标记 + 名字评级着色)");
         }
 
         /// <summary>

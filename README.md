@@ -178,6 +178,15 @@
 
 **持久化**：原名字典 `tierTagOriginals` 通过 `ae_tierTagOriginals` 存档（`List<string>` 格式 `thingIDNumber|原Nick`），重启后仍能恢复原名，避免误剥离玩家手动改的 Nick。
 
+### 殖民者栏按角色分组（Mod 选项）
+
+在 Mod 选项 → "殖民者栏按角色分组" 里开关，`AESettings.groupColonistBarByRole` 字段，存档键 `ae_groupColonistBarByRole`，默认关闭。
+
+- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同角色条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`）
+- **开启时**：自动按"角色+评级"重排（同角色相邻是分组连续的前提）；关闭时恢复原生按地图/远行队分组
+- **性能**：`Entries` getter 每帧多次调用 `CheckRecacheEntries`，用 `MarkColonistsDirty` Postfix 置脏 + Postfix 消费一次的标记位，保证 `DetectRole` 不进入每帧路径
+- **兼容**：跨地图/远行队边界保留原生分隔（分组键 = 原生 group + 角色序）；多 MOD 同方法补丁 `Priority.Last`
+
 ### 战斗价值公式（玩家可调）
 
 ```
@@ -571,6 +580,7 @@ Source/AutoEverything/
 │   ├── AESettings.cs                      # ModSettings 持久化 + 设置窗口（主 partial）
 │   ├── AESettings.TierTag.cs              # AESettings partial：评级标签应用/清除/排序
 │   ├── ColonistBarSortMode.cs             # 殖民者栏排序枚举
+│   ├── ColonistBarRoleGrouping.cs         # 殖民者栏按角色分组（Entry.group 重编 + 绘制位置重算）
 │   ├── DLCCompat.cs                       # DLC API 安全包装（IsGhoul）
 │   ├── AEDebug.cs                         # AEDebug 日志工具
 │   ├── PawnSuitabilityChecker.cs          # Pawn 适配性过滤（仅 Humanlike 通过）

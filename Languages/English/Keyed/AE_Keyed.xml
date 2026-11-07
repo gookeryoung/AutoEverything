@@ -60,6 +60,12 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_SortMode_ByRoleThenTier>By Role+Tier</AE_SortMode_ByRoleThenTier>
   <AE_SortMode_ByCombatValue>By Combat Value</AE_SortMode_ByCombatValue>
 
+  <!-- Colonist bar grouping by role (Mod settings) -->
+  <AE_GroupByRole>Group colonist bar by role</AE_GroupByRole>
+  <AE_TT_GroupByRole>Split colonist bar portraits into separate groups by role (Brawler/Shooter/Doctor/Worker...). Pawns inside a group frame can be reordered together.
+When enabled, the bar is automatically sorted by Role+Tier; when disabled, vanilla map/caravan grouping is restored.
+Keep sort mode at "By Role+Tier" to avoid interleaved roles scattering the groups.</AE_TT_GroupByRole>
+
   <!-- Custom tier override -->
   <AE_ReallocRules_CustomTier>Custom Tier Code</AE_ReallocRules_CustomTier>
   <AE_ReallocRules_CustomTier_Desc>Manually assign a tier for this colonist, bypassing auto formula. In DEBUG mode the label shows the code (e.g. S#John).</AE_ReallocRules_CustomTier_Desc>

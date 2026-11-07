@@ -55,6 +55,10 @@ namespace AutoEverything.Core
         // 默认 ByTierThenValue：按评级 SABCDX 从左到右，最符合评级前缀的视觉直觉
         public static ColonistBarSortMode defaultSortMode = ColonistBarSortMode.ByTierThenValue;
 
+        // 殖民者栏按角色分组：把头像按角色定位（格斗者/射手/医生/工人…）分成独立分组，
+        // 复用原生分组框/组内拖拽，便于统一管理。默认关闭——改变殖民者栏视觉布局，玩家主动开启
+        public static bool groupColonistBarByRole = false;
+
         // 设置窗口滚动位置：内容超出窗口高度时使用
         private static Vector2 settingsScrollPos = Vector2.zero;
 
@@ -80,6 +84,9 @@ namespace AutoEverything.Core
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
+
+            // 殖民者栏按角色分组
+            Scribe_Values.Look(ref groupColonistBarByRole, "ae_groupColonistBarByRole", false);
 
             // 自定义评级：以 List<string> 作为存档载体（"档次#名字" 格式）
             // 存档加载后需重建运行时字典
@@ -241,7 +248,7 @@ namespace AutoEverything.Core
         {
             // 紧凑布局：单行 label+value + 单行 slider 的双行模式
             // 估算内容高度：基础段 + cv 权重 7 项 + 排序按钮段 + AutoCarry 勾选框 1 项
-            float contentHeight = 742f;
+            float contentHeight = 772f;
             Rect scrollRect = new Rect(inRect.x, inRect.y, inRect.width, inRect.height);
             Rect viewRect = new Rect(0f, 0f, inRect.width - 16f, contentHeight);
 
@@ -298,9 +305,38 @@ namespace AutoEverything.Core
             }
             TooltipHandler.TipRegion(sortBtnRect, "AE_TT_DefaultSortMode".Translate());
 
+            // 殖民者栏按角色分组：勾选后按角色重排并分组显示
+            bool prevGroupByRole = groupColonistBarByRole;
+            l.CheckboxLabeled("AE_GroupByRole".Translate(), ref groupColonistBarByRole,
+                "AE_TT_GroupByRole".Translate());
+            if (prevGroupByRole != groupColonistBarByRole)
+            {
+                OnGroupByRoleChanged();
+            }
+
             l.End();
 
             Widgets.EndScrollView();
+        }
+
+        /// <summary>
+        /// "殖民者栏按角色分组"开关变化回调：
+        /// - 开启：先按角色+评级重排 displayOrder（同角色相邻是分组连续的前提），
+        ///   ReorderColonistBar 内部已调 MarkColonistsDirty 触发重建分组
+        /// - 关闭：仅 MarkColonistsDirty，原生重建后保留原生地图/远行队分组
+        /// </summary>
+        private static void OnGroupByRoleChanged()
+        {
+            if (Current.ProgramState != ProgramState.Playing || Find.ColonistBar == null) return;
+
+            if (groupColonistBarByRole)
+            {
+                ReorderColonistBar(ComparePawnByRoleThenValueDesc);
+            }
+            else
+            {
+                Find.ColonistBar.MarkColonistsDirty();
+            }
         }
 
         /// <summary>

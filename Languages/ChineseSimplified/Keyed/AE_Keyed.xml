@@ -60,6 +60,12 @@
   <AE_SortMode_ByRoleThenTier>按角色+评级</AE_SortMode_ByRoleThenTier>
   <AE_SortMode_ByCombatValue>按战斗价值</AE_SortMode_ByCombatValue>
 
+  <!-- 殖民者栏按角色分组（Mod 选项） -->
+  <AE_GroupByRole>殖民者栏按角色分组</AE_GroupByRole>
+  <AE_TT_GroupByRole>把殖民者栏头像按角色定位（格斗者/射手/医生/工人…）分成独立分组，分组框内可整体拖拽管理。
+开启时自动按"角色+评级"重排；关闭后恢复原生按地图/远行队分组。
+建议排序方式保持"按角色+评级"，避免同角色头像交错导致分组零散。</AE_TT_GroupByRole>
+
   <!-- 自定义评级识别码 -->
   <AE_ReallocRules_CustomTier>自定义评级识别码</AE_ReallocRules_CustomTier>
   <AE_ReallocRules_CustomTier_Desc>为该殖民者手动指定档次，跳过自动公式计算。DEBUG 模式下名字后会显示识别码（如 S#王五）。</AE_ReallocRules_CustomTier_Desc>
