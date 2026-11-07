@@ -191,9 +191,9 @@
 
 - **五类分组**：前排 → 射手 → 工人 → 贸易 → 其他（`RoleGroup`），判定核心 `RoleDetector.EvaluateRoleGroupCore`（纯函数，便于测试）
 - **强制判定勾选列**：前排（食尸鬼 / 格斗者特质 / 格斗专家职位）、射手（射击专家职位 / 猎人）、工人（无法施暴 / 生产专家职位）、贸易（道德家职位）；勾选后符合条件的殖民者直接归入对应角色，优先于技能/兴趣判定，全部默认勾选
-- **图标与边界**：每个分组框左上角叠加"角色图标 + 中文文字"标签（`DrawGroupFrame` Postfix），并用角色专属颜色描边（前排红 / 射手黄 / 工人绿 / 贸易紫 / 其他灰），便于快速区分
+- **图标与边界**：每个分组框左上角叠加"角色图标 + 中文文字"标签（`DrawGroupFrame` Postfix），并用角色专属颜色描边（前排红 / 射手黄 / 工人绿 / 贸易紫 / 其他灰），便于快速区分。分组框可见顶边下方预留固定头部带（标签 18 + 间距），殖民者栏整体下移相应高度，保证头像纹理不探出分组框顶部；分组过窄时标签自动收缩、只显示文字
 - **右键拖拽换序**：右键按住分组框的标签或 5px 边框带拖动到另一分组即可调整顺序；顺序写入 `ae_roleGroupOrder`，重新分组与"按角色+评级"排序都按新顺序执行（头像区域保留原生右键菜单）
-- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`）
+- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙与缩放，并按头像纹理上探量整体下移绘制位置；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`，布局计算见纯函数 `RoleGroupLayout.cs`）
 - **开启时**：自动按"角色+评级"重排（同分组相邻是分组连续的前提）；关闭时恢复原生按地图/远行队分组
 - **性能**：`Entries` getter 每帧多次调用 `CheckRecacheEntries`，用 `MarkColonistsDirty` Postfix 置脏 + Postfix 消费一次的标记位，保证 `DetectRoleGroup` 不进入每帧路径
 - **兼容**：跨地图/远行队边界保留原生分隔（分组键 = 原生 group + 角色序）；多 MOD 同方法补丁 `Priority.Last`
