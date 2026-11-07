@@ -60,11 +60,11 @@ By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may
   <AE_SortMode_ByRoleThenTier>By Role+Tier</AE_SortMode_ByRoleThenTier>
   <AE_SortMode_ByCombatValue>By Combat Value</AE_SortMode_ByCombatValue>
 
-  <!-- Colonist bar grouping by role (Mod settings) -->
+  <!-- Colonist bar grouping by role (Auto panel → Auto Tier) -->
   <AE_GroupByRole>Group colonist bar by role</AE_GroupByRole>
-  <AE_TT_GroupByRole>Split colonist bar portraits into separate groups by role (Brawler/Shooter/Doctor/Worker...). Pawns inside a group frame can be reordered together.
+  <AE_TT_GroupByRole>Split colonist bar portraits into five role groups (Front/Shooter/Worker/Trade/Other). Pawns inside a group frame can be reordered together.
 When enabled, the bar is automatically sorted by Role+Tier; when disabled, vanilla map/caravan grouping is restored.
-Keep sort mode at "By Role+Tier" to avoid interleaved roles scattering the groups.</AE_TT_GroupByRole>
+The thresholds below decide which group each colonist belongs to.</AE_TT_GroupByRole>
 
   <!-- Custom tier override -->
   <AE_ReallocRules_CustomTier>Custom Tier Code</AE_ReallocRules_CustomTier>
@@ -248,4 +248,28 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_cvSkillWeight>Weight of overall skill level in the combat value formula.</AE_TT_cvSkillWeight>
   <AE_TT_cvPassionMult>Multiplier applied per passion level (none/single/double) in the combat value formula.</AE_TT_cvPassionMult>
   <AE_TT_cvTraitBonus>Combat-related trait bonus or penalty in the combat value formula.</AE_TT_cvTraitBonus>
+  <!-- Auto Tier: colonist bar five-role grouping rules -->
+  <AE_CFG_Section_RoleGroup>Colonist bar role groups</AE_CFG_Section_RoleGroup>
+  <AE_CFG_GroupFrontSkillMin>Front: melee threshold</AE_CFG_GroupFrontSkillMin>
+  <AE_CFG_GroupShooterSkillMin>Shooter: shooting threshold</AE_CFG_GroupShooterSkillMin>
+  <AE_CFG_GroupTradeSkillMin>Trade: social threshold</AE_CFG_GroupTradeSkillMin>
+  <AE_CFG_GroupWorkerMaxCombatSkill>Worker: combat skill cap</AE_CFG_GroupWorkerMaxCombatSkill>
+  <AE_CFG_GroupPassionPriority>Passion priority</AE_CFG_GroupPassionPriority>
+  <AE_CFG_GroupBrawlerTraitFront>Brawler trait → Front</AE_CFG_GroupBrawlerTraitFront>
+  <AE_CFG_GroupHunterAsShooter>Hunters → Shooter</AE_CFG_GroupHunterAsShooter>
+
+  <AE_TT_GroupFrontSkillMin>Melee skill at or above this value and higher than shooting puts the pawn in Front.</AE_TT_GroupFrontSkillMin>
+  <AE_TT_GroupShooterSkillMin>Shooting skill at or above this value and higher than melee puts the pawn in Shooter.</AE_TT_GroupShooterSkillMin>
+  <AE_TT_GroupTradeSkillMin>Social skill at or above this value and not lower than shooting/melee puts the pawn in Trade.</AE_TT_GroupTradeSkillMin>
+  <AE_TT_GroupWorkerMaxCombatSkill>Both shooting and melee below this value puts the pawn in Worker.</AE_TT_GroupWorkerMaxCombatSkill>
+  <AE_TT_GroupPassionPriority>Melee passion without shooting passion → Front; shooting passion without melee passion → Shooter. Off = skill levels only.</AE_TT_GroupPassionPriority>
+  <AE_TT_GroupBrawlerTraitFront>Pawns with the Brawler trait are always put in Front.</AE_TT_GroupBrawlerTraitFront>
+  <AE_TT_GroupHunterAsShooter>Pawns assigned to hunting at priority 1 are put in Shooter.</AE_TT_GroupHunterAsShooter>
+
+  <AE_CFG_RoleGroupRule_Order>Group order: Front → Shooter → Worker → Trade → Other</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Front>• Front: Brawler trait; or melee ≥ {0} and higher than shooting; or melee passion without shooting passion</AE_CFG_RoleGroupRule_Front>
+  <AE_CFG_RoleGroupRule_Shooter>• Shooter: shooting ≥ {0} and higher than melee; or shooting passion without melee passion; or assigned hunting</AE_CFG_RoleGroupRule_Shooter>
+  <AE_CFG_RoleGroupRule_Trade>• Trade: social ≥ {0} and not lower than shooting/melee</AE_CFG_RoleGroupRule_Trade>
+  <AE_CFG_RoleGroupRule_Worker>• Worker: violent work disabled; or shooting and melee both below {0}</AE_CFG_RoleGroupRule_Worker>
+  <AE_CFG_RoleGroupRule_Other>• Other: anything not matched above (e.g. ideoligion leaders). Disabled switches remove their rule from evaluation.</AE_CFG_RoleGroupRule_Other>
 </LanguageData>

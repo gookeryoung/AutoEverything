@@ -26,11 +26,11 @@
 
 | 标签页 | 主要判定配置项 |
 |--------|----------------|
-| **人员自动** | 评级开关、A 档（最少双火 2 / 兴趣合计 3）、B 档（最少双火 1 / 兴趣合计 3）、工作狂+神经质升 SS/SSS 所需专业双火数（2/3）、特殊天赋直接 S、沉鱼落雁+社交双火直接 S、配偶评级豁免及最低档位、战斗价值公式权重、立即评级/清除评级 |
+| **人员自动** | 评级开关、A 档（最少双火 2 / 兴趣合计 3）、B 档（最少双火 1 / 兴趣合计 3）、工作狂+神经质升 SS/SSS 所需专业双火数（2/3）、特殊天赋直接 S、沉鱼落雁+社交双火直接 S、配偶评级豁免及最低档位、**殖民者栏五类角色分组及判定阈值**、战斗价值公式权重、立即评级/清除评级 |
 | **工作自动** | 工作自动开关、每人最多核心工作数（默认 3）、技能保底高级/中级阈值（默认 8/12 → 优先级 3/2）、研究员搬运清洁降级、重配周期（默认 60s）、战斗中暂停自动、立即重配工作 |
 | **高价值自动** | 高价值标记开关、高价值档位阈值（默认 S）、扫描范围（所有派系 / 仅玩家阵营）、发现时弹消息、立即扫描标记 |
 | **携带用药** | 自动携带开关、携带食物数量（默认 3）、血清数量（默认 1）、携带周期（默认 100s）、用药方案开关、立即执行 |
-| **通用调试** | 主开关（关闭后所有自动模块暂停执行）、调试日志、殖民者栏默认排序、按角色分组 |
+| **通用调试** | 主开关（关闭后所有自动模块暂停执行）、调试日志、殖民者栏默认排序 |
 
 > 默认值与原硬编码规则完全一致，未修改配置时行为不变。上述参数保存在 ModSettings，存档键统一 `ae_` 前缀。
 
@@ -168,23 +168,22 @@
 |---------|--------|------|
 | 不排序 | — | 仅应用前缀，保留殖民者栏原顺序 |
 | 按评级+价值（推荐） | `ComparePawnByTierThenValueDesc` | 先按 `CombatTier` 降序 SSS→SS→S→A→B→C→D→X，同档内按 `ComputeCombatValue` 降序 |
-| 按角色+评级 | `ComparePawnByRoleThenValueDesc` | 按角色分组，同角色内按评级降序 |
+| 按角色+评级 | `ComparePawnByRoleThenValueDesc` | 按五类角色分组（前排→射手→工人→贸易→其他），同组内按评级降序 |
 | 按战斗价值 | `ComparePawnByCombatValueOnlyDesc` | 纯按 `ComputeCombatValue` 降序，不区分评级（高技能和平主义者可能挤占前列） |
 
 **按评级+价值的设计意图**：和平主义者（X 档）即使技能高也排在最右，避免挤占 S/A 档位置。
 
-**角色排序优先级**（`GetRoleOrder`，用于"按角色+评级"模式）：
+**角色分组顺序**（`GetRoleGroupOrder`，用于"按角色+评级"模式与角色分组）：
 
-| 顺序 | 角色 | 说明 |
-|------|------|------|
-| 0 | Brawler | 前排格斗者 |
-| 1 | Shooter | 后排射手 |
-| 2 | Doctor | 医生 |
-| 3 | Worker | 工人 |
-| 4 | Pacifist | 和平主义者 |
-| 5 | Hunter | 狩猎者 |
-| 6 | Leader | 意识形态领袖 |
-| 99 | Default | 未分类 |
+| 顺序 | 分组 | 默认判定条件 |
+|------|------|--------------|
+| 0 | 前排 | 格斗者特质；或近战 ≥ 8 且高于射击；或近战有火且射击无火 |
+| 1 | 射手 | 射击 ≥ 8 且高于近战；或射击有火且近战无火；或指派狩猎（优先级 1） |
+| 2 | 工人 | 无法施暴；或射击与近战均低于 5 |
+| 3 | 贸易 | 社交 ≥ 8，且不低于射击与近战 |
+| 4 | 其他 | 未命中上述规则者（含意识形态领袖等） |
+
+> 上述阈值与"兴趣优先/格斗者特质/猎人归射手"三个开关均可在底部【自动】→ 人员自动面板调整；面板下方实时显示当前生效的判定准则。原 `GetRoleOrder`（8 类细分角色）保留用于徽章/护甲/狩猎判定。
 
 **防双重前缀**：
 - `CombatEvaluator.GetPawnLookupName` 会自动剥离 Nick 上的评级前缀返回纯净名，确保自定义评级查询仍能命中（玩家设置时用的是原名），面板"当前档次"行拼接出 `S#王五` 而非 `S#S#王五`
@@ -192,13 +191,14 @@
 
 **持久化**：原名字典 `tierTagOriginals` 通过 `ae_tierTagOriginals` 存档（`List<string>` 格式 `thingIDNumber|原Nick`），重启后仍能恢复原名，避免误剥离玩家手动改的 Nick。
 
-### 殖民者栏按角色分组（Mod 选项）
+### 殖民者栏按角色分组（底部【自动】→ 人员自动）
 
-在 Mod 选项 → "殖民者栏按角色分组" 里开关，`AESettings.groupColonistBarByRole` 字段，存档键 `ae_groupColonistBarByRole`，默认关闭。
+在底部【自动】→ "人员自动"标签页的"殖民者栏角色分组"分区开关，`AESettings.groupColonistBarByRole` 字段，存档键 `ae_groupColonistBarByRole`，默认关闭。同分区可调整四类技能阈值与三个判定开关，下方实时显示判定准则。
 
-- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同角色条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`）
-- **开启时**：自动按"角色+评级"重排（同角色相邻是分组连续的前提）；关闭时恢复原生按地图/远行队分组
-- **性能**：`Entries` getter 每帧多次调用 `CheckRecacheEntries`，用 `MarkColonistsDirty` Postfix 置脏 + Postfix 消费一次的标记位，保证 `DetectRole` 不进入每帧路径
+- **五类分组**：前排 → 射手 → 工人 → 贸易 → 其他（`RoleGroup`），判定核心 `RoleDetector.EvaluateRoleGroupCore`（纯函数，便于测试）
+- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`）
+- **开启时**：自动按"角色+评级"重排（同分组相邻是分组连续的前提）；关闭时恢复原生按地图/远行队分组
+- **性能**：`Entries` getter 每帧多次调用 `CheckRecacheEntries`，用 `MarkColonistsDirty` Postfix 置脏 + Postfix 消费一次的标记位，保证 `DetectRoleGroup` 不进入每帧路径
 - **兼容**：跨地图/远行队边界保留原生分隔（分组键 = 原生 group + 角色序）；多 MOD 同方法补丁 `Priority.Last`
 
 ### 战斗价值公式（玩家可调）

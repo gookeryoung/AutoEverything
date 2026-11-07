@@ -9,7 +9,8 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 殖民者栏按角色分组：把殖民者栏头像按角色定位（格斗者/射手/医生/工人…）分成独立分组。
+    /// 殖民者栏按角色分组：把殖民者栏头像按五类角色分组（前排/射手/工人/贸易/其他）。
+    /// 分组判定阈值由【自动】→ 人员自动面板配置，见 RoleDetector.EvaluateRoleGroupCore。
     ///
     /// 原理（基于 RimWorld 1.6 反编译确认）：
     /// - ColonistBar.CheckRecacheEntries（私有）按地图/远行队构建 cachedEntries，
@@ -74,10 +75,10 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 按角色重编 cachedEntries 的 group 并重算绘制位置。
-        /// 分组键 = (原生 group, 角色序)：原生 group 保留地图/远行队边界，
-        /// 同一地图/远行队内相邻的同角色条目合为一个新组。
-        /// 注：同角色条目是否相邻由 displayOrder 排序决定（建议配合"按角色+评级"排序）。
+        /// 按分组重编 cachedEntries 的 group 并重算绘制位置。
+        /// 分组键 = (原生 group, 五类角色序)：原生 group 保留地图/远行队边界，
+        /// 同一地图/远行队内相邻的同分组条目合为一个新组。
+        /// 注：同分组条目是否相邻由 displayOrder 排序决定（建议配合"按角色+评级"排序）。
         /// </summary>
         private static void Apply(ColonistBar bar)
         {
@@ -92,7 +93,7 @@ namespace AutoEverything.Core
                 ColonistBar.Entry entry = entries[i];
                 if (entry.pawn != null)
                 {
-                    int role = RoleDetector.GetRoleOrder(RoleDetector.DetectRole(entry.pawn));
+                    int role = RoleDetector.GetRoleGroupOrder(RoleDetector.DetectRoleGroup(entry.pawn));
                     if (entry.group != prevOrigGroup || role != prevRole) newGroup++;
                     prevOrigGroup = entry.group;
                     prevRole = role;

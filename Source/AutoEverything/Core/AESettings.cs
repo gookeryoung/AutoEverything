@@ -295,14 +295,7 @@ namespace AutoEverything.Core
             }
             TooltipHandler.TipRegion(sortBtnRect, "AE_TT_DefaultSortMode".Translate());
 
-            // 殖民者栏按角色分组：勾选后按角色重排并分组显示
-            bool prevGroupByRole = groupColonistBarByRole;
-            l.CheckboxLabeled("AE_GroupByRole".Translate(), ref groupColonistBarByRole,
-                "AE_TT_GroupByRole".Translate());
-            if (prevGroupByRole != groupColonistBarByRole)
-            {
-                OnGroupByRoleChanged();
-            }
+            // 按角色分组及判定阈值已迁移到游戏内底部【自动】→ 人员自动面板
 
             l.End();
 

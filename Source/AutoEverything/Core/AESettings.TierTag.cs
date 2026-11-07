@@ -207,7 +207,7 @@ namespace AutoEverything.Core
             for (int i = 0; i < pawns.Count; i++)
             {
                 Pawn p = pawns[i];
-                sortRoleCache[p] = RoleDetector.GetRoleOrder(RoleDetector.DetectRole(p));
+                sortRoleCache[p] = RoleDetector.GetRoleGroupOrder(RoleDetector.DetectRoleGroup(p));
             }
 
             pawns.Sort(comparison);
@@ -247,9 +247,9 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 角色优先级 + 评级降序比较器。
-        /// 角色顺序：Brawler(0) → Shooter(1) → Doctor(2) → Worker(3) → Pacifist(4) → Hunter(5) → Leader(6) → Default(99)。
-        /// 同角色内按评级降序（S→A→B→C→D→X），同档内按战斗价值降序。
+        /// 角色分组优先级 + 评级降序比较器。
+        /// 分组顺序：前排(0) → 射手(1) → 工人(2) → 贸易(3) → 其他(4)。
+        /// 同分组内按评级降序（S→A→B→C→D→X），同档内按战斗价值降序。
         /// </summary>
         private static int ComparePawnByRoleThenValueDesc(Pawn a, Pawn b)
         {

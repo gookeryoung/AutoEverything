@@ -33,6 +33,80 @@ namespace AutoEverything.RoleEvaluation
         Light           // 工人/猎人等：强制选轻甲以保持工作效率
     }
 
+    /// <summary>
+    /// 殖民者栏分组用的五类角色（顺序即分组顺序）：
+    /// 前排 → 射手 → 工人 → 贸易 → 其他。
+    /// 与 <see cref="Role"/> 的区别：Role 面向徽章/护甲/狩猎等细分类，
+    /// 本枚举只用于"按角色分组"这一视觉功能，判定阈值可由【自动】面板调整。
+    /// </summary>
+    public enum RoleGroup : byte
+    {
+        Front = 0,   // 前排：近战为主（格斗者特质/近战阈值/近战有火）
+        Shooter = 1, // 射手：远程为主（射击阈值/射击有火/被指派狩猎）
+        Worker = 2,  // 工人：战斗技能偏低或无法施暴
+        Trade = 3,   // 贸易：社交技能突出
+        Other = 4    // 其他：不满足以上规则者
+    }
+
+    /// <summary>
+    /// 角色分组判定输入（纯数据，便于单元测试）。
+    /// </summary>
+    public struct RoleGroupInput
+    {
+        public int Shooting;
+        public int Melee;
+        public int Social;
+        public bool HasBrawlerTrait;
+        public bool MeleePassion;
+        public bool ShootingPassion;
+        public bool IsHunter;
+        public bool ViolentDisabled;
+    }
+
+    /// <summary>
+    /// 角色分组判定阈值（纯数据，不依赖 ModSettings）。
+    /// 生产路径由 FromSettings 读取【自动】面板；测试路径使用 Default。
+    /// </summary>
+    public struct RoleGroupRules
+    {
+        public int FrontSkillMin;
+        public int ShooterSkillMin;
+        public int TradeSkillMin;
+        public int WorkerMaxCombatSkill;
+        public bool PassionPriority;
+        public bool BrawlerTraitToFront;
+        public bool HunterAsShooter;
+
+        public static RoleGroupRules Default
+        {
+            get
+            {
+                RoleGroupRules rules = new RoleGroupRules();
+                rules.FrontSkillMin = 8;
+                rules.ShooterSkillMin = 8;
+                rules.TradeSkillMin = 8;
+                rules.WorkerMaxCombatSkill = 5;
+                rules.PassionPriority = true;
+                rules.BrawlerTraitToFront = true;
+                rules.HunterAsShooter = true;
+                return rules;
+            }
+        }
+
+        public static RoleGroupRules FromSettings()
+        {
+            RoleGroupRules rules = new RoleGroupRules();
+            rules.FrontSkillMin = AESettings.groupFrontSkillMin;
+            rules.ShooterSkillMin = AESettings.groupShooterSkillMin;
+            rules.TradeSkillMin = AESettings.groupTradeSkillMin;
+            rules.WorkerMaxCombatSkill = AESettings.groupWorkerMaxCombatSkill;
+            rules.PassionPriority = AESettings.groupPassionPriority;
+            rules.BrawlerTraitToFront = AESettings.groupBrawlerTraitFront;
+            rules.HunterAsShooter = AESettings.groupHunterAsShooter;
+            return rules;
+        }
+    }
+
     public static class RoleDetector
     {
         /// <summary>
@@ -165,6 +239,87 @@ namespace AutoEverything.RoleEvaluation
             if (AEDebug.IsActive) AEDebug.Log(() => $"[AutoEverything] {AEDebug.Label(pawn)} 角色: {result} ({reason})");
 
             return result;
+        }
+
+        /// <summary>
+        /// 检测 Pawn 所属的五类分组（前排/射手/工人/贸易/其他）。
+        /// 仅用于殖民者栏按角色分组，判定阈值来自【自动】面板。
+        /// </summary>
+        public static RoleGroup DetectRoleGroup(Pawn pawn)
+        {
+            if (pawn?.skills == null || pawn?.story == null) return RoleGroup.Other;
+            if (!pawn.IsColonistPlayerControlled) return RoleGroup.Other;
+
+            RoleGroupInput input = new RoleGroupInput();
+            input.Shooting = pawn.skills.GetSkill(SkillDefOf.Shooting)?.Level ?? 0;
+            input.Melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
+            input.Social = pawn.skills.GetSkill(SkillDefOf.Social)?.Level ?? 0;
+            input.HasBrawlerTrait = pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true;
+
+            // 兴趣优先：用 PassionHelper 兼容 VSE（Apathy 视为无火及以下）
+            Passion shootingPassion = pawn.skills.GetSkill(SkillDefOf.Shooting)?.passion ?? Passion.None;
+            Passion meleePassion = pawn.skills.GetSkill(SkillDefOf.Melee)?.passion ?? Passion.None;
+            input.ShootingPassion = PassionHelper.GetPassionTier(shootingPassion) > PassionHelper.PassionTier.None;
+            input.MeleePassion = PassionHelper.GetPassionTier(meleePassion) > PassionHelper.PassionTier.None;
+
+            input.IsHunter = pawn.workSettings != null && pawn.workSettings.EverWork
+                && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1;
+            input.ViolentDisabled = pawn.WorkTagIsDisabled(WorkTags.Violent);
+
+            return EvaluateRoleGroupCore(input, RoleGroupRules.FromSettings());
+        }
+
+        /// <summary>
+        /// 分组判定纯逻辑核心（不依赖 Pawn/ModSettings，便于单元测试）。
+        /// 规则按优先级自上而下，命中即返回：
+        /// 1. 无法施暴 → 工人（专注后勤）
+        /// 2. 格斗者特质 → 前排（可关闭）
+        /// 3. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
+        /// 4. 近战 ≥ 前排阈值且高于射击 → 前排
+        /// 5. 射击 ≥ 射手阈值且高于近战 → 射手
+        /// 6. 被指派狩猎 → 射手（可关闭）
+        /// 7. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
+        /// 8. 射击与近战均低于工人阈值 → 工人
+        /// 9. 其余 → 其他
+        /// </summary>
+        public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
+        {
+            if (input.ViolentDisabled) return RoleGroup.Worker;
+
+            if (rules.BrawlerTraitToFront && input.HasBrawlerTrait) return RoleGroup.Front;
+
+            if (rules.PassionPriority)
+            {
+                if (input.MeleePassion && !input.ShootingPassion) return RoleGroup.Front;
+                if (input.ShootingPassion && !input.MeleePassion) return RoleGroup.Shooter;
+            }
+
+            if (input.Melee >= rules.FrontSkillMin && input.Melee > input.Shooting) return RoleGroup.Front;
+            if (input.Shooting >= rules.ShooterSkillMin && input.Shooting > input.Melee) return RoleGroup.Shooter;
+
+            if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
+
+            if (input.Social >= rules.TradeSkillMin
+                && input.Social >= input.Shooting
+                && input.Social >= input.Melee)
+            {
+                return RoleGroup.Trade;
+            }
+
+            if (input.Shooting < rules.WorkerMaxCombatSkill && input.Melee < rules.WorkerMaxCombatSkill)
+            {
+                return RoleGroup.Worker;
+            }
+
+            return RoleGroup.Other;
+        }
+
+        /// <summary>
+        /// 分组排序值：分组枚举本身即顺序（前排 0 → 其他 4）。
+        /// </summary>
+        public static int GetRoleGroupOrder(RoleGroup group)
+        {
+            return (int)group;
         }
 
         /// <summary>

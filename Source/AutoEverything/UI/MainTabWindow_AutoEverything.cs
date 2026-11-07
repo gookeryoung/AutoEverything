@@ -220,6 +220,52 @@ namespace AutoEverything.UI
             }
             EndSection(l);
 
+            // ── 殖民者栏五类角色分组（前排/射手/工人/贸易/其他）──
+            BeginSection(l, "AE_CFG_Section_RoleGroup".Translate());
+
+            bool prevGroup = AESettings.groupColonistBarByRole;
+            int prevFront = AESettings.groupFrontSkillMin;
+            int prevShooter = AESettings.groupShooterSkillMin;
+            int prevTrade = AESettings.groupTradeSkillMin;
+            int prevWorker = AESettings.groupWorkerMaxCombatSkill;
+            bool prevPassion = AESettings.groupPassionPriority;
+            bool prevBrawler = AESettings.groupBrawlerTraitFront;
+            bool prevHunter = AESettings.groupHunterAsShooter;
+
+            DrawCheckbox(l, "AE_GroupByRole", ref AESettings.groupColonistBarByRole, "AE_TT_GroupByRole");
+
+            DrawIntSlider(l, "AE_CFG_GroupFrontSkillMin", ref AESettings.groupFrontSkillMin, 5, 18, "AE_TT_GroupFrontSkillMin");
+            DrawIntSlider(l, "AE_CFG_GroupShooterSkillMin", ref AESettings.groupShooterSkillMin, 5, 18, "AE_TT_GroupShooterSkillMin");
+            DrawIntSlider(l, "AE_CFG_GroupTradeSkillMin", ref AESettings.groupTradeSkillMin, 5, 18, "AE_TT_GroupTradeSkillMin");
+            DrawIntSlider(l, "AE_CFG_GroupWorkerMaxCombatSkill", ref AESettings.groupWorkerMaxCombatSkill, 0, 12,
+                "AE_TT_GroupWorkerMaxCombatSkill");
+
+            DrawCheckbox(l, "AE_CFG_GroupPassionPriority", ref AESettings.groupPassionPriority, "AE_TT_GroupPassionPriority");
+            DrawCheckbox(l, "AE_CFG_GroupBrawlerTraitFront", ref AESettings.groupBrawlerTraitFront, "AE_TT_GroupBrawlerTraitFront");
+            DrawCheckbox(l, "AE_CFG_GroupHunterAsShooter", ref AESettings.groupHunterAsShooter, "AE_TT_GroupHunterAsShooter");
+
+            // 判定准则说明：数值随滑块实时变化，玩家可对照调整
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Order".Translate());
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Front".Translate(AESettings.groupFrontSkillMin));
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Shooter".Translate(AESettings.groupShooterSkillMin));
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Trade".Translate(AESettings.groupTradeSkillMin));
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Worker".Translate(AESettings.groupWorkerMaxCombatSkill));
+            DrawRuleText(l, "AE_CFG_RoleGroupRule_Other".Translate());
+            EndSection(l);
+
+            // 分组开关或任一判定阈值变化 → 立即重排殖民者栏
+            if (prevGroup != AESettings.groupColonistBarByRole
+                || prevFront != AESettings.groupFrontSkillMin
+                || prevShooter != AESettings.groupShooterSkillMin
+                || prevTrade != AESettings.groupTradeSkillMin
+                || prevWorker != AESettings.groupWorkerMaxCombatSkill
+                || prevPassion != AESettings.groupPassionPriority
+                || prevBrawler != AESettings.groupBrawlerTraitFront
+                || prevHunter != AESettings.groupHunterAsShooter)
+            {
+                AESettings.OnGroupByRoleChanged();
+            }
+
             BeginSection(l, "AE_CombatValueWeights".Translate());
 
             DrawFloatSlider(l, "AE_cvSkillWeight", ref AESettings.cvSkillWeight, 0.1f, 3.0f, "F2", "AE_TT_cvSkillWeight");
@@ -365,14 +411,6 @@ namespace AutoEverything.UI
                 Find.WindowStack.Add(new FloatMenu(options));
             }
             TooltipHandler.TipRegion(sortRect, "AE_TT_DefaultSortMode".Translate());
-
-            // 按角色分组：勾选后立即按角色重排分组，取消恢复原生分组
-            bool prevGroup = AESettings.groupColonistBarByRole;
-            DrawCheckbox(l, "AE_GroupByRole", ref AESettings.groupColonistBarByRole, "AE_TT_GroupByRole");
-            if (prevGroup != AESettings.groupColonistBarByRole)
-            {
-                AESettings.OnGroupByRoleChanged();
-            }
             EndSection(l);
 
             l.Gap(6f);
@@ -501,6 +539,21 @@ namespace AutoEverything.UI
                 Find.WindowStack.Add(new FloatMenu(options));
             }
             if (tooltipKey != null) TooltipHandler.TipRegion(rect, tooltipKey.Translate());
+        }
+
+        /// <summary>
+        /// 判定准则说明文字：灰色小字，按内容自动换行并预留高度（长文本不截断）。
+        /// </summary>
+        private static void DrawRuleText(Listing_Standard l, string text)
+        {
+            Text.Font = GameFont.Tiny;
+            GUI.color = ColorLabelGray;
+            float height = Text.CalcHeight(text, l.ColumnWidth);
+            Rect rect = l.GetRect(height);
+            Widgets.Label(rect, text);
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+            l.Gap(2f);
         }
 
         /// <summary>
