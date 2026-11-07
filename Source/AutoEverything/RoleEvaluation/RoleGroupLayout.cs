@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace AutoEverything.RoleEvaluation
 {
     /// <summary>
@@ -15,6 +17,48 @@ namespace AutoEverything.RoleEvaluation
     /// </summary>
     public static class RoleGroupLayout
     {
+        /// <summary>
+        /// "无角色"哨兵：空地图占位条目没有 pawn，不参与角色合并，各自独立成组。
+        /// 合法角色序为 0..4，不会与该值冲突。
+        /// </summary>
+        public const int NoRoleOrder = int.MinValue;
+
+        /// <summary>
+        /// 计算每个条目重编后的 group id，返回组数（最大组 id + 1）。
+        ///
+        /// 规则与原生一致：原生 group 变化（跨地图/远行队）、角色序变化或空占位条目都会开新组。
+        /// 返回的组数必须覆盖所有写入的 id —— 原版 CalculateColonistsInGroup 以 group 为
+        /// 下标取数组，组数偏小会直接数组越界，进而每帧 OnGUI 抛异常（表现为屏幕闪烁）。
+        /// </summary>
+        /// <param name="origGroups">原生 group id（地图/远行队序号）</param>
+        /// <param name="roleOrders">角色可视顺序；NoRoleOrder 表示空占位条目</param>
+        /// <param name="assignedGroups">输出：每个条目重编后的 group id</param>
+        public static int AssignGroupIds(IReadOnlyList<int> origGroups, IReadOnlyList<int> roleOrders,
+            IList<int> assignedGroups)
+        {
+            int newGroup = -1;
+            int prevOrigGroup = -1;
+            int prevRole = NoRoleOrder;
+            for (int i = 0; i < origGroups.Count; i++)
+            {
+                int origGroup = origGroups[i];
+                int role = roleOrders[i];
+                if (role == NoRoleOrder)
+                {
+                    // 空地图占位条目：保持独立一组（与原生行为一致）
+                    newGroup++;
+                }
+                else if (origGroup != prevOrigGroup || role != prevRole)
+                {
+                    newGroup++;
+                }
+                prevOrigGroup = origGroup;
+                prevRole = role;
+                assignedGroups[i] = newGroup;
+            }
+            return newGroup + 1;
+        }
+
         /// <summary>角色标签高度（Tiny 字体单行固定高度）。</summary>
         public const float TagHeight = 18f;
 

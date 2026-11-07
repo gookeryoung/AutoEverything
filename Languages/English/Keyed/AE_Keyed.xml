@@ -265,6 +265,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_GroupHunterAsShooter>Hunters → Shooter</AE_CFG_GroupHunterAsShooter>
 
   <AE_CFG_RoleGroup_ForceHint>Checked conditions force matching colonists into that role, taking priority over skill/passion rules.</AE_CFG_RoleGroup_ForceHint>
+  <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Auto Tier tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
   <AE_CFG_RoleGroup_SkillTitle>Skill/passion fallback rules (used when no forced condition matches):</AE_CFG_RoleGroup_SkillTitle>
   <AE_CFG_Front_Ghoul>Ghoul</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>Brawler trait</AE_CFG_Front_Brawler>

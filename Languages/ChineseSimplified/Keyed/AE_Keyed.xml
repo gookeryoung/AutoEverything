@@ -266,6 +266,7 @@
   <AE_CFG_GroupHunterAsShooter>猎人归射手</AE_CFG_GroupHunterAsShooter>
 
   <AE_CFG_RoleGroup_ForceHint>勾选下方条件后，符合条件的殖民者直接归入该角色，优先于技能/兴趣判定。</AE_CFG_RoleGroup_ForceHint>
+  <AE_CFG_RoleGroup_MovedHint>殖民者栏角色分组的全部判定条件已整合到【人员自动】标签页，请到该页调整。</AE_CFG_RoleGroup_MovedHint>
   <AE_CFG_RoleGroup_SkillTitle>技能与兴趣补充判定（强制条件未命中时生效）：</AE_CFG_RoleGroup_SkillTitle>
   <AE_CFG_Front_Ghoul>食尸鬼</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>格斗者特质</AE_CFG_Front_Brawler>

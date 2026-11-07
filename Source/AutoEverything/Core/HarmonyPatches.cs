@@ -118,9 +118,15 @@ namespace AutoEverything.Core
                 var recacheMethod = AccessTools.Method(typeof(ColonistBar), "CheckRecacheEntries");
                 if (recacheMethod != null)
                 {
+                    // Prefix/Finalizer 维护 recache 调用深度：只在最外层应用分组，
+                    // 避免嵌套 recache 期间重编 group 与原生的 groupsCount 失配导致数组越界
                     harmony.Patch(recacheMethod,
+                        prefix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
+                            nameof(ColonistBarRoleGrouping.OnRecachePrefix)),
                         postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.TryApply))
-                        { priority = Priority.Last });
+                        { priority = Priority.Last },
+                        finalizer: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
+                            nameof(ColonistBarRoleGrouping.OnRecacheFinalizer)));
                     harmony.Patch(AccessTools.Method(typeof(ColonistBar), nameof(ColonistBar.MarkColonistsDirty)),
                         postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.NotifyDirty)));
 

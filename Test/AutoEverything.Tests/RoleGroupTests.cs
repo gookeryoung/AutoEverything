@@ -169,8 +169,88 @@ namespace AutoEverything.Tests
             failures += RunDiffTests(ref total);
             failures += RunDegreeRuleTests(ref total);
             failures += RunLayoutTests(ref total);
+            failures += RunGroupAssignTests(ref total);
             Console.WriteLine($"[RoleGroupTests] 含顺序/变更检测/布局契约共 {total - failures}/{total} passed");
             return failures;
+        }
+
+        /// <summary>
+        /// AssignGroupIds 数据契约（殖民者栏重编组的纯函数）：
+        /// 1. 同原生分组、同角色序的相邻条目合并为同一组；
+        /// 2. 角色序变化、原生分组变化（跨地图/远行队）都会开新组；
+        /// 3. 空占位条目（NoRoleOrder）各自独立成组；
+        /// 4. 返回值必须覆盖所有写入的 group id —— 这是防止原生
+        ///    CalculateColonistsInGroup 以 group 为下标取数组时越界（表现为屏幕闪烁）的硬约束。
+        /// </summary>
+        public static int RunGroupAssignTests(ref int total)
+        {
+            int failures = 0;
+            int noRole = RoleGroupLayout.NoRoleOrder;
+
+            CheckAssign(new int[0], new int[0], new int[0], 0, "空列表", ref failures, ref total);
+            CheckAssign(new[] { 0 }, new[] { 0 }, new[] { 0 }, 1, "单条目成一组", ref failures, ref total);
+            CheckAssign(new[] { 0, 0, 0 }, new[] { 0, 0, 0 }, new[] { 0, 0, 0 }, 1,
+                "同图同角色合并", ref failures, ref total);
+            CheckAssign(new[] { 0, 0, 0 }, new[] { 0, 1, 2 }, new[] { 0, 1, 2 }, 3,
+                "角色变化开新组", ref failures, ref total);
+            CheckAssign(new[] { 0, 0, 0 }, new[] { 0, 1, 0 }, new[] { 0, 1, 2 }, 3,
+                "同角色不相邻不合并", ref failures, ref total);
+            CheckAssign(new[] { 0, 0, 1, 1 }, new[] { 0, 0, 0, 0 }, new[] { 0, 0, 1, 1 }, 2,
+                "跨地图同角色分组", ref failures, ref total);
+            CheckAssign(new[] { 0, 0, 1 }, new[] { 0, noRole, 0 }, new[] { 0, 1, 2 }, 3,
+                "空占位条目独立成组", ref failures, ref total);
+            CheckAssign(new[] { 0, 1 }, new[] { noRole, noRole }, new[] { 0, 1 }, 2,
+                "连续空占位也各自成组", ref failures, ref total);
+
+            // 回归：多地图 + 连续同角色时组数应等于"跨图段数"，且必须覆盖所有 id
+            int[] orig = { 0, 0, 1, 1, 2, 2 };
+            int[] order = { 0, 0, 1, 1, 2, 2 };
+            int[] assigned = new int[orig.Length];
+            int groups = RoleGroupLayout.AssignGroupIds(orig, order, assigned);
+            CheckInt(groups, 3, "多地图组数", ref failures, ref total);
+            CheckGroupIds(assigned, groups, "多地图组数覆盖所有 id", ref failures, ref total);
+
+            // 任意混合序列都必须满足 id ∈ [0, groupsCount)
+            int[] mixedOrig = { 0, 0, 0, 1, 1, 2, 2, 2, 3 };
+            int[] mixedOrder = { 4, 4, noRole, 1, 2, 0, 0, noRole, 3 };
+            int[] mixedAssigned = new int[mixedOrig.Length];
+            int mixedGroups = RoleGroupLayout.AssignGroupIds(mixedOrig, mixedOrder, mixedAssigned);
+            CheckGroupIds(mixedAssigned, mixedGroups, "混合序列 id 落在组数范围内", ref failures, ref total);
+            CheckInt(mixedAssigned[0], mixedAssigned[1], "混合序列首两项应同组", ref failures, ref total);
+            CheckBool(mixedAssigned[1] != mixedAssigned[2], true,
+                "空占位条目应另起一组", ref failures, ref total);
+
+            Console.WriteLine($"[RoleGroupAssignTests] 累计 {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static void CheckAssign(int[] origGroups, int[] roleOrders, int[] expectedIds,
+            int expectedGroups, string label, ref int failures, ref int total)
+        {
+            int[] assigned = new int[origGroups.Length];
+            int groups = RoleGroupLayout.AssignGroupIds(origGroups, roleOrders, assigned);
+            CheckInt(groups, expectedGroups, label + "：组数", ref failures, ref total);
+            for (int i = 0; i < expectedIds.Length; i++)
+            {
+                CheckInt(assigned[i], expectedIds[i], label + "：第 " + i + " 项 id", ref failures, ref total);
+            }
+            CheckGroupIds(assigned, groups, label + "：id 范围", ref failures, ref total);
+        }
+
+        /// <summary>硬约束：所有 id 必须落在 [0, groupsCount)，否则原生按下标取数组会越界。</summary>
+        private static void CheckGroupIds(int[] assigned, int groupsCount, string label,
+            ref int failures, ref int total)
+        {
+            total++;
+            for (int i = 0; i < assigned.Length; i++)
+            {
+                if (assigned[i] < 0 || assigned[i] >= groupsCount)
+                {
+                    Console.WriteLine($"  FAIL {label}: id[{i}]={assigned[i]} 越界, groupsCount={groupsCount}");
+                    failures++;
+                    return;
+                }
+            }
         }
 
         /// <summary>
@@ -281,14 +361,14 @@ namespace AutoEverything.Tests
         /// <summary>
         /// RoleGroupRules.DiffersFrom 变更检测：
         /// 面板在绘制前后做快照对比，任一项配置变化都必须触发重新分组，
-        /// 否则玩家在"人员自动/工作自动"标签页调整后殖民者栏不会刷新。
+        /// 否则玩家在"人员自动"标签页调整后殖民者栏不会刷新。
         /// </summary>
         public static int RunDiffTests(ref int total)
         {
             int failures = 0;
             RoleGroupRules baseRules = RoleGroupRules.Default;
 
-            // 相同规则不应误判为变化（两个标签页每帧都会执行一次对比）
+            // 相同规则不应误判为变化（每次绘制都会执行一次对比）
             CheckBool(baseRules.DiffersFrom(baseRules), false,
                 "相同规则不应视为变化", ref failures, ref total);
             RoleGroupRules copy = RoleGroupRules.Default;

@@ -43,6 +43,16 @@ namespace AutoEverything.Core
         private static readonly FieldInfo fiCachedDrawLocs = AccessTools.Field(typeof(ColonistBar), "cachedDrawLocs");
         private static readonly FieldInfo fiCachedScale = AccessTools.Field(typeof(ColonistBar), "cachedScale");
         private static readonly FieldInfo fiDrawLocsFinder = AccessTools.Field(typeof(ColonistBar), "drawLocsFinder");
+        private static readonly FieldInfo fiEntriesDirty = AccessTools.Field(typeof(ColonistBar), "entriesDirty");
+
+        /// <summary>
+        /// CheckRecacheEntries 调用深度。原生 recache 结束时会调用 CalculateDrawLocs，
+        /// 而 CalculateDrawLocs 内部会再读 Entries；若此时缓存已置脏，就会嵌套触发一次 recache。
+        /// 嵌套层重编 group 会让外层仍在使用的 groupsCount 与新的 group id 不匹配，
+        /// 原生 CalculateColonistsInGroup 随即数组越界 → 每帧 OnGUI 异常 → 屏幕闪烁。
+        /// 因此只在最外层（深度 1）结束后应用分组。
+        /// </summary>
+        private static int recacheDepth;
 
         // 分组框绘制：GroupFrameRect 为私有方法，仅绘制期调用（每帧每组一次，反射开销可接受）
         private static readonly MethodInfo miGroupFrameRect =
@@ -83,29 +93,49 @@ namespace AutoEverything.Core
             pendingApply = true;
         }
 
+        /// <summary>CheckRecacheEntries 的 Prefix：记录调用深度，供 Postfix 判断是否为最外层。</summary>
+        public static void OnRecachePrefix()
+        {
+            recacheDepth++;
+        }
+
+        /// <summary>CheckRecacheEntries 的 Finalizer：无论正常返回还是抛异常都复位深度，避免深度泄漏。</summary>
+        public static void OnRecacheFinalizer()
+        {
+            if (recacheDepth > 0) recacheDepth--;
+        }
+
         /// <summary>
         /// CheckRecacheEntries 的 Postfix 入口：仅在有待应用标记时执行一次分组。
         /// early-return（非 dirty）的频繁调用在此短路，DetectRole 不会进入每帧路径。
+        /// 嵌套 recache 一律跳过，由最外层统一应用（见 recacheDepth 说明）。
         /// </summary>
         public static void TryApply(ColonistBar __instance)
         {
+            if (recacheDepth > 1) return;
             if (!pendingApply) return;
-            pendingApply = false;
             if (!AESettings.enabled || !AESettings.groupColonistBarByRole)
             {
                 // 关闭时清空映射与拖拽状态，避免残留 group id 命中错误标签
+                pendingApply = false;
                 groupRoles.Clear();
                 draggingFromGroup = -1;
                 return;
             }
 
+            // 本轮重建过程中又被置脏（如设置 displayOrder 会调用 MarkColonistsDirty）：
+            // 保留标记，等紧接着的那次 recache 结束后再应用，避免与外层计算交错
+            if (fiEntriesDirty != null && (bool)fiEntriesDirty.GetValue(__instance)) return;
+
+            pendingApply = false;
             try
             {
                 Apply(__instance);
             }
             catch (System.Exception ex)
             {
-                // 分组失败降级为原生分组，不阻断殖民者栏渲染
+                // 分组失败降级为原生分组，不阻断殖民者栏渲染；下轮 recache 重试
+                pendingApply = true;
                 Log.ErrorOnce("[AutoEverything] 殖民者栏角色分组失败: " + ex.Message, 0xA900);
             }
         }
@@ -123,38 +153,53 @@ namespace AutoEverything.Core
 
             groupRoles.Clear();
 
-            int newGroup = -1;
-            int prevOrigGroup = -1;
-            int prevRole = int.MinValue;
-            for (int i = 0; i < entries.Count; i++)
+            int count = entries.Count;
+            var origGroups = new int[count];
+            var roleOrders = new int[count];
+            var roles = new RoleGroup[count];
+            for (int i = 0; i < count; i++)
             {
                 ColonistBar.Entry entry = entries[i];
+                origGroups[i] = entry.group;
                 if (entry.pawn != null)
                 {
-                    RoleGroup group = RoleDetector.DetectRoleGroup(entry.pawn);
+                    roles[i] = RoleDetector.DetectRoleGroup(entry.pawn);
                     // 可视顺序：使用玩家右键拖拽后的自定义顺序，重新分组时保持该顺序
-                    int role = AESettings.GetRoleGroupOrder(group);
-                    if (entry.group != prevOrigGroup || role != prevRole) newGroup++;
-                    prevOrigGroup = entry.group;
-                    prevRole = role;
-                    groupRoles[newGroup] = group;
+                    roleOrders[i] = AESettings.GetRoleGroupOrder(roles[i]);
                 }
                 else
                 {
-                    // 空地图占位条目：保持独立一组（与原生行为一致）
-                    newGroup++;
-                    prevOrigGroup = entry.group;
-                    prevRole = int.MinValue;
+                    // 空地图占位条目：int.MinValue 表示独立开组（与原生行为一致）
+                    roleOrders[i] = RoleGroupLayout.NoRoleOrder;
                 }
-                entry.group = newGroup;
-                entries[i] = entry;  // Entry 是 struct，需写回
             }
+
+            var newGroups = new int[count];
+            int groupsCount = RoleGroupLayout.AssignGroupIds(origGroups, roleOrders, newGroups);
+
+            int maxGroup = 0;
+            for (int i = 0; i < count; i++)
+            {
+                ColonistBar.Entry entry = entries[i];
+                entry.group = newGroups[i];
+                entries[i] = entry;  // Entry 是 struct，需写回
+                if (entry.group > maxGroup) maxGroup = entry.group;
+                if (roleOrders[i] != RoleGroupLayout.NoRoleOrder) groupRoles[entry.group] = roles[i];
+            }
+
+            // 防御：groupsCount 必须覆盖所有已写入的 group id，否则原生
+            // CalculateColonistsInGroup 以 group 为下标取数组会越界（曾导致每帧 OnGUI 异常闪烁）
+            if (groupsCount < maxGroup + 1) groupsCount = maxGroup + 1;
+
+            // 分组期间清掉脏标记，避免 CalculateDrawLocs → Entries 嵌套触发 recache，
+            // 用未分组的条目覆盖刚写入的 group id（外层 groupsCount 随即失配）
+            if (fiEntriesDirty != null) fiEntriesDirty.SetValue(bar, false);
 
             // 重算绘制位置：CalculateDrawLocs 内部读 Find.ColonistBar.Entries（此时 dirty 已
             // 复位，直接返回改好 group 的 cachedEntries），并按新组数插入组间空隙与缩放
             var finder = (ColonistBarDrawLocsFinder)fiDrawLocsFinder.GetValue(bar);
             var drawLocs = (List<Vector2>)fiCachedDrawLocs.GetValue(bar);
-            finder.CalculateDrawLocs(drawLocs, out float scale, newGroup + 1);
+            finder.CalculateDrawLocs(drawLocs, out float scale, groupsCount);
             fiCachedScale.SetValue(bar, scale);
 
             ApplyHeaderOffset(drawLocs, scale);

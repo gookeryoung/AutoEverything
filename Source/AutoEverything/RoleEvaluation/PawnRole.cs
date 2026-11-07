@@ -63,7 +63,7 @@ namespace AutoEverything.RoleEvaluation
         public bool IsHunter;
         public bool ViolentDisabled;
 
-        // 强制判定条件（在【自动】→ 人员自动/工作自动面板逐角色勾选）
+        // 强制判定条件（在【自动】→ 人员自动面板逐角色勾选）
         public bool IsGhoul;                    // 食尸鬼 → 前排
         public bool IsMeleeSpecialist;          // 格斗专家职位 → 前排
         public bool IsShootingSpecialist;       // 射击专家职位 → 射手

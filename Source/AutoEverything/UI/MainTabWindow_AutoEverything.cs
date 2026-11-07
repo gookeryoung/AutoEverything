@@ -17,11 +17,11 @@ namespace AutoEverything.UI
     ///
     /// 标签页：
     /// - 人员自动：殖民者栏角色分组 + 评级开关 + 评级判定阈值 + 战斗价值公式权重
-    /// - 工作自动：殖民者栏角色分组 + 工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
-    ///   （角色分组配置在两个标签页均可见，切换标签不会丢失入口）
+    /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
+    ///   （角色分组配置只保留在人员自动页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
     /// - 高价值自动：标记开关 + 高价值档位阈值 + 扫描范围 + 通知
     /// - 携带用药：自动携带数量/周期 + 用药方案开关
-    /// - 通用调试：主开关、殖民者栏排序与分组、调试日志
+    /// - 通用调试：主开关、殖民者栏默认排序、调试日志
     ///
     /// 持久化：所有字段均为 AESettings 静态字段（ModSettings），
     /// 修改后立即 Write() 写盘，避免重启丢失（与 ITab 勾选框行为一致）。
@@ -194,7 +194,7 @@ namespace AutoEverything.UI
 
         /// <summary>
         /// 殖民者栏五类角色分组配置（前排/射手/工人/贸易/其他）。
-        /// 人员自动与工作自动两个标签页共用同一份配置，切换标签不会丢失入口；
+        /// 只在人员自动页展示一次，工作自动页不再重复绘制同一份配置；
         /// 分组框支持右键拖拽换序，任一条件变化后立即重排殖民者栏。
         /// </summary>
         private static void DrawRoleGroupSection(Listing_Standard l)
@@ -352,8 +352,8 @@ namespace AutoEverything.UI
 
         private static void DrawWorkTab(Listing_Standard l)
         {
-            // 工作分配同样依赖角色分组，此标签页也展示同一份配置，避免切换后找不到入口
-            DrawRoleGroupSection(l);
+            // 角色分组配置已统一收拢到人员自动页，此处只提示入口，避免同一份配置重复出现
+            DrawRuleText(l, "AE_CFG_RoleGroup_MovedHint".Translate());
 
             BeginSection(l, "AE_CFG_Section_WorkSwitch".Translate());
 
