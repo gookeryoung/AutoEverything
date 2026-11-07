@@ -639,28 +639,48 @@ namespace AutoEverything.UI
 
         /// <summary>
         /// 单行多列勾选框：用于"逐角色强制定位条件"，比逐行 Checkbox 节省垂直空间。
-        /// 关闭换行避免中文标签换行撑乱列宽；返回值通过 values 数组回写。
+        /// 注意：原生 CheckboxLabeled 只有 24x24 复选框本体可点击，中文标签较长时
+        /// 玩家点在文字上会"勾选不到"；这里手动绘制复选框，并让整格标签区域都可点击。
         /// </summary>
         private static void DrawCheckboxRow(Listing_Standard l, string[] labelKeys, bool[] values,
             string[] tooltipKeys)
         {
-            Rect row = l.GetRect(24f);
+            const float boxSize = 24f;
+            Rect row = l.GetRect(boxSize);
             int count = labelKeys.Length;
             const float gap = 8f;
             float width = (row.width - gap * (count - 1)) / count;
 
             for (int i = 0; i < count; i++)
             {
-                Rect rect = new Rect(row.x + i * (width + gap), row.y, width, 24f);
-                bool prevWrap = Text.WordWrap;
-                Text.WordWrap = false;
+                Rect cell = new Rect(row.x + i * (width + gap), row.y, width, boxSize);
                 bool prev = values[i];
-                Widgets.CheckboxLabeled(rect, labelKeys[i].Translate(), ref values[i]);
+
+                // 悬停高亮提示整格可点击
+                Widgets.DrawHighlightIfMouseover(cell);
+
+                // 复选框本体
+                Widgets.Checkbox(new Vector2(cell.x, cell.y), ref values[i]);
+
+                // 标签区域：同时支持点击切换（整格可点）
+                Rect labelRect = new Rect(cell.x + boxSize + 2f, cell.y,
+                    Mathf.Max(0f, cell.width - boxSize - 2f), cell.height);
+                bool prevWrap = Text.WordWrap;
+                TextAnchor prevAnchor = Text.Anchor;
+                Text.WordWrap = false;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                Widgets.Label(labelRect, labelKeys[i].Translate());
+                Text.Anchor = prevAnchor;
                 Text.WordWrap = prevWrap;
+
+                if (Widgets.ButtonInvisible(labelRect))
+                {
+                    values[i] = !values[i];
+                }
 
                 if (tooltipKeys != null && i < tooltipKeys.Length && tooltipKeys[i] != null)
                 {
-                    TooltipHandler.TipRegion(rect, tooltipKeys[i].Translate());
+                    TooltipHandler.TipRegion(cell, tooltipKeys[i].Translate());
                 }
                 if (values[i] != prev) settingsDirty = true;
             }
