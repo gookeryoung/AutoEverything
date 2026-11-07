@@ -38,7 +38,11 @@ namespace AutoEverything.AutoWork
 
         // workCount 硬上限：每人最多承担 N 项 priority≤2 的专业工作，超限者跳过候选
         // 候选不足保证人数时回退放宽，保证小殖民地工作有人做
-        private const int MaxCoreWorkCount = 3;
+        // N 由【自动】面板配置（默认 3），运行时读取，玩家调整后下一次重配即生效
+        private static int MaxCoreWorkCount
+        {
+            get { return AESettings.maxCoreWorkCount; }
+        }
 
         // ════════════════════════════════════════════════════════════
         // 工作分配配置（静态只读，避免每次分配重复构造）

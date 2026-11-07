@@ -168,4 +168,84 @@ Luciferium: no carry, no scheduled (addiction only). Wake-Up: no scheduled, carr
 Reassigns every 3000 ticks and on colonist count change. Existing policies with same name are refilled to ensure latest preset takes effect.
 When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 
+  <!-- ===== Bottom-bar Auto panel (MainTabWindow_AutoEverything) ===== -->
+  <AE_CFG_Tab_Person>Auto Tier</AE_CFG_Tab_Person>
+  <AE_CFG_Tab_Work>Auto Work</AE_CFG_Tab_Work>
+  <AE_CFG_Tab_Mark>High Value</AE_CFG_Tab_Mark>
+  <AE_CFG_Tab_Carry>Carry &amp; Drugs</AE_CFG_Tab_Carry>
+  <AE_CFG_Tab_General>General</AE_CFG_Tab_General>
+
+  <AE_CFG_Section_PersonSwitch>Auto tier switches</AE_CFG_Section_PersonSwitch>
+  <AE_CFG_Section_TierRules>Tier rules</AE_CFG_Section_TierRules>
+  <AE_CFG_Section_WorkSwitch>Auto work switches</AE_CFG_Section_WorkSwitch>
+  <AE_CFG_Section_WorkRules>Work allocation rules</AE_CFG_Section_WorkRules>
+  <AE_CFG_Section_MarkSwitch>High-value marker switches</AE_CFG_Section_MarkSwitch>
+  <AE_CFG_Section_MarkRules>High-value rules</AE_CFG_Section_MarkRules>
+  <AE_CFG_Section_Carry>Auto carry</AE_CFG_Section_Carry>
+  <AE_CFG_Section_Drug>Auto drug policy</AE_CFG_Section_Drug>
+  <AE_CFG_Section_General>General</AE_CFG_Section_General>
+  <AE_CFG_Section_ColonistBar>Colonist bar</AE_CFG_Section_ColonistBar>
+
+  <AE_CFG_ApplyTierNow>Evaluate now</AE_CFG_ApplyTierNow>
+  <AE_CFG_ClearTierNow>Clear tier names</AE_CFG_ClearTierNow>
+  <AE_CFG_ApplyWorkNow>Reassign work now</AE_CFG_ApplyWorkNow>
+  <AE_CFG_ScanMarkNow>Scan now</AE_CFG_ScanMarkNow>
+  <AE_CFG_ApplyCarryNow>Carry now</AE_CFG_ApplyCarryNow>
+  <AE_CFG_ApplyDrugNow>Assign drugs now</AE_CFG_ApplyDrugNow>
+  <AE_CFG_MasterDisabled>Auto Everything is disabled: all automation is paused (enable it in General).</AE_CFG_MasterDisabled>
+
+  <AE_CFG_TierAMajorMin>A: min double passions</AE_CFG_TierAMajorMin>
+  <AE_CFG_TierAPassionTotal>A: total passions</AE_CFG_TierAPassionTotal>
+  <AE_CFG_TierBMajorMin>B: min double passions</AE_CFG_TierBMajorMin>
+  <AE_CFG_TierBPassionTotal>B: total passions</AE_CFG_TierBPassionTotal>
+  <AE_CFG_TierSSWorkMajors>Industrious+Neurotic → SS majors</AE_CFG_TierSSWorkMajors>
+  <AE_CFG_TierSSSWorkMajors>Industrious+Neurotic → SSS majors</AE_CFG_TierSSSWorkMajors>
+  <AE_CFG_SpecialTalentToS>Special talent → S</AE_CFG_SpecialTalentToS>
+  <AE_CFG_BeautySocialToS>Beautiful + Social major → S</AE_CFG_BeautySocialToS>
+  <AE_CFG_SpouseExemption>Spouse tier exemption</AE_CFG_SpouseExemption>
+  <AE_CFG_SpouseExemptionTier>Minimum exemption tier</AE_CFG_SpouseExemptionTier>
+
+  <AE_CFG_MaxCoreWorkCount>Max core works per pawn</AE_CFG_MaxCoreWorkCount>
+  <AE_CFG_SkillFloorHighLevel>Skill floor, high (→ priority 3)</AE_CFG_SkillFloorHighLevel>
+  <AE_CFG_SkillFloorMidLevel>Skill floor, mid (→ priority 2)</AE_CFG_SkillFloorMidLevel>
+  <AE_CFG_ResearchDowngrade>Downgrade hauler/cleaner researchers</AE_CFG_ResearchDowngrade>
+  <AE_CFG_WorkInterval>Work reallocation interval</AE_CFG_WorkInterval>
+  <AE_CFG_SkipInCombat>Pause automation in combat</AE_CFG_SkipInCombat>
+  <AE_CFG_WorkRulesHint>Skill floor: when the related skill reaches a threshold, its work priority never drops below the floor value. Core works are those at priority 1/2.</AE_CFG_WorkRulesHint>
+
+  <AE_CFG_MarkNotify>Notify on discovery</AE_CFG_MarkNotify>
+  <AE_CFG_MarkIncludeNonPlayer>Scan non-player factions</AE_CFG_MarkIncludeNonPlayer>
+  <AE_CFG_MarkTier>High-value tier threshold</AE_CFG_MarkTier>
+  <AE_CFG_MarkRulesHint>Pawns reaching the threshold show a tier badge in the colonist bar or above their head; the tier also sets the minimum rating for carrying serum.</AE_CFG_MarkRulesHint>
+
+  <AE_CFG_CarryFoodCount>Food to carry</AE_CFG_CarryFoodCount>
+  <AE_CFG_CarrySerumCount>Serum to carry</AE_CFG_CarrySerumCount>
+  <AE_CFG_CarryInterval>Carry interval</AE_CFG_CarryInterval>
+  <AE_CFG_GeneralHint>Rule changes take effect immediately (tier cache is cleared) and are saved automatically.</AE_CFG_GeneralHint>
+
+  <AE_TT_Enabled>Master switch: when off, work, tier, marking, carrying and drug policies are all paused.</AE_TT_Enabled>
+  <AE_TT_TierAMajorMin>Minimum number of double passions required for tier A.</AE_TT_TierAMajorMin>
+  <AE_TT_TierAPassionTotal>Minimum total of double plus single passions required for tier A.</AE_TT_TierAPassionTotal>
+  <AE_TT_TierBMajorMin>Minimum number of double passions required for tier B.</AE_TT_TierBMajorMin>
+  <AE_TT_TierBPassionTotal>Minimum total of double plus single passions required for tier B.</AE_TT_TierBPassionTotal>
+  <AE_TT_TierSSWorkMajors>Double passions in professional work skills needed for SS with Industrious + Neurotic.</AE_TT_TierSSWorkMajors>
+  <AE_TT_TierSSSWorkMajors>Double passions in professional work skills needed for SSS with Industrious + Neurotic.</AE_TT_TierSSSWorkMajors>
+  <AE_TT_SpecialTalentToS>Pawns with one of the special talents are rated S directly.</AE_TT_SpecialTalentToS>
+  <AE_TT_BeautySocialToS>Pawns with Beautiful (beauty level 2) and a double Social passion are rated S directly.</AE_TT_BeautySocialToS>
+  <AE_TT_SpouseExemption>When the spouse reaches the selected tier, this pawn is rated at least that tier.</AE_TT_SpouseExemption>
+  <AE_TT_SpouseExemptionTier>Minimum spouse tier required to trigger the exemption.</AE_TT_SpouseExemptionTier>
+  <AE_TT_MaxCoreWorkCount>Maximum number of high-priority (1/2) works per pawn; extra works keep only the floor priority.</AE_TT_MaxCoreWorkCount>
+  <AE_TT_SkillFloor>When the related skill reaches a threshold, priority stays at or above the floor value (high → 3, mid → 2).</AE_TT_SkillFloor>
+  <AE_TT_ResearchDowngrade>While researching, hauling/cleaning drops to priority 4 so research is not interrupted.</AE_TT_ResearchDowngrade>
+  <AE_TT_WorkInterval>Interval of automatic work reallocation. Shorter is more responsive but costs more CPU.</AE_TT_WorkInterval>
+  <AE_TT_SkipInCombat>Pause work reallocation and auto carry during combat (drafted or fighting) to avoid interrupting treatment or leaving posts.</AE_TT_SkipInCombat>
+  <AE_TT_MarkNotify>Show a message when new high-value pawns are found.</AE_TT_MarkNotify>
+  <AE_TT_MarkIncludeNonPlayer>When off, only player-faction pawns (colonists/slaves/prisoners) are scanned and marked.</AE_TT_MarkIncludeNonPlayer>
+  <AE_TT_MarkTier>Pawns at or above this tier are treated as high value; it also sets the minimum tier for serum carrying.</AE_TT_MarkTier>
+  <AE_TT_CarryFoodCount>Food carried per colonist. 0 disables food carrying.</AE_TT_CarryFoodCount>
+  <AE_TT_CarrySerumCount>Serum of each type carried by high-value pawns. 0 disables serum carrying.</AE_TT_CarrySerumCount>
+  <AE_TT_CarryInterval>Interval of automatic carrying.</AE_TT_CarryInterval>
+  <AE_TT_cvSkillWeight>Weight of overall skill level in the combat value formula.</AE_TT_cvSkillWeight>
+  <AE_TT_cvPassionMult>Multiplier applied per passion level (none/single/double) in the combat value formula.</AE_TT_cvPassionMult>
+  <AE_TT_cvTraitBonus>Combat-related trait bonus or penalty in the combat value formula.</AE_TT_cvTraitBonus>
 </LanguageData>

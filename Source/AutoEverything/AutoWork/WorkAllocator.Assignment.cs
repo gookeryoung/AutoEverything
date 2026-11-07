@@ -93,7 +93,8 @@ namespace AutoEverything.AutoWork
         /// </summary>
         private static bool ShouldDowngradeForResearch(WorkTypeDef wt, Pawn pawn)
         {
-            return (wt.defName == "Hauling" || wt.defName == "Cleaning")
+            return AESettings.researchServiceDowngrade
+                && (wt.defName == "Hauling" || wt.defName == "Cleaning")
                 && GetMaxResearchPriority(pawn) >= 2;
         }
 

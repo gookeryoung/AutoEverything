@@ -98,6 +98,15 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
+        /// 清空全部缓存。玩家修改评级判定参数后调用，
+        /// 让新规则立即作用于所有 Pawn（否则最长需等待 TTL 过期）。
+        /// </summary>
+        public static void Clear()
+        {
+            cache.Clear();
+        }
+
+        /// <summary>
         /// 周期清理：移除 Dead/!Spawned 的 Pawn，避免引用泄漏。
         /// 由 GetTier/GetValue 触发，每 60000 tick 执行一次。
         /// </summary>

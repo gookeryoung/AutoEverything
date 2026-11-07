@@ -97,19 +97,30 @@ namespace AutoEverything.AutoWork
         /// </summary>
         private static int ApplySkillFloor(int priority, Pawn pawn, List<SkillDef> skills)
         {
-            return ApplySkillFloorCore(priority, GetMaxSkillLevelForSkills(pawn, skills));
+            return ApplySkillFloorCore(priority, GetMaxSkillLevelForSkills(pawn, skills),
+                AESettings.skillFloorMidLevel, AESettings.skillFloorHighLevel);
         }
 
         /// <summary>
-        /// 技能等级保底的纯逻辑核心（不依赖 Pawn/SkillDef，便于单元测试）。
+        /// 技能等级保底的纯逻辑核心（不依赖 Pawn/SkillDef/ModSettings，便于单元测试）。
+        /// 默认阈值与重构前一致：技能≥12 保底 priority=2，≥8 保底 priority=3。
         /// </summary>
         internal static int ApplySkillFloorCore(int priority, int skillLevel)
         {
-            // 技能≥12：priority 不低于 2（0/3/4 → 2，1/2 不变）
-            if (skillLevel >= 12 && (priority == 0 || priority >= 3))
+            return ApplySkillFloorCore(priority, skillLevel, 12, 8);
+        }
+
+        /// <summary>
+        /// 技能等级保底核心（可指定阈值）。阈值来自【自动】面板时由上层传入，
+        /// 保持本方法为纯函数，测试进程无需加载 Assembly-CSharp。
+        /// </summary>
+        internal static int ApplySkillFloorCore(int priority, int skillLevel, int midLevel, int highLevel)
+        {
+            // 技能≥中级阈值：priority 不低于 2（0/3/4 → 2，1/2 不变）
+            if (skillLevel >= midLevel && (priority == 0 || priority >= 3))
                 return 2;
-            // 技能≥8：priority 不低于 3（0/4 → 3，1/2/3 不变）
-            if (skillLevel >= 8 && (priority == 0 || priority > 3))
+            // 技能≥高级阈值：priority 不低于 3（0/4 → 3，1/2/3 不变）
+            if (skillLevel >= highLevel && (priority == 0 || priority > 3))
                 return 3;
             return priority;
         }

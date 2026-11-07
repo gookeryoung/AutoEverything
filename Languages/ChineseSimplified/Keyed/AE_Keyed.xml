@@ -169,4 +169,84 @@
 每 3000 tick 与殖民者数量变化时自动重分配。已存在同名政策会重新填充字段确保最新预设生效。
 取消勾选仅停止自动执行，已分配的政策不变。</AE_TT_AutoDrugPolicy>
 
+  <!-- ===== 底部【自动】主面板（MainTabWindow_AutoEverything） ===== -->
+  <AE_CFG_Tab_Person>人员自动</AE_CFG_Tab_Person>
+  <AE_CFG_Tab_Work>工作自动</AE_CFG_Tab_Work>
+  <AE_CFG_Tab_Mark>高价值自动</AE_CFG_Tab_Mark>
+  <AE_CFG_Tab_Carry>携带用药</AE_CFG_Tab_Carry>
+  <AE_CFG_Tab_General>通用调试</AE_CFG_Tab_General>
+
+  <AE_CFG_Section_PersonSwitch>人员自动开关</AE_CFG_Section_PersonSwitch>
+  <AE_CFG_Section_TierRules>评级判定阈值</AE_CFG_Section_TierRules>
+  <AE_CFG_Section_WorkSwitch>工作自动开关</AE_CFG_Section_WorkSwitch>
+  <AE_CFG_Section_WorkRules>工作分配判定</AE_CFG_Section_WorkRules>
+  <AE_CFG_Section_MarkSwitch>高价值标记开关</AE_CFG_Section_MarkSwitch>
+  <AE_CFG_Section_MarkRules>高价值判定</AE_CFG_Section_MarkRules>
+  <AE_CFG_Section_Carry>自动携带</AE_CFG_Section_Carry>
+  <AE_CFG_Section_Drug>自动用药方案</AE_CFG_Section_Drug>
+  <AE_CFG_Section_General>通用</AE_CFG_Section_General>
+  <AE_CFG_Section_ColonistBar>殖民者栏</AE_CFG_Section_ColonistBar>
+
+  <AE_CFG_ApplyTierNow>立即评级</AE_CFG_ApplyTierNow>
+  <AE_CFG_ClearTierNow>清除评级名称</AE_CFG_ClearTierNow>
+  <AE_CFG_ApplyWorkNow>立即重配工作</AE_CFG_ApplyWorkNow>
+  <AE_CFG_ScanMarkNow>立即扫描标记</AE_CFG_ScanMarkNow>
+  <AE_CFG_ApplyCarryNow>立即执行携带</AE_CFG_ApplyCarryNow>
+  <AE_CFG_ApplyDrugNow>立即分配用药</AE_CFG_ApplyDrugNow>
+  <AE_CFG_MasterDisabled>自动万物已关闭：所有自动模块不会执行（可在“通用调试”中开启）</AE_CFG_MasterDisabled>
+
+  <AE_CFG_TierAMajorMin>A 档最少双火</AE_CFG_TierAMajorMin>
+  <AE_CFG_TierAPassionTotal>A 档兴趣合计</AE_CFG_TierAPassionTotal>
+  <AE_CFG_TierBMajorMin>B 档最少双火</AE_CFG_TierBMajorMin>
+  <AE_CFG_TierBPassionTotal>B 档兴趣合计</AE_CFG_TierBPassionTotal>
+  <AE_CFG_TierSSWorkMajors>工作狂+神经质 → SS 双火数</AE_CFG_TierSSWorkMajors>
+  <AE_CFG_TierSSSWorkMajors>工作狂+神经质 → SSS 双火数</AE_CFG_TierSSSWorkMajors>
+  <AE_CFG_SpecialTalentToS>特殊天赋特质直接 S</AE_CFG_SpecialTalentToS>
+  <AE_CFG_BeautySocialToS>沉鱼落雁+社交双火直接 S</AE_CFG_BeautySocialToS>
+  <AE_CFG_SpouseExemption>配偶评级豁免</AE_CFG_SpouseExemption>
+  <AE_CFG_SpouseExemptionTier>豁免最低档位</AE_CFG_SpouseExemptionTier>
+
+  <AE_CFG_MaxCoreWorkCount>每人最多核心工作</AE_CFG_MaxCoreWorkCount>
+  <AE_CFG_SkillFloorHighLevel>技能保底高级阈值（→优先级3）</AE_CFG_SkillFloorHighLevel>
+  <AE_CFG_SkillFloorMidLevel>技能保底中级阈值（→优先级2）</AE_CFG_SkillFloorMidLevel>
+  <AE_CFG_ResearchDowngrade>研究员搬运/清洁降级</AE_CFG_ResearchDowngrade>
+  <AE_CFG_WorkInterval>工作重配周期</AE_CFG_WorkInterval>
+  <AE_CFG_SkipInCombat>战斗中暂停自动</AE_CFG_SkipInCombat>
+  <AE_CFG_WorkRulesHint>技能保底：相关技能达到阈值时，对应工作优先级不会低于保底值；核心工作指优先级 1/2 的工作。</AE_CFG_WorkRulesHint>
+
+  <AE_CFG_MarkNotify>发现时弹消息</AE_CFG_MarkNotify>
+  <AE_CFG_MarkIncludeNonPlayer>扫描非玩家阵营</AE_CFG_MarkIncludeNonPlayer>
+  <AE_CFG_MarkTier>高价值档位阈值</AE_CFG_MarkTier>
+  <AE_CFG_MarkRulesHint>达到阈值的单位会在殖民者栏或地图头顶显示档位标记；该档位同时决定血清携带的最低评级。</AE_CFG_MarkRulesHint>
+
+  <AE_CFG_CarryFoodCount>携带食物数量</AE_CFG_CarryFoodCount>
+  <AE_CFG_CarrySerumCount>携带血清数量</AE_CFG_CarrySerumCount>
+  <AE_CFG_CarryInterval>携带周期</AE_CFG_CarryInterval>
+  <AE_CFG_GeneralHint>判定参数改动会立即清空评级缓存并按新规则重算，修改后自动写盘保存。</AE_CFG_GeneralHint>
+
+  <AE_TT_Enabled>总开关：关闭后工作、评级、标记、携带、用药全部暂停执行</AE_TT_Enabled>
+  <AE_TT_TierAMajorMin>A 档要求的最少双火（双 passion）数量</AE_TT_TierAMajorMin>
+  <AE_TT_TierAPassionTotal>A 档要求的双火+单火合计数量</AE_TT_TierAPassionTotal>
+  <AE_TT_TierBMajorMin>B 档要求的最少双火数量</AE_TT_TierBMajorMin>
+  <AE_TT_TierBPassionTotal>B 档要求的双火+单火合计数量</AE_TT_TierBPassionTotal>
+  <AE_TT_TierSSWorkMajors>工作狂+严重神经质组合达到 SS 所需的专业工作双火数</AE_TT_TierSSWorkMajors>
+  <AE_TT_TierSSSWorkMajors>工作狂+严重神经质组合达到 SSS 所需的专业工作双火数</AE_TT_TierSSSWorkMajors>
+  <AE_TT_SpecialTalentToS>拥有博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经之一时直接评为 S 档</AE_TT_SpecialTalentToS>
+  <AE_TT_BeautySocialToS>沉鱼落雁（美貌 2 级）且社交双火时直接评为 S 档</AE_TT_BeautySocialToS>
+  <AE_TT_SpouseExemption>配偶达到指定档位时，本人评级不低于该档位</AE_TT_SpouseExemption>
+  <AE_TT_SpouseExemptionTier>触发配偶豁免所需的最低配偶档位</AE_TT_SpouseExemptionTier>
+  <AE_TT_MaxCoreWorkCount>每人最多承担的高优先级（1/2）工作数量，超出者只保留保底优先级</AE_TT_MaxCoreWorkCount>
+  <AE_TT_SkillFloor>相关技能等级达到阈值时，优先级不会低于对应保底值（高级→3，中级→2）</AE_TT_SkillFloor>
+  <AE_TT_ResearchDowngrade>有研究任务时，搬运/清洁降为优先级 4，避免打断研究</AE_TT_ResearchDowngrade>
+  <AE_TT_WorkInterval>自动工作重配的周期；越短反应越快，CPU 开销越高</AE_TT_WorkInterval>
+  <AE_TT_SkipInCombat>战斗中（有人被征召或正在战斗）暂停工作重配与自动携带，避免打断医疗或离开战位</AE_TT_SkipInCombat>
+  <AE_TT_MarkNotify>扫描到新高价值单位时弹消息通知</AE_TT_MarkNotify>
+  <AE_TT_MarkIncludeNonPlayer>关闭后只扫描并标记玩家阵营（殖民者/奴隶/囚犯）</AE_TT_MarkIncludeNonPlayer>
+  <AE_TT_MarkTier>达到该档位的单位被视为高价值；同时决定血清携带的最低评级</AE_TT_MarkTier>
+  <AE_TT_CarryFoodCount>每名殖民者背包携带的食物数量，0 表示不携带</AE_TT_CarryFoodCount>
+  <AE_TT_CarrySerumCount>高价值单位携带的每种血清数量，0 表示不携带</AE_TT_CarrySerumCount>
+  <AE_TT_CarryInterval>自动携带的执行周期</AE_TT_CarryInterval>
+  <AE_TT_cvSkillWeight>技能整体等级对战斗价值的影响权重</AE_TT_cvSkillWeight>
+  <AE_TT_cvPassionMult>按兴趣等级（无/单火/双火）对战斗价值的加成倍率</AE_TT_cvPassionMult>
+  <AE_TT_cvTraitBonus>战斗相关特质对战斗价值的加成或扣减（绝对值）</AE_TT_cvTraitBonus>
 </LanguageData>

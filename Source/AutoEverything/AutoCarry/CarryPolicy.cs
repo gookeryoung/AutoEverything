@@ -30,10 +30,10 @@ namespace AutoEverything.AutoCarry
     /// </summary>
     public static class CarryPolicy
     {
-        // 食物目标数量：3 个
+        // 食物目标数量默认值（实际值由【自动】面板配置，见 AESettings.carryFoodCount）
         public const int FoodCount = 3;
 
-        // 血清类目标数量：各 1 个（仅 S 档携带）
+        // 血清类目标数量默认值（实际值由【自动】面板配置，见 AESettings.carrySerumCount）
         public const int SerumCount = 1;
 
         // 食物 DefName 列表（按优先级从高到低排序）
@@ -96,11 +96,14 @@ namespace AutoEverything.AutoCarry
         /// </summary>
         public static void FillCarryItems(Pawn pawn, List<CarryEntry> result)
         {
-            // ── 类别 1：食物（所有适用 Pawn 固定携带 x3）──
+            // ── 类别 1：食物（所有适用 Pawn 固定携带，数量由【自动】面板配置）──
             List<ThingDef> foodDefs = GetFoodDefs();
-            for (int i = 0; i < foodDefs.Count; i++)
+            if (AESettings.carryFoodCount > 0)
             {
-                result.Add(new CarryEntry { Def = foodDefs[i], Count = FoodCount });
+                for (int i = 0; i < foodDefs.Count; i++)
+                {
+                    result.Add(new CarryEntry { Def = foodDefs[i], Count = AESettings.carryFoodCount });
+                }
             }
 
             // ── 类别 2：永久成瘾药（Luciferium）──
@@ -132,8 +135,8 @@ namespace AutoEverything.AutoCarry
             // 佩诺西林：AB/S 档由 DrugPolicy 配置，计划服用 5 天 1 次
             AddDrugIfPolicyCarry(pawn, GetPenoxycylineDef(), result);
 
-            // ── 类别 5：血清（S 档固定携带 1 个，DrugPolicy 配 takeToInventory=1 防卸下）──
-            if (IsTierS(pawn))
+            // ── 类别 5：血清（高价值档位固定携带，档位与数量由【自动】面板配置）──
+            if (AESettings.carrySerumCount > 0 && IsTierS(pawn))
             {
                 AddSerumIfAvailable(GetJuggernautSerumDef(), result);
                 AddSerumIfAvailable(GetMetalbloodSerumDef(), result);
@@ -184,12 +187,14 @@ namespace AutoEverything.AutoCarry
             bool needSleep, bool hasWakeUpAddiction, int wakeUpCarryCount,
             int goJuiceCarryCount,
             int penoxycylineCarryCount,
-            bool isTierS)
+            bool isTierS,
+            int foodCount = FoodCount,
+            int serumCount = SerumCount)
         {
             var result = new System.Collections.Generic.List<string>();
 
-            // 类别 1：食物（固定 x3）
-            result.Add("Food:" + FoodCount);
+            // 类别 1：食物（数量默认 x3；生产路径未调用本核心，仅供测试）
+            result.Add("Food:" + foodCount);
 
             // 类别 2：Luciferium（有渴求固定 1，否则按 DrugPolicy）
             if (hasLuciferiumAddiction)
@@ -219,26 +224,26 @@ namespace AutoEverything.AutoCarry
                 result.Add("Penoxycyline:" + penoxycylineCarryCount);
             }
 
-            // 类别 5：血清（S 档固定 1 个）
+            // 类别 5：血清（高价值档位携带，数量默认 1）
             if (isTierS)
             {
-                result.Add("JuggernautSerum:" + SerumCount);
-                result.Add("MetalbloodSerum:" + SerumCount);
-                result.Add("MindNumbSerum:" + SerumCount);
+                result.Add("JuggernautSerum:" + serumCount);
+                result.Add("MetalbloodSerum:" + serumCount);
+                result.Add("MindNumbSerum:" + serumCount);
             }
 
             return result;
         }
 
         /// <summary>
-        /// 判定 Pawn 是否为 S 档（S/SS/SSS）。
-        /// 用 GetCombatTier（含自定义评级），与评级标签一致。
+        /// 判定 Pawn 是否达到【自动】面板配置的高价值档位（默认 S/SS/SSS）。
+        /// 用 GetCombatTier（含自定义评级），与评级标签、高价值标记阈值一致。
         /// </summary>
         private static bool IsTierS(Pawn pawn)
         {
             if (pawn == null) return false;
             CombatTier tier = CombatEvaluator.GetCombatTier(pawn);
-            return tier == CombatTier.S || tier == CombatTier.SS || tier == CombatTier.SSS;
+            return tier >= AESettings.markHighValueTier;
         }
 
         /// <summary>
@@ -260,7 +265,7 @@ namespace AutoEverything.AutoCarry
         private static void AddSerumIfAvailable(ThingDef serumDef, List<CarryEntry> result)
         {
             if (serumDef == null) return;
-            result.Add(new CarryEntry { Def = serumDef, Count = SerumCount });
+            result.Add(new CarryEntry { Def = serumDef, Count = AESettings.carrySerumCount });
         }
 
         /// <summary>活力水 ThingDef（懒加载，缺失返回 null）</summary>

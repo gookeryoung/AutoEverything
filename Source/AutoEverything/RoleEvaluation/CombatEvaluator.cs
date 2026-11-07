@@ -66,9 +66,10 @@ namespace AutoEverything.RoleEvaluation
                 score = tierRepresentativeScore[(int)customTier] + 0.5f;
                 return true;
             }
-            if (HasSpouseTierAtLeast(pawn, CombatTier.S))
+            if (AESettings.spouseExemptionEnabled
+                && HasSpouseTierAtLeast(pawn, AESettings.spouseExemptionTier))
             {
-                score = tierRepresentativeScore[(int)CombatTier.S] + 0.5f;
+                score = tierRepresentativeScore[(int)AESettings.spouseExemptionTier] + 0.5f;
                 return true;
             }
             score = 0f;
@@ -173,11 +174,14 @@ namespace AutoEverything.RoleEvaluation
 
             CombatTier autoTier = GetAutoCombatTier(pawn);
 
-            // 配偶评级豁免：与 S+ 人员结婚的殖民者，评级至少为 S（不降级 SS/SSS）
+            // 配偶评级豁免：与高价值人员结婚的殖民者评级至少为豁免档位（不降级更高档）
             // 用 GetAutoCombatTier 计算配偶评级，避免递归（A 配偶 B，B 配偶 A）
-            if (autoTier < CombatTier.S && HasSpouseTierAtLeast(pawn, CombatTier.S))
+            CombatTier spouseTier = AESettings.spouseExemptionTier;
+            if (AESettings.spouseExemptionEnabled
+                && autoTier < spouseTier
+                && HasSpouseTierAtLeast(pawn, spouseTier))
             {
-                return CombatTier.S;
+                return spouseTier;
             }
 
             return autoTier;
@@ -283,7 +287,7 @@ namespace AutoEverything.RoleEvaluation
             if (pawn.WorkTagIsDisabled(WorkTags.Violent)) return CombatTier.X;
             if (pawn.skills == null) return CombatTier.X;
 
-            return EvaluateAutoTierCore(CollectTierInput(pawn));
+            return EvaluateAutoTierCore(CollectTierInput(pawn), TierRules.FromSettings());
         }
 
         /// <summary>
@@ -318,12 +322,69 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
+        /// 评级判定阈值集合（纯值类型，不依赖 ModSettings）。
+        /// 生产路径由 <see cref="FromSettings"/> 从【自动】面板读取；
+        /// 单元测试路径使用 <see cref="Default"/>，避免测试进程加载 Assembly-CSharp。
+        /// </summary>
+        internal struct TierRules
+        {
+            public int AMajorMin;
+            public int APassionTotal;
+            public int BMajorMin;
+            public int BPassionTotal;
+            public int SSWorkMajors;
+            public int SSSWorkMajors;
+            public bool SpecialTalentToS;
+            public bool BeautySocialToS;
+
+            public static TierRules Default
+            {
+                get
+                {
+                    TierRules rules = new TierRules();
+                    rules.AMajorMin = 2;
+                    rules.APassionTotal = 3;
+                    rules.BMajorMin = 1;
+                    rules.BPassionTotal = 3;
+                    rules.SSWorkMajors = 2;
+                    rules.SSSWorkMajors = 3;
+                    rules.SpecialTalentToS = true;
+                    rules.BeautySocialToS = true;
+                    return rules;
+                }
+            }
+
+            /// <summary>读取【自动】面板当前配置（仅在游戏进程内调用）。</summary>
+            public static TierRules FromSettings()
+            {
+                TierRules rules = new TierRules();
+                rules.AMajorMin = AESettings.tierAMajorMin;
+                rules.APassionTotal = AESettings.tierAPassionTotal;
+                rules.BMajorMin = AESettings.tierBMajorMin;
+                rules.BPassionTotal = AESettings.tierBPassionTotal;
+                rules.SSWorkMajors = AESettings.tierSSWorkMajors;
+                rules.SSSWorkMajors = AESettings.tierSSSWorkMajors;
+                rules.SpecialTalentToS = AESettings.tierSpecialTalentToS;
+                rules.BeautySocialToS = AESettings.tierBeautySocialToS;
+                return rules;
+            }
+        }
+
+        /// <summary>
         /// 评级纯逻辑核心（不依赖 Pawn，便于单元测试）。
         /// 从 C 档开始，按三大维度取最高档，再处理特殊天赋/沉鱼落雁/A-B 判定。
         /// X 档（无法从事暴力活动）在 GetAutoCombatTier 入口判定，不在此函数处理。
         /// 注：负面特质不再触发降档（用户决策 2026-07-26），S/SS/SSS 一律按命中档次返回。
         /// </summary>
         internal static CombatTier EvaluateAutoTierCore(TierEvaluationInput input)
+        {
+            return EvaluateAutoTierCore(input, TierRules.Default);
+        }
+
+        /// <summary>
+        /// 评级纯逻辑核心（可指定阈值）。阈值来自【自动】面板时由上层传入。
+        /// </summary>
+        internal static CombatTier EvaluateAutoTierCore(TierEvaluationInput input, TierRules rules)
         {
             CombatTier tier = CombatTier.C;
 
@@ -367,36 +428,36 @@ namespace AutoEverything.RoleEvaluation
             if (input.HasIndustrious && input.HasNeurotic)
             {
                 tier = MaxTier(tier, CombatTier.S);
-                if (input.WorkMajors >= 3)
+                if (input.WorkMajors >= rules.SSSWorkMajors)
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (input.WorkMajors >= 2)
+                else if (input.WorkMajors >= rules.SSWorkMajors)
                     tier = MaxTier(tier, CombatTier.SS);
             }
 
-            // 原 S 条件 4：拥有特殊天赋特质之一
+            // 原 S 条件 4：拥有特殊天赋特质之一（可在【自动】面板关闭）
             //   博闻强识 TooSmart / 开心果 Joyous / 极致体能 BodyMastery
             //   痴迷虚空 VoidFascination / 神秘学者 Occultist / 怪诞不经 Disturbing
-            if (input.HasSpecialTalent)
+            if (rules.SpecialTalentToS && input.HasSpecialTalent)
             {
                 tier = MaxTier(tier, CombatTier.S);
             }
 
-            // 原 S 条件 5：沉鱼落雁（Beauty degree=2）+ Social 双火
-            if (input.Beauty2 && input.SocialMajor)
+            // 原 S 条件 5：沉鱼落雁（Beauty degree=2）+ Social 双火（可在【自动】面板关闭）
+            if (rules.BeautySocialToS && input.Beauty2 && input.SocialMajor)
             {
                 tier = MaxTier(tier, CombatTier.S);
             }
 
             // A/B 判定：仅在三大维度+原S条件均未触达（tier==C）时进行
+            // 阈值来自【自动】面板，默认 A：2 双火+合计 3；B：1 双火+合计 3
             if (tier == CombatTier.C)
             {
-                // A：≥ 2 个双 Major + ≥ 1 个单 Minor
-                if (input.MajorCount >= 2 && (input.MajorCount + input.MinorCount) >= 3)
+                int passionTotal = input.MajorCount + input.MinorCount;
+                if (input.MajorCount >= rules.AMajorMin && passionTotal >= rules.APassionTotal)
                 {
                     tier = CombatTier.A;
                 }
-                // B：≥ 1 个双 Major + ≥ 2 个单 Minor（合计 ≥ 3）
-                else if (input.MajorCount >= 1 && (input.MajorCount + input.MinorCount) >= 3)
+                else if (input.MajorCount >= rules.BMajorMin && passionTotal >= rules.BPassionTotal)
                 {
                     tier = CombatTier.B;
                 }

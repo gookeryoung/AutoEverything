@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LanguageData>
+  <AE_Auto.label>自动</AE_Auto.label>
+  <AE_Auto.description>配置自动万物的判定规则：人员自动评级、工作自动配置、高价值自动标记、自动携带与用药方案。</AE_Auto.description>
+</LanguageData>

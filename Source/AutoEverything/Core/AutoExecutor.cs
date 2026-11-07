@@ -51,13 +51,17 @@ namespace AutoEverything.Core
         // 殖民者数量变化后延迟触发，避免战斗中连续死亡连锁触发工作重配打断医疗 Job
         private const int ReallocCooldown = 2500;
 
-        // 工作重配周期：3600 tick ≈ 1 分钟
-        // 勾选状态下定期重新分配工作，避免长期无人员变动时工作分配过时
-        private const int WorkExecuteInterval = 3600;
+        // 工作重配周期：由【自动】面板配置（默认 3600 tick ≈ 1 分钟），下限 300 tick 防误设
+        private static int WorkExecuteInterval
+        {
+            get { return Math.Max(300, AESettings.workIntervalTicks); }
+        }
 
-        // 自动携带周期：6000 tick ≈ 100 秒
-        // 殖民者周期性从仓库拾取食物与药品到背包，需战斗过滤避免战斗中离开战位
-        private const int CarryExecuteInterval = 6000;
+        // 自动携带周期：由【自动】面板配置（默认 6000 tick ≈ 100 秒），下限 300 tick 防误设
+        private static int CarryExecuteInterval
+        {
+            get { return Math.Max(300, AESettings.carryIntervalTicks); }
+        }
 
         // 用药方案周期：与评级周期一致（3000 tick ≈ 50 秒）
         // 评级变化才会改变对应政策，复用评级周期避免独立计时
@@ -108,6 +112,9 @@ namespace AutoEverything.Core
         /// </summary>
         public static void TryTick()
         {
+            // 主开关（底部【自动】面板）：关闭时所有自动阶段静默跳过
+            if (!AESettings.enabled) return;
+
             int tick = Find.TickManager.TicksGame;
 
             if (tick - lastCheckTick < CheckInterval) return;
@@ -163,7 +170,7 @@ namespace AutoEverything.Core
             bool needCombatCheck = (work.pending && tick - work.lastTick >= ReallocCooldown)
                 || tick - work.lastTick >= WorkExecuteInterval
                 || tick - carry.lastTick >= CarryExecuteInterval;
-            bool combatActive = needCombatCheck && AnyCombatActive();
+            bool combatActive = needCombatCheck && AESettings.skipAutoInCombat && AnyCombatActive();
 
             // 待重配触发：工作重配需战斗过滤（SetPriority 取消 Job）
             if (work.pending && tick - work.lastTick >= ReallocCooldown && !combatActive)
@@ -228,7 +235,7 @@ namespace AutoEverything.Core
         /// </summary>
         public static void TriggerCarryNow()
         {
-            if (AnyCombatActive())
+            if (AnyCombatActive() && AESettings.skipAutoInCombat)
             {
                 Messages.Message("AE_AutoCarry_SkippedInCombat".Translate(), MessageTypeDefOf.RejectInput);
                 return;
@@ -298,7 +305,7 @@ namespace AutoEverything.Core
                 // resetTracking=true 时清空跟踪集合，所有当前高价值单位都视为"新发现"
                 PawnMarker.ScanAndMark(allMarkedBuffer, newlyMarkedBuffer, resetTracking);
 
-                if (showMessage)
+                if (showMessage && AESettings.markNotifyMessage)
                 {
                     if (resetTracking)
                     {

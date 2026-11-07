@@ -320,6 +320,8 @@ namespace AutoEverything.Core
             public static void Postfix(Pawn ___pawn)
             {
                 if (!AESettings.enabled || !AESettings.autoMarkPawn) return;
+                // 扫描范围收窄为"仅玩家阵营"时，地图上不再绘制非玩家单位标记
+                if (!AESettings.markIncludeNonPlayer) return;
                 Pawn pawn = ___pawn;
                 if (pawn == null || pawn.Dead || !pawn.Spawned) return;
                 if (!PawnSuitabilityChecker.CanManageGear(pawn)) return;

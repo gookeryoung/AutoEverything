@@ -113,6 +113,9 @@ namespace AutoEverything.Core
                 }
             }
 
+            // 判定参数（底部【自动】面板可调）：独立 partial 维护，见 AESettings.Judgement.cs
+            ExposeJudgementData();
+
             base.ExposeData();
         }
 
@@ -312,7 +315,7 @@ namespace AutoEverything.Core
         ///   ReorderColonistBar 内部已调 MarkColonistsDirty 触发重建分组
         /// - 关闭：仅 MarkColonistsDirty，原生重建后保留原生地图/远行队分组
         /// </summary>
-        private static void OnGroupByRoleChanged()
+        public static void OnGroupByRoleChanged()
         {
             if (Current.ProgramState != ProgramState.Playing || Find.ColonistBar == null) return;
 

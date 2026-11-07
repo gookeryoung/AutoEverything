@@ -111,7 +111,8 @@ namespace AutoEverything.AutoMarkPawn
         public static bool IsHighValue(Pawn pawn)
         {
             if (pawn == null) return false;
-            return TierCacheService.GetTier(pawn) >= CombatTier.S;
+            // 阈值档位由【自动】面板配置（默认 S），改档后立即作用于缓存判定
+            return TierCacheService.GetTier(pawn) >= AESettings.markHighValueTier;
         }
 
         /// <summary>
@@ -129,6 +130,13 @@ namespace AutoEverything.AutoMarkPawn
             if (!pawn.Spawned) return false;
             if (pawn.Dead) return false;
             if (!PawnSuitabilityChecker.CanManageGear(pawn)) return false;
+            // 扫描范围由【自动】面板配置：默认覆盖所有派系，可收窄为仅玩家阵营
+            if (!AESettings.markIncludeNonPlayer
+                && pawn.Faction != Faction.OfPlayer
+                && !pawn.IsPrisonerOfColony)
+            {
+                return false;
+            }
             return true;
         }
 

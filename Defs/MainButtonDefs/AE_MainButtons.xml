@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Defs>
+
+  <!--
+    底部主按钮【自动】：位于"世界"右侧（World order=70 / History order=80），
+    打开后进入 AutoEverything 详细配置页（MainTabWindow_AutoEverything）。
+    标签与描述由 Languages/*/DefInjected/MainButtonDef/AE_Auto.xml 提供翻译。
+  -->
+  <MainButtonDef>
+    <defName>AE_Auto</defName>
+    <label>auto</label>
+    <description>Configure all auto-everything judgement rules.</description>
+    <tabWindowClass>AutoEverything.UI.MainTabWindow_AutoEverything</tabWindowClass>
+    <order>75</order>
+    <validWithoutMap>false</validWithoutMap>
+    <closesWorldView>true</closesWorldView>
+  </MainButtonDef>
+
+</Defs>
