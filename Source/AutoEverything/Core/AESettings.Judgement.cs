@@ -80,12 +80,7 @@ namespace AutoEverything.Core
 
         // 五类分组在殖民者栏中的显示顺序（存 RoleGroup 的 int 值，顺序即可视顺序）。
         // 玩家可在殖民者栏分组框上右键拖拽调整，重新分组时按该顺序排列人员。
-        public static List<int> roleGroupOrder = DefaultRoleGroupOrder();
-
-        private static List<int> DefaultRoleGroupOrder()
-        {
-            return new List<int> { (int)RoleGroup.Front, (int)RoleGroup.Shooter, (int)RoleGroup.Worker, (int)RoleGroup.Trade, (int)RoleGroup.Other };
-        }
+        public static List<int> roleGroupOrder = RoleDetector.DefaultRoleGroupOrder();
 
         /// <summary>
         /// 取得角色分组的可视序号：自定义顺序优先，缺失时回退枚举顺序。
@@ -93,8 +88,7 @@ namespace AutoEverything.Core
         /// </summary>
         public static int GetRoleGroupOrder(RoleGroup group)
         {
-            int idx = roleGroupOrder.IndexOf((int)group);
-            return idx >= 0 ? idx : (int)group;
+            return RoleDetector.GetRoleGroupOrderIn(roleGroupOrder, (int)group);
         }
 
         /// <summary>
@@ -103,16 +97,9 @@ namespace AutoEverything.Core
         /// </summary>
         public static void MoveRoleGroup(RoleGroup from, RoleGroup to)
         {
-            if (roleGroupOrder == null) roleGroupOrder = DefaultRoleGroupOrder();
-            int fromIdx = roleGroupOrder.IndexOf((int)from);
-            int toIdx = roleGroupOrder.IndexOf((int)to);
-            if (fromIdx < 0 || toIdx < 0 || fromIdx == toIdx) return;
-
-            roleGroupOrder.RemoveAt(fromIdx);
-            // 移除后重新定位目标：拖到目标分组上表示"插入到目标分组之前"
-            int insertIdx = roleGroupOrder.IndexOf((int)to);
-            if (insertIdx < 0) insertIdx = roleGroupOrder.Count;
-            roleGroupOrder.Insert(insertIdx, (int)from);
+            if (roleGroupOrder == null) roleGroupOrder = RoleDetector.DefaultRoleGroupOrder();
+            // 顺序数组操作抽到纯逻辑层，便于单元测试
+            if (!RoleDetector.MoveRoleGroupInOrder(roleGroupOrder, (int)from, (int)to)) return;
 
             AutoEverythingMod.settings?.Write();
             OnGroupByRoleChanged();
@@ -199,9 +186,9 @@ namespace AutoEverything.Core
 
             // 分组显示顺序：List<int>，加载后校验必须是 0-4 的完整排列
             Scribe_Collections.Look(ref roleGroupOrder, "ae_roleGroupOrder", LookMode.Value);
-            if (!IsValidRoleGroupOrder(roleGroupOrder))
+            if (!RoleDetector.IsValidRoleGroupOrder(roleGroupOrder))
             {
-                roleGroupOrder = DefaultRoleGroupOrder();
+                roleGroupOrder = RoleDetector.DefaultRoleGroupOrder();
             }
 
             // 高价值自动标记
@@ -221,24 +208,6 @@ namespace AutoEverything.Core
             LookCompat(ref carryFoodCount, "carryFoodCount", 3);
             LookCompat(ref carrySerumCount, "carrySerumCount", 1);
             LookCompat(ref carryIntervalTicks, "carryIntervalTicks", 6000);
-        }
-
-        /// <summary>
-        /// 校验分组顺序是否为 5 个互不重复的合法值（0..4）。
-        /// 旧存档 / 手改存档不合法时回退默认顺序，避免分组错位。
-        /// </summary>
-        private static bool IsValidRoleGroupOrder(List<int> order)
-        {
-            if (order == null || order.Count != 5) return false;
-            for (int i = 0; i < 5; i++)
-            {
-                if (order[i] < 0 || order[i] > 4) return false;
-                for (int j = i + 1; j < 5; j++)
-                {
-                    if (order[i] == order[j]) return false;
-                }
-            }
-            return true;
         }
 
         /// <summary>

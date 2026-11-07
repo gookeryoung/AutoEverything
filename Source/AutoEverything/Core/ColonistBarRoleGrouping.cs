@@ -156,6 +156,36 @@ namespace AutoEverything.Core
             var drawLocs = (List<Vector2>)fiCachedDrawLocs.GetValue(bar);
             finder.CalculateDrawLocs(drawLocs, out float scale, newGroup + 1);
             fiCachedScale.SetValue(bar, scale);
+
+            ApplyHeaderOffset(drawLocs, scale);
+        }
+
+        /// <summary>
+        /// 分组框可见顶边位于殖民者栏基线，原版槽位起始高度（21f）只够原生的
+        /// 隐藏分组框使用；头像纹理高出槽位 27*scale，因此头像会伸进顶部分组区域。
+        /// 这里把所有绘制位置整体下移，预留出"角色标签 + 间距"的头部带。
+        /// </summary>
+        private static void ApplyHeaderOffset(List<Vector2> drawLocs, float scale)
+        {
+            if (drawLocs == null || drawLocs.Count == 0) return;
+
+            float minY = float.MaxValue;
+            for (int i = 0; i < drawLocs.Count; i++)
+            {
+                if (drawLocs[i].y < minY) minY = drawLocs[i].y;
+            }
+
+            // 头像纹理比条目槽高出的部分：PawnTextureSize.y - BaseSize.y（原版 75 - 48）
+            float overhang = (ColonistBarColonistDrawer.PawnTextureSize.y - ColonistBar.BaseSize.y) * scale;
+            float offset = RoleGroupLayout.ComputeHeaderOffset(minY, overhang);
+            if (offset <= 0f) return;
+
+            for (int i = 0; i < drawLocs.Count; i++)
+            {
+                Vector2 loc = drawLocs[i];
+                loc.y += offset;
+                drawLocs[i] = loc;
+            }
         }
 
         /// <summary>
@@ -183,9 +213,15 @@ namespace AutoEverything.Core
             }
             if (rect.width <= 0f || rect.height <= 0f) return;
 
-            DrawBorder(rect, role);
-            Rect tagRect = DrawTag(rect, role);
-            HandleGroupInput(rect, tagRect, group, role);
+            // 原版分组框向上扩到屏幕外，可见顶边在栏基线；描边与命中都用可见框
+            ColonistBar bar = Find.ColonistBar;
+            float scale = bar != null ? bar.Scale : 1f;
+            Rect visibleRect = ClipToVisibleTop(rect, scale);
+            if (visibleRect.width <= 0f || visibleRect.height <= 0f) return;
+
+            DrawBorder(visibleRect, role);
+            Rect tagRect = DrawTag(rect, scale, role);
+            HandleGroupInput(visibleRect, tagRect, group, role);
 
             // 拖拽跟随光标的小标签：只在被拖拽的组上绘制一次，避免重复叠加
             if (draggingFromGroup == group) DrawDragGhost(role);
@@ -201,6 +237,18 @@ namespace AutoEverything.Core
             {
                 draggingFromGroup = -1;
             }
+        }
+
+        /// <summary>
+        /// 把分组框裁剪到可见区域：保留原版 rect 的左右与底边，顶边取可见顶边。
+        /// 顶边已在屏幕内时原样返回。
+        /// </summary>
+        private static Rect ClipToVisibleTop(Rect frameRect, float scale)
+        {
+            float visibleTop = RoleGroupLayout.ComputeFrameVisibleTop(frameRect.y, scale);
+            if (visibleTop <= frameRect.y) return frameRect;
+
+            return new Rect(frameRect.x, visibleTop, frameRect.width, frameRect.yMax - visibleTop);
         }
 
         private static void DrawBorder(Rect rect, RoleGroup role)
@@ -221,10 +269,10 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 在分组框左上角绘制"图标 + 文字"标签，返回标签矩形（作为右键拖拽把手）。
-        /// 关闭换行并按 CalcSize 计算宽度，避免中文标签换行撑乱布局。
+        /// 在分组框头部带绘制"图标 + 文字"标签，返回标签矩形（作为右键拖拽把手）。
+        /// 位置取可见顶边下方，尺寸按分组框实际宽度收缩；关闭换行避免中文撑乱布局。
         /// </summary>
-        private static Rect DrawTag(Rect frameRect, RoleGroup role)
+        private static Rect DrawTag(Rect frameRect, float scale, RoleGroup role)
         {
             string label = GetRoleLabel(role);
 
@@ -234,22 +282,50 @@ namespace AutoEverything.Core
 
             Text.Font = GameFont.Tiny;
             Vector2 textSize = Text.CalcSize(label);
-            float width = Mathf.Min(22f + textSize.x + 6f, frameRect.width - 4f);
-            Rect tag = new Rect(frameRect.x + 2f, frameRect.y + 2f, width, 18f);
+            float width = RoleGroupLayout.ComputeTagWidth(textSize.x, frameRect.width);
+            if (width <= 0f)
+            {
+                Text.Font = prevFont;
+                return Rect.zero;
+            }
+
+            Rect tag = new Rect(
+                frameRect.x + RoleGroupLayout.TagMargin,
+                RoleGroupLayout.ComputeTagY(frameRect.y, scale),
+                width,
+                RoleGroupLayout.TagHeight);
 
             Widgets.DrawBoxSolid(tag, new Color(0f, 0f, 0f, 0.55f));
 
             Texture2D icon = null;
             if (roleIcons != null) roleIcons.TryGetValue(role, out icon);
-            if (icon != null)
+
+            float textX;
+            float textWidth;
+            if (icon != null && RoleGroupLayout.CanShowTagIcon(width))
             {
-                GUI.DrawTexture(new Rect(tag.x + 2f, tag.y + 1f, 16f, 16f), icon, ScaleMode.ScaleToFit);
+                GUI.DrawTexture(
+                    new Rect(tag.x + RoleGroupLayout.TagPadding,
+                        tag.y + (RoleGroupLayout.TagHeight - RoleGroupLayout.IconSize) * 0.5f,
+                        RoleGroupLayout.IconSize, RoleGroupLayout.IconSize),
+                    icon, ScaleMode.ScaleToFit);
+                textX = tag.x + RoleGroupLayout.TagPadding + RoleGroupLayout.IconSize + RoleGroupLayout.IconTextGap;
+                textWidth = tag.xMax - RoleGroupLayout.TagPadding - textX;
+            }
+            else
+            {
+                // 分组过窄时只保留文字，避免图标把文字挤没
+                textX = tag.x + RoleGroupLayout.TagPadding;
+                textWidth = tag.width - RoleGroupLayout.TagPadding * 2f;
             }
 
-            Text.WordWrap = false;
-            Text.Anchor = TextAnchor.MiddleLeft;
-            GUI.color = Color.white;
-            Widgets.Label(new Rect(tag.x + 20f, tag.y, width - 22f, 18f), label);
+            if (textWidth > 0f)
+            {
+                Text.WordWrap = false;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                GUI.color = Color.white;
+                Widgets.Label(new Rect(textX, tag.y, textWidth, RoleGroupLayout.TagHeight), label);
+            }
 
             Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;

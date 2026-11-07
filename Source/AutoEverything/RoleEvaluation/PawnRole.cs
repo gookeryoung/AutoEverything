@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using RimWorld;
 using Verse;
 using AutoEverything.Core;
@@ -112,6 +113,27 @@ namespace AutoEverything.RoleEvaluation
                 rules.SocialSpecialistToTrade = true;
                 return rules;
             }
+        }
+
+        /// <summary>
+        /// 比较两份规则是否不同（任一字段变化即视为需要重新分组）。
+        /// 纯函数，便于 UI 在面板绘制前后做快照对比，也便于单元测试。
+        /// </summary>
+        public bool DiffersFrom(RoleGroupRules other)
+        {
+            return FrontSkillMin != other.FrontSkillMin
+                || ShooterSkillMin != other.ShooterSkillMin
+                || TradeSkillMin != other.TradeSkillMin
+                || WorkerMaxCombatSkill != other.WorkerMaxCombatSkill
+                || PassionPriority != other.PassionPriority
+                || BrawlerTraitToFront != other.BrawlerTraitToFront
+                || HunterAsShooter != other.HunterAsShooter
+                || GhoulToFront != other.GhoulToFront
+                || MeleeSpecialistToFront != other.MeleeSpecialistToFront
+                || ShootingSpecialistToShooter != other.ShootingSpecialistToShooter
+                || PacifistToWorker != other.PacifistToWorker
+                || ProductionSpecialistToWorker != other.ProductionSpecialistToWorker
+                || SocialSpecialistToTrade != other.SocialSpecialistToTrade;
         }
 
         public static RoleGroupRules FromSettings()
@@ -384,6 +406,69 @@ namespace AutoEverything.RoleEvaluation
         public static int GetRoleGroupOrder(RoleGroup group)
         {
             return (int)group;
+        }
+
+        /// <summary>
+        /// 默认分组显示顺序：前排 → 射手 → 工人 → 贸易 → 其他。
+        /// 纯数据函数，供 AESettings 与单元测试复用。
+        /// </summary>
+        public static List<int> DefaultRoleGroupOrder()
+        {
+            return new List<int>
+            {
+                (int)RoleGroup.Front,
+                (int)RoleGroup.Shooter,
+                (int)RoleGroup.Worker,
+                (int)RoleGroup.Trade,
+                (int)RoleGroup.Other
+            };
+        }
+
+        /// <summary>
+        /// 校验顺序数组必须是 0..4 的完整排列（无缺失、无重复、无越界）。
+        /// 存档损坏或旧版本数据不合法时由调用方回退默认顺序。
+        /// </summary>
+        public static bool IsValidRoleGroupOrder(List<int> order)
+        {
+            if (order == null || order.Count != 5) return false;
+
+            bool[] seen = new bool[5];
+            for (int i = 0; i < order.Count; i++)
+            {
+                int value = order[i];
+                if (value < 0 || value >= 5 || seen[value]) return false;
+                seen[value] = true;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// 在顺序数组中把 from 移到 to 的位置（插入到 to 之前）。
+        /// 返回是否实际发生变化；由 AESettings.MoveRoleGroup 负责写盘与重排。
+        /// </summary>
+        public static bool MoveRoleGroupInOrder(List<int> order, int from, int to)
+        {
+            if (order == null) return false;
+
+            int fromIdx = order.IndexOf(from);
+            int toIdx = order.IndexOf(to);
+            if (fromIdx < 0 || toIdx < 0 || fromIdx == toIdx) return false;
+
+            order.RemoveAt(fromIdx);
+            // 移除后重新定位目标，实现"插入到目标分组之前"
+            int insertIdx = order.IndexOf(to);
+            if (insertIdx < 0) insertIdx = order.Count;
+            order.Insert(insertIdx, from);
+            return true;
+        }
+
+        /// <summary>
+        /// 按自定义顺序取分组序号：顺序数组中的下标即可视序号，缺失时回退枚举顺序。
+        /// </summary>
+        public static int GetRoleGroupOrderIn(List<int> order, int group)
+        {
+            int idx = order != null ? order.IndexOf(group) : -1;
+            return idx >= 0 ? idx : group;
         }
 
         /// <summary>

@@ -16,8 +16,9 @@ namespace AutoEverything.UI
     /// 并按功能分标签页展示各自的"判定配置项"——这些配置直接参与判定规则计算。
     ///
     /// 标签页：
-    /// - 人员自动：评级开关 + 评级判定阈值 + 战斗价值公式权重
-    /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
+    /// - 人员自动：殖民者栏角色分组 + 评级开关 + 评级判定阈值 + 战斗价值公式权重
+    /// - 工作自动：殖民者栏角色分组 + 工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
+    ///   （角色分组配置在两个标签页均可见，切换标签不会丢失入口）
     /// - 高价值自动：标记开关 + 高价值档位阈值 + 扫描范围 + 通知
     /// - 携带用药：自动携带数量/周期 + 用药方案开关
     /// - 通用调试：主开关、殖民者栏排序与分组、调试日志
@@ -63,6 +64,20 @@ namespace AutoEverything.UI
         public override Vector2 InitialSize
         {
             get { return new Vector2(920f, 640f); }
+        }
+
+        /// <summary>
+        /// 每次打开窗口都回到顶部。
+        /// scrollPos 是静态缓存（用于关闭再打开保持位置），但人员自动页内容较长，
+        /// 若玩家上次滚到中下部，再次打开会看不到顶部的"殖民者栏角色分组"及前排条件，
+        /// 表现为"分组选项消失"。因此打开时强制复位滚动与高度缓存。
+        /// </summary>
+        public override void PreOpen()
+        {
+            base.PreOpen();
+            scrollPos = Vector2.zero;
+            cachedHeightTab = ConfigTab.None;
+            cachedContentHeight = 620f;
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -177,27 +192,18 @@ namespace AutoEverything.UI
 
         // ===================== 人员自动 =====================
 
-        private static void DrawPersonTab(Listing_Standard l)
+        /// <summary>
+        /// 殖民者栏五类角色分组配置（前排/射手/工人/贸易/其他）。
+        /// 人员自动与工作自动两个标签页共用同一份配置，切换标签不会丢失入口；
+        /// 分组框支持右键拖拽换序，任一条件变化后立即重排殖民者栏。
+        /// </summary>
+        private static void DrawRoleGroupSection(Listing_Standard l)
         {
-            // ── 殖民者栏五类角色分组（前排/射手/工人/贸易/其他）──
-            // 置于人员自动页顶部，玩家打开即见；分组框支持右键拖拽换序
-            BeginSection(l, "AE_CFG_Section_RoleGroup".Translate());
+            // 分组开关不属于 RoleGroupRules，需单独记录；其余判定参数用规则快照对比
+            bool beforeGroup = AESettings.groupColonistBarByRole;
+            RoleGroupRules before = RoleGroupRules.FromSettings();
 
-            // 记录原值：任一变化后立即重排殖民者栏
-            bool prevGroup = AESettings.groupColonistBarByRole;
-            bool prevFrontGhoul = AESettings.groupFrontGhoul;
-            bool prevBrawler = AESettings.groupBrawlerTraitFront;
-            bool prevMeleeSpec = AESettings.groupFrontMeleeSpecialist;
-            bool prevShooterSpec = AESettings.groupShooterSpecialist;
-            bool prevHunter = AESettings.groupHunterAsShooter;
-            bool prevPacifist = AESettings.groupWorkerPacifist;
-            bool prevProdSpec = AESettings.groupWorkerProductionSpecialist;
-            bool prevMoralist = AESettings.groupTradeMoralist;
-            int prevFront = AESettings.groupFrontSkillMin;
-            int prevShooter = AESettings.groupShooterSkillMin;
-            int prevTrade = AESettings.groupTradeSkillMin;
-            int prevWorker = AESettings.groupWorkerMaxCombatSkill;
-            bool prevPassion = AESettings.groupPassionPriority;
+            BeginSection(l, "AE_CFG_Section_RoleGroup".Translate());
 
             DrawCheckbox(l, "AE_GroupByRole", ref AESettings.groupColonistBarByRole, "AE_TT_GroupByRole");
             DrawRuleText(l, "AE_CFG_RoleGroup_ForceHint".Translate());
@@ -263,24 +269,17 @@ namespace AutoEverything.UI
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Drag".Translate());
             EndSection(l);
 
-            // 分组开关或任一判定条件变化 → 立即重排殖民者栏
-            if (prevGroup != AESettings.groupColonistBarByRole
-                || prevFrontGhoul != AESettings.groupFrontGhoul
-                || prevBrawler != AESettings.groupBrawlerTraitFront
-                || prevMeleeSpec != AESettings.groupFrontMeleeSpecialist
-                || prevShooterSpec != AESettings.groupShooterSpecialist
-                || prevHunter != AESettings.groupHunterAsShooter
-                || prevPacifist != AESettings.groupWorkerPacifist
-                || prevProdSpec != AESettings.groupWorkerProductionSpecialist
-                || prevMoralist != AESettings.groupTradeMoralist
-                || prevFront != AESettings.groupFrontSkillMin
-                || prevShooter != AESettings.groupShooterSkillMin
-                || prevTrade != AESettings.groupTradeSkillMin
-                || prevWorker != AESettings.groupWorkerMaxCombatSkill
-                || prevPassion != AESettings.groupPassionPriority)
+            // 开关或任一判定条件变化 → 立即重排殖民者栏
+            if (beforeGroup != AESettings.groupColonistBarByRole
+                || before.DiffersFrom(RoleGroupRules.FromSettings()))
             {
                 AESettings.OnGroupByRoleChanged();
             }
+        }
+
+        private static void DrawPersonTab(Listing_Standard l)
+        {
+            DrawRoleGroupSection(l);
 
             BeginSection(l, "AE_CFG_Section_PersonSwitch".Translate());
 
@@ -345,6 +344,9 @@ namespace AutoEverything.UI
 
         private static void DrawWorkTab(Listing_Standard l)
         {
+            // 工作分配同样依赖角色分组，此标签页也展示同一份配置，避免切换后找不到入口
+            DrawRoleGroupSection(l);
+
             BeginSection(l, "AE_CFG_Section_WorkSwitch".Translate());
 
             DrawCheckbox(l, "AE_AutoWorkConfig", ref AESettings.autoWorkEnabled, "AE_TT_AutoWorkConfig");
