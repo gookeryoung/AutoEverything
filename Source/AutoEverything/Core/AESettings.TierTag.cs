@@ -207,7 +207,7 @@ namespace AutoEverything.Core
             for (int i = 0; i < pawns.Count; i++)
             {
                 Pawn p = pawns[i];
-                sortRoleCache[p] = RoleDetector.GetRoleGroupOrder(RoleDetector.DetectRoleGroup(p));
+                sortRoleCache[p] = AESettings.GetRoleGroupOrder(RoleDetector.DetectRoleGroup(p));
             }
 
             pawns.Sort(comparison);

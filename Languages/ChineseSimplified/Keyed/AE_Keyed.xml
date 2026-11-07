@@ -267,10 +267,17 @@
   <AE_TT_GroupBrawlerTraitFront>拥有“格斗者”特质的殖民者直接归入前排</AE_TT_GroupBrawlerTraitFront>
   <AE_TT_GroupHunterAsShooter>狩猎工作优先级为 1 的殖民者归入射手</AE_TT_GroupHunterAsShooter>
 
-  <AE_CFG_RoleGroupRule_Order>分组顺序：前排 → 射手 → 工人 → 贸易 → 其他</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Order>默认分组顺序：前排 → 射手 → 工人 → 贸易 → 其他（可右键拖拽调整）</AE_CFG_RoleGroupRule_Order>
   <AE_CFG_RoleGroupRule_Front>• 前排：格斗者特质；或近战 ≥ {0} 且高于射击；或近战有火且射击无火</AE_CFG_RoleGroupRule_Front>
   <AE_CFG_RoleGroupRule_Shooter>• 射手：射击 ≥ {0} 且高于近战；或射击有火且近战无火；或指派狩猎</AE_CFG_RoleGroupRule_Shooter>
   <AE_CFG_RoleGroupRule_Trade>• 贸易：社交 ≥ {0}，且不低于射击与近战</AE_CFG_RoleGroupRule_Trade>
   <AE_CFG_RoleGroupRule_Worker>• 工人：无法施暴；或射击与近战均低于 {0}</AE_CFG_RoleGroupRule_Worker>
   <AE_CFG_RoleGroupRule_Other>• 其他：未命中上述规则者（含意识形态领袖等）。关闭对应开关后该条规则不参与判定。</AE_CFG_RoleGroupRule_Other>
+  <AE_CFG_RoleGroupRule_Drag>• 右键按住分组框的标签或边框拖动到另一个分组，即可调整分组顺序；重新分组后人员会按新顺序排列。</AE_CFG_RoleGroupRule_Drag>
+
+  <AE_RoleGroup_Front>前排</AE_RoleGroup_Front>
+  <AE_RoleGroup_Shooter>射手</AE_RoleGroup_Shooter>
+  <AE_RoleGroup_Worker>工人</AE_RoleGroup_Worker>
+  <AE_RoleGroup_Trade>贸易</AE_RoleGroup_Trade>
+  <AE_RoleGroup_Other>其他</AE_RoleGroup_Other>
 </LanguageData>

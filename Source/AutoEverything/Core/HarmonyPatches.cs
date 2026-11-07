@@ -123,6 +123,25 @@ namespace AutoEverything.Core
                         { priority = Priority.Last });
                     harmony.Patch(AccessTools.Method(typeof(ColonistBar), nameof(ColonistBar.MarkColonistsDirty)),
                         postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.NotifyDirty)));
+
+                    // DrawGroupFrame Postfix：分组框叠加"图标 + 文字"标签、彩色边界与右键拖拽换序
+                    // ColonistBarOnGUI Postfix：右键在分组框外释放时清理拖拽状态
+                    var groupFrameMethod = AccessTools.Method(typeof(ColonistBarColonistDrawer), "DrawGroupFrame");
+                    if (groupFrameMethod != null)
+                    {
+                        harmony.Patch(groupFrameMethod,
+                            postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
+                                nameof(ColonistBarRoleGrouping.DrawGroupDecorations))
+                            { priority = Priority.Last });
+                    }
+
+                    var barGuiMethod = AccessTools.Method(typeof(ColonistBar), "ColonistBarOnGUI");
+                    if (barGuiMethod != null)
+                    {
+                        harmony.Patch(barGuiMethod,
+                            postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
+                                nameof(ColonistBarRoleGrouping.EndGroupDragIfReleased)));
+                    }
                 }
                 else
                 {

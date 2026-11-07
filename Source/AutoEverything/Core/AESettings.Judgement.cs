@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Verse;
+using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Core
 {
@@ -67,6 +69,46 @@ namespace AutoEverything.Core
 
         // 被指派狩猎（Hunting 优先级 1）归入射手
         public static bool groupHunterAsShooter = true;
+
+        // 五类分组在殖民者栏中的显示顺序（存 RoleGroup 的 int 值，顺序即可视顺序）。
+        // 玩家可在殖民者栏分组框上右键拖拽调整，重新分组时按该顺序排列人员。
+        public static List<int> roleGroupOrder = DefaultRoleGroupOrder();
+
+        private static List<int> DefaultRoleGroupOrder()
+        {
+            return new List<int> { (int)RoleGroup.Front, (int)RoleGroup.Shooter, (int)RoleGroup.Worker, (int)RoleGroup.Trade, (int)RoleGroup.Other };
+        }
+
+        /// <summary>
+        /// 取得角色分组的可视序号：自定义顺序优先，缺失时回退枚举顺序。
+        /// Apply 分组与"按角色+评级"排序都必须使用本方法，才能保证两者一致。
+        /// </summary>
+        public static int GetRoleGroupOrder(RoleGroup group)
+        {
+            int idx = roleGroupOrder.IndexOf((int)group);
+            return idx >= 0 ? idx : (int)group;
+        }
+
+        /// <summary>
+        /// 把分组 from 移到分组 to 所在位置（右键拖拽释放时调用），
+        /// 然后立即写盘并按新顺序重排殖民者栏。
+        /// </summary>
+        public static void MoveRoleGroup(RoleGroup from, RoleGroup to)
+        {
+            if (roleGroupOrder == null) roleGroupOrder = DefaultRoleGroupOrder();
+            int fromIdx = roleGroupOrder.IndexOf((int)from);
+            int toIdx = roleGroupOrder.IndexOf((int)to);
+            if (fromIdx < 0 || toIdx < 0 || fromIdx == toIdx) return;
+
+            roleGroupOrder.RemoveAt(fromIdx);
+            // 移除后重新定位目标：拖到目标分组上表示"插入到目标分组之前"
+            int insertIdx = roleGroupOrder.IndexOf((int)to);
+            if (insertIdx < 0) insertIdx = roleGroupOrder.Count;
+            roleGroupOrder.Insert(insertIdx, (int)from);
+
+            AutoEverythingMod.settings?.Write();
+            OnGroupByRoleChanged();
+        }
 
         // ════════════════════════════════
         // 高价值自动标记判定
@@ -141,6 +183,13 @@ namespace AutoEverything.Core
             LookCompat(ref groupBrawlerTraitFront, "groupBrawlerTraitFront", true);
             LookCompat(ref groupHunterAsShooter, "groupHunterAsShooter", true);
 
+            // 分组显示顺序：List<int>，加载后校验必须是 0-4 的完整排列
+            Scribe_Collections.Look(ref roleGroupOrder, "ae_roleGroupOrder", LookMode.Value);
+            if (!IsValidRoleGroupOrder(roleGroupOrder))
+            {
+                roleGroupOrder = DefaultRoleGroupOrder();
+            }
+
             // 高价值自动标记
             Scribe_Values.Look(ref markHighValueTier, "ae_markHighValueTier", CombatTier.S);
             LookCompat(ref markNotifyMessage, "markNotifyMessage", true);
@@ -158,6 +207,24 @@ namespace AutoEverything.Core
             LookCompat(ref carryFoodCount, "carryFoodCount", 3);
             LookCompat(ref carrySerumCount, "carrySerumCount", 1);
             LookCompat(ref carryIntervalTicks, "carryIntervalTicks", 6000);
+        }
+
+        /// <summary>
+        /// 校验分组顺序是否为 5 个互不重复的合法值（0..4）。
+        /// 旧存档 / 手改存档不合法时回退默认顺序，避免分组错位。
+        /// </summary>
+        private static bool IsValidRoleGroupOrder(List<int> order)
+        {
+            if (order == null || order.Count != 5) return false;
+            for (int i = 0; i < 5; i++)
+            {
+                if (order[i] < 0 || order[i] > 4) return false;
+                for (int j = i + 1; j < 5; j++)
+                {
+                    if (order[i] == order[j]) return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
