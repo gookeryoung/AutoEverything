@@ -219,34 +219,42 @@ namespace AutoEverything.UI
             AESettings.groupBrawlerTraitFront = front[1];
             AESettings.groupFrontMeleeSpecialist = front[2];
 
-            // 射手：射击专家职位 / 猎人
+            // 射手：射击专家职位 / 乱开枪特质 / 猎人
             DrawRoleTitle(l, "AE_RoleGroup_Shooter", ColorRoleShooter);
-            bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupHunterAsShooter };
+            bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupTriggerHappyShooter, AESettings.groupHunterAsShooter };
             DrawCheckboxRow(l,
-                new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_Hunter" },
+                new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_TriggerHappy", "AE_CFG_Shooter_Hunter" },
                 shooter,
-                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_Hunter" });
+                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_TriggerHappy", "AE_TT_Shooter_Hunter" });
             AESettings.groupShooterSpecialist = shooter[0];
-            AESettings.groupHunterAsShooter = shooter[1];
+            AESettings.groupTriggerHappyShooter = shooter[1];
+            AESettings.groupHunterAsShooter = shooter[2];
 
-            // 工人：无法施暴 / 生产专家职位
+            // 工人：无法施暴 / 生产专家职位 / 工作狂特质 / 生产兴趣双火
             DrawRoleTitle(l, "AE_RoleGroup_Worker", ColorRoleWorker);
-            bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist };
+            bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist,
+                AESettings.groupIndustriousWorker, AESettings.groupCraftingPassionWorker };
             DrawCheckboxRow(l,
-                new[] { "AE_CFG_Worker_Pacifist", "AE_CFG_Worker_ProductionSpecialist" },
+                new[] { "AE_CFG_Worker_Pacifist", "AE_CFG_Worker_ProductionSpecialist",
+                    "AE_CFG_Worker_Industrious", "AE_CFG_Worker_CraftingMajor" },
                 worker,
-                new[] { "AE_TT_Worker_Pacifist", "AE_TT_Worker_ProductionSpecialist" });
+                new[] { "AE_TT_Worker_Pacifist", "AE_TT_Worker_ProductionSpecialist",
+                    "AE_TT_Worker_Industrious", "AE_TT_Worker_CraftingMajor" });
             AESettings.groupWorkerPacifist = worker[0];
             AESettings.groupWorkerProductionSpecialist = worker[1];
+            AESettings.groupIndustriousWorker = worker[2];
+            AESettings.groupCraftingPassionWorker = worker[3];
 
-            // 贸易：道德家职位
+            // 贸易：道德家职位 / 俊俏/沉鱼落雁特质 / 社交兴趣双火
             DrawRoleTitle(l, "AE_RoleGroup_Trade", ColorRoleTrade);
-            bool[] trade = { AESettings.groupTradeMoralist };
+            bool[] trade = { AESettings.groupTradeMoralist, AESettings.groupBeautyTrade, AESettings.groupSocialPassionTrade };
             DrawCheckboxRow(l,
-                new[] { "AE_CFG_Trade_Moralist" },
+                new[] { "AE_CFG_Trade_Moralist", "AE_CFG_Trade_Beauty", "AE_CFG_Trade_SocialMajor" },
                 trade,
-                new[] { "AE_TT_Trade_Moralist" });
+                new[] { "AE_TT_Trade_Moralist", "AE_TT_Trade_Beauty", "AE_TT_Trade_SocialMajor" });
             AESettings.groupTradeMoralist = trade[0];
+            AESettings.groupBeautyTrade = trade[1];
+            AESettings.groupSocialPassionTrade = trade[2];
 
             // 技能/兴趣补充判定：强制条件未命中时的兜底规则
             DrawRuleText(l, "AE_CFG_RoleGroup_SkillTitle".Translate());

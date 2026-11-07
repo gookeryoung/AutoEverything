@@ -78,6 +78,17 @@ namespace AutoEverything.Core
         public static bool groupWorkerProductionSpecialist = true;  // 生产专家职位 → 工人
         public static bool groupTradeMoralist = true;               // 道德家职位 → 贸易
 
+        // 射手补充条件：乱开枪特性（ShootingAccuracy degree=-1）
+        public static bool groupTriggerHappyShooter = true;
+
+        // 工人补充条件：工作狂特质（Industriousness degree>=1）、生产（手工）兴趣双火
+        public static bool groupIndustriousWorker = true;
+        public static bool groupCraftingPassionWorker = true;
+
+        // 贸易补充条件：俊俏/沉鱼落雁特质（Beauty degree>=1）、社交兴趣双火
+        public static bool groupBeautyTrade = true;
+        public static bool groupSocialPassionTrade = true;
+
         // 五类分组在殖民者栏中的显示顺序（存 RoleGroup 的 int 值，顺序即可视顺序）。
         // 玩家可在殖民者栏分组框上右键拖拽调整，重新分组时按该顺序排列人员。
         public static List<int> roleGroupOrder = RoleDetector.DefaultRoleGroupOrder();
@@ -183,6 +194,11 @@ namespace AutoEverything.Core
             LookCompat(ref groupWorkerPacifist, "groupWorkerPacifist", true);
             LookCompat(ref groupWorkerProductionSpecialist, "groupWorkerProductionSpecialist", true);
             LookCompat(ref groupTradeMoralist, "groupTradeMoralist", true);
+            LookCompat(ref groupTriggerHappyShooter, "groupTriggerHappyShooter", true);
+            LookCompat(ref groupIndustriousWorker, "groupIndustriousWorker", true);
+            LookCompat(ref groupCraftingPassionWorker, "groupCraftingPassionWorker", true);
+            LookCompat(ref groupBeautyTrade, "groupBeautyTrade", true);
+            LookCompat(ref groupSocialPassionTrade, "groupSocialPassionTrade", true);
 
             // 分组显示顺序：List<int>，加载后校验必须是 0-4 的完整排列
             Scribe_Collections.Look(ref roleGroupOrder, "ae_roleGroupOrder", LookMode.Value);

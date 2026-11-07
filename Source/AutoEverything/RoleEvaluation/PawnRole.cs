@@ -63,12 +63,17 @@ namespace AutoEverything.RoleEvaluation
         public bool IsHunter;
         public bool ViolentDisabled;
 
-        // 强制判定条件（在【自动】→ 人员自动面板逐角色勾选）
+        // 强制判定条件（在【自动】→ 人员自动/工作自动面板逐角色勾选）
         public bool IsGhoul;                    // 食尸鬼 → 前排
         public bool IsMeleeSpecialist;          // 格斗专家职位 → 前排
         public bool IsShootingSpecialist;       // 射击专家职位 → 射手
         public bool IsProductionSpecialist;     // 生产专家职位 → 工人
         public bool IsSocialSpecialist;         // 道德家职位 → 贸易
+        public bool IsTriggerHappy;             // 乱开枪特质 → 射手
+        public bool HasIndustrious;             // 工作狂特质 → 工人
+        public bool CraftingPassionMajor;       // 生产（手工）兴趣双火 → 工人
+        public bool HasBeauty;                  // 俊俏/沉鱼落雁特质 → 贸易
+        public bool SocialPassionMajor;         // 社交兴趣双火 → 贸易
     }
 
     /// <summary>
@@ -92,6 +97,11 @@ namespace AutoEverything.RoleEvaluation
         public bool PacifistToWorker;
         public bool ProductionSpecialistToWorker;
         public bool SocialSpecialistToTrade;
+        public bool TriggerHappyToShooter;
+        public bool IndustriousToWorker;
+        public bool CraftingMajorToWorker;
+        public bool BeautyToTrade;
+        public bool SocialMajorToTrade;
 
         public static RoleGroupRules Default
         {
@@ -111,6 +121,11 @@ namespace AutoEverything.RoleEvaluation
                 rules.PacifistToWorker = true;
                 rules.ProductionSpecialistToWorker = true;
                 rules.SocialSpecialistToTrade = true;
+                rules.TriggerHappyToShooter = true;
+                rules.IndustriousToWorker = true;
+                rules.CraftingMajorToWorker = true;
+                rules.BeautyToTrade = true;
+                rules.SocialMajorToTrade = true;
                 return rules;
             }
         }
@@ -133,7 +148,12 @@ namespace AutoEverything.RoleEvaluation
                 || ShootingSpecialistToShooter != other.ShootingSpecialistToShooter
                 || PacifistToWorker != other.PacifistToWorker
                 || ProductionSpecialistToWorker != other.ProductionSpecialistToWorker
-                || SocialSpecialistToTrade != other.SocialSpecialistToTrade;
+                || SocialSpecialistToTrade != other.SocialSpecialistToTrade
+                || TriggerHappyToShooter != other.TriggerHappyToShooter
+                || IndustriousToWorker != other.IndustriousToWorker
+                || CraftingMajorToWorker != other.CraftingMajorToWorker
+                || BeautyToTrade != other.BeautyToTrade
+                || SocialMajorToTrade != other.SocialMajorToTrade;
         }
 
         public static RoleGroupRules FromSettings()
@@ -152,6 +172,11 @@ namespace AutoEverything.RoleEvaluation
             rules.PacifistToWorker = AESettings.groupWorkerPacifist;
             rules.ProductionSpecialistToWorker = AESettings.groupWorkerProductionSpecialist;
             rules.SocialSpecialistToTrade = AESettings.groupTradeMoralist;
+            rules.TriggerHappyToShooter = AESettings.groupTriggerHappyShooter;
+            rules.IndustriousToWorker = AESettings.groupIndustriousWorker;
+            rules.CraftingMajorToWorker = AESettings.groupCraftingPassionWorker;
+            rules.BeautyToTrade = AESettings.groupBeautyTrade;
+            rules.SocialMajorToTrade = AESettings.groupSocialPassionTrade;
             return rules;
         }
     }
@@ -328,7 +353,30 @@ namespace AutoEverything.RoleEvaluation
                 && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1;
             input.ViolentDisabled = pawn.WorkTagIsDisabled(WorkTags.Violent);
 
+            // 特质类强制条件：Def 可能因 DLC/模组缺失为 null，查询前逐一判空
+            TraitSet traits = pawn.story.traits;
+            input.IsTriggerHappy = traits != null && TraitDefCache.ShootingAccuracy != null
+                && traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
+            input.HasIndustrious = traits != null && TraitDefCache.Industriousness != null
+                && traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1;
+            input.HasBeauty = traits != null && TraitDefCache.Beauty != null
+                && traits.DegreeOfTrait(TraitDefCache.Beauty) >= 1;
+
+            // 兴趣双火：生产（手工）与社交，VSE 兼容按 Major 及以上处理
+            input.CraftingPassionMajor = IsMajorPassion(pawn, SkillDefOf.Crafting);
+            input.SocialPassionMajor = IsMajorPassion(pawn, SkillDefOf.Social);
+
             return EvaluateRoleGroupCore(input, rules);
+        }
+
+        /// <summary>
+        /// 判断技能兴趣是否达到双火（Major）及以上，兼容 VSE 的 Natural/Critical。
+        /// </summary>
+        private static bool IsMajorPassion(Pawn pawn, SkillDef skillDef)
+        {
+            SkillRecord skill = pawn.skills?.GetSkill(skillDef);
+            if (skill == null) return false;
+            return PassionHelper.GetPassionTier(skill.passion) >= PassionHelper.PassionTier.Major;
         }
 
         /// <summary>
@@ -351,17 +399,22 @@ namespace AutoEverything.RoleEvaluation
         /// 2. 格斗者特质 → 前排（可关闭）
         /// 3. 格斗专家职位 → 前排（可关闭）
         /// 4. 射击专家职位 → 射手（可关闭）
-        /// 5. 被指派狩猎 → 射手（可关闭）
-        /// 6. 生产专家职位 → 工人（可关闭）
-        /// 7. 道德家职位 → 贸易（可关闭）
+        /// 5. 乱开枪特质 → 射手（可关闭）
+        /// 6. 被指派狩猎 → 射手（可关闭）
+        /// 7. 生产专家职位 → 工人（可关闭）
+        /// 8. 工作狂特质 → 工人（可关闭）
+        /// 9. 生产（手工）兴趣双火 → 工人（可关闭）
+        /// 10. 道德家职位 → 贸易（可关闭）
+        /// 11. 俊俏/沉鱼落雁特质 → 贸易（可关闭）
+        /// 12. 社交兴趣双火 → 贸易（可关闭）
         ///
         /// 技能/兴趣补充判定（强制条件未命中时）：
-        /// 8. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
-        /// 9. 近战 ≥ 前排阈值且高于射击 → 前排
-        /// 10. 射击 ≥ 射手阈值且高于近战 → 射手
-        /// 11. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
-        /// 12. 射击与近战均低于工人阈值 → 工人
-        /// 13. 其余 → 其他
+        /// 13. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
+        /// 14. 近战 ≥ 前排阈值且高于射击 → 前排
+        /// 15. 射击 ≥ 射手阈值且高于近战 → 射手
+        /// 16. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
+        /// 17. 射击与近战均低于工人阈值 → 工人
+        /// 18. 其余 → 其他
         /// </summary>
         public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
         {
@@ -371,9 +424,14 @@ namespace AutoEverything.RoleEvaluation
             if (rules.BrawlerTraitToFront && input.HasBrawlerTrait) return RoleGroup.Front;
             if (rules.MeleeSpecialistToFront && input.IsMeleeSpecialist) return RoleGroup.Front;
             if (rules.ShootingSpecialistToShooter && input.IsShootingSpecialist) return RoleGroup.Shooter;
+            if (rules.TriggerHappyToShooter && input.IsTriggerHappy) return RoleGroup.Shooter;
             if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
             if (rules.ProductionSpecialistToWorker && input.IsProductionSpecialist) return RoleGroup.Worker;
+            if (rules.IndustriousToWorker && input.HasIndustrious) return RoleGroup.Worker;
+            if (rules.CraftingMajorToWorker && input.CraftingPassionMajor) return RoleGroup.Worker;
             if (rules.SocialSpecialistToTrade && input.IsSocialSpecialist) return RoleGroup.Trade;
+            if (rules.BeautyToTrade && input.HasBeauty) return RoleGroup.Trade;
+            if (rules.SocialMajorToTrade && input.SocialPassionMajor) return RoleGroup.Trade;
 
             // ── 技能/兴趣补充判定 ──
             if (rules.PassionPriority)

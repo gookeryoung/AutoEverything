@@ -264,19 +264,29 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Front_Brawler>Brawler trait</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>Melee specialist</AE_CFG_Front_MeleeSpecialist>
   <AE_CFG_Shooter_Specialist>Shooting specialist</AE_CFG_Shooter_Specialist>
+  <AE_CFG_Shooter_TriggerHappy>Trigger-happy trait</AE_CFG_Shooter_TriggerHappy>
   <AE_CFG_Shooter_Hunter>Hunter</AE_CFG_Shooter_Hunter>
   <AE_CFG_Worker_Pacifist>Violent disabled</AE_CFG_Worker_Pacifist>
   <AE_CFG_Worker_ProductionSpecialist>Production specialist</AE_CFG_Worker_ProductionSpecialist>
+  <AE_CFG_Worker_Industrious>Industrious trait</AE_CFG_Worker_Industrious>
+  <AE_CFG_Worker_CraftingMajor>Crafting passion (major)</AE_CFG_Worker_CraftingMajor>
   <AE_CFG_Trade_Moralist>Moralist</AE_CFG_Trade_Moralist>
+  <AE_CFG_Trade_Beauty>Pretty / Beautiful</AE_CFG_Trade_Beauty>
+  <AE_CFG_Trade_SocialMajor>Social passion (major)</AE_CFG_Trade_SocialMajor>
 
   <AE_TT_Front_Ghoul>Ghouls (Anomaly) are put in Front.</AE_TT_Front_Ghoul>
   <AE_TT_Front_Brawler>Colonists with the Brawler trait are put in Front.</AE_TT_Front_Brawler>
   <AE_TT_Front_MeleeSpecialist>Colonists holding the melee specialist ideoligion role are put in Front.</AE_TT_Front_MeleeSpecialist>
   <AE_TT_Shooter_Specialist>Colonists holding the shooting specialist ideoligion role are put in Shooter.</AE_TT_Shooter_Specialist>
+  <AE_TT_Shooter_TriggerHappy>Colonists with the trigger-happy trait are put in Shooter.</AE_TT_Shooter_TriggerHappy>
   <AE_TT_Shooter_Hunter>Colonists assigned to hunting at priority 1 are put in Shooter.</AE_TT_Shooter_Hunter>
   <AE_TT_Worker_Pacifist>Colonists unable to do violent work are put in Worker.</AE_TT_Worker_Pacifist>
   <AE_TT_Worker_ProductionSpecialist>Colonists holding the production specialist ideoligion role are put in Worker.</AE_TT_Worker_ProductionSpecialist>
+  <AE_TT_Worker_Industrious>Colonists with the industrious trait (Industrious or Very industrious) are put in Worker.</AE_TT_Worker_Industrious>
+  <AE_TT_Worker_CraftingMajor>Colonists with a major passion in Crafting are put in Worker.</AE_TT_Worker_CraftingMajor>
   <AE_TT_Trade_Moralist>Colonists holding the moralist ideoligion role are put in Trade.</AE_TT_Trade_Moralist>
+  <AE_TT_Trade_Beauty>Colonists with the Pretty or Beautiful trait are put in Trade.</AE_TT_Trade_Beauty>
+  <AE_TT_Trade_SocialMajor>Colonists with a major passion in Social are put in Trade.</AE_TT_Trade_SocialMajor>
 
   <AE_TT_GroupFrontSkillMin>Melee skill at or above this value and higher than shooting puts the pawn in Front.</AE_TT_GroupFrontSkillMin>
   <AE_TT_GroupShooterSkillMin>Shooting skill at or above this value and higher than melee puts the pawn in Shooter.</AE_TT_GroupShooterSkillMin>

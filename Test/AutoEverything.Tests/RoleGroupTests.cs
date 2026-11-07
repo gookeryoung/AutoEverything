@@ -40,6 +40,16 @@ namespace AutoEverything.Tests
                 RoleGroup.Worker, "生产专家职位 → 工人", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsSocialSpecialist = true, Shooting = 20, Melee = 20 },
                 RoleGroup.Trade, "道德家职位 → 贸易", ref failures, ref total);
+            Check(rules, new RoleGroupInput { IsTriggerHappy = true, Shooting = 0, Melee = 0 },
+                RoleGroup.Shooter, "乱开枪特性 → 射手", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasIndustrious = true, Shooting = 20 },
+                RoleGroup.Worker, "工作狂特质 → 工人", ref failures, ref total);
+            Check(rules, new RoleGroupInput { CraftingPassionMajor = true, Shooting = 20 },
+                RoleGroup.Worker, "生产兴趣双火 → 工人", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasBeauty = true, Shooting = 20, Melee = 20 },
+                RoleGroup.Trade, "俊俏/沉鱼落雁 → 贸易", ref failures, ref total);
+            Check(rules, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 20 },
+                RoleGroup.Trade, "社交兴趣双火 → 贸易", ref failures, ref total);
 
             // ── 强制条件优先级 ──
             Check(rules, new RoleGroupInput { ViolentDisabled = true, HasBrawlerTrait = true },
@@ -69,6 +79,32 @@ namespace AutoEverything.Tests
             noMoralist.SocialSpecialistToTrade = false;
             Check(noMoralist, new RoleGroupInput { IsSocialSpecialist = true, Shooting = 0, Melee = 0, Social = 0 },
                 RoleGroup.Worker, "关闭道德家开关后不再归贸易", ref failures, ref total);
+
+            // 新增补充条件可独立关闭，关闭后回落到技能/兴趣判定
+            RoleGroupRules noTriggerHappy = RoleGroupRules.Default;
+            noTriggerHappy.TriggerHappyToShooter = false;
+            Check(noTriggerHappy, new RoleGroupInput { IsTriggerHappy = true, Shooting = 0, Melee = 0 },
+                RoleGroup.Worker, "关闭乱开枪开关后按低战斗技能归工人", ref failures, ref total);
+
+            RoleGroupRules noIndustrious = RoleGroupRules.Default;
+            noIndustrious.IndustriousToWorker = false;
+            Check(noIndustrious, new RoleGroupInput { HasIndustrious = true, Shooting = 20, Melee = 0 },
+                RoleGroup.Shooter, "关闭工作狂开关后回落到射手", ref failures, ref total);
+
+            RoleGroupRules noCraftingMajor = RoleGroupRules.Default;
+            noCraftingMajor.CraftingMajorToWorker = false;
+            Check(noCraftingMajor, new RoleGroupInput { CraftingPassionMajor = true, Shooting = 20, Melee = 0 },
+                RoleGroup.Shooter, "关闭生产双火开关后回落到射手", ref failures, ref total);
+
+            RoleGroupRules noBeauty = RoleGroupRules.Default;
+            noBeauty.BeautyToTrade = false;
+            Check(noBeauty, new RoleGroupInput { HasBeauty = true, Shooting = 20, Melee = 0 },
+                RoleGroup.Shooter, "关闭俊俏开关后回落到射手", ref failures, ref total);
+
+            RoleGroupRules noSocialMajor = RoleGroupRules.Default;
+            noSocialMajor.SocialMajorToTrade = false;
+            Check(noSocialMajor, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 0 },
+                RoleGroup.Shooter, "关闭社交双火开关后回落到射手", ref failures, ref total);
 
             // ── 技能/兴趣补充判定 ──
             Check(rules, new RoleGroupInput { Melee = 9, Shooting = 3, MeleePassion = true },
@@ -226,6 +262,26 @@ namespace AutoEverything.Tests
             r = RoleGroupRules.Default;
             r.SocialSpecialistToTrade = false;
             CheckBool(r.DiffersFrom(baseRules), true, "道德家开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.TriggerHappyToShooter = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "乱开枪开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.IndustriousToWorker = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "工作狂开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.CraftingMajorToWorker = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "生产双火开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.BeautyToTrade = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "俊俏开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.SocialMajorToTrade = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "社交双火开关变化被检测", ref failures, ref total);
 
             Console.WriteLine($"[RoleGroupDiffTests] 累计 {total - failures}/{total} passed");
             return failures;
