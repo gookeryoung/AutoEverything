@@ -150,19 +150,6 @@ namespace AutoEverything.Core
             }
         }
 
-        private static void LookCompat(ref int value, string key, int defaultValue)
-        {
-            if (Scribe.mode == LoadSaveMode.Saving)
-            {
-                Scribe_Values.Look(ref value, "ae_" + key, defaultValue);
-            }
-            else if (Scribe.mode == LoadSaveMode.LoadingVars)
-            {
-                Scribe_Values.Look(ref value, key, defaultValue);
-                Scribe_Values.Look(ref value, "ae_" + key, value);
-            }
-        }
-
         /// <summary>
         /// 重建运行时字典：将 "档次#名字" 列表解析为 Dictionary。
         /// 在 ExposeData 之后与每次写入后调用，保持运行时数据一致。

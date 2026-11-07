@@ -290,13 +290,5 @@ namespace AutoEverything.AutoDrugPolicy
             }
         }
 
-        /// <summary>
-        /// 反射读取 DrugPolicy.entriesInt 字段。供 AutoCarry 查询 takeToInventory 复用。
-        /// </summary>
-        public static List<DrugPolicyEntry> GetEntries(DrugPolicy policy)
-        {
-            if (policy == null || entriesIntField == null) return null;
-            return entriesIntField.GetValue(policy) as List<DrugPolicyEntry>;
-        }
     }
 }

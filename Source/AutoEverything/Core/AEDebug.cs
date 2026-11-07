@@ -26,16 +26,6 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 直接字符串版本：保留兼容旧调用方。
-        /// 注意：调用方传入的字符串在调用前已构造，无法避免 GC。
-        /// 性能路径请改用 Log(Func&lt;string&gt;) 重载。
-        /// </summary>
-        public static void Log(string message)
-        {
-            if (IsActive) Verse.Log.Message(message);
-        }
-
-        /// <summary>
         /// 返回 Pawn 的标签字符串，DEBUG 模式下以"系统评级[#名字]"格式显示。
         /// 系统评级始终显示；若玩家指定了自定义评级则写入括号中：
         ///   无自定义：S#王五

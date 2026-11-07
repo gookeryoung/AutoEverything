@@ -44,8 +44,7 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>钱袋子纹理：贸易</summary>
         public static readonly Texture2D Trader;
 
-        // 纹理尺寸常量
-        private const int ExternalSize = 64;
+        // 降级纹理尺寸常量
         private const int FallbackSize = 32;
         private const int FallbackCenter = FallbackSize / 2;
 

@@ -304,114 +304,57 @@ namespace AutoEverything.UI
             // 5 列布局：评级/工作/星标/携带/用药
             float colWidth = (rect.width - 4f * buttonGap) / 5f;
 
-            // 1. 人员自动评级勾选框（左1）：勾选立即执行 + 启用周期自动；取消勾选清除所有评级标签恢复原名
-            Rect tierCheckRect = new Rect(
-                rect.x,
-                contentRect.yMax + buttonGap,
-                colWidth,
-                checkboxHeight);
-
-            bool prevWrap1 = Text.WordWrap;
-            Text.WordWrap = false;
+            // 记录各开关原值，供末尾统一写盘
             bool prevTierTag = AESettings.autoTierTag;
-            Widgets.CheckboxLabeled(tierCheckRect, "AE_AutoTierTag".Translate(), ref AESettings.autoTierTag);
-            Text.WordWrap = prevWrap1;
-            TooltipHandler.TipRegion(tierCheckRect, "AE_TT_AutoTierTag".Translate());
-            // 状态变化检测：勾选时立即执行；取消勾选时清除评级标签
-            if (AESettings.autoTierTag != prevTierTag)
-            {
-                if (AESettings.autoTierTag)
-                {
-                    AutoExecutor.TriggerTierNow();
-                }
-                else
-                {
-                    int cleared = AESettings.ClearTierTagsFromAllPawns();
-                    Messages.Message(
-                        "AE_TierTag_ClearResult".Translate(cleared),
-                        MessageTypeDefOf.TaskCompletion);
-                }
-            }
-
-            // 2. 工作自动配置勾选框（左2）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前分配）
-            Rect workCheckRect = new Rect(
-                rect.x + colWidth + buttonGap,
-                contentRect.yMax + buttonGap,
-                colWidth,
-                checkboxHeight);
-
-            bool prevWrap2 = Text.WordWrap;
-            Text.WordWrap = false;
             bool prevWork = AESettings.autoWorkEnabled;
-            Widgets.CheckboxLabeled(workCheckRect, "AE_AutoWorkConfig".Translate(), ref AESettings.autoWorkEnabled);
-            Text.WordWrap = prevWrap2;
-            TooltipHandler.TipRegion(workCheckRect, "AE_TT_AutoWorkConfig".Translate());
-            // 状态变化检测：勾选时立即执行；取消勾选仅停止自动（无副作用）
-            if (AESettings.autoWorkEnabled && AESettings.autoWorkEnabled != prevWork)
-            {
-                AutoExecutor.TriggerWorkNow();
-            }
-
-            // 3. 高价值自动标记勾选框（右2）：切换勾选时立即全局重扫描并弹消息；
-            //    取消勾选时 ExecuteMark 检测开关后静默返回，殖民者栏角色定位图标由 Harmony 补丁实时检查开关自动停止绘制
-            Rect markCheckRect = new Rect(
-                rect.x + 2f * (colWidth + buttonGap),
-                contentRect.yMax + buttonGap,
-                colWidth,
-                checkboxHeight);
-
-            bool prevWrap4 = Text.WordWrap;
-            Text.WordWrap = false;
             bool prevMark = AESettings.autoMarkPawn;
-            Widgets.CheckboxLabeled(markCheckRect, "AE_AutoMarkPawn".Translate(), ref AESettings.autoMarkPawn);
-            Text.WordWrap = prevWrap4;
-            TooltipHandler.TipRegion(markCheckRect, "AE_TT_AutoMarkPawn".Translate());
-            // 状态变化（任一方向）：调用 TriggerMarkNow 触发全局重扫描
-            //   勾选（autoMarkPawn=true）：执行扫描并弹消息列出当前所有高价值单位
-            //   取消勾选（autoMarkPawn=false）：ExecuteMark 静默返回；角色定位图标自动消失；tracking 留待下次勾选时清空
-            if (AESettings.autoMarkPawn != prevMark)
-            {
-                AutoExecutor.TriggerMarkNow();
-            }
-
-            // 4. 自动携带勾选框（右2）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前背包）
-            Rect carryCheckRect = new Rect(
-                rect.x + 3f * (colWidth + buttonGap),
-                contentRect.yMax + buttonGap,
-                colWidth,
-                checkboxHeight);
-
-            bool prevWrap5 = Text.WordWrap;
-            Text.WordWrap = false;
             bool prevCarry = AESettings.autoCarryEnabled;
-            // 食尸鬼不参与自动携带，仍可勾选但仅控制全局开关
-            Widgets.CheckboxLabeled(carryCheckRect, "AE_AutoCarry".Translate(), ref AESettings.autoCarryEnabled);
-            Text.WordWrap = prevWrap5;
-            TooltipHandler.TipRegion(carryCheckRect, "AE_TT_AutoCarry".Translate());
-            // 状态变化检测：勾选时立即执行（受战斗过滤）；取消勾选仅停止自动（无副作用）
-            if (AESettings.autoCarryEnabled && AESettings.autoCarryEnabled != prevCarry)
-            {
-                AutoExecutor.TriggerCarryNow();
-            }
-
-            // 5. 用药方案自动配置勾选框（右1）：勾选立即创建并分配政策；取消勾选仅停止自动（保留当前政策）
-            Rect drugCheckRect = new Rect(
-                rect.x + 4f * (colWidth + buttonGap),
-                contentRect.yMax + buttonGap,
-                colWidth,
-                checkboxHeight);
-
-            bool prevWrap6 = Text.WordWrap;
-            Text.WordWrap = false;
             bool prevDrug = AESettings.autoDrugPolicyEnabled;
-            Widgets.CheckboxLabeled(drugCheckRect, "AE_AutoDrugPolicy".Translate(), ref AESettings.autoDrugPolicyEnabled);
-            Text.WordWrap = prevWrap6;
-            TooltipHandler.TipRegion(drugCheckRect, "AE_TT_AutoDrugPolicy".Translate());
-            // 状态变化检测：勾选时立即触发分配；取消勾选仅停止自动（无副作用，不撤销已分配政策）
-            if (AESettings.autoDrugPolicyEnabled && AESettings.autoDrugPolicyEnabled != prevDrug)
-            {
-                AutoExecutor.TriggerDrugPolicyNow();
-            }
+
+            // 1. 人员自动评级（左1）：勾选立即执行；取消勾选清除所有评级标签恢复原名
+            DrawToggle(ToggleRect(rect, contentRect, colWidth, buttonGap, checkboxHeight, 0),
+                "AE_AutoTierTag", "AE_TT_AutoTierTag", ref AESettings.autoTierTag, () =>
+                {
+                    if (AESettings.autoTierTag)
+                    {
+                        AutoExecutor.TriggerTierNow();
+                    }
+                    else
+                    {
+                        int cleared = AESettings.ClearTierTagsFromAllPawns();
+                        Messages.Message(
+                            "AE_TierTag_ClearResult".Translate(cleared),
+                            MessageTypeDefOf.TaskCompletion);
+                    }
+                });
+
+            // 2. 工作自动配置（左2）：勾选立即执行；取消勾选仅停止自动（保留当前分配）
+            DrawToggle(ToggleRect(rect, contentRect, colWidth, buttonGap, checkboxHeight, 1),
+                "AE_AutoWorkConfig", "AE_TT_AutoWorkConfig", ref AESettings.autoWorkEnabled, () =>
+                {
+                    if (AESettings.autoWorkEnabled) AutoExecutor.TriggerWorkNow();
+                });
+
+            // 3. 高价值自动标记（中）：切换勾选时立即全局重扫描并弹消息；
+            //    取消勾选时 ExecuteMark 静默返回，角色定位图标由 Harmony 补丁实时检查开关自动停止绘制
+            DrawToggle(ToggleRect(rect, contentRect, colWidth, buttonGap, checkboxHeight, 2),
+                "AE_AutoMarkPawn", "AE_TT_AutoMarkPawn", ref AESettings.autoMarkPawn,
+                AutoExecutor.TriggerMarkNow);
+
+            // 4. 自动携带（右2）：勾选立即执行 + 启用周期自动；取消勾选仅停止自动（保留当前背包）
+            //    食尸鬼不参与自动携带，仍可勾选但仅控制全局开关
+            DrawToggle(ToggleRect(rect, contentRect, colWidth, buttonGap, checkboxHeight, 3),
+                "AE_AutoCarry", "AE_TT_AutoCarry", ref AESettings.autoCarryEnabled, () =>
+                {
+                    if (AESettings.autoCarryEnabled) AutoExecutor.TriggerCarryNow();
+                });
+
+            // 5. 用药方案（右1）：勾选立即创建并分配政策；取消勾选仅停止自动（保留当前政策）
+            DrawToggle(ToggleRect(rect, contentRect, colWidth, buttonGap, checkboxHeight, 4),
+                "AE_AutoDrugPolicy", "AE_TT_AutoDrugPolicy", ref AESettings.autoDrugPolicyEnabled, () =>
+                {
+                    if (AESettings.autoDrugPolicyEnabled) AutoExecutor.TriggerDrugPolicyNow();
+                });
 
             // ===================== 设置持久化 =====================
             // ITab 勾选框直接修改 static 字段，RimWorld 不会自动写盘——
@@ -427,6 +370,33 @@ namespace AutoEverything.UI
             {
                 AutoEverythingMod.settings?.Write();
             }
+        }
+
+        /// <summary>
+        /// 底部 5 列勾选框的定位：统一计算避免 5 处重复的坐标表达式。
+        /// </summary>
+        private static Rect ToggleRect(Rect area, Rect contentRect, float colWidth, float gap, float height, int index)
+        {
+            return new Rect(
+                area.x + index * (colWidth + gap),
+                contentRect.yMax + gap,
+                colWidth,
+                height);
+        }
+
+        /// <summary>
+        /// 绘制单个开关勾选框：统一关闭 WordWrap、挂 Tooltip，并在值变化时回调。
+        /// </summary>
+        private static void DrawToggle(Rect rect, string labelKey, string tooltipKey, ref bool value,
+            System.Action onChanged)
+        {
+            bool prevWrap = Text.WordWrap;
+            Text.WordWrap = false;
+            bool prev = value;
+            Widgets.CheckboxLabeled(rect, labelKey.Translate(), ref value);
+            Text.WordWrap = prevWrap;
+            TooltipHandler.TipRegion(rect, tooltipKey.Translate());
+            if (value != prev) onChanged?.Invoke();
         }
 
         // ===================== Section 卡片绘制 =====================
@@ -581,26 +551,30 @@ namespace AutoEverything.UI
         }
 
         /// <summary>
+        /// 徽章通用边框：半透明底色 + 深色描边。
+        /// 所有徽章（角色/情境/评级/数值）共用，避免重复绘制代码；绘制后 GUI.color 归白，由调用方决定文字/图标颜色。
+        /// </summary>
+        private static void DrawBadgeFrame(Rect rect, Color bgColor)
+        {
+            Color bg = bgColor;
+            bg.a = 0.85f;
+            Widgets.DrawBoxSolid(rect, bg);
+
+            GUI.color = Color.white * 0.5f;
+            Widgets.DrawBox(rect, 1);
+            GUI.color = Color.white;
+        }
+
+        /// <summary>
         /// 绘制单个徽章：带底色 + 居中文字。
         /// 关闭 WordWrap 防止中文换行导致显示不全（超宽截断优于换行撑乱布局）。
         /// </summary>
         private void DrawBadge(Rect rect, string text, Color bgColor)
         {
-            // 保存原颜色，绘制后恢复
             Color prevColor = GUI.color;
-            Color prevBg = GUI.backgroundColor;
             bool prevWrap = Text.WordWrap;
 
-            // 半透明底色：让徽章不抢眼但清晰可辨
-            Color bg = bgColor;
-            bg.a = 0.85f;
-            GUI.color = bg;
-            // DrawBoxSolid 会用 GUI.color 填充
-            Widgets.DrawBoxSolid(rect, bg);
-
-            // 边框：深一点的颜色
-            GUI.color = Color.white * 0.5f;
-            Widgets.DrawBox(rect, 1);
+            DrawBadgeFrame(rect, bgColor);
 
             // 文字：白色或黑色，按底色亮度选择
             float brightness = bgColor.r * 0.299f + bgColor.g * 0.587f + bgColor.b * 0.114f;
@@ -613,41 +587,27 @@ namespace AutoEverything.UI
             Text.WordWrap = prevWrap;
 
             GUI.color = prevColor;
-            GUI.backgroundColor = prevBg;
         }
 
         /// <summary>
-        /// 绘制带图标的评级徽章：左侧小圆图标 + 右侧评级字母。
-        /// 图标来自 Textures/UI/Icons/Tier/Tier_X.png，圆形带底色。
+        /// 绘制带图标的评级徽章：左侧小圆图标（图标内已含评级字母）。
+        /// 图标来自 Textures/UI/Icons/Tier/Tier_X.png。
         /// </summary>
         private void DrawTierBadgeWithIcon(Rect rect, Texture2D icon, Color bgColor)
         {
             Color prevColor = GUI.color;
-            Color prevBg = GUI.backgroundColor;
 
-            // 半透明底色
-            Color bg = bgColor;
-            bg.a = 0.85f;
-            Widgets.DrawBoxSolid(rect, bg);
-
-            // 边框
-            GUI.color = Color.white * 0.5f;
-            Widgets.DrawBox(rect, 1);
+            DrawBadgeFrame(rect, bgColor);
 
             // 左侧图标：正方形，边长 = 徽章高度 - 4
             float iconSize = rect.height - 4f;
             Rect iconRect = new Rect(rect.x + 3f, rect.y + 2f, iconSize, iconSize);
-            GUI.color = Color.white;
             if (icon != null)
             {
                 GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit);
             }
 
-            // 右侧字母（图标内已含字母，此处留空避免重复，仅保持布局）
-            Text.Anchor = TextAnchor.UpperLeft;
-
             GUI.color = prevColor;
-            GUI.backgroundColor = prevBg;
         }
 
         /// <summary>
@@ -659,23 +619,14 @@ namespace AutoEverything.UI
         private void DrawRoleBadgeWithIcon(Rect rect, Texture2D icon, Color bgColor, string label)
         {
             Color prevColor = GUI.color;
-            Color prevBg = GUI.backgroundColor;
             TextAnchor prevAnchor = Text.Anchor;
             bool prevWrap = Text.WordWrap;
 
-            // 半透明底色
-            Color bg = bgColor;
-            bg.a = 0.85f;
-            Widgets.DrawBoxSolid(rect, bg);
-
-            // 边框
-            GUI.color = Color.white * 0.5f;
-            Widgets.DrawBox(rect, 1);
+            DrawBadgeFrame(rect, bgColor);
 
             // 左侧图标：缩小到 14f 给文字留空间（原 height-4=20f 占用过多）
             float iconSize = 14f;
             Rect iconRect = new Rect(rect.x + 3f, rect.y + (rect.height - iconSize) * 0.5f, iconSize, iconSize);
-            GUI.color = Color.white;
             if (icon != null)
             {
                 GUI.DrawTexture(iconRect, icon, ScaleMode.ScaleToFit);
@@ -690,7 +641,6 @@ namespace AutoEverything.UI
                 Text.Anchor = TextAnchor.MiddleLeft;
                 Text.Font = GameFont.Tiny;
                 Text.WordWrap = false;
-                GUI.color = Color.white;
                 Widgets.Label(labelRect, label);
                 Text.Font = GameFont.Small;
                 Text.WordWrap = prevWrap;
@@ -698,7 +648,6 @@ namespace AutoEverything.UI
 
             Text.Anchor = prevAnchor;
             GUI.color = prevColor;
-            GUI.backgroundColor = prevBg;
         }
 
         /// <summary>
@@ -732,15 +681,9 @@ namespace AutoEverything.UI
             Color prev = GUI.color;
             bool prevWrap = Text.WordWrap;
 
-            Color bg = bgColor;
-            bg.a = 0.85f;
-            Widgets.DrawBoxSolid(rect, bg);
-
-            GUI.color = Color.white * 0.5f;
-            Widgets.DrawBox(rect, 1);
+            DrawBadgeFrame(rect, bgColor);
 
             // 文字：标签:数值（左对齐），关闭换行避免长数值截断
-            GUI.color = Color.white;
             Text.Anchor = TextAnchor.MiddleLeft;
             Text.Font = GameFont.Tiny;
             Text.WordWrap = false;

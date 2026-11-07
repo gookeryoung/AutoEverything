@@ -18,19 +18,9 @@ namespace AutoEverything.Core
         /// </summary>
         public static string Strip(string label)
         {
-            if (string.IsNullOrEmpty(label)) return label;
-
-            int hashIdx = label.IndexOf('#');
-            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
-            if (hashIdx > 0 && hashIdx <= 3)
-            {
-                string prefix = label.Substring(0, hashIdx);
-                if (Enum.TryParse(prefix, out CombatTier _))
-                {
-                    return label.Substring(hashIdx + 1);
-                }
-            }
-            return label;
+            return TryGetBodyStart(label, out int bodyStart)
+                ? label.Substring(bodyStart)
+                : label;
         }
 
         /// <summary>
@@ -38,11 +28,25 @@ namespace AutoEverything.Core
         /// </summary>
         public static bool HasPrefix(string label)
         {
+            return TryGetBodyStart(label, out _);
+        }
+
+        /// <summary>
+        /// 识别合法的"评级前缀#"结构，返回 # 之后正文的起始索引。
+        /// Strip/HasPrefix 共用同一判定，避免规则分裂。
+        /// </summary>
+        private static bool TryGetBodyStart(string label, out int bodyStart)
+        {
+            bodyStart = 0;
             if (string.IsNullOrEmpty(label)) return false;
+
             int hashIdx = label.IndexOf('#');
+            // hashIdx <= 0：无 # 或 # 在首位；hashIdx > 3：前缀超长（最长 SSS=3 字符）
             if (hashIdx <= 0 || hashIdx > 3) return false;
-            string prefix = label.Substring(0, hashIdx);
-            return Enum.TryParse(prefix, out CombatTier _);
+            if (!Enum.TryParse(label.Substring(0, hashIdx), out CombatTier _)) return false;
+
+            bodyStart = hashIdx + 1;
+            return true;
         }
     }
 }

@@ -485,11 +485,9 @@ namespace AutoEverything.Core
         {
             // 评级颜色常量（RGB，alpha 由原生逻辑处理）
             // 颜色选择依据：S+ 统一紫色以突出高价值
-            private static readonly Color TierColorSSS = new Color(0.75f, 0.30f, 1.00f);  // 亮紫
-            private static readonly Color TierColorSS = new Color(0.75f, 0.30f, 1.00f);   // 亮紫
-            private static readonly Color TierColorS = new Color(0.75f, 0.30f, 1.00f);    // 亮紫
-            private static readonly Color TierColorAB = new Color(1.00f, 1.00f, 1.00f);   // 白色
-            private static readonly Color TierColorCD = new Color(0.55f, 0.55f, 0.55f);   // 灰色
+            private static readonly Color TierColorSPlus = new Color(0.75f, 0.30f, 1.00f);  // 亮紫
+            private static readonly Color TierColorAB = new Color(1.00f, 1.00f, 1.00f);     // 白色
+            private static readonly Color TierColorCD = new Color(0.55f, 0.55f, 0.55f);     // 灰色
 
             public static void Postfix(Pawn pawn, ref Color __result)
             {
@@ -530,9 +528,9 @@ namespace AutoEverything.Core
             {
                 switch (tier)
                 {
-                    case CombatTier.SSS: return TierColorSSS;
-                    case CombatTier.SS: return TierColorSS;
-                    case CombatTier.S: return TierColorS;
+                    case CombatTier.SSS:
+                    case CombatTier.SS:
+                    case CombatTier.S: return TierColorSPlus;
                     case CombatTier.A:
                     case CombatTier.B: return TierColorAB;
                     case CombatTier.C:

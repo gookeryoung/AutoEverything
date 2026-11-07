@@ -219,26 +219,12 @@ namespace AutoEverything.AutoWork
                 // 殖民者（FreeColonistsSpawned 不含奴隶）
                 foreach (Pawn pawn in map.mapPawns.FreeColonistsSpawned)
                 {
-                    if (DLCCompat.IsGhoul(pawn)) continue;
-                    if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
-                    if (pawn.Dead || pawn.Downed) continue;
-                    if (pawn.workSettings == null) continue;
-                    if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
-                    if (PawnJobGuard.IsInRitualOrGathering(pawn)) continue;
-                    if (pawn.CurJob?.playerForced == true) continue;
-                    candidatePawns.Add(pawn);
+                    TryAddCandidate(pawn);
                 }
                 // 奴隶（Ideology DLC 才有，无 DLC 时 SlavesOfColonySpawned 返回空列表）
                 foreach (Pawn pawn in map.mapPawns.SlavesOfColonySpawned)
                 {
-                    if (DLCCompat.IsGhoul(pawn)) continue;
-                    if (!PawnSuitabilityChecker.CanManageGear(pawn)) continue;
-                    if (pawn.Dead || pawn.Downed) continue;
-                    if (pawn.workSettings == null) continue;
-                    if (PawnJobGuard.ShouldSkipForMedical(pawn)) continue;
-                    if (PawnJobGuard.IsInRitualOrGathering(pawn)) continue;
-                    if (pawn.CurJob?.playerForced == true) continue;
-                    candidatePawns.Add(pawn);
+                    TryAddCandidate(pawn);
                 }
             }
 
@@ -282,6 +268,21 @@ namespace AutoEverything.AutoWork
             });
 
             return candidatePawns.Count;
+        }
+
+        /// <summary>
+        /// 候选殖民者过滤：殖民者与奴隶共用同一套排除规则，避免维护两份相同判断。
+        /// </summary>
+        private static void TryAddCandidate(Pawn pawn)
+        {
+            if (DLCCompat.IsGhoul(pawn)) return;
+            if (!PawnSuitabilityChecker.CanManageGear(pawn)) return;
+            if (pawn.Dead || pawn.Downed) return;
+            if (pawn.workSettings == null) return;
+            if (PawnJobGuard.ShouldSkipForMedical(pawn)) return;
+            if (PawnJobGuard.IsInRitualOrGathering(pawn)) return;
+            if (pawn.CurJob?.playerForced == true) return;
+            candidatePawns.Add(pawn);
         }
 
         /// <summary>

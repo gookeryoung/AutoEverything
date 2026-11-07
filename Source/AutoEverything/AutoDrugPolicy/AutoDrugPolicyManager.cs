@@ -50,6 +50,10 @@ namespace AutoEverything.AutoDrugPolicy
         /// </summary>
         public static void EnsurePoliciesCreated()
         {
+            // 同一会话内切换存档时 DrugPolicyDatabase 实例会变化，缓存的旧政策引用随之失效，
+            // 需丢弃缓存重新创建，否则会把新存档的殖民者指向已不存在的旧政策
+            if (policiesInitialized && !PoliciesBelongToCurrentDatabase())
+                ResetInitialization();
             if (policiesInitialized) return;
             policiesInitialized = true;
 
@@ -235,9 +239,19 @@ namespace AutoEverything.AutoDrugPolicy
         }
 
         /// <summary>
+        /// 判断缓存的政策是否仍属于当前 DrugPolicyDatabase（用于识别存档切换）。
+        /// </summary>
+        private static bool PoliciesBelongToCurrentDatabase()
+        {
+            DrugPolicyDatabase db = Current.Game?.drugPolicyDatabase;
+            List<DrugPolicy> policies = db?.AllPolicies;
+            return policies != null && policyS != null && policies.Contains(policyS);
+        }
+
+        /// <summary>
         /// 重置初始化标志：存档加载后允许重新创建政策（应对 DrugPolicyDatabase 实例变化）。
         /// </summary>
-        public static void ResetInitialization()
+        private static void ResetInitialization()
         {
             policiesInitialized = false;
             policyS = null;

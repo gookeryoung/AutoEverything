@@ -36,9 +36,6 @@ namespace AutoEverything.AutoCarry
         // 血清类目标数量：各 1 个（仅 S 档携带）
         public const int SerumCount = 1;
 
-        // 药品"携带"列默认值（无政策条目或反射失败时的兜底数量——0 = 不携带，避免丢地上）
-        private const int DefaultDrugCarryCount = 0;
-
         // 食物 DefName 列表（按优先级从高到低排序）
         // DefName 已校验：e:\SteamLibrary\steamapps\common\RimWorld\Data\Core\Defs\ThingDefs_Items\Items_Food.xml
         // internal 暴露供测试验证优先级顺序
