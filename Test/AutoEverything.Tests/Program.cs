@@ -43,6 +43,7 @@ namespace AutoEverything.Tests
                 failures += DrugPolicyPresetsTests.RunAll();
                 failures += PawnCarryCheckerTests.RunAll();
                 failures += CarryPolicyTests.RunAll();
+                failures += ConfigTabLayoutTests.RunAll();
 
                 if (failures == 0)
                 {

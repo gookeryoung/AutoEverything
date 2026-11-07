@@ -77,7 +77,7 @@ namespace AutoEverything.UI
             base.PreOpen();
             scrollPos = Vector2.zero;
             cachedHeightTab = ConfigTab.None;
-            cachedContentHeight = 620f;
+            cachedContentHeight = ConfigTabLayout.DefaultContentHeight;
         }
 
         public override void DoWindowContents(Rect inRect)
@@ -106,17 +106,23 @@ namespace AutoEverything.UI
             }
 
             // 标签切换时重置滚动与高度缓存（不同标签内容量差异大）
-            if (cachedHeightTab != currentTab)
+            if (ConfigTabLayout.ShouldResetScroll((int)cachedHeightTab, (int)currentTab))
             {
                 cachedHeightTab = currentTab;
                 scrollPos = Vector2.zero;
-                cachedContentHeight = 620f;
+                // 首帧按视口高度起算，随后由实际绘制高度取代，避免沿用其他标签的旧高度
+                cachedContentHeight = ConfigTabLayout.ComputeContentHeight(0f, contentRect.height);
             }
 
             Rect viewRect = new Rect(0f, 0f, contentRect.width - 16f, cachedContentHeight);
             Widgets.BeginScrollView(contentRect, ref scrollPos, viewRect);
 
             Listing_Standard l = new Listing_Standard();
+            // 强制单列：Listing 在内容超出传入矩形高度时会自动新开一列（横向排到 x 更大的位置），
+            // 而滚动视图只显示第一列宽度，超出的配置项会被画到屏幕外——曾表现为
+            // "人员自动页切到其他标签再切回后，前排/射手/工人/贸易选项消失"。
+            // 分列还会让 CurHeight 只返回最后一列高度，使高度缓存越滚越小。
+            l.maxOneColumn = true;
             l.Begin(viewRect);
 
             switch (currentTab)
@@ -139,7 +145,8 @@ namespace AutoEverything.UI
             }
 
             l.End();
-            cachedContentHeight = l.CurHeight + 40f;
+            // 单列布局下 CurHeight 即真实内容总高度，一帧即可收敛，不再震荡
+            cachedContentHeight = ConfigTabLayout.ComputeContentHeight(l.CurHeight, contentRect.height);
             Widgets.EndScrollView();
 
             // 统一写盘：任一配置变化即写入一次，避免重复 IO
