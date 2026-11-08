@@ -175,6 +175,16 @@ namespace AutoEverything.RoleEvaluation
             public int SSSWorkMajors;
             public bool SpecialTalentToS;
             public bool BeautySocialToS;
+            // 逐条规则开关：false 表示该条组合不参与评级（面板"评级判定规则表"勾选框）
+            public bool TriggerHappySSS;
+            public bool TriggerHappySS;
+            public bool TriggerHappyS;
+            public bool ToughMeleeSSS;
+            public bool ToughMeleeSS;
+            public bool ToughMeleeS;
+            public bool WorkaholicSSS;
+            public bool WorkaholicSS;
+            public bool WorkaholicS;
 
             public static TierRules Default
             {
@@ -189,6 +199,15 @@ namespace AutoEverything.RoleEvaluation
                     rules.SSSWorkMajors = 3;
                     rules.SpecialTalentToS = true;
                     rules.BeautySocialToS = true;
+                    rules.TriggerHappySSS = true;
+                    rules.TriggerHappySS = true;
+                    rules.TriggerHappyS = true;
+                    rules.ToughMeleeSSS = true;
+                    rules.ToughMeleeSS = true;
+                    rules.ToughMeleeS = true;
+                    rules.WorkaholicSSS = true;
+                    rules.WorkaholicSS = true;
+                    rules.WorkaholicS = true;
                     return rules;
                 }
             }
@@ -205,6 +224,15 @@ namespace AutoEverything.RoleEvaluation
                 rules.SSSWorkMajors = AESettings.tierSSSWorkMajors;
                 rules.SpecialTalentToS = AESettings.tierSpecialTalentToS;
                 rules.BeautySocialToS = AESettings.tierBeautySocialToS;
+                rules.TriggerHappySSS = AESettings.tierRuleTriggerHappySSS;
+                rules.TriggerHappySS = AESettings.tierRuleTriggerHappySS;
+                rules.TriggerHappyS = AESettings.tierRuleTriggerHappyS;
+                rules.ToughMeleeSSS = AESettings.tierRuleToughMeleeSSS;
+                rules.ToughMeleeSS = AESettings.tierRuleToughMeleeSS;
+                rules.ToughMeleeS = AESettings.tierRuleToughMeleeS;
+                rules.WorkaholicSSS = AESettings.tierRuleWorkaholicSSS;
+                rules.WorkaholicSS = AESettings.tierRuleWorkaholicSS;
+                rules.WorkaholicS = AESettings.tierRuleWorkaholicS;
                 return rules;
             }
         }
@@ -231,13 +259,14 @@ namespace AutoEverything.RoleEvaluation
             //   SSS: triggerHappy + tough + shootingMajor
             //   SS:  triggerHappy + shootingMajor
             //   S:   triggerHappy + shootingMinor
+            // 每条规则独立判定（勾选框关闭即跳过），MaxTier 保证高条件命中时低条件不反向覆盖
             if (input.IsTriggerHappy)
             {
-                if (input.IsTough && input.ShootingMajor)
+                if (rules.TriggerHappySSS && input.IsTough && input.ShootingMajor)
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (input.ShootingMajor)
+                if (rules.TriggerHappySS && input.ShootingMajor)
                     tier = MaxTier(tier, CombatTier.SS);
-                else if (input.ShootingMinor)
+                if (rules.TriggerHappyS && input.ShootingMinor)
                     tier = MaxTier(tier, CombatTier.S);
             }
 
@@ -248,11 +277,11 @@ namespace AutoEverything.RoleEvaluation
             bool meleeAnyPassion = input.MeleeMajor || input.MeleeMinor;
             if (input.IsTough)
             {
-                if (input.MeleeMajor && (input.IsNimble || input.IsBrawler))
+                if (rules.ToughMeleeSSS && input.MeleeMajor && (input.IsNimble || input.IsBrawler))
                     tier = MaxTier(tier, CombatTier.SSS);
-                else if (input.MeleeMajor)
+                if (rules.ToughMeleeSS && input.MeleeMajor)
                     tier = MaxTier(tier, CombatTier.SS);
-                else if (meleeAnyPassion)
+                if (rules.ToughMeleeS && meleeAnyPassion)
                     tier = MaxTier(tier, CombatTier.S);
             }
 
@@ -266,11 +295,12 @@ namespace AutoEverything.RoleEvaluation
             //     落入 A/B 判定路径（如 1 Major+2 Minor → B），违背"组合即 S"决策
             if (input.HasIndustrious && input.HasNeurotic)
             {
-                tier = MaxTier(tier, CombatTier.S);
-                if (input.WorkMajors >= rules.SSSWorkMajors)
-                    tier = MaxTier(tier, CombatTier.SSS);
-                else if (input.WorkMajors >= rules.SSWorkMajors)
+                if (rules.WorkaholicS)
+                    tier = MaxTier(tier, CombatTier.S);
+                if (rules.WorkaholicSS && input.WorkMajors >= rules.SSWorkMajors)
                     tier = MaxTier(tier, CombatTier.SS);
+                if (rules.WorkaholicSSS && input.WorkMajors >= rules.SSSWorkMajors)
+                    tier = MaxTier(tier, CombatTier.SSS);
             }
 
             // 原 S 条件 4：拥有特殊天赋特质之一（可在【自动】面板关闭）

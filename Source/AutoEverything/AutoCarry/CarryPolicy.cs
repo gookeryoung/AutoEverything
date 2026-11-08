@@ -18,6 +18,8 @@ namespace AutoEverything.AutoCarry
     /// RimWorld 药品政策系统每 tick 检查背包，超过 takeToInventory 的部分会被丢地上。
     /// AutoDrugPolicy 会把本面板配置的数量同步进 AE-* 三套政策；
     /// 未开启时按 min(配置数量, 政策数量) 派发，避免"拿了又被丢掉"。
+    /// 评级门槛（CarryItemDef.MinTier）是唯一来源：开启用药方案时低于门槛的物品
+    /// 政策"携带"列为 0，本策略同样跳过，两侧口径一致。
     ///
     /// 特殊兜底（安全优先）：
     /// - 魔鬼素成瘾者即使配置为 0 也携带 1 个（断药会死亡）
@@ -91,10 +93,19 @@ namespace AutoEverything.AutoCarry
             bool luciferiumAddicted = HasLuciferiumAddiction(pawn);
             bool highValue = IsHighValue(pawn);
 
+            // 评级门槛：开启用药方案时，AE-* 政策会把低于 CarryItemDef.MinTier 的物品"携带"列
+            // 强制为 0（见 DrugPolicyPresets.SyncConfiguredCarryCounts），此处提前跳过，
+            // 避免"派发了又被 FirstUnloadableThing 卸下"。未开启时保留面板原有行为。
+            CombatTier pawnTier = AESettings.autoDrugPolicyEnabled
+                ? CombatEvaluator.GetCombatTier(pawn)
+                : CombatTier.X;
+
             CarryItemDef[] items = CarryItemCatalog.Items;
             for (int i = 0; i < items.Length; i++)
             {
                 CarryItemDef item = items[i];
+                if (!MeetsTierGate(pawnTier, item.MinTier)) continue;
+
                 int configured = AESettings.GetCarryItemCount(item.DefName);
 
                 if (item.Kind == CarryItemKind.Serum)
@@ -147,6 +158,12 @@ namespace AutoEverything.AutoCarry
             if (configuredCount <= 0) return 0;
             if (policyCount < 0) return configuredCount;
             return policyCount < configuredCount ? policyCount : configuredCount;
+        }
+
+        /// <summary>纯逻辑：是否满足物品的最低评级门槛（MinTier）。</summary>
+        internal static bool MeetsTierGate(CombatTier pawnTier, CombatTier minTier)
+        {
+            return pawnTier >= minTier;
         }
 
         /// <summary>纯逻辑：是否需要携带清醒丸（需睡眠或已成瘾）。</summary>

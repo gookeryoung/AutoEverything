@@ -35,6 +35,22 @@ namespace AutoEverything.Core
         public static int tierSSWorkMajors = 2;
         public static int tierSSSWorkMajors = 3;
 
+        // S/SS/SSS 三大维度逐条规则开关（默认全开）：
+        // 面板"评级判定规则表"每格勾选框对应一个字段，取消勾选即不启用该条规则，
+        // 其余规则与 A/B 档阈值判定不受影响。
+        // 维度1：乱开枪系列
+        public static bool tierRuleTriggerHappySSS = true;
+        public static bool tierRuleTriggerHappySS = true;
+        public static bool tierRuleTriggerHappyS = true;
+        // 维度2：坚韧格斗系列
+        public static bool tierRuleToughMeleeSSS = true;
+        public static bool tierRuleToughMeleeSS = true;
+        public static bool tierRuleToughMeleeS = true;
+        // 维度3：工作狂+神经质系列
+        public static bool tierRuleWorkaholicSSS = true;
+        public static bool tierRuleWorkaholicSS = true;
+        public static bool tierRuleWorkaholicS = true;
+
         // 特殊天赋特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经）直接 S
         public static bool tierSpecialTalentToS = true;
 
@@ -228,6 +244,15 @@ namespace AutoEverything.Core
             LookCompat(ref tierBPassionTotal, "tierBPassionTotal", 3);
             LookCompat(ref tierSSWorkMajors, "tierSSWorkMajors", 2);
             LookCompat(ref tierSSSWorkMajors, "tierSSSWorkMajors", 3);
+            LookCompat(ref tierRuleTriggerHappySSS, "tierRuleTriggerHappySSS", true);
+            LookCompat(ref tierRuleTriggerHappySS, "tierRuleTriggerHappySS", true);
+            LookCompat(ref tierRuleTriggerHappyS, "tierRuleTriggerHappyS", true);
+            LookCompat(ref tierRuleToughMeleeSSS, "tierRuleToughMeleeSSS", true);
+            LookCompat(ref tierRuleToughMeleeSS, "tierRuleToughMeleeSS", true);
+            LookCompat(ref tierRuleToughMeleeS, "tierRuleToughMeleeS", true);
+            LookCompat(ref tierRuleWorkaholicSSS, "tierRuleWorkaholicSSS", true);
+            LookCompat(ref tierRuleWorkaholicSS, "tierRuleWorkaholicSS", true);
+            LookCompat(ref tierRuleWorkaholicS, "tierRuleWorkaholicS", true);
             LookCompat(ref tierSpecialTalentToS, "tierSpecialTalentToS", true);
             LookCompat(ref tierBeautySocialToS, "tierBeautySocialToS", true);
             LookCompat(ref spouseExemptionEnabled, "spouseExemptionEnabled", true);

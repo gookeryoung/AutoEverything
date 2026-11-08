@@ -45,6 +45,15 @@ namespace AutoEverything.Core
         // 复用原生分组框/组内拖拽，便于统一管理。默认关闭——改变殖民者栏视觉布局，玩家主动开启
         public static bool groupColonistBarByRole = false;
 
+        // 殖民者栏头像标识图标开关（分组标记页可调）：
+        // 图标判定仍由 RoleIconDef 硬编码，这里只控制是否绘制，默认全开保持原有视觉
+        public static bool showRoleIconTough = true;
+        public static bool showRoleIconFrontline = true;
+        public static bool showRoleIconRanged = true;
+        public static bool showRoleIconCrafter = true;
+        public static bool showRoleIconWorker = true;
+        public static bool showRoleIconTrader = true;
+
         // 设置窗口滚动位置：内容超出窗口高度时使用
         private static Vector2 settingsScrollPos = Vector2.zero;
 
@@ -69,6 +78,14 @@ namespace AutoEverything.Core
 
             // 殖民者栏按角色分组
             Scribe_Values.Look(ref groupColonistBarByRole, "ae_groupColonistBarByRole", false);
+
+            // 殖民者栏头像标识图标开关
+            LookCompat(ref showRoleIconTough, "showRoleIconTough", true);
+            LookCompat(ref showRoleIconFrontline, "showRoleIconFrontline", true);
+            LookCompat(ref showRoleIconRanged, "showRoleIconRanged", true);
+            LookCompat(ref showRoleIconCrafter, "showRoleIconCrafter", true);
+            LookCompat(ref showRoleIconWorker, "showRoleIconWorker", true);
+            LookCompat(ref showRoleIconTrader, "showRoleIconTrader", true);
 
             // 自定义评级：以 List<string> 作为存档载体（"档次#名字" 格式）
             // 存档加载后需重建运行时字典

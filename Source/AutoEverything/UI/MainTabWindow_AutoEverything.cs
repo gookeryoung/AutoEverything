@@ -5,6 +5,7 @@ using UnityEngine;
 using Verse;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
+using AutoEverything.AutoMarkPawn;
 
 namespace AutoEverything.UI
 {
@@ -17,10 +18,10 @@ namespace AutoEverything.UI
     ///
     /// 标签页：
     /// - 人员评级：评级开关 + 评级判定阈值
-    /// - 人员自动：殖民者栏角色分组
+    /// - 分组标记：殖民者栏角色分组块 + 下方的高价值自动标记块
+    ///   （两块同页：都作用于殖民者栏标记，合并后玩家无需在两页间来回切换）
     /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
-    ///   （角色分组配置只保留在人员自动页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
-    /// - 高价值自动：标记开关 + 高价值档位阈值 + 扫描范围 + 通知
+    ///   （角色分组配置只在分组标记页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
     /// - 自动携带：顶部启用开关 + 食物、成瘾品、强化血清三个配置块（用药方案开关并入成瘾品块）
     /// - 通用调试：主开关、殖民者栏默认排序、调试日志
     ///
@@ -48,10 +49,15 @@ namespace AutoEverything.UI
             Rating = 0,
             Person = 1,
             Work = 2,
-            Mark = 3,
-            Carry = 4,
-            General = 5
+            Carry = 3,
+            General = 4
         }
+
+        // 标签栏绘制顺序：高价值自动已并入分组标记页，不再单独占一个标签
+        private static readonly ConfigTab[] TabOrder =
+        {
+            ConfigTab.Rating, ConfigTab.Person, ConfigTab.Work, ConfigTab.Carry, ConfigTab.General
+        };
 
         private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
         private static readonly Color ColorSectionTitle = new Color(0.88f, 0.88f, 0.92f);
@@ -72,6 +78,11 @@ namespace AutoEverything.UI
         private static readonly Color ColorRoleShooter = new Color(0.90f, 0.70f, 0.20f);
         private static readonly Color ColorRoleWorker = new Color(0.35f, 0.70f, 0.40f);
         private static readonly Color ColorRoleTrade = new Color(0.65f, 0.50f, 0.85f);
+
+        // 评级规则表档位颜色：与名字评级着色一致（S+ 统一紫系，SSS 更亮）
+        private static readonly Color ColorTierSSS = new Color(1f, 0.80f, 0.25f);
+        private static readonly Color ColorTierSS = new Color(0.80f, 0.60f, 1f);
+        private static readonly Color ColorTierS = new Color(0.85f, 0.85f, 0.90f);
 
         public override Vector2 InitialSize
         {
@@ -148,9 +159,6 @@ namespace AutoEverything.UI
                 case ConfigTab.Work:
                     DrawWorkTab(l);
                     break;
-                case ConfigTab.Mark:
-                    DrawMarkTab(l);
-                    break;
                 case ConfigTab.Carry:
                     DrawCarryTab(l);
                     break;
@@ -178,13 +186,13 @@ namespace AutoEverything.UI
 
         private void DrawTabBar(Rect rect)
         {
-            int count = 6;
+            int count = TabOrder.Length;
             float gap = 4f;
             float width = (rect.width - gap * (count - 1)) / count;
 
             for (int i = 0; i < count; i++)
             {
-                ConfigTab tab = (ConfigTab)i;
+                ConfigTab tab = TabOrder[i];
                 Rect btnRect = new Rect(rect.x + i * (width + gap), rect.y, width, rect.height);
 
                 if (Widgets.ButtonText(btnRect, GetTabLabelKey(tab).Translate()))
@@ -207,13 +215,12 @@ namespace AutoEverything.UI
                 case ConfigTab.Rating: return "AE_CFG_Tab_Rating";
                 case ConfigTab.Person: return "AE_CFG_Tab_Person";
                 case ConfigTab.Work: return "AE_CFG_Tab_Work";
-                case ConfigTab.Mark: return "AE_CFG_Tab_Mark";
                 case ConfigTab.Carry: return "AE_CFG_Tab_Carry";
                 default: return "AE_CFG_Tab_General";
             }
         }
 
-        // ===================== 人员自动 =====================
+        // ===================== 人员自动（分组标记） =====================
 
         /// <summary>
         /// 殖民者栏五类角色分组配置（前排/射手/工人/贸易/其他）。
@@ -289,10 +296,87 @@ namespace AutoEverything.UI
             }
         }
 
-        /// <summary>人员自动页：只负责殖民者栏角色分组。</summary>
+        /// <summary>分组标记页：角色分组块在上，头像标识规则块居中，高价值自动标记块在下。</summary>
         private static void DrawPersonTab(Listing_Standard l)
         {
             DrawRoleGroupSection(l);
+            l.Gap(8f);
+            DrawRoleIconRuleSection(l);
+            l.Gap(8f);
+            DrawHighValueMarkSection(l);
+        }
+
+        // 头像标识规则行：勾选框 + 图标 + 名称 + 判定条件说明
+        private const float IconRuleRowHeight = 28f;
+        private const float IconRuleIconSize = 20f;
+        private const float IconRuleNameWidth = 88f;
+
+        /// <summary>
+        /// 头像标识规则：列出 6 种角色定位图标及其判定条件，并允许逐项关闭绘制。
+        /// 判定条件本身仍是 RoleIconDef 的硬编码规则，这里只负责说明与开关。
+        /// </summary>
+        private static void DrawRoleIconRuleSection(Listing_Standard l)
+        {
+            BeginSection(l, "AE_CFG_Section_RoleIconRules".Translate());
+
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Tough, ColorLabelGray,
+                "AE_RoleIcon_Tough", "AE_RoleIconCond_Tough", ref AESettings.showRoleIconTough, false);
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Frontline, ColorRoleFront,
+                "AE_RoleIcon_Frontline", "AE_RoleIconCond_Frontline", ref AESettings.showRoleIconFrontline, true);
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Ranged, ColorRoleShooter,
+                "AE_RoleIcon_Ranged", "AE_RoleIconCond_Ranged", ref AESettings.showRoleIconRanged, false);
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Crafter, ColorRoleWorker,
+                "AE_RoleIcon_Crafter", "AE_RoleIconCond_Crafter", ref AESettings.showRoleIconCrafter, true);
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Worker, ColorRoleWorker,
+                "AE_RoleIcon_Worker", "AE_RoleIconCond_Worker", ref AESettings.showRoleIconWorker, false);
+            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Trader, ColorRoleTrade,
+                "AE_RoleIcon_Trader", "AE_RoleIconCond_Trader", ref AESettings.showRoleIconTrader, true);
+
+            DrawRuleText(l, "AE_CFG_RoleIconRules_Hint".Translate());
+            EndSection(l);
+        }
+
+        private static void DrawRoleIconRuleRow(Listing_Standard l, RoleIconDef.RoleIconType type, Color color,
+            string nameKey, string condKey, ref bool enabled, bool alternate)
+        {
+            Rect row = l.GetRect(IconRuleRowHeight);
+            if (alternate) Widgets.DrawBoxSolid(row, ColorRowAlt);
+            Widgets.DrawHighlightIfMouseover(row);
+
+            bool prev = enabled;
+            Widgets.Checkbox(new Vector2(row.x, row.y + Mathf.Floor((row.height - 24f) * 0.5f)), ref enabled);
+
+            Rect iconRect = new Rect(row.x + 26f, row.y + (row.height - IconRuleIconSize) * 0.5f,
+                IconRuleIconSize, IconRuleIconSize);
+            Color prevColor = GUI.color;
+            GUI.color = RoleIconDef.IconColor;
+            GUI.DrawTexture(iconRect, RoleIconTextures.Get(type), ScaleMode.ScaleToFit);
+            GUI.color = prevColor;
+
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+
+            Rect nameRect = new Rect(iconRect.xMax + 6f, row.y, IconRuleNameWidth, row.height);
+            GUI.color = enabled ? color : ColorLabelGray;
+            Widgets.Label(nameRect, nameKey.Translate());
+            GUI.color = ColorLabelGray;
+
+            Text.Font = GameFont.Tiny;
+            Rect condRect = new Rect(nameRect.xMax, row.y, Mathf.Max(0f, row.xMax - nameRect.xMax), row.height);
+            Widgets.Label(condRect, condKey.Translate());
+            Text.Font = GameFont.Small;
+
+            GUI.color = Color.white;
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+
+            // 整行（排除复选框本体）可点击切换，避免玩家点文字勾不上
+            Rect clickRect = new Rect(nameRect.x, row.y, row.xMax - nameRect.x, row.height);
+            if (Widgets.ButtonInvisible(clickRect)) enabled = !enabled;
+            TooltipHandler.TipRegion(clickRect, "AE_TT_RoleIconToggle".Translate());
+            if (enabled != prev) settingsDirty = true;
         }
 
         /// <summary>人员评级页：评级开关 + 评级判定阈值。</summary>
@@ -318,14 +402,15 @@ namespace AutoEverything.UI
             }
             EndSection(l);
 
+            // S/SS/SSS 规则表：按"档位 × 三大维度"展示并逐条开关，工作狂系列数值可在格内调整
+            DrawTierRuleTable(l);
+
             BeginSection(l, "AE_CFG_Section_TierRules".Translate());
 
             DrawIntSlider(l, "AE_CFG_TierAMajorMin", ref AESettings.tierAMajorMin, 1, 5, "AE_TT_TierAMajorMin");
             DrawIntSlider(l, "AE_CFG_TierAPassionTotal", ref AESettings.tierAPassionTotal, 1, 9, "AE_TT_TierAPassionTotal");
             DrawIntSlider(l, "AE_CFG_TierBMajorMin", ref AESettings.tierBMajorMin, 1, 5, "AE_TT_TierBMajorMin");
             DrawIntSlider(l, "AE_CFG_TierBPassionTotal", ref AESettings.tierBPassionTotal, 1, 9, "AE_TT_TierBPassionTotal");
-            DrawIntSlider(l, "AE_CFG_TierSSWorkMajors", ref AESettings.tierSSWorkMajors, 1, 6, "AE_TT_TierSSWorkMajors");
-            DrawIntSlider(l, "AE_CFG_TierSSSWorkMajors", ref AESettings.tierSSSWorkMajors, 1, 6, "AE_TT_TierSSSWorkMajors");
 
             // 三个布尔规则并排成三列表格，选项纵向对齐、节省垂直空间
             bool[] toggles = { AESettings.tierSpecialTalentToS, AESettings.tierBeautySocialToS,
@@ -353,11 +438,181 @@ namespace AutoEverything.UI
             EndSection(l);
         }
 
+        // ── 评级判定规则表（S/SS/SSS × 三大维度）──
+        // 行 = 档位，列 = 判定维度（乱开枪 / 坚韧格斗 / 工作狂+神经质）。
+        // 每格勾选框对应 AESettings 中一条规则开关，取消勾选即该组合不参与评级；
+        // 工作狂系列的 SS/SSS 需要专业工作双火数，数值滑条直接放在格内调整。
+        private const float TierRuleNameWidth = 64f;
+        private const float TierRuleCellGap = 6f;
+        private const int TierRuleColumns = 3;
+        private const float TierRuleHeaderHeight = 22f;
+        private const float TierRuleCheckHeight = 24f;
+        private const float TierRuleSliderHeight = 20f;
+
+        private static void DrawTierRuleTable(Listing_Standard l)
+        {
+            BeginSection(l, "AE_CFG_Section_TierTable".Translate());
+
+            // 表头：首列为档位名占位，其余三列为判定维度
+            Rect header = l.GetRect(TierRuleHeaderHeight);
+            DrawTierRuleHeaderCell(new Rect(header.x, header.y, TierRuleNameWidth, header.height),
+                "AE_CFG_TierCol_Tier");
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 0), "AE_CFG_TierCol_TriggerHappy");
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 1), "AE_CFG_TierCol_ToughMelee");
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 2), "AE_CFG_TierCol_Workaholic");
+
+            // SSS：工作狂系列含"双火数 >= N"数值条件，格内附滑条
+            DrawTierRuleRowWithSlider(l, CombatTier.SSS, ColorTierSSS,
+                "AE_TierRule_TH_SSS", ref AESettings.tierRuleTriggerHappySSS,
+                "AE_TierRule_TM_SSS", ref AESettings.tierRuleToughMeleeSSS,
+                "AE_TierRule_Work_SSS".Translate(AESettings.tierSSSWorkMajors),
+                ref AESettings.tierRuleWorkaholicSSS,
+                ref AESettings.tierSSSWorkMajors);
+
+            DrawTierRuleRowWithSlider(l, CombatTier.SS, ColorTierSS,
+                "AE_TierRule_TH_SS", ref AESettings.tierRuleTriggerHappySS,
+                "AE_TierRule_TM_SS", ref AESettings.tierRuleToughMeleeSS,
+                "AE_TierRule_Work_SS".Translate(AESettings.tierSSWorkMajors),
+                ref AESettings.tierRuleWorkaholicSS,
+                ref AESettings.tierSSWorkMajors);
+
+            // S：工作狂组合即 S，无额外双火要求
+            DrawTierRuleRow(l, CombatTier.S, ColorTierS,
+                "AE_TierRule_TH_S", ref AESettings.tierRuleTriggerHappyS,
+                "AE_TierRule_TM_S", ref AESettings.tierRuleToughMeleeS,
+                "AE_TierRule_Work_S", ref AESettings.tierRuleWorkaholicS);
+
+            DrawRuleText(l, "AE_CFG_TierTableHint".Translate());
+            EndSection(l);
+        }
+
+        private static void DrawTierRuleRow(Listing_Standard l, CombatTier tier, Color color,
+            string thDesc, ref bool thEnabled, string tmDesc, ref bool tmEnabled,
+            string workDesc, ref bool workEnabled)
+        {
+            // 无滑条的行仍走同一套绘制，用局部占位值避免为滑条传空引用
+            int dummy = 0;
+            DrawTierRuleRowCore(l, tier, color, thDesc, ref thEnabled, tmDesc, ref tmEnabled,
+                workDesc, ref workEnabled, false, ref dummy);
+        }
+
+        private static void DrawTierRuleRowWithSlider(Listing_Standard l, CombatTier tier, Color color,
+            string thDesc, ref bool thEnabled, string tmDesc, ref bool tmEnabled,
+            string workDesc, ref bool workEnabled, ref int workMajors)
+        {
+            DrawTierRuleRowCore(l, tier, color, thDesc, ref thEnabled, tmDesc, ref tmEnabled,
+                workDesc, ref workEnabled, true, ref workMajors);
+        }
+
+        private static void DrawTierRuleRowCore(Listing_Standard l, CombatTier tier, Color color,
+            string thDesc, ref bool thEnabled, string tmDesc, ref bool tmEnabled,
+            string workDesc, ref bool workEnabled, bool hasSlider, ref int workMajors)
+        {
+            float height = TierRuleCheckHeight + (hasSlider ? TierRuleSliderHeight : 0f) + 2f;
+            Rect row = l.GetRect(height);
+            Widgets.DrawBoxSolid(row, ColorRowAlt);
+
+            DrawTierRuleTierName(row, tier, color);
+
+            Rect firstCell = TierRuleCellRect(row, 0);
+            Rect secondCell = TierRuleCellRect(row, 1);
+            Rect workCell = TierRuleCellRect(row, 2);
+
+            DrawTierRuleCell(new Rect(firstCell.x, row.y, firstCell.width, TierRuleCheckHeight),
+                ref thEnabled, thDesc);
+            DrawTierRuleCell(new Rect(secondCell.x, row.y, secondCell.width, TierRuleCheckHeight),
+                ref tmEnabled, tmDesc);
+            DrawTierRuleCell(new Rect(workCell.x, row.y, workCell.width, TierRuleCheckHeight),
+                ref workEnabled, workDesc);
+
+            if (hasSlider)
+            {
+                Rect sliderRect = new Rect(workCell.x + 26f, row.y + TierRuleCheckHeight,
+                    Mathf.Max(60f, workCell.width - 26f), TierRuleSliderHeight - 2f);
+                int prev = workMajors;
+                workMajors = Mathf.RoundToInt(Widgets.HorizontalSlider(sliderRect, workMajors, 1, 6));
+                if (workMajors != prev) settingsDirty = true;
+                TooltipHandler.TipRegion(sliderRect, "AE_TT_TierRuleWorkMajors".Translate());
+            }
+        }
+
+        private static Rect TierRuleCellRect(Rect row, int index)
+        {
+            float cellWidth = (row.width - TierRuleNameWidth - TierRuleCellGap * TierRuleColumns)
+                / TierRuleColumns;
+            return new Rect(row.x + TierRuleNameWidth + index * (cellWidth + TierRuleCellGap),
+                row.y, cellWidth, row.height);
+        }
+
+        /// <summary>表头单元格：小字、居中、不换行，避免中文撑乱列宽。</summary>
+        private static void DrawTierRuleHeaderCell(Rect rect, string labelKey)
+        {
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.Font = GameFont.Tiny;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            GUI.color = ColorSectionTitle;
+            Widgets.Label(rect, labelKey.Translate());
+            GUI.color = Color.white;
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+            Text.Font = GameFont.Small;
+        }
+
+        /// <summary>档位名列：左侧竖条用档位色，与名字评级着色对应。</summary>
+        private static void DrawTierRuleTierName(Rect row, CombatTier tier, Color color)
+        {
+            Widgets.DrawBoxSolid(new Rect(row.x, row.y + 5f, 3f, TierRuleCheckHeight - 10f), color);
+
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = color;
+            Widgets.Label(new Rect(row.x + 8f, row.y, TierRuleNameWidth - 8f, TierRuleCheckHeight),
+                tier.ToString());
+            GUI.color = Color.white;
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+        }
+
+        /// <summary>
+        /// 规则单元格：复选框 + 可点击的整格说明文字。
+        /// 规则关闭时文字变灰，便于一眼看出哪些组合当前不参与评级。
+        /// </summary>
+        private static void DrawTierRuleCell(Rect cell, ref bool enabled, string desc)
+        {
+            bool prev = enabled;
+            Widgets.DrawHighlightIfMouseover(cell);
+            Widgets.Checkbox(new Vector2(cell.x, cell.y + Mathf.Floor((TierRuleCheckHeight - 24f) * 0.5f)),
+                ref enabled);
+
+            Rect labelRect = new Rect(cell.x + 26f, cell.y,
+                Mathf.Max(0f, cell.width - 26f), TierRuleCheckHeight);
+
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.Font = GameFont.Tiny;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            GUI.color = enabled ? Color.white : ColorLabelGray;
+            Widgets.Label(labelRect, desc);
+            GUI.color = Color.white;
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+            Text.Font = GameFont.Small;
+
+            if (Widgets.ButtonInvisible(labelRect)) enabled = !enabled;
+            if (enabled != prev) settingsDirty = true;
+            TooltipHandler.TipRegion(cell, "AE_TT_TierRuleCell".Translate());
+        }
+
         // ===================== 工作自动 =====================
 
         private static void DrawWorkTab(Listing_Standard l)
         {
-            // 角色分组配置已统一收拢到人员自动页，此处只提示入口，避免同一份配置重复出现
+            // 角色分组配置已统一收拢到分组标记页，此处只提示入口，避免同一份配置重复出现
             DrawRuleText(l, "AE_CFG_RoleGroup_MovedHint".Translate());
 
             BeginSection(l, "AE_CFG_Section_WorkSwitch".Translate());
@@ -389,9 +644,9 @@ namespace AutoEverything.UI
             Text.Font = GameFont.Small;
         }
 
-        // ===================== 高价值自动 =====================
+        // ===================== 高价值自动（并入分组标记页） =====================
 
-        private static void DrawMarkTab(Listing_Standard l)
+        private static void DrawHighValueMarkSection(Listing_Standard l)
         {
             BeginSection(l, "AE_CFG_Section_MarkSwitch".Translate());
 

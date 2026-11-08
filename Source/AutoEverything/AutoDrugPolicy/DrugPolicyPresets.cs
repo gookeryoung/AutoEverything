@@ -191,13 +191,15 @@ namespace AutoEverything.AutoDrugPolicy
 
             // ── 逐项携带数量同步 ──
             // 【自动】→ 自动携带面板中的数量即目标"携带"列（takeToInventory）；
-            // 低于该档位允许范围的药品强制 0，保持评级门槛（活力水/佩诺西林仅 AB+，血清仅 S+）。
+            // 低于该档位允许范围的药品强制 0，门槛来自 CarryItemCatalog.MinTier（与 AutoCarry 共用）。
             SyncConfiguredCarryCounts(policy, tier);
         }
 
         /// <summary>
         /// 把玩家在携带面板配置的逐项数量写入政策"携带"列。
         /// 只在 count>0 时新建条目：新建 0 数量条目会让游戏把背包中该物品当作"可卸下"。
+        /// 评级门槛统一取 CarryItemDef.MinTier，与 AutoCarry 派发共用同一来源，
+        /// 避免两侧各自硬编码档位导致"面板放行但政策强制 0 → 拿了又被丢地上"。
         /// </summary>
         private static void SyncConfiguredCarryCounts(DrugPolicy policy, DrugTier tier)
         {
@@ -209,9 +211,7 @@ namespace AutoEverything.AutoDrugPolicy
                 if (def == null) continue;
 
                 int count = AESettings.GetCarryItemCount(item.DefName);
-                if (item.Kind == CarryItemKind.Serum && tier < DrugTier.S) count = 0;
-                else if ((item.DefName == "GoJuice" || item.DefName == "Penoxycyline")
-                         && tier < DrugTier.AB) count = 0;
+                if (tier < CombatTierToDrugTier(item.MinTier)) count = 0;
 
                 SetTakeToInventory(policy, def, count);
             }

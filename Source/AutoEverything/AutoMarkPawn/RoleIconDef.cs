@@ -108,12 +108,19 @@ namespace AutoEverything.AutoMarkPawn
             }
 
             // 掩码展开到共享 buffer（位序与 RoleIconType 枚举值一致）
-            if ((mask & (1 << (int)RoleIconType.Tough)) != 0) buffer.Add(RoleIconType.Tough);
-            if ((mask & (1 << (int)RoleIconType.Frontline)) != 0) buffer.Add(RoleIconType.Frontline);
-            if ((mask & (1 << (int)RoleIconType.Ranged)) != 0) buffer.Add(RoleIconType.Ranged);
-            if ((mask & (1 << (int)RoleIconType.Crafter)) != 0) buffer.Add(RoleIconType.Crafter);
-            if ((mask & (1 << (int)RoleIconType.Worker)) != 0) buffer.Add(RoleIconType.Worker);
-            if ((mask & (1 << (int)RoleIconType.Trader)) != 0) buffer.Add(RoleIconType.Trader);
+            // 展开时再按设置项过滤：开关关闭的图标不输出，切换后下一帧即生效，无需清缓存
+            if ((mask & (1 << (int)RoleIconType.Tough)) != 0 && AESettings.showRoleIconTough)
+                buffer.Add(RoleIconType.Tough);
+            if ((mask & (1 << (int)RoleIconType.Frontline)) != 0 && AESettings.showRoleIconFrontline)
+                buffer.Add(RoleIconType.Frontline);
+            if ((mask & (1 << (int)RoleIconType.Ranged)) != 0 && AESettings.showRoleIconRanged)
+                buffer.Add(RoleIconType.Ranged);
+            if ((mask & (1 << (int)RoleIconType.Crafter)) != 0 && AESettings.showRoleIconCrafter)
+                buffer.Add(RoleIconType.Crafter);
+            if ((mask & (1 << (int)RoleIconType.Worker)) != 0 && AESettings.showRoleIconWorker)
+                buffer.Add(RoleIconType.Worker);
+            if ((mask & (1 << (int)RoleIconType.Trader)) != 0 && AESettings.showRoleIconTrader)
+                buffer.Add(RoleIconType.Trader);
             return buffer;
         }
 

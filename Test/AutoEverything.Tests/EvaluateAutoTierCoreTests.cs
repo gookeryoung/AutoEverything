@@ -119,6 +119,36 @@ namespace AutoEverything.Tests
                 majorCount: 9, minorCount: 0, workMajors: 6);
             Check(allMax, CombatTier.SSS, "全字段最大组合 → SSS（所有维度全开）", ref failures, ref total);
 
+            // ── 逐条规则开关（面板"评级判定规则表"勾选框）────────────────
+            var thSsOff = CombatEvaluator.TierRules.Default;
+            thSsOff.TriggerHappySS = false;
+            CheckWithRules(Empty(triggerHappy: true, shootingMajor: true), thSsOff, CombatTier.C,
+                "关闭乱开枪 SS 规则 → 乱开枪+射击双火不再评 SS", ref failures, ref total);
+
+            var tmSssOff = CombatEvaluator.TierRules.Default;
+            tmSssOff.ToughMeleeSSS = false;
+            CheckWithRules(Empty(tough: true, meleeMajor: true, nimble: true), tmSssOff, CombatTier.SS,
+                "关闭坚韧格斗 SSS 规则 → 降级沿用 SS 规则", ref failures, ref total);
+
+            var workSOff = CombatEvaluator.TierRules.Default;
+            workSOff.WorkaholicS = false;
+            workSOff.WorkaholicSS = false;
+            workSOff.WorkaholicSSS = false;
+            CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), workSOff, CombatTier.C,
+                "关闭工作狂系列全部规则 → 组合不再评 S", ref failures, ref total);
+
+            var workSssOff = CombatEvaluator.TierRules.Default;
+            workSssOff.WorkaholicSSS = false;
+            CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), workSssOff, CombatTier.SS,
+                "关闭工作狂 SSS 规则 → 3 双火降级为 SS", ref failures, ref total);
+
+            // 格内滑条调整 SS/SSS 双火阈值：SS≥4、SSS≥5 时，3 双火只到 S
+            var customThreshold = CombatEvaluator.TierRules.Default;
+            customThreshold.SSWorkMajors = 4;
+            customThreshold.SSSWorkMajors = 5;
+            CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), customThreshold,
+                CombatTier.S, "自定义 SS/SSS 双火阈值 → 3 双火仅 S", ref failures, ref total);
+
             Console.WriteLine($"[EvaluateAutoTierCoreTests] {total - failures}/{total} passed");
             return failures;
         }
@@ -162,6 +192,20 @@ namespace AutoEverything.Tests
         {
             total++;
             CombatTier actual = CombatEvaluator.EvaluateAutoTierCore(input);
+            if (actual != expected)
+            {
+                Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");
+                failures++;
+            }
+        }
+
+        /// <summary>使用自定义阈值与规则开关的校验（覆盖面板规则表格的逐条开关语义）。</summary>
+        private static void CheckWithRules(CombatEvaluator.TierEvaluationInput input,
+            CombatEvaluator.TierRules rules, CombatTier expected, string label,
+            ref int failures, ref int total)
+        {
+            total++;
+            CombatTier actual = CombatEvaluator.EvaluateAutoTierCore(input, rules);
             if (actual != expected)
             {
                 Console.WriteLine($"  FAIL: {label}: expected {expected}, got {actual}");

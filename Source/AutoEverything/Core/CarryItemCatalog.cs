@@ -10,8 +10,10 @@ namespace AutoEverything.Core
     }
 
     /// <summary>
-    /// 单品携带配置项：DefName + 类别 + 默认数量。
+    /// 单品携带配置项：DefName + 类别 + 默认数量 + 最低评级档位。
     /// 目录固定，避免玩家在 UI 里逐项添加 DefName；默认数量保持旧行为。
+    /// MinTier 是"携带门槛"的唯一来源：AutoCarry 派发与 AutoDrugPolicy 写政策
+    /// 共用同一字段，避免两侧硬编码不一致导致"拿了又被游戏丢地上"。
     /// </summary>
     public sealed class CarryItemDef
     {
@@ -19,11 +21,16 @@ namespace AutoEverything.Core
         public readonly CarryItemKind Kind;
         public readonly int DefaultCount;
 
-        public CarryItemDef(string defName, CarryItemKind kind, int defaultCount)
+        // 最低评级档位：低于该档位不携带（X = 无门槛）
+        public readonly CombatTier MinTier;
+
+        public CarryItemDef(string defName, CarryItemKind kind, int defaultCount,
+            CombatTier minTier = CombatTier.X)
         {
             DefName = defName;
             Kind = kind;
             DefaultCount = defaultCount;
+            MinTier = minTier;
         }
     }
 
@@ -39,12 +46,13 @@ namespace AutoEverything.Core
     public static class CarryItemCatalog
     {
         // UI 显示顺序即此数组顺序（药品与血清各自分组）
+        // MinTier：低于该评级档位不携带，同时决定 AE-* 政策"携带"列是否强制 0
         public static readonly CarryItemDef[] Items =
         {
             // ── 药品（成瘾品）──
             new CarryItemDef("WakeUp", CarryItemKind.Drug, 1),           // 清醒丸：抵抗睡眠
-            new CarryItemDef("GoJuice", CarryItemKind.Drug, 1),          // 活力水：战斗移速/瞄准
-            new CarryItemDef("Penoxycyline", CarryItemKind.Drug, 1),     // 佩诺西林：预防疟疾
+            new CarryItemDef("GoJuice", CarryItemKind.Drug, 1, CombatTier.A),          // 活力水：战斗移速/瞄准
+            new CarryItemDef("Penoxycyline", CarryItemKind.Drug, 1, CombatTier.A),     // 佩诺西林：预防疟疾
             new CarryItemDef("PsychiteTea", CarryItemKind.Drug, 1),      // 精神茶：心情
             new CarryItemDef("Luciferium", CarryItemKind.Drug, 0),       // 魔鬼素：永久成瘾才必须携带
             new CarryItemDef("Beer", CarryItemKind.Drug, 0),             // 啤酒
@@ -54,10 +62,10 @@ namespace AutoEverything.Core
             new CarryItemDef("Yayo", CarryItemKind.Drug, 0),             // 亚咯（政策默认禁止服用）
 
             // ── 强化血清（Anomaly DLC）──
-            new CarryItemDef("JuggernautSerum", CarryItemKind.Serum, 1), // 强力血清
-            new CarryItemDef("MetalbloodSerum", CarryItemKind.Serum, 1), // 钢血血清
-            new CarryItemDef("MindNumbSerum", CarryItemKind.Serum, 1),   // 思滞血清
-            new CarryItemDef("VoidsightSerum", CarryItemKind.Serum, 0)   // 虚空视界血清
+            new CarryItemDef("JuggernautSerum", CarryItemKind.Serum, 1, CombatTier.S), // 强力血清
+            new CarryItemDef("MetalbloodSerum", CarryItemKind.Serum, 1, CombatTier.S), // 钢血血清
+            new CarryItemDef("MindNumbSerum", CarryItemKind.Serum, 1, CombatTier.S),   // 思滞血清
+            new CarryItemDef("VoidsightSerum", CarryItemKind.Serum, 0, CombatTier.S)   // 虚空视界血清
         };
 
         /// <summary>按目录生成默认存档条目（"defName#count"）。</summary>

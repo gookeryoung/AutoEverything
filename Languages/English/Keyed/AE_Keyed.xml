@@ -155,9 +155,8 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
 
   <!-- ===== Bottom-bar Auto panel (MainTabWindow_AutoEverything) ===== -->
   <AE_CFG_Tab_Rating>Auto Tier</AE_CFG_Tab_Rating>
-  <AE_CFG_Tab_Person>Role Group</AE_CFG_Tab_Person>
+  <AE_CFG_Tab_Person>Group &amp; Mark</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>Auto Work</AE_CFG_Tab_Work>
-  <AE_CFG_Tab_Mark>High Value</AE_CFG_Tab_Mark>
   <AE_CFG_Tab_Carry>Auto Carry</AE_CFG_Tab_Carry>
   <AE_CFG_Tab_General>General</AE_CFG_Tab_General>
 
@@ -165,6 +164,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Section_TierRules>Tier rules</AE_CFG_Section_TierRules>
   <AE_CFG_Section_WorkSwitch>Auto work switches</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>Work allocation rules</AE_CFG_Section_WorkRules>
+  <AE_CFG_Section_RoleIconRules>Avatar icon rules</AE_CFG_Section_RoleIconRules>
   <AE_CFG_Section_MarkSwitch>High-value marker switches</AE_CFG_Section_MarkSwitch>
   <AE_CFG_Section_MarkRules>High-value rules</AE_CFG_Section_MarkRules>
   <AE_CFG_Section_CarryFood>Food</AE_CFG_Section_CarryFood>
@@ -185,8 +185,21 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_TierAPassionTotal>A: total passions</AE_CFG_TierAPassionTotal>
   <AE_CFG_TierBMajorMin>B: min double passions</AE_CFG_TierBMajorMin>
   <AE_CFG_TierBPassionTotal>B: total passions</AE_CFG_TierBPassionTotal>
-  <AE_CFG_TierSSWorkMajors>Industrious+Neurotic → SS majors</AE_CFG_TierSSWorkMajors>
-  <AE_CFG_TierSSSWorkMajors>Industrious+Neurotic → SSS majors</AE_CFG_TierSSSWorkMajors>
+  <AE_CFG_Section_TierTable>Tier rule table (SSS / SS / S)</AE_CFG_Section_TierTable>
+  <AE_CFG_TierCol_Tier>Tier</AE_CFG_TierCol_Tier>
+  <AE_CFG_TierCol_TriggerHappy>Trigger-happy</AE_CFG_TierCol_TriggerHappy>
+  <AE_CFG_TierCol_ToughMelee>Tough melee</AE_CFG_TierCol_ToughMelee>
+  <AE_CFG_TierCol_Workaholic>Industrious+Neurotic</AE_CFG_TierCol_Workaholic>
+  <AE_TierRule_TH_SSS>Trigger-happy+Tough+Shooting major</AE_TierRule_TH_SSS>
+  <AE_TierRule_TH_SS>Trigger-happy+Shooting major</AE_TierRule_TH_SS>
+  <AE_TierRule_TH_S>Trigger-happy+Shooting minor</AE_TierRule_TH_S>
+  <AE_TierRule_TM_SSS>Tough+Melee major+Nimble/Brawler</AE_TierRule_TM_SSS>
+  <AE_TierRule_TM_SS>Tough+Melee major</AE_TierRule_TM_SS>
+  <AE_TierRule_TM_S>Tough+Melee passion</AE_TierRule_TM_S>
+  <AE_TierRule_Work_SSS>Work combo + majors ≥ {0}</AE_TierRule_Work_SSS>
+  <AE_TierRule_Work_SS>Work combo + majors ≥ {0}</AE_TierRule_Work_SS>
+  <AE_TierRule_Work_S>Work combo (S by itself)</AE_TierRule_Work_S>
+  <AE_CFG_TierTableHint>Checked rules take part in evaluation; unchecking disables that combination only. The work-combo sliders set the professional-work major count needed for SS/SSS. Changes clear the rating cache immediately.</AE_CFG_TierTableHint>
   <AE_CFG_SpecialTalentToS>Special talent → S</AE_CFG_SpecialTalentToS>
   <AE_CFG_BeautySocialToS>Beautiful + Social major → S</AE_CFG_BeautySocialToS>
   <AE_CFG_SpouseExemption>Spouse tier exemption</AE_CFG_SpouseExemption>
@@ -218,8 +231,8 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_TierAPassionTotal>Minimum total of double plus single passions required for tier A.</AE_TT_TierAPassionTotal>
   <AE_TT_TierBMajorMin>Minimum number of double passions required for tier B.</AE_TT_TierBMajorMin>
   <AE_TT_TierBPassionTotal>Minimum total of double plus single passions required for tier B.</AE_TT_TierBPassionTotal>
-  <AE_TT_TierSSWorkMajors>Double passions in professional work skills needed for SS with Industrious + Neurotic.</AE_TT_TierSSWorkMajors>
-  <AE_TT_TierSSSWorkMajors>Double passions in professional work skills needed for SSS with Industrious + Neurotic.</AE_TT_TierSSSWorkMajors>
+  <AE_TT_TierRuleCell>Rule switch: when unchecked this combination no longer participates in evaluation; other rules are unaffected.</AE_TT_TierRuleCell>
+  <AE_TT_TierRuleWorkMajors>Professional-work double passions (Crafting/Construction/Artistic/Cooking/Plants/Mining) needed to upgrade the Industrious+Neurotic combo.</AE_TT_TierRuleWorkMajors>
   <AE_TT_SpecialTalentToS>Pawns with one of the special talents are rated S directly.</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>Pawns with Beautiful (beauty level 2) and a double Social passion are rated S directly.</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>When the spouse reaches the selected tier, this pawn is rated at least that tier.</AE_TT_SpouseExemption>
@@ -233,15 +246,33 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_MarkIncludeNonPlayer>When checked, only non-player factions (hostile/neutral/ally/wild humans) are scanned and marked; when off, only player-faction pawns (colonists/slaves/prisoners) are scanned and marked.</AE_TT_MarkIncludeNonPlayer>
   <AE_TT_MarkTier>Pawns at or above this tier are treated as high value; it also sets the minimum tier for serum carrying.</AE_TT_MarkTier>
   <AE_TT_CarryFoodCount>Total food carried per colonist (summed across food types); concrete food is chosen by priority: packaged meal → pemmican → lavish → fine → simple → nutrient paste. 0 disables food carrying.</AE_TT_CarryFoodCount>
-  <AE_TT_CarrySerumHighValueOnly>When checked, only units reaching the high-value tier threshold (configured on the High-value tab) carry serums; uncheck to let all eligible colonists carry them.</AE_TT_CarrySerumHighValueOnly>
-  <AE_TT_CarryItemCount>Drag to 0 to disable. Also keep the drug policy "take" column at least this high.</AE_TT_CarryItemCount>
+  <AE_TT_CarrySerumHighValueOnly>When checked, only units reaching the high-value tier threshold (configured on the High-value tab) carry serums; uncheck to let all eligible colonists carry them. With "Drug Policy" enabled, the S-tier gate still applies (the policy "take" column is 0 below S).</AE_TT_CarrySerumHighValueOnly>
+  <AE_TT_CarryItemCount>Drag to 0 to disable. Also keep the drug policy "take" column at least this high. With "Drug Policy" enabled, colonists below the item's tier gate (GoJuice/Penoxycyline: A; serums: S) do not carry it.</AE_TT_CarryItemCount>
   <AE_TT_ResetCarryItems>Restore drug and serum amounts to defaults (total food and carry interval are unchanged).</AE_TT_ResetCarryItems>
   <AE_TT_CarryInterval>Interval of automatic carrying.</AE_TT_CarryInterval>
   <!-- Auto Tier: colonist bar five-role grouping rules -->
   <AE_CFG_Section_RoleGroup>Colonist bar role groups</AE_CFG_Section_RoleGroup>
 
   <AE_CFG_RoleGroup_ForceHint>Pure whitelist: a colonist is grouped only when a checked condition matches. Anything not matching a checked condition goes to "Other"; no skill/passion inference.</AE_CFG_RoleGroup_ForceHint>
-  <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Role Group tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
+  <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Group &amp; Mark tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
+
+  <!-- Group & Mark: avatar role icon rules (RoleIconDef conditions + per-icon toggles) -->
+  <AE_RoleIcon_Tough>Tough</AE_RoleIcon_Tough>
+  <AE_RoleIcon_Frontline>Frontline</AE_RoleIcon_Frontline>
+  <AE_RoleIcon_Ranged>Ranged</AE_RoleIcon_Ranged>
+  <AE_RoleIcon_Crafter>Crafter</AE_RoleIcon_Crafter>
+  <AE_RoleIcon_Worker>Worker</AE_RoleIcon_Worker>
+  <AE_RoleIcon_Trader>Trader</AE_RoleIcon_Trader>
+
+  <AE_RoleIconCond_Tough>Tough trait (always marked, -50% damage)</AE_RoleIconCond_Tough>
+  <AE_RoleIconCond_Frontline>Tough + Brawler trait or melee double passion</AE_RoleIconCond_Frontline>
+  <AE_RoleIconCond_Ranged>Trigger-happy + shooting double or single passion</AE_RoleIconCond_Ranged>
+  <AE_RoleIconCond_Crafter>Industrious + Neurotic (both required)</AE_RoleIconCond_Crafter>
+  <AE_RoleIconCond_Worker>Industrious or Neurotic (either one)</AE_RoleIconCond_Worker>
+  <AE_RoleIconCond_Trader>Beauty trait + social double passion or level 8+</AE_RoleIconCond_Trader>
+
+  <AE_CFG_RoleIconRules_Hint>Up to 6 icons can show at once, left to right in the order above. Disabling one only hides that icon; role grouping and high-value rules are unaffected.</AE_CFG_RoleIconRules_Hint>
+  <AE_TT_RoleIconToggle>When unchecked, this icon is no longer drawn on the colonist bar; the detection rule itself is unchanged.</AE_TT_RoleIconToggle>
   <AE_CFG_Front_Ghoul>Ghoul</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>Brawler trait</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>Melee specialist</AE_CFG_Front_MeleeSpecialist>

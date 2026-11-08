@@ -156,9 +156,8 @@
 
   <!-- ===== 底部【自动】主面板（MainTabWindow_AutoEverything） ===== -->
   <AE_CFG_Tab_Rating>人员评级</AE_CFG_Tab_Rating>
-  <AE_CFG_Tab_Person>人员自动</AE_CFG_Tab_Person>
+  <AE_CFG_Tab_Person>分组标记</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>工作自动</AE_CFG_Tab_Work>
-  <AE_CFG_Tab_Mark>高价值自动</AE_CFG_Tab_Mark>
   <AE_CFG_Tab_Carry>自动携带</AE_CFG_Tab_Carry>
   <AE_CFG_Tab_General>通用调试</AE_CFG_Tab_General>
 
@@ -166,6 +165,7 @@
   <AE_CFG_Section_TierRules>评级判定阈值</AE_CFG_Section_TierRules>
   <AE_CFG_Section_WorkSwitch>工作自动开关</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>工作分配判定</AE_CFG_Section_WorkRules>
+  <AE_CFG_Section_RoleIconRules>头像标识规则</AE_CFG_Section_RoleIconRules>
   <AE_CFG_Section_MarkSwitch>高价值标记开关</AE_CFG_Section_MarkSwitch>
   <AE_CFG_Section_MarkRules>高价值判定</AE_CFG_Section_MarkRules>
   <AE_CFG_Section_CarryFood>食物</AE_CFG_Section_CarryFood>
@@ -186,8 +186,21 @@
   <AE_CFG_TierAPassionTotal>A 档兴趣合计</AE_CFG_TierAPassionTotal>
   <AE_CFG_TierBMajorMin>B 档最少双火</AE_CFG_TierBMajorMin>
   <AE_CFG_TierBPassionTotal>B 档兴趣合计</AE_CFG_TierBPassionTotal>
-  <AE_CFG_TierSSWorkMajors>工作狂+神经质 → SS 双火数</AE_CFG_TierSSWorkMajors>
-  <AE_CFG_TierSSSWorkMajors>工作狂+神经质 → SSS 双火数</AE_CFG_TierSSSWorkMajors>
+  <AE_CFG_Section_TierTable>评级判定规则表（SSS / SS / S）</AE_CFG_Section_TierTable>
+  <AE_CFG_TierCol_Tier>档位</AE_CFG_TierCol_Tier>
+  <AE_CFG_TierCol_TriggerHappy>乱开枪系列</AE_CFG_TierCol_TriggerHappy>
+  <AE_CFG_TierCol_ToughMelee>坚韧格斗系列</AE_CFG_TierCol_ToughMelee>
+  <AE_CFG_TierCol_Workaholic>工作狂+神经质系列</AE_CFG_TierCol_Workaholic>
+  <AE_TierRule_TH_SSS>乱开枪+坚韧+射击双火</AE_TierRule_TH_SSS>
+  <AE_TierRule_TH_SS>乱开枪+射击双火</AE_TierRule_TH_SS>
+  <AE_TierRule_TH_S>乱开枪+射击单火</AE_TierRule_TH_S>
+  <AE_TierRule_TM_SSS>坚韧+格斗双火+敏捷/格斗者</AE_TierRule_TM_SSS>
+  <AE_TierRule_TM_SS>坚韧+格斗双火</AE_TierRule_TM_SS>
+  <AE_TierRule_TM_S>坚韧+格斗有火</AE_TierRule_TM_S>
+  <AE_TierRule_Work_SSS>工作狂+神经质+双火≥{0}</AE_TierRule_Work_SSS>
+  <AE_TierRule_Work_SS>工作狂+神经质+双火≥{0}</AE_TierRule_Work_SS>
+  <AE_TierRule_Work_S>工作狂+神经质（组合即 S）</AE_TierRule_Work_S>
+  <AE_CFG_TierTableHint>勾选即参与评级，取消勾选即停用该条规则；工作狂系列的滑条调整 SS/SSS 所需专业工作双火数。改动会立即清空评级缓存并生效。</AE_CFG_TierTableHint>
   <AE_CFG_SpecialTalentToS>特殊天赋特质直接 S</AE_CFG_SpecialTalentToS>
   <AE_CFG_BeautySocialToS>沉鱼落雁+社交双火直接 S</AE_CFG_BeautySocialToS>
   <AE_CFG_SpouseExemption>配偶评级豁免</AE_CFG_SpouseExemption>
@@ -219,8 +232,8 @@
   <AE_TT_TierAPassionTotal>A 档要求的双火+单火合计数量</AE_TT_TierAPassionTotal>
   <AE_TT_TierBMajorMin>B 档要求的最少双火数量</AE_TT_TierBMajorMin>
   <AE_TT_TierBPassionTotal>B 档要求的双火+单火合计数量</AE_TT_TierBPassionTotal>
-  <AE_TT_TierSSWorkMajors>工作狂+严重神经质组合达到 SS 所需的专业工作双火数</AE_TT_TierSSWorkMajors>
-  <AE_TT_TierSSSWorkMajors>工作狂+严重神经质组合达到 SSS 所需的专业工作双火数</AE_TT_TierSSSWorkMajors>
+  <AE_TT_TierRuleCell>规则开关：取消勾选后该组合不再参与评级，其他规则不受影响</AE_TT_TierRuleCell>
+  <AE_TT_TierRuleWorkMajors>工作狂+神经质组合升档所需的专业工作双火数（手工/建造/艺术/烹饪/种植/采矿）</AE_TT_TierRuleWorkMajors>
   <AE_TT_SpecialTalentToS>拥有博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经之一时直接评为 S 档</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>沉鱼落雁（美貌 2 级）且社交双火时直接评为 S 档</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>配偶达到指定档位时，本人评级不低于该档位</AE_TT_SpouseExemption>
@@ -234,15 +247,33 @@
   <AE_TT_MarkIncludeNonPlayer>勾选后只扫描并标记非玩家阵营（敌对/中立/盟友/野生人类）；关闭后只扫描并标记玩家阵营（殖民者/奴隶/囚犯）</AE_TT_MarkIncludeNonPlayer>
   <AE_TT_MarkTier>达到该档位的单位被视为高价值；同时决定血清携带的最低评级</AE_TT_MarkTier>
   <AE_TT_CarryFoodCount>每名殖民者背包中的食物总量（跨食物类型合计），按优先级选取具体食物：包装食物 → 干粮 → 奢侈餐 → 精致餐 → 一般餐 → 营养糊。0 表示不携带。</AE_TT_CarryFoodCount>
-  <AE_TT_CarrySerumHighValueOnly>勾选后只有评级达到“高价值档位阈值”（高价值自动页配置）的单位才携带血清；取消勾选则所有适用殖民者都携带。</AE_TT_CarrySerumHighValueOnly>
-  <AE_TT_CarryItemCount>拖到 0 表示不携带；需要同时保证药品政策“携带”列不低于该值。</AE_TT_CarryItemCount>
+  <AE_TT_CarrySerumHighValueOnly>勾选后只有评级达到“高价值档位阈值”（高价值自动页配置）的单位才携带血清；取消勾选则所有适用殖民者都携带。开启“用药方案”时仍受 S 档门槛约束（政策“携带”列对 S 档以下为 0）。</AE_TT_CarrySerumHighValueOnly>
+  <AE_TT_CarryItemCount>拖到 0 表示不携带；需要同时保证药品政策“携带”列不低于该值。开启“用药方案”时，低于该物品评级门槛（活力水/佩诺西林 A 档，血清 S 档）的殖民者不携带。</AE_TT_CarryItemCount>
   <AE_TT_ResetCarryItems>把药品与血清数量恢复为默认值（食物总量与携带周期不受影响）。</AE_TT_ResetCarryItems>
   <AE_TT_CarryInterval>自动携带的执行周期</AE_TT_CarryInterval>
   <!-- 人员自动：殖民者栏五类角色分组判定 -->
   <AE_CFG_Section_RoleGroup>殖民者栏角色分组</AE_CFG_Section_RoleGroup>
 
   <AE_CFG_RoleGroup_ForceHint>纯白名单制：只有勾选且命中的条件才计入对应分组，未命中任何勾选项的殖民者归入"其他"，不再按技能/兴趣推断。</AE_CFG_RoleGroup_ForceHint>
-  <AE_CFG_RoleGroup_MovedHint>殖民者栏角色分组的全部判定条件已整合到【人员自动】标签页，请到该页调整。</AE_CFG_RoleGroup_MovedHint>
+  <AE_CFG_RoleGroup_MovedHint>殖民者栏角色分组的全部判定条件已整合到【分组标记】标签页，请到该页调整。</AE_CFG_RoleGroup_MovedHint>
+
+  <!-- 分组标记：头像标识图标规则（RoleIconDef 判定条件说明 + 逐项开关） -->
+  <AE_RoleIcon_Tough>坚韧</AE_RoleIcon_Tough>
+  <AE_RoleIcon_Frontline>前排</AE_RoleIcon_Frontline>
+  <AE_RoleIcon_Ranged>远程</AE_RoleIcon_Ranged>
+  <AE_RoleIcon_Crafter>手工</AE_RoleIcon_Crafter>
+  <AE_RoleIcon_Worker>工人</AE_RoleIcon_Worker>
+  <AE_RoleIcon_Trader>贸易</AE_RoleIcon_Trader>
+
+  <AE_RoleIconCond_Tough>坚韧特质（一律标识，减伤 50%）</AE_RoleIconCond_Tough>
+  <AE_RoleIconCond_Frontline>坚韧 + 格斗者特质或近战双火</AE_RoleIconCond_Frontline>
+  <AE_RoleIconCond_Ranged>乱开枪 + 射击双火或单火</AE_RoleIconCond_Ranged>
+  <AE_RoleIconCond_Crafter>工作狂 + 神经质（同时满足）</AE_RoleIconCond_Crafter>
+  <AE_RoleIconCond_Worker>工作狂 或 神经质（满足其一）</AE_RoleIconCond_Worker>
+  <AE_RoleIconCond_Trader>俊俏/沉鱼落雁 + 社交双火或等级≥8</AE_RoleIconCond_Trader>
+
+  <AE_CFG_RoleIconRules_Hint>图标最多同时显示 6 个，按上表顺序从左到右排列；关闭某项只隐藏该标识，不影响角色分组与高价值判定。</AE_CFG_RoleIconRules_Hint>
+  <AE_TT_RoleIconToggle>取消勾选后不再在殖民者栏头像上绘制该图标，判定规则本身不变。</AE_TT_RoleIconToggle>
   <AE_CFG_Front_Ghoul>食尸鬼</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>格斗者特质</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>格斗专家职位</AE_CFG_Front_MeleeSpecialist>

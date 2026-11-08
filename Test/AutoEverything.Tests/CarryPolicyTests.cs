@@ -139,8 +139,45 @@ namespace AutoEverything.Tests
             CheckInt(drugCount, 10, "目录药品数量=10", ref failures, ref total);
             CheckInt(serumCount, 4, "目录血清数量=4（含虚空视界）", ref failures, ref total);
 
+            // 评级门槛（AutoCarry 派发与 AutoDrugPolicy 写政策共用）
+            CheckMinTier("GoJuice", CombatTier.A, ref failures, ref total);
+            CheckMinTier("Penoxycyline", CombatTier.A, ref failures, ref total);
+            CheckMinTier("JuggernautSerum", CombatTier.S, ref failures, ref total);
+            CheckMinTier("MetalbloodSerum", CombatTier.S, ref failures, ref total);
+            CheckMinTier("MindNumbSerum", CombatTier.S, ref failures, ref total);
+            CheckMinTier("VoidsightSerum", CombatTier.S, ref failures, ref total);
+            CheckMinTier("WakeUp", CombatTier.X, ref failures, ref total);
+            CheckMinTier("PsychiteTea", CombatTier.X, ref failures, ref total);
+            CheckMinTier("Luciferium", CombatTier.X, ref failures, ref total);
+            CheckMinTier("Beer", CombatTier.X, ref failures, ref total);
+
             Console.WriteLine($"[CarryPolicyTests/Catalog] {total - failures}/{total} passed");
             return failures;
+        }
+
+        private static void CheckMinTier(string defName, CombatTier expected,
+            ref int failures, ref int total)
+        {
+            total++;
+            CombatTier actual = CombatTier.X;
+            bool found = false;
+            for (int i = 0; i < CarryItemCatalog.Items.Length; i++)
+            {
+                if (CarryItemCatalog.Items[i].DefName != defName) continue;
+                actual = CarryItemCatalog.Items[i].MinTier;
+                found = true;
+                break;
+            }
+            if (!found)
+            {
+                Console.WriteLine($"  FAIL: 目录缺少 {defName}");
+                failures++;
+            }
+            else if (actual != expected)
+            {
+                Console.WriteLine($"  FAIL: MinTier {defName}: expected {expected}, got {actual}");
+                failures++;
+            }
         }
 
         private static void CheckDefault(string defName, int expected, ref int failures, ref int total)
@@ -198,6 +235,18 @@ namespace AutoEverything.Tests
                 "非高价值 + 仅高价值限制 → 不携带血清", ref failures, ref total);
             CheckBool(CarryPolicy.ShouldCarrySerum(false, false), true,
                 "非高价值但取消限制 → 携带血清", ref failures, ref total);
+
+            // 评级门槛：达到 MinTier 才携带（含高于门槛与无门槛两种情况）
+            CheckBool(CarryPolicy.MeetsTierGate(CombatTier.A, CombatTier.A), true,
+                "A 档 vs 门槛 A → 携带", ref failures, ref total);
+            CheckBool(CarryPolicy.MeetsTierGate(CombatTier.B, CombatTier.A), false,
+                "B 档 vs 门槛 A → 不携带", ref failures, ref total);
+            CheckBool(CarryPolicy.MeetsTierGate(CombatTier.SSS, CombatTier.S), true,
+                "SSS 档 vs 门槛 S → 携带", ref failures, ref total);
+            CheckBool(CarryPolicy.MeetsTierGate(CombatTier.C, CombatTier.S), false,
+                "C 档 vs 门槛 S → 不携带", ref failures, ref total);
+            CheckBool(CarryPolicy.MeetsTierGate(CombatTier.X, CombatTier.X), true,
+                "无门槛物品任何档位都携带", ref failures, ref total);
 
             Console.WriteLine($"[CarryPolicyTests/Gates] {total - failures}/{total} passed");
             return failures;
