@@ -20,8 +20,8 @@ namespace AutoEverything.AutoMarkPawn
     /// - 原 Crafter 图标并入 Worker：Crafter(工作狂+神经质) 恒为 Worker 的子集，必然同时出现
     /// - 判定从"硬编码 AND 组合"改为与分组一致的白名单制：勾选且命中任一条件即显示
     ///
-    /// 与角色分组的联动：角色分组开启时，分组框已用"射手/工人/贸易"文字与配色标识，
-    /// 此时只保留坚韧图标（分组不覆盖的维度），避免同一信息重复绘制。
+    /// 与角色分组的联动：角色分组开启与否都始终显示全部图标。
+    /// 分组框的边界/标签只表达"分组归属"，头像图标表达"个体能力特征"，两者信息不重复。
     ///
     /// 一个殖民者可同时符合多个角色定位（如坚韧 + 工人），图标横向排列显示。
     /// </summary>
@@ -100,23 +100,17 @@ namespace AutoEverything.AutoMarkPawn
                 iconCache[pawn] = new IconCacheEntry { mask = mask, tick = tick };
             }
 
-            // 角色分组开启时，分组框已用文字+配色标识射手/工人/贸易，只保留坚韧避免重复。
-            // 在展开阶段过滤而不进缓存：切换分组开关后下一帧即生效。
-            bool hideRoleIcons = AESettings.groupColonistBarByRole;
-
             // 掩码展开到共享 buffer（位序与 RoleIconType 枚举值一致）
-            // 展开时再按显示开关过滤：切换后下一帧即生效，无需清缓存
+            // 展开时按显示开关过滤：切换后下一帧即生效，无需清缓存。
+            // 角色分组开启时也照常显示全部图标（用户决策 2026-11-08），分组框不替代头像标识。
             if ((mask & (1 << (int)RoleIconType.Tough)) != 0 && AESettings.showRoleIconTough)
                 buffer.Add(RoleIconType.Tough);
-            if (!hideRoleIcons)
-            {
-                if ((mask & (1 << (int)RoleIconType.Ranged)) != 0 && AESettings.showRoleIconRanged)
-                    buffer.Add(RoleIconType.Ranged);
-                if ((mask & (1 << (int)RoleIconType.Worker)) != 0 && AESettings.showRoleIconWorker)
-                    buffer.Add(RoleIconType.Worker);
-                if ((mask & (1 << (int)RoleIconType.Trader)) != 0 && AESettings.showRoleIconTrader)
-                    buffer.Add(RoleIconType.Trader);
-            }
+            if ((mask & (1 << (int)RoleIconType.Ranged)) != 0 && AESettings.showRoleIconRanged)
+                buffer.Add(RoleIconType.Ranged);
+            if ((mask & (1 << (int)RoleIconType.Worker)) != 0 && AESettings.showRoleIconWorker)
+                buffer.Add(RoleIconType.Worker);
+            if ((mask & (1 << (int)RoleIconType.Trader)) != 0 && AESettings.showRoleIconTrader)
+                buffer.Add(RoleIconType.Trader);
             return buffer;
         }
 
