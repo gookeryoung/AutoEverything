@@ -398,10 +398,23 @@ namespace AutoEverything.Core
 
             try
             {
-                int n = EquipAllocator.ReallocateAll(showMessage);
+                int n = EquipAllocator.ReallocateAll(showMessage, showMessage);
                 AEDebug.Log(() => $"[AutoExecutor] 自动装备: {n} 个殖民者 (tick={tick})");
                 if (showMessage)
+                {
+                    // 手动触发时逐条输出具体变更，便于玩家确认谁换了什么
+                    IReadOnlyList<string> details = EquipAllocator.LastDetails;
+                    if (details.Count == 0)
+                    {
+                        Log.Message("[AutoEverything] 立即装备：本轮无变更");
+                    }
+                    else
+                    {
+                        for (int i = 0; i < details.Count; i++)
+                            Log.Message("[AutoEverything] 立即装备：" + details[i]);
+                    }
                     Messages.Message("AE_AutoEquip_Result".Translate(n), MessageTypeDefOf.TaskCompletion);
+                }
             }
             catch (Exception ex)
             {

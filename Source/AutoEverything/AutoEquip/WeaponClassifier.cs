@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using RimWorld;
 using Verse;
 
@@ -113,6 +114,49 @@ namespace AutoEverything.AutoEquip
             }
 
             return hasTrait;
+        }
+
+        /// <summary>
+        /// 拼接武器特性名称，供调试日志说明“为什么这件特化武器更好”。
+        /// 与 TryGetTraitValue 复用同一条数据链，无特性时返回空串。
+        /// </summary>
+        public static string DescribeTraits(ThingWithComps weapon)
+        {
+            if (weapon == null) return string.Empty;
+
+            StringBuilder sb = new StringBuilder();
+            try
+            {
+                if (ModsConfig.OdysseyActive)
+                {
+                    CompUniqueWeapon unique = weapon.TryGetComp<CompUniqueWeapon>();
+                    if (unique != null) AppendTraitLabels(unique.TraitsListForReading, sb);
+                }
+
+                if (ModsConfig.RoyaltyActive)
+                {
+                    CompBladelinkWeapon blade = weapon.TryGetComp<CompBladelinkWeapon>();
+                    if (blade != null) AppendTraitLabels(blade.TraitsListForReading, sb);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 武器特性名称读取失败: " + ex.Message,
+                    (weapon.thingIDNumber ^ (TraitErrorSalt + 4)));
+            }
+            return sb.ToString();
+        }
+
+        private static void AppendTraitLabels(List<WeaponTraitDef> traits, StringBuilder sb)
+        {
+            if (traits == null) return;
+            for (int i = 0; i < traits.Count; i++)
+            {
+                WeaponTraitDef trait = traits[i];
+                if (trait == null) continue;
+                if (sb.Length > 0) sb.Append('/');
+                sb.Append(string.IsNullOrEmpty(trait.label) ? trait.defName : trait.label);
+            }
         }
 
         /// <summary>武器是否已绑定/生物编码给其他 Pawn，不能拿走。</summary>

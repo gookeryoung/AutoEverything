@@ -24,9 +24,16 @@ namespace AutoEverything.AutoEquip
         private static readonly List<Apparel> ApparelCandidates = new List<Apparel>();
         private static readonly List<Pawn> PawnBuffer = new List<Pawn>();
         private static readonly List<ThingDef> InventoryDefBuffer = new List<ThingDef>();
+        private static readonly List<string> DetailLines = new List<string>();
         private static readonly Comparison<Pawn> PawnTierComparison = ComparePawnTier;
 
+        /// <summary>本轮是否收集逐条变更说明（手动“立即装备”或调试日志开启时为 true）。</summary>
+        private static bool detailCollecting;
+
         public static volatile bool IsDirty;
+
+        /// <summary>最近一次 ReallocateAll 的逐条变更说明（“殖民者 + 做了什么”），便于玩家查看。</summary>
+        public static IReadOnlyList<string> LastDetails { get { return DetailLines; } }
 
         /// <summary>物品生成/销毁时由 Harmony 调用，标记下一轮需要重算。</summary>
         public static void MarkDirty(Thing thing)
@@ -35,10 +42,15 @@ namespace AutoEverything.AutoEquip
             if (thing.def.IsWeapon || thing.def.IsApparel) IsDirty = true;
         }
 
-        /// <summary>返回本轮实际派发 Job 的 Pawn 数量。</summary>
-        public static int ReallocateAll(bool force = false)
+        /// <summary>
+        /// 返回本轮实际派发 Job 的 Pawn 数量。
+        /// collectDetails=true 时把每个 Pawn 的具体变更（换了什么、从什么换成什么）写入 LastDetails。
+        /// </summary>
+        public static int ReallocateAll(bool force = false, bool collectDetails = false)
         {
             IsDirty = false;
+            DetailLines.Clear();
+            detailCollecting = collectDetails;
             if (!AESettings.autoEquipEnabled && !force) return 0;
             if (Find.Maps == null || Find.Maps.Count == 0) return 0;
 
@@ -233,9 +245,12 @@ namespace AutoEverything.AutoEquip
                     return false;
             }
 
-            if (AEDebug.IsActive)
-                AEDebug.Log(() => "[EquipAllocator] " + AEDebug.Label(pawn) + " 换主武器: " + best.def.defName);
-            return TryDispatch(pawn, JobDefOf.Equip, best);
+            string change = current != null
+                ? "换主武器：" + DescribeWeapon(current) + " → " + DescribeWeapon(best)
+                : "装备主武器：" + DescribeWeapon(best);
+            if (!TryDispatch(pawn, JobDefOf.Equip, best)) return false;
+            RecordChange(pawn, change);
+            return true;
         }
 
         private static bool TryWearApparel(Pawn pawn, RoleGroup role)
@@ -281,10 +296,12 @@ namespace AutoEverything.AutoEquip
 
             if (bestItem == null) return false;
 
-            if (AEDebug.IsActive)
-                AEDebug.Log(() => "[EquipAllocator] " + AEDebug.Label(pawn) + " 换装: " + bestItem.def.defName
-                    + (bestCurrent != null ? " 替换 " + bestCurrent.def.defName : ""));
-            return TryDispatch(pawn, JobDefOf.Wear, bestItem);
+            string change = bestCurrent != null
+                ? "换装：" + DescribeThing(bestCurrent) + " → " + DescribeThing(bestItem)
+                : "装备服装：" + DescribeThing(bestItem);
+            if (!TryDispatch(pawn, JobDefOf.Wear, bestItem)) return false;
+            RecordChange(pawn, change);
+            return true;
         }
 
         private static bool TryTakeSidearm(Pawn pawn, EquipRoleRule rule)
@@ -319,9 +336,10 @@ namespace AutoEverything.AutoEquip
             }
 
             if (best == null) return false;
-            if (AEDebug.IsActive)
-                AEDebug.Log(() => "[EquipAllocator] " + AEDebug.Label(pawn) + " 携带副武器: " + best.def.defName);
-            return TryDispatch(pawn, JobDefOf.TakeInventory, best, 1);
+            string change = "携带副武器(" + (existing + 1) + "/" + rule.Sidearms + ")：" + DescribeWeapon(best);
+            if (!TryDispatch(pawn, JobDefOf.TakeInventory, best, 1)) return false;
+            RecordChange(pawn, change);
+            return true;
         }
 
         private static bool TryTakeGrenade(Pawn pawn, EquipRoleRule rule)
@@ -346,9 +364,42 @@ namespace AutoEverything.AutoEquip
             }
 
             if (best == null) return false;
-            if (AEDebug.IsActive)
-                AEDebug.Log(() => "[EquipAllocator] " + AEDebug.Label(pawn) + " 携带投掷物: " + best.def.defName);
-            return TryDispatch(pawn, JobDefOf.TakeInventory, best, 1);
+            string change = "携带投掷物(" + (kinds + 1) + "/" + AESettings.equipMaxThrownKinds + ")：" + DescribeThing(best);
+            if (!TryDispatch(pawn, JobDefOf.TakeInventory, best, 1)) return false;
+            RecordChange(pawn, change);
+            return true;
+        }
+
+        /// <summary>
+        /// 记录一次成功派发的装备变更：
+        /// - detailCollecting=true 时写入 LastDetails，供“立即装备”逐条展示；
+        /// - 调试日志开启时同时输出到日志。
+        /// 格式：殖民者 + 具体动作（装备/更换，从什么到什么）。
+        /// </summary>
+        private static void RecordChange(Pawn pawn, string text)
+        {
+            if (pawn == null) return;
+            if (!detailCollecting && !AEDebug.IsActive) return;
+
+            string line = AEDebug.Label(pawn) + " " + text;
+            if (detailCollecting) DetailLines.Add(line);
+            if (AEDebug.IsActive) Log.Message("[EquipAllocator] " + line);
+        }
+
+        /// <summary>武器描述：Label 已含品质/材质前缀，再补特性名以说明特化武器的优势来源。</summary>
+        private static string DescribeWeapon(ThingWithComps weapon)
+        {
+            if (weapon == null) return "无";
+            string traits = WeaponClassifier.DescribeTraits(weapon);
+            return string.IsNullOrEmpty(traits)
+                ? weapon.Label
+                : weapon.Label + "[特性:" + traits + "]";
+        }
+
+        /// <summary>通用物品描述：使用 Label，自动带品质前缀。</summary>
+        private static string DescribeThing(Thing thing)
+        {
+            return thing == null ? "无" : thing.Label;
         }
 
         private static bool IsCandidateAvailable(Pawn pawn, ThingWithComps thing)
