@@ -263,7 +263,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_RoleIcon_Trader>Trader</AE_RoleIcon_Trader>
 
   <AE_RoleIcon_ScarBars>Scar marks (bottom-right bars)</AE_RoleIcon_ScarBars>
-  <AE_TT_ScarBars>Draws amber bars at the portrait's bottom-right corner: 1 bar = 1 healed scar or truly missing body part (parts replaced by bionics/prosthetics do not count), capped at 3 bars; multiple scars on the same body part count once. Bars sit above vanilla status/role icons and align with the bond heart's bottom edge.</AE_TT_ScarBars>
+  <AE_TT_ScarBars>Draws amber bars at the portrait's bottom-right corner: 1 bar = 1 healed scar or truly missing body part (parts replaced by bionics/prosthetics do not count), capped at 3 bars; multiple scars on the same body part count once. Bars are as tall as the bond heart and vertically centered with it, laid out left-to-right starting right of the heart, sitting above vanilla status/role icons.</AE_TT_ScarBars>
   <AE_BondPartner>Psychic bonded partner: {0} (same color and style of heart = same couple)</AE_BondPartner>
 
   <AE_RoleIconCond_Tough>Tough trait (-50% damage)</AE_RoleIconCond_Tough>

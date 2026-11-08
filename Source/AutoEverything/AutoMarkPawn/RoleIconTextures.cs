@@ -234,7 +234,9 @@ namespace AutoEverything.AutoMarkPawn
         }
 
         /// <summary>
-        /// BondHatched 降级纹理：斜线剖面爱心（心形内部 45° 斜线填充，周期 10px、实线 6px）。
+        /// BondHatched 降级纹理：带描边的斜线剖面爱心。
+        /// 心形外轮廓 1.2 倍采样判定为实心描边，内部 45° 斜线填充（周期 10px、实线 6px），
+        /// 描边提升小尺寸下的轮廓对比度。
         /// </summary>
         private static Texture2D CreateHeartHatchedFallback()
         {
@@ -243,18 +245,21 @@ namespace AutoEverything.AutoMarkPawn
             {
                 for (int x = 0; x < FallbackSize; x++)
                 {
+                    bool outer = HeartContains(x, y, 1f);
+                    bool inner = HeartContains(x, y, 1.2f);
                     bool stripe = (x + y) % 10 < 6;
-                    pixels[y * FallbackSize + x] = HeartContains(x, y) && stripe ? Color.white : Color.clear;
+                    bool filled = outer && (stripe || !inner);
+                    pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
                 }
             }
             return CreateFallbackTexture(pixels);
         }
 
-        /// <summary>心形隐函数判定：(x²+y²-1)³ - x²y³ ≤ 0 区域为心形内部。</summary>
-        private static bool HeartContains(int x, int y)
+        /// <summary>心形隐函数判定：(x²+y²-1)³ - x²y³ ≤ 0 区域为心形内部；sampleScale 越大判定区域越小。</summary>
+        private static bool HeartContains(int x, int y, float sampleScale)
         {
-            float nx = ((x + 0.5f) / FallbackSize * 2f - 1f) * 1.15f;
-            float ny = (1f - (y + 0.5f) / FallbackSize * 2f) * 1.15f;
+            float nx = ((x + 0.5f) / FallbackSize * 2f - 1f) * 1.15f * sampleScale;
+            float ny = (1f - (y + 0.5f) / FallbackSize * 2f) * 1.15f * sampleScale;
             float a = nx * nx + ny * ny - 1f;
             return a * a * a - nx * nx * ny * ny * ny <= 0f;
         }

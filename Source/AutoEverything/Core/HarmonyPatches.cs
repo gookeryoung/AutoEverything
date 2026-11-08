@@ -269,12 +269,11 @@ namespace AutoEverything.Core
             private const float BaseBondIconSize = 32f;
 
             /// <summary>
-            /// 伤痕竖条尺寸（未缩放，像素）：用户反馈原 3×6 太小，增大到 4×14，间距 3；
-            /// 3 条总宽 18，远小于头像，不遮挡脸部。
+            /// 伤痕竖条相对爱心尺寸的比例（用户要求：与爱心同高、垂直居中、更易看清）。
+            /// 高度直接取爱心边长，宽度约 16%、间距约 10%，3 条总宽约 0.68 个爱心宽，不会挤压头像。
             /// </summary>
-            private const float ScarBarWidth = 4f;
-            private const float ScarBarHeight = 14f;
-            private const float ScarBarSpacing = 3f;
+            private const float ScarBarWidthRatio = 0.16f;
+            private const float ScarBarSpacingRatio = 0.10f;
 
             /// <summary>1×1 白色纹理：伤痕竖条用 GUI.color 染色，避免新增贴图资源</summary>
             private static readonly Texture2D ScarBarTexture = CreateWhiteTexture();
@@ -380,9 +379,9 @@ namespace AutoEverything.Core
             /// <summary>
             /// 在头像右下角绘制伤痕竖条：1 条 = 1 处永久疤痕/缺失部位，最多 3 条。
             ///
-            /// 位置与爱心图标对齐：两者底边都落在原版底部图标带之上的同一条基线
-            /// （rect.yMax - VanillaIconBand*scale - margin），视觉上齐平，不会一高一低。
-            /// 从右往左排列，与右上角角色图标方向一致；条数越多向左延伸，不影响头像中心。
+            /// 位置与爱心图标对齐：边长与爱心相同并垂直居中对齐（用户要求），
+            /// 整体位于原版底部图标带之上，视觉上既醒目又不遮挡原版状态/职位图标。
+            /// 从爱心右侧开始、从左往右排列：只有 1 条伤痕时紧贴爱心，不会缩到最右边看不清。
             /// 颜色琥珀橙（<see cref="ScarMarkDef.BarColor"/>），与深红角色图标区分。
             /// </summary>
             private static void DrawScarBars(Rect rect, Pawn pawn)
@@ -394,15 +393,20 @@ namespace AutoEverything.Core
 
                 // 缩放系数与原版/角色图标一致，随 ColonistBar.Scale 同步
                 float scale = rect.width / ColonistBar.BaseSize.x;
-                float barWidth = ScarBarWidth * scale;
-                float barHeight = ScarBarHeight * scale;
-                float spacing = ScarBarSpacing * scale;
                 float margin = BaseMargin * scale;
+                // 与 DrawBondHeart 相同的尺寸钳制，保证竖条与爱心同高
+                float heartSize = Mathf.Min(BaseBondIconSize * scale, rect.width - margin * 2f);
+                if (heartSize <= 0f) return;
 
-                // 与 DrawBondHeart 使用同一基线：底边 = 底部图标带之上、再内缩 margin
-                float bottom = rect.yMax - VanillaIconBand * scale - margin;
-                float y = bottom - barHeight;
-                float x = rect.xMax - barWidth - margin;
+                float barWidth = heartSize * ScarBarWidthRatio;
+                float barHeight = heartSize;
+                float spacing = heartSize * ScarBarSpacingRatio;
+
+                // 与 DrawBondHeart 垂直居中对齐：爱心中心 y = rect.yMax - VanillaIconBand*scale - margin - size/2
+                float centerY = rect.yMax - VanillaIconBand * scale - margin - heartSize * 0.5f;
+                float y = centerY - barHeight * 0.5f;
+                // 起点 = 爱心右边缘 + 一个间距，然后向右延伸
+                float x = rect.xMin + margin + heartSize + spacing;
 
                 Color prevColor = GUI.color;
                 Color barColor = ScarMarkDef.BarColor;
@@ -412,7 +416,7 @@ namespace AutoEverything.Core
                 for (int i = 0; i < bars; i++)
                 {
                     GUI.DrawTexture(new Rect(x, y, barWidth, barHeight), ScarBarTexture);
-                    x -= barWidth + spacing;
+                    x += barWidth + spacing;
                 }
                 GUI.color = prevColor;
             }

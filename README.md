@@ -216,7 +216,7 @@
 - **设计变更**：原"前排"图标已删除（分组框已用文字 + 红色描边标识前排，且两套"前排"定义不一致）；原"手工"图标已并入"工人"（手工条件"工作狂+神经质"恒为工人条件的子集，必然同时出现）
 - **与分组的联动**：角色分组开启与否都始终在头像上显示全部图标（坚韧/远程/工人/贸易）；分组框只表达"分组归属"，头像图标表达"个体能力特征"，两者互不替代
 - **即时生效**：显示开关在图标掩码展开阶段过滤，条件变更会立即清空图标缓存（无需等待 2500 tick）
-- **伤痕标识**：头像**右下角**绘制琥珀橙竖条（4×14，间距 3），1 条 = 1 处已愈合显现的永久疤痕或真实缺失部位（正在愈合的新鲜伤口、被仿生/假肢替换的部位均不计），按身体部位去重，超过 3 处只显示 3 条；判定结果按 Pawn 缓存 2500 tick。竖条位于原版底部状态/职位图标带上方，底边与左下角心灵纽带爱心对齐；与右上角角色图标互不重叠
+- **伤痕标识**：头像**右下角**绘制琥珀橙竖条（与左下角爱心同高、垂直居中，宽约爱心 16%、间距约 10%，自爱心右侧从左往右排列，1 条时紧贴爱心不会缩到最右边），1 条 = 1 处已愈合显现的永久疤痕或真实缺失部位（正在愈合的新鲜伤口、被仿生/假肢替换的部位均不计），按身体部位去重，超过 3 处只显示 3 条；判定结果按 Pawn 缓存 2500 tick。竖条位于原版底部状态/职位图标带上方；与右上角角色图标互不重叠
 - **配置项**：`AESettings.iconRanged*` / `iconWorker*` / `iconTrader*`（存档键 `ae_icon*`，默认全勾选）；`AESettings.showScarBars`（存档键 `ae_showScarBars`，默认开启）
 
 ## 自动工作分配（AutoWork）
@@ -331,7 +331,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 `AutoMarkPawn/` 模块包含三个职责：
 - **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（坚韧盾/前排盾/远程弓/手工锤/工人扳手/贸易钱袋），基于特质与技能组合判定；判定结果按 Pawn 缓存 2500 tick（与评级缓存独立），命中路径仅 1 次字典查询 + 掩码展开（零分配）
-- **伤痕标识**（`ScarMarkDef.cs` + `ScarMarkRules.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在头像右下角绘制琥珀橙竖条（4×14px，与左下角爱心底边对齐），统计已"显现"的永久疤痕（`IsPermanent` 且 `Severity <= permanentDamageThreshold`，与 `CompPostInjuryHeal` 的疤痕钳制逻辑一致，正在愈合的新鲜伤口不算）与真实缺失部位（`Hediff_MissingPart` 且未被 `AddedPart` 覆盖，装仿生/假肢的殖民者不会误报），按身体部位去重，最多 3 条；计数按 Pawn 缓存 2500 tick。判定核心抽到纯函数 `ScarMarkRules`，由 `ScarMarkTests` 覆盖
+- **伤痕标识**（`ScarMarkDef.cs` + `ScarMarkRules.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在头像右下角绘制琥珀橙竖条（与左下角爱心同高、垂直居中，自爱心右侧从左往右排列），统计已"显现"的永久疤痕（`IsPermanent` 且 `Severity <= permanentDamageThreshold`，与 `CompPostInjuryHeal` 的疤痕钳制逻辑一致，正在愈合的新鲜伤口不算）与真实缺失部位（`Hediff_MissingPart` 且未被 `AddedPart` 覆盖，装仿生/假肢的殖民者不会误报），按身体部位去重，最多 3 条；计数按 Pawn 缓存 2500 tick。判定核心抽到纯函数 `ScarMarkRules`，由 `ScarMarkTests` 覆盖
 - **S+ 高价值扫描通知**（`PawnMarker.cs`）：扫描当前扫描范围内的 S+ 目标，通过消息通知玩家（不再绘制 ★）
 
 #### 角色定位图标（6 种）
