@@ -520,6 +520,7 @@ namespace AutoEverything.UI
             }
             else if (descKey != null)
             {
+                bool prevDescWrap = Text.WordWrap;
                 Text.Font = GameFont.Tiny;
                 Text.WordWrap = false;
                 GUI.color = ColorLabelGray;
@@ -527,6 +528,7 @@ namespace AutoEverything.UI
                     Mathf.Max(0f, row.xMax - row.x - IconRuleNameWidth), row.height), descKey.Translate());
                 GUI.color = Color.white;
                 Text.Font = GameFont.Small;
+                Text.WordWrap = prevDescWrap;
             }
 
             // Tooltip 只挂在左侧开关区域：整行挂提示会再次暗示"整行可点"
