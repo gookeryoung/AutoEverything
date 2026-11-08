@@ -134,6 +134,8 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
 
   <!-- AutoCarry -->
   <AE_AutoCarry_Result>Dispatched carry jobs for {0} colonists</AE_AutoCarry_Result>
+  <AE_AutoEquip_Result>Dispatched equip jobs for {0} colonists</AE_AutoEquip_Result>
+  <AE_AutoEquip_SkippedInCombat>Combat detected, auto equip skipped</AE_AutoEquip_SkippedInCombat>
   <AE_AutoCarry_SkippedInCombat>Auto carry paused during combat, retry after combat ends</AE_AutoCarry_SkippedInCombat>
   <AE_TT_AutoCarry>When checked, colonists auto-carry food, drugs and enhancement serums per the per-item settings below; 0 means do not carry.
 Scans inventory every 6000 ticks (~100s, adjustable) and dispatches haul jobs for missing items; paused during combat to avoid leaving positions; skips colonists in surgery/recovery.
@@ -158,6 +160,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Tab_Person>Group &amp; Mark</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>Auto Work</AE_CFG_Tab_Work>
   <AE_CFG_Tab_Carry>Auto Carry</AE_CFG_Tab_Carry>
+  <AE_CFG_Tab_Equip>Auto Equip</AE_CFG_Tab_Equip>
   <AE_CFG_Tab_General>General</AE_CFG_Tab_General>
 
   <AE_CFG_Section_PersonSwitch>Tier switches</AE_CFG_Section_PersonSwitch>
@@ -170,6 +173,9 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Section_CarryFood>Food</AE_CFG_Section_CarryFood>
   <AE_CFG_Section_CarryDrugs>Addictive drugs</AE_CFG_Section_CarryDrugs>
   <AE_CFG_Section_CarrySerums>Enhancement serums</AE_CFG_Section_CarrySerums>
+  <AE_CFG_Section_EquipRoles>Role equipment whitelist</AE_CFG_Section_EquipRoles>
+  <AE_CFG_Section_EquipPriority>Weapon priority</AE_CFG_Section_EquipPriority>
+  <AE_CFG_Section_EquipApparel>Apparel scope</AE_CFG_Section_EquipApparel>
   <AE_CFG_Section_General>General</AE_CFG_Section_General>
   <AE_CFG_Section_ColonistBar>Colonist bar</AE_CFG_Section_ColonistBar>
 
@@ -179,6 +185,42 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_ScanMarkNow>Scan now</AE_CFG_ScanMarkNow>
   <AE_CFG_ApplyCarryNow>Carry now</AE_CFG_ApplyCarryNow>
   <AE_CFG_ApplyDrugNow>Assign drugs now</AE_CFG_ApplyDrugNow>
+  <AE_CFG_ApplyEquipNow>Equip now</AE_CFG_ApplyEquipNow>
+  <AE_CFG_ResetEquipRules>Reset whitelist</AE_CFG_ResetEquipRules>
+
+  <AE_CFG_EquipEnable>Enable auto equip</AE_CFG_EquipEnable>
+  <AE_CFG_EquipInterval>Check interval</AE_CFG_EquipInterval>
+  <AE_CFG_EquipMelee>Melee</AE_CFG_EquipMelee>
+  <AE_CFG_EquipRanged>Ranged</AE_CFG_EquipRanged>
+  <AE_CFG_EquipThrown>Thrown</AE_CFG_EquipThrown>
+  <AE_CFG_EquipSidearms>Sidearms</AE_CFG_EquipSidearms>
+  <AE_CFG_EquipMinQuality>Min quality</AE_CFG_EquipMinQuality>
+  <AE_CFG_EquipMinImprovement>Min improvement</AE_CFG_EquipMinImprovement>
+  <AE_CFG_EquipMaxThrownKinds>Max thrown kinds</AE_CFG_EquipMaxThrownKinds>
+  <AE_CFG_EquipRoleHint>Whitelist applies by colonist-bar role group: melee/ranged decide the primary weapon category; sidearm count is the number of extra ranged weapons placed in inventory; thrown must be checked to carry grenades/molotovs.</AE_CFG_EquipRoleHint>
+  <AE_CFG_EquipPriorityHint>Specialized weapons (unique/persona weapons with traits) always outrank general weapons; among specialized weapons, traits are compared by total marketValueOffset; among general weapons, quality comes first, then combat score. General weapons below the minimum quality are ignored.</AE_CFG_EquipPriorityHint>
+  <AE_CFG_EquipApparelHint>Apparel is chosen only from the colonist's current Assign → Outfit policy; the policy itself is never modified. If the improvement is below the threshold, current apparel is kept.</AE_CFG_EquipApparelHint>
+  <AE_CFG_EquipSidearmHint>Sidearms and grenades go into inventory and do not occupy the primary weapon slot; vanilla RimWorld will not auto-switch or throw them, so manual action is required.</AE_CFG_EquipSidearmHint>
+
+  <AE_TT_AutoEquip>When enabled, automatically finds primary weapons and apparel by role whitelist, and puts sidearms/grenades into inventory.
+Disabled by default; paused during combat; colonists in medical treatment, rituals or sleep are skipped; at most one equip job per colonist per cycle.</AE_TT_AutoEquip>
+  <AE_TT_EquipInterval>Periodically scans available equipment on the map. Equipment spawning or despawning also marks a pending recalculation.</AE_TT_EquipInterval>
+  <AE_TT_ResetEquipRules>Restore the default equipment whitelist for all five role groups.</AE_TT_ResetEquipRules>
+  <AE_TT_EquipMelee>Allow this role to use melee weapons as primary.</AE_TT_EquipMelee>
+  <AE_TT_EquipRanged>Allow this role to use ranged weapons as primary.</AE_TT_EquipRanged>
+  <AE_TT_EquipThrown>Allow this role to carry grenades, molotovs and other thrown weapons in inventory.</AE_TT_EquipThrown>
+  <AE_TT_EquipSidearms>Number of extra ranged weapons placed in inventory (0-3); click the number to cycle.</AE_TT_EquipSidearms>
+  <AE_TT_EquipMinQuality>Minimum quality for general weapons; specialized weapons ignore this. Awful means no limit.</AE_TT_EquipMinQuality>
+  <AE_TT_EquipMinImprovement>A candidate must improve over current gear by more than this percentage before swapping, preventing oscillation.</AE_TT_EquipMinImprovement>
+  <AE_TT_EquipMaxThrownKinds>Maximum number of different thrown weapon types each colonist may carry.</AE_TT_EquipMaxThrownKinds>
+
+  <AE_Quality_Awful>Awful</AE_Quality_Awful>
+  <AE_Quality_Poor>Poor</AE_Quality_Poor>
+  <AE_Quality_Normal>Normal</AE_Quality_Normal>
+  <AE_Quality_Good>Good</AE_Quality_Good>
+  <AE_Quality_Excellent>Excellent</AE_Quality_Excellent>
+  <AE_Quality_Masterwork>Masterwork</AE_Quality_Masterwork>
+  <AE_Quality_Legendary>Legendary</AE_Quality_Legendary>
   <AE_CFG_MasterDisabled>Auto Everything is disabled: all automation is paused (enable it in General).</AE_CFG_MasterDisabled>
 
   <AE_CFG_TierAMajorMin>A: min double passions</AE_CFG_TierAMajorMin>

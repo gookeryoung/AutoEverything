@@ -6,6 +6,7 @@ using Verse;
 using AutoEverything.Core;
 using AutoEverything.RoleEvaluation;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoEquip;
 
 namespace AutoEverything.UI
 {
@@ -50,13 +51,15 @@ namespace AutoEverything.UI
             Person = 1,
             Work = 2,
             Carry = 3,
-            General = 4
+            Equip = 4,
+            General = 5
         }
 
         // 标签栏绘制顺序：高价值自动已并入分组标记页，不再单独占一个标签
         private static readonly ConfigTab[] TabOrder =
         {
-            ConfigTab.Rating, ConfigTab.Person, ConfigTab.Work, ConfigTab.Carry, ConfigTab.General
+            ConfigTab.Rating, ConfigTab.Person, ConfigTab.Work, ConfigTab.Carry,
+            ConfigTab.Equip, ConfigTab.General
         };
 
         private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
@@ -162,6 +165,9 @@ namespace AutoEverything.UI
                 case ConfigTab.Carry:
                     DrawCarryTab(l);
                     break;
+                case ConfigTab.Equip:
+                    DrawEquipTab(l);
+                    break;
                 default:
                     DrawGeneralTab(l);
                     break;
@@ -216,6 +222,7 @@ namespace AutoEverything.UI
                 case ConfigTab.Person: return "AE_CFG_Tab_Person";
                 case ConfigTab.Work: return "AE_CFG_Tab_Work";
                 case ConfigTab.Carry: return "AE_CFG_Tab_Carry";
+                case ConfigTab.Equip: return "AE_CFG_Tab_Equip";
                 default: return "AE_CFG_Tab_General";
             }
         }
@@ -976,6 +983,175 @@ namespace AutoEverything.UI
                 "AE_TT_CarrySerumHighValueOnly");
             DrawCarryItemGrid(l, CarryItemKind.Serum);
             EndSection(l);
+        }
+
+        // ===================== 自动装备 =====================
+
+        // 角色名与角色分组页共用翻译键，保证两处显示一致
+        private static readonly string[] EquipRoleKeys =
+        {
+            "AE_RoleGroup_Front", "AE_RoleGroup_Shooter", "AE_RoleGroup_Worker",
+            "AE_RoleGroup_Trade", "AE_RoleGroup_Other"
+        };
+
+        private static readonly Color[] EquipRoleColors =
+        {
+            ColorRoleFront, ColorRoleShooter, ColorRoleWorker, ColorRoleTrade, ColorLabelGray
+        };
+
+        /// <summary>
+        /// 自动装备页：角色白名单表单 + 武器优先级 + 着装范围说明。
+        /// 白名单是唯一入口，未勾选的类别不会被自动装备。
+        /// </summary>
+        private static void DrawEquipTab(Listing_Standard l)
+        {
+            bool prevEnabled = AESettings.autoEquipEnabled;
+            DrawCheckbox(l, "AE_CFG_EquipEnable", ref AESettings.autoEquipEnabled, "AE_TT_AutoEquip");
+            if (!prevEnabled && AESettings.autoEquipEnabled)
+                AutoExecutor.TriggerEquipNow();
+            DrawSecondsSlider(l, "AE_CFG_EquipInterval", ref AESettings.equipIntervalTicks, 30, 300,
+                "AE_TT_EquipInterval");
+            l.Gap(2f);
+
+            Rect btnRow = l.GetRect(28f);
+            float halfWidth = (btnRow.width - 8f) * 0.5f;
+            Rect applyRect = new Rect(btnRow.x, btnRow.y, halfWidth, btnRow.height);
+            Rect resetRect = new Rect(btnRow.x + halfWidth + 8f, btnRow.y, halfWidth, btnRow.height);
+            if (Widgets.ButtonText(applyRect, "AE_CFG_ApplyEquipNow".Translate()))
+                AutoExecutor.TriggerEquipNow();
+            if (Widgets.ButtonText(resetRect, "AE_CFG_ResetEquipRules".Translate()))
+            {
+                AESettings.ResetEquipRulesToDefault();
+                settingsDirty = true;
+            }
+            TooltipHandler.TipRegion(resetRect, "AE_TT_ResetEquipRules".Translate());
+
+            BeginSection(l, "AE_CFG_Section_EquipRoles".Translate());
+            DrawEquipRoleHeader(l);
+            for (int role = 0; role < EquipRules.RoleCount; role++)
+            {
+                EquipRoleRule rule = AESettings.GetEquipRoleRule(role);
+                bool changed = DrawEquipRoleRow(l, role, ref rule);
+                if (changed)
+                {
+                    AESettings.SetEquipRoleRule(role, rule);
+                    settingsDirty = true;
+                }
+            }
+            DrawRuleText(l, "AE_CFG_EquipRoleHint".Translate());
+            EndSection(l);
+
+            BeginSection(l, "AE_CFG_Section_EquipPriority".Translate());
+            DrawEquipQualitySelector(l);
+            DrawIntSlider(l, "AE_CFG_EquipMinImprovement", ref AESettings.equipMinImprovementPct,
+                0, 50, "AE_TT_EquipMinImprovement");
+            DrawIntSlider(l, "AE_CFG_EquipMaxThrownKinds", ref AESettings.equipMaxThrownKinds,
+                0, 4, "AE_TT_EquipMaxThrownKinds");
+            DrawRuleText(l, "AE_CFG_EquipPriorityHint".Translate());
+            EndSection(l);
+
+            BeginSection(l, "AE_CFG_Section_EquipApparel".Translate());
+            DrawRuleText(l, "AE_CFG_EquipApparelHint".Translate());
+            DrawRuleText(l, "AE_CFG_EquipSidearmHint".Translate());
+            EndSection(l);
+        }
+
+        private static void DrawEquipRoleHeader(Listing_Standard l)
+        {
+            Rect row = l.GetRect(20f);
+            float cellWidth = (row.width - RoleNameWidth - RoleCellGap * 4f) / 4f;
+            Text.Font = GameFont.Tiny;
+            GUI.color = ColorLabelGray;
+            Text.Anchor = TextAnchor.MiddleCenter;
+            bool prevWrap = Text.WordWrap;
+            Text.WordWrap = false;
+
+            string[] headers =
+            {
+                "AE_CFG_EquipMelee", "AE_CFG_EquipRanged", "AE_CFG_EquipThrown", "AE_CFG_EquipSidearms"
+            };
+            for (int i = 0; i < headers.Length; i++)
+            {
+                Rect cell = new Rect(row.x + RoleNameWidth + i * (cellWidth + RoleCellGap),
+                    row.y, cellWidth, row.height);
+                Widgets.Label(cell, headers[i].Translate());
+            }
+
+            Text.WordWrap = prevWrap;
+            Text.Anchor = TextAnchor.UpperLeft;
+            GUI.color = Color.white;
+            Text.Font = GameFont.Small;
+        }
+
+        private static bool DrawEquipRoleRow(Listing_Standard l, int role, ref EquipRoleRule rule)
+        {
+            Rect row = l.GetRect(RoleRowHeight);
+            if ((role & 1) == 1) Widgets.DrawBoxSolid(row, ColorRowAlt);
+
+            Widgets.DrawBoxSolid(new Rect(row.x, row.y + 5f, 3f, row.height - 10f), EquipRoleColors[role]);
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(new Rect(row.x + 8f, row.y, RoleNameWidth - 8f, row.height),
+                EquipRoleKeys[role].Translate());
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+
+            float cellWidth = (row.width - RoleNameWidth - RoleCellGap * 4f) / 4f;
+            bool changed = false;
+
+            Rect meleeCell = new Rect(row.x + RoleNameWidth, row.y, cellWidth, RoleRowHeight);
+            bool melee = rule.Melee;
+            Widgets.Checkbox(new Vector2(meleeCell.center.x - 12f, meleeCell.y + 1f), ref melee, 24f);
+            TooltipHandler.TipRegion(meleeCell, "AE_TT_EquipMelee".Translate());
+            if (melee != rule.Melee) { rule.Melee = melee; changed = true; }
+
+            Rect rangedCell = new Rect(meleeCell.x + cellWidth + RoleCellGap, row.y, cellWidth, RoleRowHeight);
+            bool ranged = rule.Ranged;
+            Widgets.Checkbox(new Vector2(rangedCell.center.x - 12f, rangedCell.y + 1f), ref ranged, 24f);
+            TooltipHandler.TipRegion(rangedCell, "AE_TT_EquipRanged".Translate());
+            if (ranged != rule.Ranged) { rule.Ranged = ranged; changed = true; }
+
+            Rect thrownCell = new Rect(rangedCell.x + cellWidth + RoleCellGap, row.y, cellWidth, RoleRowHeight);
+            bool thrown = rule.Thrown;
+            Widgets.Checkbox(new Vector2(thrownCell.center.x - 12f, thrownCell.y + 1f), ref thrown, 24f);
+            TooltipHandler.TipRegion(thrownCell, "AE_TT_EquipThrown".Translate());
+            if (thrown != rule.Thrown) { rule.Thrown = thrown; changed = true; }
+
+            Rect sidearmCell = new Rect(thrownCell.x + cellWidth + RoleCellGap, row.y + 1f,
+                cellWidth, RoleRowHeight - 2f);
+            if (Widgets.ButtonText(sidearmCell, rule.Sidearms.ToString()))
+            {
+                rule.Sidearms = rule.Sidearms >= EquipRules.MaxSidearms ? 0 : rule.Sidearms + 1;
+                changed = true;
+            }
+            TooltipHandler.TipRegion(sidearmCell, "AE_TT_EquipSidearms".Translate());
+
+            return changed;
+        }
+
+        private static void DrawEquipQualitySelector(Listing_Standard l)
+        {
+            Rect rect = l.GetRect(28f);
+            string label = "AE_CFG_EquipMinQuality".Translate() + ": "
+                + ("AE_Quality_" + AESettings.equipMinQuality).Translate();
+            if (Widgets.ButtonText(rect, label))
+            {
+                List<FloatMenuOption> options = new List<FloatMenuOption>();
+                for (int q = (int)QualityCategory.Awful; q <= (int)QualityCategory.Legendary; q++)
+                {
+                    QualityCategory local = (QualityCategory)q;
+                    options.Add(new FloatMenuOption(("AE_Quality_" + local).Translate(),
+                        () =>
+                        {
+                            AESettings.equipMinQuality = local;
+                            settingsDirty = true;
+                        }));
+                }
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+            TooltipHandler.TipRegion(rect, "AE_TT_EquipMinQuality".Translate());
         }
 
         // 携带物品网格绘制缓冲（每帧重建，避免反复分配）

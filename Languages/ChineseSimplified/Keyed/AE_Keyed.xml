@@ -135,6 +135,8 @@
 
   <!-- AutoCarry 自动携带 -->
   <AE_AutoCarry_Result>已为 {0} 个殖民者派发携带物品任务</AE_AutoCarry_Result>
+  <AE_AutoEquip_Result>已为 {0} 个殖民者派发装备任务</AE_AutoEquip_Result>
+  <AE_AutoEquip_SkippedInCombat>当前处于战斗状态，已跳过自动装备</AE_AutoEquip_SkippedInCombat>
   <AE_AutoCarry_SkippedInCombat>战斗中暂停自动携带，待战斗结束后再试</AE_AutoCarry_SkippedInCombat>
   <AE_TT_AutoCarry>勾选后按下方逐项配置为殖民者补充食物、药品与强化血清，数量为 0 表示不携带。
 每 6000 tick（约 100 秒，可在面板调整）扫描一次背包，缺物品时派发搬运任务；战斗中暂停触发避免离开战位；正在手术/休养的殖民者跳过。
@@ -159,6 +161,7 @@
   <AE_CFG_Tab_Person>分组标记</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>工作自动</AE_CFG_Tab_Work>
   <AE_CFG_Tab_Carry>自动携带</AE_CFG_Tab_Carry>
+  <AE_CFG_Tab_Equip>自动装备</AE_CFG_Tab_Equip>
   <AE_CFG_Tab_General>通用调试</AE_CFG_Tab_General>
 
   <AE_CFG_Section_PersonSwitch>评级开关</AE_CFG_Section_PersonSwitch>
@@ -171,6 +174,9 @@
   <AE_CFG_Section_CarryFood>食物</AE_CFG_Section_CarryFood>
   <AE_CFG_Section_CarryDrugs>成瘾品</AE_CFG_Section_CarryDrugs>
   <AE_CFG_Section_CarrySerums>强化血清</AE_CFG_Section_CarrySerums>
+  <AE_CFG_Section_EquipRoles>角色装备白名单</AE_CFG_Section_EquipRoles>
+  <AE_CFG_Section_EquipPriority>武器优先级</AE_CFG_Section_EquipPriority>
+  <AE_CFG_Section_EquipApparel>着装范围</AE_CFG_Section_EquipApparel>
   <AE_CFG_Section_General>通用</AE_CFG_Section_General>
   <AE_CFG_Section_ColonistBar>殖民者栏</AE_CFG_Section_ColonistBar>
 
@@ -180,6 +186,42 @@
   <AE_CFG_ScanMarkNow>立即扫描标记</AE_CFG_ScanMarkNow>
   <AE_CFG_ApplyCarryNow>立即执行携带</AE_CFG_ApplyCarryNow>
   <AE_CFG_ApplyDrugNow>立即分配用药</AE_CFG_ApplyDrugNow>
+  <AE_CFG_ApplyEquipNow>立即装备</AE_CFG_ApplyEquipNow>
+  <AE_CFG_ResetEquipRules>恢复默认白名单</AE_CFG_ResetEquipRules>
+
+  <AE_CFG_EquipEnable>启用自动装备</AE_CFG_EquipEnable>
+  <AE_CFG_EquipInterval>装备检查周期</AE_CFG_EquipInterval>
+  <AE_CFG_EquipMelee>近战</AE_CFG_EquipMelee>
+  <AE_CFG_EquipRanged>远程</AE_CFG_EquipRanged>
+  <AE_CFG_EquipThrown>投掷物</AE_CFG_EquipThrown>
+  <AE_CFG_EquipSidearms>副武器</AE_CFG_EquipSidearms>
+  <AE_CFG_EquipMinQuality>最低品质</AE_CFG_EquipMinQuality>
+  <AE_CFG_EquipMinImprovement>换装最小提升</AE_CFG_EquipMinImprovement>
+  <AE_CFG_EquipMaxThrownKinds>投掷物种类上限</AE_CFG_EquipMaxThrownKinds>
+  <AE_CFG_EquipRoleHint>白名单按殖民者栏角色分组生效：勾选近战/远程决定主武器类别，副武器数量为额外放入背包的远程武器数；投掷物勾选后才携带手雷/燃烧弹。</AE_CFG_EquipRoleHint>
+  <AE_CFG_EquipPriorityHint>特化武器（带特性的独特/人格武器）永远优先于一般武器；同为特化时按特性价格（marketValueOffset 总和）排序，同为一般时按品质再按战斗评分。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
+  <AE_CFG_EquipApparelHint>服装只从殖民者当前【管理→着装】政策允许的范围内选择，不会修改或覆盖玩家的着装政策；换装提升不足时保持当前衣物。</AE_CFG_EquipApparelHint>
+  <AE_CFG_EquipSidearmHint>副武器与手雷只放入背包，不占用主武器栏；原版不会自动切换或投掷，需要玩家手动操作。</AE_CFG_EquipSidearmHint>
+
+  <AE_TT_AutoEquip>开启后按角色白名单自动寻找并装备主武器、服装，并把副武器与手雷放入背包。
+默认关闭；战斗中会暂停，医疗/仪式/睡眠中的殖民者跳过；每轮每个殖民者最多派发一个装备任务。</AE_TT_AutoEquip>
+  <AE_TT_EquipInterval>周期检查地图上的可用装备。装备生成或销毁时也会立即标记重算。</AE_TT_EquipInterval>
+  <AE_TT_ResetEquipRules>把五类角色的装备白名单恢复为默认值。</AE_TT_ResetEquipRules>
+  <AE_TT_EquipMelee>允许该角色把近战武器作为主武器。</AE_TT_EquipMelee>
+  <AE_TT_EquipRanged>允许该角色把远程武器作为主武器。</AE_TT_EquipRanged>
+  <AE_TT_EquipThrown>允许该角色携带手雷、燃烧弹等投掷物（放入背包）。</AE_TT_EquipThrown>
+  <AE_TT_EquipSidearms>额外放入背包的远程武器数量，0-3；点击数字循环切换。</AE_TT_EquipSidearms>
+  <AE_TT_EquipMinQuality>一般武器的最低品质；特化武器不受此限制。Awful 表示不设下限。</AE_TT_EquipMinQuality>
+  <AE_TT_EquipMinImprovement>候选装备必须比当前装备提升超过该百分比才会换装，用于防止来回换装。</AE_TT_EquipMinImprovement>
+  <AE_TT_EquipMaxThrownKinds>每个殖民者最多携带几种不同的投掷物。</AE_TT_EquipMaxThrownKinds>
+
+  <AE_Quality_Awful>极差</AE_Quality_Awful>
+  <AE_Quality_Poor>较差</AE_Quality_Poor>
+  <AE_Quality_Normal>普通</AE_Quality_Normal>
+  <AE_Quality_Good>良好</AE_Quality_Good>
+  <AE_Quality_Excellent>优秀</AE_Quality_Excellent>
+  <AE_Quality_Masterwork>大师</AE_Quality_Masterwork>
+  <AE_Quality_Legendary>传奇</AE_Quality_Legendary>
   <AE_CFG_MasterDisabled>自动万物已关闭：所有自动模块不会执行（可在“通用调试”中开启）</AE_CFG_MasterDisabled>
 
   <AE_CFG_TierAMajorMin>A 档最少双火</AE_CFG_TierAMajorMin>

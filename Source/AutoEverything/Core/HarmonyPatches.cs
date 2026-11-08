@@ -5,6 +5,7 @@ using RimWorld;
 using UnityEngine;
 using Verse;
 using AutoEverything.AutoMarkPawn;
+using AutoEverything.AutoEquip;
 using AutoEverything.RoleEvaluation;
 
 namespace AutoEverything.Core
@@ -28,9 +29,8 @@ namespace AutoEverything.Core
     /// 仅供旧存档反序列化兼容，其 GameComponentTick 与本入口双路调用
     /// AutoExecutor.TryTick——内部 60 tick 门控保证幂等，无双倍执行。
     ///
-    /// 注：原 AutoEquipment 模块（自动装备分配）已整体移除——玩家反馈换装效果不理想，
-    /// 改用 RimWorld 原生换装（玩家手动管理装备）。相关 Harmony 事件补丁
-    /// （Thing.SpawnSetup/Destroy/Pawn.SetFaction/Kill）同步移除。
+    /// 注：旧 AutoEquipment 模块已整体移除；新 AutoEquip 模块重新加入
+    /// Thing.SpawnSetup/Destroy 两个轻量事件补丁，仅用于置脏标记，不做任何拦截。
     ///
     /// 殖民者栏图标显示方案演进（参考 UsefulMarks 设计）：
     /// - v1：PawnUIOverlay.DrawPawnGUIOverlay Postfix 在世界图层 Pawn 头顶绘制 ★，
@@ -183,7 +183,32 @@ namespace AutoEverything.Core
                 Log.Warning("[AutoEverything] PawnNameColorUtility 补丁失败: " + ex.Message);
             }
 
-            Log.Message("[AutoEverything] Harmony 补丁已应用 (DoSingleTick 入口 + ColonistBar 角色图标 + 殖民者栏角色分组 + 地图高价值标记 + 名字评级着色)");
+            // Thing.SpawnSetup / Thing.Destroy 补丁：装备生成或销毁时标记自动装备待重算
+            // 只在开关开启时置脏，避免无关物品（抛射物/污渍）带来额外开销
+            try
+            {
+                var spawnMethod = AccessTools.Method(typeof(Thing), nameof(Thing.SpawnSetup));
+                if (spawnMethod != null)
+                {
+                    harmony.Patch(spawnMethod,
+                        postfix: new HarmonyMethod(typeof(Thing_SpawnSetup_EquipDirty_Patch),
+                            nameof(Thing_SpawnSetup_EquipDirty_Patch.Postfix)));
+                }
+
+                var destroyMethod = AccessTools.Method(typeof(Thing), nameof(Thing.Destroy));
+                if (destroyMethod != null)
+                {
+                    harmony.Patch(destroyMethod,
+                        postfix: new HarmonyMethod(typeof(Thing_Destroy_EquipDirty_Patch),
+                            nameof(Thing_Destroy_EquipDirty_Patch.Postfix)));
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning("[AutoEverything] 自动装备事件补丁失败: " + ex.Message);
+            }
+
+            Log.Message("[AutoEverything] Harmony 补丁已应用 (DoSingleTick 入口 + ColonistBar 角色图标 + 殖民者栏角色分组 + 地图高价值标记 + 名字评级着色 + 自动装备事件)");
         }
 
         /// <summary>
@@ -211,6 +236,42 @@ namespace AutoEverything.Core
                 {
                     // 异常隔离：本 MOD Tick 失败不影响游戏原生 tick 逻辑
                     Log.ErrorOnce("[AutoEverything] DoSingleTick 入口失败: " + ex.Message, 0xA710);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Thing.SpawnSetup 的 Postfix：武器/服装生成时标记自动装备待重算。
+        /// </summary>
+        public static class Thing_SpawnSetup_EquipDirty_Patch
+        {
+            public static void Postfix(Thing __instance)
+            {
+                try
+                {
+                    EquipAllocator.MarkDirty(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorOnce("[AutoEverything] 装备生成事件处理失败: " + ex.Message, 0xA720);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Thing.Destroy 的 Postfix：装备销毁时标记自动装备待重算。
+        /// </summary>
+        public static class Thing_Destroy_EquipDirty_Patch
+        {
+            public static void Postfix(Thing __instance)
+            {
+                try
+                {
+                    EquipAllocator.MarkDirty(__instance);
+                }
+                catch (Exception ex)
+                {
+                    Log.ErrorOnce("[AutoEverything] 装备销毁事件处理失败: " + ex.Message, 0xA721);
                 }
             }
         }

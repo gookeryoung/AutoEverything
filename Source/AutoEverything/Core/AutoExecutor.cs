@@ -6,6 +6,7 @@ using AutoEverything.AutoWork;
 using AutoEverything.AutoMarkPawn;
 using AutoEverything.AutoCarry;
 using AutoEverything.AutoDrugPolicy;
+using AutoEverything.AutoEquip;
 
 namespace AutoEverything.Core
 {
@@ -30,14 +31,16 @@ namespace AutoEverything.Core
     ///   （基于特质组合判定，无评级缓存依赖），无需周期触发
     /// - 自动携带（周期 + ITab 触发）：每 6000 tick（约 100 秒）周期触发；
     ///   ITab 勾选时立即触发。需战斗过滤避免战斗中离开战位；医疗守卫避免打断手术/休养
+    /// - 自动装备（周期 + 事件 + ITab 触发）：周期由配置决定（默认 6000 tick）；
+    ///   武器/服装生成或销毁时由 Harmony 标记脏标；派发 Equip/Wear/TakeInventory Job，需战斗过滤
     /// - ITab 勾选：玩家在面板勾选时立即触发一次（弹消息框反馈，含完整目标列表）
     ///
     /// 首次初始化守卫：work.lastTick 等 &lt; 0 时设为当前 tick，不触发执行，
     /// 避免存档加载后立即执行造成卡顿。
     ///
     /// 注：AutoFood/AutoDrug 模块已移除（与其他 MOD 冲突），相关 foodDrug 阶段状态与信仰检测逻辑同步删除。
-    /// 注：AutoEquipment 模块（自动装备分配）已整体移除——玩家反馈换装效果不理想，
-    /// 改用 RimWorld 原生换装（玩家手动管理装备）。
+    /// 注：旧 AutoEquipment 模块因“全图贪心 + 跨殖民者扒装”效果不理想已移除；
+    /// 新 AutoEquip 模块改为白名单 + 角色分组 + 换装阈值，默认关闭。
     /// </summary>
     internal static class AutoExecutor
     {
@@ -63,6 +66,12 @@ namespace AutoEverything.Core
             get { return Math.Max(300, AESettings.carryIntervalTicks); }
         }
 
+        // 自动装备周期：由【自动】面板配置（默认 6000 tick ≈ 100 秒），下限 1800 tick 防误设
+        private static int EquipExecuteInterval
+        {
+            get { return AESettings.ClampEquipInterval(AESettings.equipIntervalTicks); }
+        }
+
         // 用药方案周期：与评级周期一致（3000 tick ≈ 50 秒）
         // 评级变化才会改变对应政策，复用评级周期避免独立计时
         private const int DrugPolicyInterval = ExecuteInterval;
@@ -70,6 +79,7 @@ namespace AutoEverything.Core
         // 阶段状态：把 lastTick + pending 打包为 struct，集中管理各自动阶段的状态
         // work：工作重配（事件触发 ReallocCooldown 冷却 + 周期触发 WorkExecuteInterval 间隔，均需战斗过滤）
         // carry：自动携带（周期触发 CarryExecuteInterval 间隔，需战斗过滤）
+        // equip：自动装备（周期 + 事件脏标触发，需战斗过滤——Equip/Wear 会取消当前 Job）
         // drugPolicy：用药方案（事件触发 + 周期触发 DrugPolicyInterval 间隔，无战斗过滤——不取消 Job）
         // tier：评级（周期 ExecuteInterval 触发，无 pending——非事件驱动）
         private struct PhaseState
@@ -80,6 +90,7 @@ namespace AutoEverything.Core
 
         private static PhaseState work = new PhaseState { lastTick = -9999 };
         private static PhaseState carry = new PhaseState { lastTick = -9999 };
+        private static PhaseState equip = new PhaseState { lastTick = -9999 };
         private static PhaseState drugPolicy = new PhaseState { lastTick = -9999 };
         private static int lastTierTick = -9999;
         private static int lastCheckTick = -9999;
@@ -105,6 +116,7 @@ namespace AutoEverything.Core
         private const int CarryErrorSalt = 0xA400;
         private const int MarkErrorSalt = 0xA500;
         private const int DrugPolicyErrorSalt = 0xA600;
+        private const int EquipErrorSalt = 0xA700;
 
         /// <summary>
         /// 由 <see cref="AutoEverythingGameComponent"/>.Tick 每 tick 调用。
@@ -125,6 +137,7 @@ namespace AutoEverything.Core
             {
                 work.lastTick = tick;
                 carry.lastTick = tick;
+                equip.lastTick = tick;
                 drugPolicy.lastTick = tick;
                 lastTierTick = tick;
                 lastColonistCount = PawnsFinder.AllMaps_FreeColonists.Count;
@@ -145,6 +158,8 @@ namespace AutoEverything.Core
                     // 用药方案立即触发：新增殖民者需分配对应评级政策
                     // 不需战斗过滤——分配 DrugPolicy 不取消 Job
                     drugPolicy.pending = true;
+                    // 新增殖民者需要装备，标记待触发；实际执行仍需战斗过滤
+                    equip.pending = true;
                 }
                 work.pending = true;
             }
@@ -169,7 +184,9 @@ namespace AutoEverything.Core
             // 仅在确有分支需要战斗过滤时才执行遍历，否则跳过
             bool needCombatCheck = (work.pending && tick - work.lastTick >= ReallocCooldown)
                 || tick - work.lastTick >= WorkExecuteInterval
-                || tick - carry.lastTick >= CarryExecuteInterval;
+                || tick - carry.lastTick >= CarryExecuteInterval
+                || (AESettings.autoEquipEnabled
+                    && (equip.pending || EquipAllocator.IsDirty || tick - equip.lastTick >= EquipExecuteInterval));
             bool combatActive = needCombatCheck && AESettings.skipAutoInCombat && AnyCombatActive();
 
             // 待重配触发：工作重配需战斗过滤（SetPriority 取消 Job）
@@ -193,6 +210,12 @@ namespace AutoEverything.Core
             // 周期触发：自动携带（战斗过滤——避免殖民者战斗中离开战位去拿物品）
             if (tick - carry.lastTick >= CarryExecuteInterval && !combatActive)
                 ExecuteCarry(tick, showMessage: false);
+
+            // 自动装备：周期、事件脏标或新殖民者加入触发；战斗过滤避免打断医疗与战斗 Job
+            if (AESettings.autoEquipEnabled
+                && (equip.pending || EquipAllocator.IsDirty || tick - equip.lastTick >= EquipExecuteInterval)
+                && !combatActive)
+                ExecuteEquip(tick, showMessage: false);
 
             // 用药方案触发：事件待触发 或 周期触发
             // 不需战斗过滤——分配 DrugPolicy 不会取消 Job，可在战斗中安全执行
@@ -241,6 +264,20 @@ namespace AutoEverything.Core
                 return;
             }
             ExecuteCarry(Find.TickManager.TicksGame, showMessage: true);
+        }
+
+        /// <summary>
+        /// ITab 勾选时调用：立即执行自动装备并弹消息框。
+        /// 与自动携带一致，战斗中跳过，避免殖民者离开战位。
+        /// </summary>
+        public static void TriggerEquipNow()
+        {
+            if (AnyCombatActive() && AESettings.skipAutoInCombat)
+            {
+                Messages.Message("AE_AutoEquip_SkippedInCombat".Translate(), MessageTypeDefOf.RejectInput);
+                return;
+            }
+            ExecuteEquip(Find.TickManager.TicksGame, showMessage: true);
         }
 
         /// <summary>
@@ -349,6 +386,26 @@ namespace AutoEverything.Core
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 自动携带分配失败: " + ex.Message, CarryErrorSalt);
+            }
+        }
+
+        private static void ExecuteEquip(int tick, bool showMessage)
+        {
+            equip.lastTick = tick;
+            equip.pending = false;
+            // 周期路径只在开关开启时被调用；手动“立即装备”允许在开关关闭时预览/执行一次
+            if (!AESettings.autoEquipEnabled && !showMessage) return;
+
+            try
+            {
+                int n = EquipAllocator.ReallocateAll(showMessage);
+                AEDebug.Log(() => $"[AutoExecutor] 自动装备: {n} 个殖民者 (tick={tick})");
+                if (showMessage)
+                    Messages.Message("AE_AutoEquip_Result".Translate(n), MessageTypeDefOf.TaskCompletion);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 自动装备失败: " + ex.Message, EquipErrorSalt);
             }
         }
 

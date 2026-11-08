@@ -144,6 +144,9 @@ namespace AutoEverything.Core
             // 判定参数（底部【自动】面板可调）：独立 partial 维护，见 AESettings.Judgement.cs
             ExposeJudgementData();
 
+            // 自动装备配置：独立 partial 维护，见 AESettings.Equip.cs
+            ExposeEquipData();
+
             base.ExposeData();
         }
 
