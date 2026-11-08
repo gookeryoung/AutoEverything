@@ -267,7 +267,6 @@
   <AE_CFG_Front_MeleeSpecialist>格斗专家职位</AE_CFG_Front_MeleeSpecialist>
   <AE_CFG_Shooter_Specialist>射击专家职位</AE_CFG_Shooter_Specialist>
   <AE_CFG_Shooter_TriggerHappy>乱开枪特性</AE_CFG_Shooter_TriggerHappy>
-  <AE_CFG_Shooter_Hunter>猎人</AE_CFG_Shooter_Hunter>
   <AE_CFG_Worker_Pacifist>无法施暴</AE_CFG_Worker_Pacifist>
   <AE_CFG_Worker_ProductionSpecialist>生产专家职位</AE_CFG_Worker_ProductionSpecialist>
   <AE_CFG_Worker_Industrious>工作狂特质</AE_CFG_Worker_Industrious>
@@ -282,8 +281,7 @@
   <AE_TT_Front_MeleeSpecialist>担任“格斗专家”意识形态职位的殖民者直接归入前排</AE_TT_Front_MeleeSpecialist>
   <AE_TT_Shooter_Specialist>担任“射击专家”意识形态职位的殖民者直接归入射手</AE_TT_Shooter_Specialist>
   <AE_TT_Shooter_TriggerHappy>拥有“乱开枪”特质的殖民者直接归入射手</AE_TT_Shooter_TriggerHappy>
-  <AE_TT_Shooter_Hunter>狩猎工作优先级为 1 的殖民者直接归入射手</AE_TT_Shooter_Hunter>
-  <AE_TT_Worker_Pacifist>无法进行暴力工作的殖民者（和平主义者）直接归入工人</AE_TT_Worker_Pacifist>
+  <AE_TT_Worker_Pacifist>无法进行暴力工作的殖民者（和平主义者/信仰禁暴）归入工人；该条件在贸易白名单之后判定，不会抢走道德家、俊俏或社交双火者</AE_TT_Worker_Pacifist>
   <AE_TT_Worker_ProductionSpecialist>担任“生产专家”意识形态职位的殖民者直接归入工人</AE_TT_Worker_ProductionSpecialist>
   <AE_TT_Worker_Industrious>拥有“工作狂”特质（努力/勤奋）的殖民者直接归入工人</AE_TT_Worker_Industrious>
   <AE_TT_Worker_Neurotic>拥有“神经质”特质（神经质/严重神经质）的殖民者直接归入工人</AE_TT_Worker_Neurotic>

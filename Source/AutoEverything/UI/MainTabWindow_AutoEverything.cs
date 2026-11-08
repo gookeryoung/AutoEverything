@@ -242,14 +242,13 @@ namespace AutoEverything.UI
             AESettings.groupBrawlerTraitFront = front[1];
             AESettings.groupFrontMeleeSpecialist = front[2];
 
-            // 射手：射击专家职位 / 乱开枪特质 / 猎人
-            bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupTriggerHappyShooter, AESettings.groupHunterAsShooter };
+            // 射手：射击专家职位 / 乱开枪特质
+            bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupTriggerHappyShooter };
             DrawRoleRow(l, ColorRoleShooter, "AE_RoleGroup_Shooter", shooter,
-                new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_TriggerHappy", "AE_CFG_Shooter_Hunter" },
-                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_TriggerHappy", "AE_TT_Shooter_Hunter" }, true);
+                new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_TriggerHappy" },
+                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_TriggerHappy" }, true);
             AESettings.groupShooterSpecialist = shooter[0];
             AESettings.groupTriggerHappyShooter = shooter[1];
-            AESettings.groupHunterAsShooter = shooter[2];
 
             // 工人：无法施暴 / 生产专家职位 / 工作狂特质 / 神经质特质 / 生产兴趣双火
             bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist,

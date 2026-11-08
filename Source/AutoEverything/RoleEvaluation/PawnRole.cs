@@ -43,8 +43,8 @@ namespace AutoEverything.RoleEvaluation
     public enum RoleGroup : byte
     {
         Front = 0,   // 前排：食尸鬼 / 格斗者特质 / 格斗专家职位（按勾选）
-        Shooter = 1, // 射手：射击专家职位 / 乱开枪 / 猎人（按勾选）
-        Worker = 2,  // 工人：无法施暴 / 生产专家 / 工作狂 / 生产双火（按勾选）
+        Shooter = 1, // 射手：射击专家职位 / 乱开枪（按勾选）
+        Worker = 2,  // 工人：无法施暴 / 生产专家 / 工作狂 / 神经质 / 生产双火（按勾选）
         Trade = 3,   // 贸易：道德家职位 / 俊俏特质 / 社交双火（按勾选）
         Other = 4    // 其他：未命中任何已勾选条件者
     }
@@ -56,7 +56,6 @@ namespace AutoEverything.RoleEvaluation
     public struct RoleGroupInput
     {
         public bool HasBrawlerTrait;
-        public bool IsHunter;
         public bool ViolentDisabled;
 
         // 强制判定条件（在【自动】→ 人员自动面板逐角色勾选）
@@ -81,7 +80,6 @@ namespace AutoEverything.RoleEvaluation
     public struct RoleGroupRules
     {
         public bool BrawlerTraitToFront;
-        public bool HunterAsShooter;
 
         // 白名单条件：勾选后符合条件者归入对应角色
         public bool GhoulToFront;
@@ -103,7 +101,6 @@ namespace AutoEverything.RoleEvaluation
             {
                 RoleGroupRules rules = new RoleGroupRules();
                 rules.BrawlerTraitToFront = true;
-                rules.HunterAsShooter = true;
                 rules.GhoulToFront = true;
                 rules.MeleeSpecialistToFront = true;
                 rules.ShootingSpecialistToShooter = true;
@@ -127,7 +124,6 @@ namespace AutoEverything.RoleEvaluation
         public bool DiffersFrom(RoleGroupRules other)
         {
             return BrawlerTraitToFront != other.BrawlerTraitToFront
-                || HunterAsShooter != other.HunterAsShooter
                 || GhoulToFront != other.GhoulToFront
                 || MeleeSpecialistToFront != other.MeleeSpecialistToFront
                 || ShootingSpecialistToShooter != other.ShootingSpecialistToShooter
@@ -191,7 +187,6 @@ namespace AutoEverything.RoleEvaluation
         {
             RoleGroupRules rules = new RoleGroupRules();
             rules.BrawlerTraitToFront = AESettings.groupBrawlerTraitFront;
-            rules.HunterAsShooter = AESettings.groupHunterAsShooter;
             rules.GhoulToFront = AESettings.groupFrontGhoul;
             rules.MeleeSpecialistToFront = AESettings.groupFrontMeleeSpecialist;
             rules.ShootingSpecialistToShooter = AESettings.groupShooterSpecialist;
@@ -373,8 +368,6 @@ namespace AutoEverything.RoleEvaluation
             input.IsProductionSpecialist = HasIdeoRole(pawn, "IdeoRole_ProductionSpecialist");
             input.IsSocialSpecialist = HasIdeoRole(pawn, "IdeoRole_Moralist");
 
-            input.IsHunter = pawn.workSettings != null && pawn.workSettings.EverWork
-                && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1;
             input.ViolentDisabled = pawn.WorkTagIsDisabled(WorkTags.Violent);
 
             // 特质类强制条件：Def 可能因 DLC/模组缺失为 null，查询前逐一判空
@@ -420,31 +413,28 @@ namespace AutoEverything.RoleEvaluation
         /// 纯白名单制：每个条件对应面板上一个勾选项，勾选且命中才归入该角色；
         /// 不做任何技能/兴趣兜底推断，未命中任何已勾选项即归入"其他"。
         /// 命中多个条件时按下列顺序取第一个：
-        /// 0. 无法施暴 → 工人
         /// 1. 食尸鬼 → 前排
         /// 2. 格斗者特质 → 前排
         /// 3. 格斗专家职位 → 前排
         /// 4. 射击专家职位 → 射手
         /// 5. 乱开枪特质 → 射手
-        /// 6. 被指派狩猎 → 射手
-        /// 7. 生产专家职位 → 工人
-        /// 8. 工作狂特质 → 工人
-        /// 9. 神经质特质 → 工人
-        /// 10. 生产（手工）兴趣双火 → 工人
-        /// 11. 道德家职位 → 贸易
-        /// 12. 俊俏/沉鱼落雁特质 → 贸易
-        /// 13. 社交兴趣双火 → 贸易
+        /// 6. 生产专家职位 → 工人
+        /// 7. 工作狂特质 → 工人
+        /// 8. 神经质特质 → 工人
+        /// 9. 生产（手工）兴趣双火 → 工人
+        /// 10. 道德家职位 → 贸易
+        /// 11. 俊俏/沉鱼落雁特质 → 贸易
+        /// 12. 社交兴趣双火 → 贸易
+        /// 13. 无法施暴 → 工人（置于贸易之后：信仰禁暴/无法战斗者不应抢走贸易候选）
         /// 14. 其余 → 其他
         /// </summary>
         public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
         {
-            if (rules.PacifistToWorker && input.ViolentDisabled) return RoleGroup.Worker;
             if (rules.GhoulToFront && input.IsGhoul) return RoleGroup.Front;
             if (rules.BrawlerTraitToFront && input.HasBrawlerTrait) return RoleGroup.Front;
             if (rules.MeleeSpecialistToFront && input.IsMeleeSpecialist) return RoleGroup.Front;
             if (rules.ShootingSpecialistToShooter && input.IsShootingSpecialist) return RoleGroup.Shooter;
             if (rules.TriggerHappyToShooter && input.IsTriggerHappy) return RoleGroup.Shooter;
-            if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
             if (rules.ProductionSpecialistToWorker && input.IsProductionSpecialist) return RoleGroup.Worker;
             if (rules.IndustriousToWorker && input.HasIndustrious) return RoleGroup.Worker;
             if (rules.NeuroticToWorker && input.HasNeurotic) return RoleGroup.Worker;
@@ -452,6 +442,7 @@ namespace AutoEverything.RoleEvaluation
             if (rules.SocialSpecialistToTrade && input.IsSocialSpecialist) return RoleGroup.Trade;
             if (rules.BeautyToTrade && input.HasBeauty) return RoleGroup.Trade;
             if (rules.SocialMajorToTrade && input.SocialPassionMajor) return RoleGroup.Trade;
+            if (rules.PacifistToWorker && input.ViolentDisabled) return RoleGroup.Worker;
 
             // 白名单外的人员一律归入"其他"，不再按技能/兴趣推断
             return RoleGroup.Other;

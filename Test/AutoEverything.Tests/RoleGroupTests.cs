@@ -11,8 +11,8 @@ namespace AutoEverything.Tests
     /// 覆盖点：
     /// 1. 强制判定条件（前排/射手/工人/贸易逐角色勾选，默认全部勾选），
     ///    含乱开枪特质、工作狂特质、生产/社交兴趣双火、俊俏/沉鱼落雁特质；
-    /// 2. 强制条件的优先级顺序（无法施暴 &gt; 食尸鬼 &gt; 格斗者 &gt; 格斗专家 &gt; 射击专家 &gt; 乱开枪 &gt; 猎人
-    ///    &gt; 生产专家 &gt; 工作狂 &gt; 生产双火 &gt; 道德家 &gt; 俊俏 &gt; 社交双火）；
+    /// 2. 强制条件的优先级顺序（食尸鬼 &gt; 格斗者 &gt; 格斗专家 &gt; 射击专家 &gt; 乱开枪
+    ///    &gt; 生产专家 &gt; 工作狂 &gt; 神经质 &gt; 生产双火 &gt; 道德家 &gt; 俊俏 &gt; 社交双火 &gt; 无法施暴）；
     /// 3. 关闭开关后不应生效，回落到技能/兴趣补充判定，且新开关彼此独立；
     /// 4. 特质 degree 与兴趣 tier 的边界判定；
     /// 5. 技能/兴趣补充判定的各分支与兜底（其他）。
@@ -36,8 +36,6 @@ namespace AutoEverything.Tests
                 RoleGroup.Front, "格斗专家职位 → 前排", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsShootingSpecialist = true },
                 RoleGroup.Shooter, "射击专家职位 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsHunter = true },
-                RoleGroup.Shooter, "猎人 → 射手", ref failures, ref total);
             Check(rules, new RoleGroupInput { ViolentDisabled = true },
                 RoleGroup.Worker, "无法施暴 → 工人", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsProductionSpecialist = true },
@@ -57,9 +55,13 @@ namespace AutoEverything.Tests
             Check(rules, new RoleGroupInput { SocialPassionMajor = true },
                 RoleGroup.Trade, "社交兴趣双火 → 贸易", ref failures, ref total);
 
-            // ── 新增条件与既有条件的优先级交叉 ──
+            // 无法施暴放在贸易之后：不应抢走贸易白名单候选
             Check(rules, new RoleGroupInput { ViolentDisabled = true, HasBeauty = true },
-                RoleGroup.Worker, "无法施暴优先于俊俏特质", ref failures, ref total);
+                RoleGroup.Trade, "无法施暴不再压过俊俏特质", ref failures, ref total);
+            Check(rules, new RoleGroupInput { ViolentDisabled = true, IsSocialSpecialist = true },
+                RoleGroup.Trade, "无法施暴不再压过道德家职位", ref failures, ref total);
+            Check(rules, new RoleGroupInput { ViolentDisabled = true, SocialPassionMajor = true },
+                RoleGroup.Trade, "无法施暴不再压过社交双火", ref failures, ref total);
             Check(rules, new RoleGroupInput { HasBrawlerTrait = true, HasIndustrious = true },
                 RoleGroup.Front, "格斗者特质优先于工作狂", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsTriggerHappy = true, HasBeauty = true },
@@ -75,11 +77,11 @@ namespace AutoEverything.Tests
 
             // ── 强制条件优先级 ──
             Check(rules, new RoleGroupInput { ViolentDisabled = true, HasBrawlerTrait = true },
-                RoleGroup.Worker, "无法施暴优先于格斗者特质", ref failures, ref total);
+                RoleGroup.Front, "无法施暴不再压过格斗者特质", ref failures, ref total);
             Check(rules, new RoleGroupInput { HasBrawlerTrait = true, IsShootingSpecialist = true },
                 RoleGroup.Front, "前排强制条件优先于射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsShootingSpecialist = true, IsHunter = true },
-                RoleGroup.Shooter, "射击专家与猎人同为射手", ref failures, ref total);
+            Check(rules, new RoleGroupInput { IsShootingSpecialist = true, IsTriggerHappy = true },
+                RoleGroup.Shooter, "射击专家优先于乱开枪", ref failures, ref total);
 
             // ── 关闭勾选项后该条件完全不生效：命中者归入其他 ──
             RoleGroupRules noGhoul = RoleGroupRules.Default;
@@ -91,11 +93,6 @@ namespace AutoEverything.Tests
             noPacifist.PacifistToWorker = false;
             Check(noPacifist, new RoleGroupInput { ViolentDisabled = true },
                 RoleGroup.Other, "关闭无法施暴开关后归入其他", ref failures, ref total);
-
-            RoleGroupRules noHunter = RoleGroupRules.Default;
-            noHunter.HunterAsShooter = false;
-            Check(noHunter, new RoleGroupInput { IsHunter = true },
-                RoleGroup.Other, "关闭猎人开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noMoralist = RoleGroupRules.Default;
             noMoralist.SocialSpecialistToTrade = false;
@@ -163,7 +160,6 @@ namespace AutoEverything.Tests
             allOff.BrawlerTraitToFront = false;
             allOff.ShootingSpecialistToShooter = false;
             allOff.TriggerHappyToShooter = false;
-            allOff.HunterAsShooter = false;
             allOff.PacifistToWorker = false;
             allOff.ProductionSpecialistToWorker = false;
             allOff.IndustriousToWorker = false;
@@ -175,7 +171,7 @@ namespace AutoEverything.Tests
             Check(allOff, new RoleGroupInput
                 {
                     IsGhoul = true, HasBrawlerTrait = true, IsMeleeSpecialist = true,
-                    IsShootingSpecialist = true, IsTriggerHappy = true, IsHunter = true,
+                    IsShootingSpecialist = true, IsTriggerHappy = true,
                     ViolentDisabled = true, IsProductionSpecialist = true, HasIndustrious = true,
                     HasNeurotic = true, CraftingPassionMajor = true, IsSocialSpecialist = true, HasBeauty = true,
                     SocialPassionMajor = true
@@ -438,10 +434,6 @@ namespace AutoEverything.Tests
             RoleGroupRules r = RoleGroupRules.Default;
             r.BrawlerTraitToFront = false;
             CheckBool(r.DiffersFrom(baseRules), true, "格斗者开关变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
-            r.HunterAsShooter = false;
-            CheckBool(r.DiffersFrom(baseRules), true, "猎人开关变化被检测", ref failures, ref total);
 
             r = RoleGroupRules.Default;
             r.GhoulToFront = false;

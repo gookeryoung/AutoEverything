@@ -53,9 +53,6 @@ namespace AutoEverything.Core
         // 格斗者特质直接归入前排
         public static bool groupBrawlerTraitFront = true;
 
-        // 被指派狩猎（Hunting 优先级 1）归入射手
-        public static bool groupHunterAsShooter = true;
-
         // ── 强制判定条件（勾选后符合条件的殖民者直接归入对应角色，优先于技能/兴趣判定）──
         public static bool groupFrontGhoul = true;                  // 食尸鬼 → 前排
         public static bool groupFrontMeleeSpecialist = true;        // 格斗专家职位 → 前排
@@ -237,7 +234,6 @@ namespace AutoEverything.Core
 
             // 殖民者栏五类角色分组判定
             LookCompat(ref groupBrawlerTraitFront, "groupBrawlerTraitFront", true);
-            LookCompat(ref groupHunterAsShooter, "groupHunterAsShooter", true);
             LookCompat(ref groupFrontGhoul, "groupFrontGhoul", true);
             LookCompat(ref groupFrontMeleeSpecialist, "groupFrontMeleeSpecialist", true);
             LookCompat(ref groupShooterSpecialist, "groupShooterSpecialist", true);
