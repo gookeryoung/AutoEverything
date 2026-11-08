@@ -23,6 +23,53 @@ namespace AutoEverything.AutoEquip
     {
         private const int TraitErrorSalt = 0xA910;
 
+        /// <summary>Def 是静态数据，类型键可永久缓存，避免每轮为同一武器重复解析。</summary>
+        private static readonly Dictionary<ThingDef, WeaponTypeKeys> TypeKeyCache =
+            new Dictionary<ThingDef, WeaponTypeKeys>();
+
+        /// <summary>
+        /// 提取武器的类型键（具体武器类别 + 武器标签），供 <see cref="WeaponTypePolicy"/> 判断是否同类。
+        /// weaponClasses 是 1.6 新增字段，原版霰弹枪、步枪等均已标注；MOD 武器缺失时由标签兜底。
+        /// </summary>
+        public static WeaponTypeKeys GetTypeKeys(ThingDef def)
+        {
+            if (def == null) return WeaponTypeKeys.Empty;
+
+            WeaponTypeKeys keys;
+            if (TypeKeyCache.TryGetValue(def, out keys)) return keys;
+
+            keys = new WeaponTypeKeys();
+            try
+            {
+                if (def.weaponClasses != null)
+                {
+                    for (int i = 0; i < def.weaponClasses.Count; i++)
+                    {
+                        WeaponClassDef weaponClass = def.weaponClasses[i];
+                        if (weaponClass != null && !string.IsNullOrEmpty(weaponClass.defName))
+                            keys.Classes.Add(weaponClass.defName);
+                    }
+                }
+
+                if (def.weaponTags != null)
+                {
+                    for (int i = 0; i < def.weaponTags.Count; i++)
+                    {
+                        string tag = def.weaponTags[i];
+                        if (!string.IsNullOrEmpty(tag)) keys.Tags.Add(tag);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 武器类别读取失败: " + ex.Message,
+                    def.shortHash ^ (TraitErrorSalt + 5));
+            }
+
+            TypeKeyCache[def] = keys;
+            return keys;
+        }
+
         public static WeaponKind Classify(ThingDef def)
         {
             if (def == null || !def.IsWeapon) return WeaponKind.None;

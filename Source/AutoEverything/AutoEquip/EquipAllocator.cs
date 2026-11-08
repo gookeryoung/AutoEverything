@@ -325,6 +325,8 @@ namespace AutoEverything.AutoEquip
                 if (WeaponClassifier.IsLockedToOtherPawn(candidate, pawn)) continue;
                 if (InventoryContainsDef(pawn, candidate.def)) continue;
                 if (primary != null && primary.def == candidate.def) continue;
+                // 主武器与已有副武器全部互斥同类：避免泵动霰弹枪 + 链式霰弹枪这种定位重复的搭配
+                if (SharesTypeWithCarriedRanged(pawn, primary, candidate.def)) continue;
 
                 WeaponScoreInput score = WeaponScorer.Build(candidate, pawn,
                     RoleDetector.DetectRoleGroup(pawn), WeaponKind.Ranged);
@@ -340,6 +342,39 @@ namespace AutoEverything.AutoEquip
             if (!TryDispatch(pawn, JobDefOf.TakeInventory, best, 1)) return false;
             RecordChange(pawn, change);
             return true;
+        }
+
+        /// <summary>
+        /// 候选项是否与已携带的远程武器（主武器 + 背包内副武器）同类型。
+        /// 按 1.6 武器类别判定（如 ShortShots），主武器与所有副武器两两互斥；
+        /// 不主动卸下背包里已有的同类副武器，只阻止后续再选。
+        /// </summary>
+        private static bool SharesTypeWithCarriedRanged(Pawn pawn, ThingWithComps primary, ThingDef candidateDef)
+        {
+            if (candidateDef == null) return false;
+            WeaponTypeKeys candidate = WeaponClassifier.GetTypeKeys(candidateDef);
+
+            if (primary != null && primary.def != null
+                && WeaponClassifier.Classify(primary.def) == WeaponKind.Ranged
+                && IsSameWeaponType(WeaponClassifier.GetTypeKeys(primary.def), candidate))
+                return true;
+
+            if (pawn.inventory == null || pawn.inventory.innerContainer == null) return false;
+            ThingOwner container = pawn.inventory.innerContainer;
+            for (int i = 0; i < container.Count; i++)
+            {
+                Thing thing = container[i];
+                if (thing == null || thing.def == null) continue;
+                if (WeaponClassifier.Classify(thing.def) != WeaponKind.Ranged) continue;
+                if (IsSameWeaponType(WeaponClassifier.GetTypeKeys(thing.def), candidate)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsSameWeaponType(WeaponTypeKeys a, WeaponTypeKeys b)
+        {
+            if (a == null || b == null) return false;
+            return WeaponTypePolicy.IsSameType(a.Classes, a.Tags, b.Classes, b.Tags);
         }
 
         private static bool TryTakeGrenade(Pawn pawn, EquipRoleRule rule)

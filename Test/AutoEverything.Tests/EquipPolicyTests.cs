@@ -19,6 +19,7 @@ namespace AutoEverything.Tests
             failures += RunWeaponCompareTests(ref total);
             failures += RunSwapTests(ref total);
             failures += RunRuleTests(ref total);
+            failures += RunWeaponTypeTests(ref total);
 
             return failures;
         }
@@ -151,6 +152,54 @@ namespace AutoEverything.Tests
                 "副武器数量钳制 0-3", ref failures, ref total);
 
             Console.WriteLine($"[EquipPolicyTests/Rules] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static int RunWeaponTypeTests(ref int total)
+        {
+            int failures = 0;
+
+            // 泵动霰弹枪与链式霰弹枪同为 ShortShots → 同类，不能一主一副
+            CheckBool(WeaponTypePolicy.IsSameType(
+                new List<string> { "ShortShots" }, null,
+                new List<string> { "ShortShots" }, null), true,
+                "同类别 ShortShots 视为同类型", ref failures, ref total);
+
+            // 霰弹枪 vs 突击步枪（LongShots）→ 不同类
+            CheckBool(WeaponTypePolicy.IsSameType(
+                new List<string> { "ShortShots" }, null,
+                new List<string> { "LongShots" }, null), false,
+                "ShortShots 与 LongShots 不同类", ref failures, ref total);
+
+            // 只有泛类别时不能把不同武器当成同类
+            CheckBool(WeaponTypePolicy.IsSameType(
+                new List<string> { "Ranged" }, null,
+                new List<string> { "ShortShots" }, null), false,
+                "泛类别 Ranged 不参与同类判定", ref failures, ref total);
+
+            // 双方都有具体类别时以类别为准，标签相同也不算同类
+            CheckBool(WeaponTypePolicy.IsSameType(
+                new List<string> { "ShortShots" }, new List<string> { "IndustrialGunAdvanced" },
+                new List<string> { "LongShots" }, new List<string> { "IndustrialGunAdvanced" }), false,
+                "类别不同时不再用标签兜底", ref failures, ref total);
+
+            // 类别缺失时回退到武器标签
+            CheckBool(WeaponTypePolicy.IsSameType(
+                null, new List<string> { "ModShotgun" },
+                null, new List<string> { "ModShotgun" }), true,
+                "缺类别时按具体标签判定同类", ref failures, ref total);
+
+            // 泛标签不能作为同类依据
+            CheckBool(WeaponTypePolicy.IsSameType(
+                null, new List<string> { "IndustrialGunAdvanced" },
+                null, new List<string> { "IndustrialGunAdvanced" }), false,
+                "泛标签不参与同类判定", ref failures, ref total);
+
+            // 空数据不应误判
+            CheckBool(WeaponTypePolicy.IsSameType(null, null, null, null), false,
+                "无类别无标签不视为同类", ref failures, ref total);
+
+            Console.WriteLine($"[EquipPolicyTests/WeaponType] {total - failures}/{total} passed");
             return failures;
         }
 
