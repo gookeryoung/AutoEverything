@@ -45,14 +45,28 @@ namespace AutoEverything.Core
         // 复用原生分组框/组内拖拽，便于统一管理。默认关闭——改变殖民者栏视觉布局，玩家主动开启
         public static bool groupColonistBarByRole = false;
 
-        // 殖民者栏头像标识图标开关（分组标记页可调）：
-        // 图标判定仍由 RoleIconDef 硬编码，这里只控制是否绘制，默认全开保持原有视觉
+        // 殖民者栏头像标识图标（分组标记页可调）：
+        // 显示开关控制是否绘制；条件字段为白名单——勾选且命中任一条件即显示该图标
         public static bool showRoleIconTough = true;
-        public static bool showRoleIconFrontline = true;
         public static bool showRoleIconRanged = true;
-        public static bool showRoleIconCrafter = true;
         public static bool showRoleIconWorker = true;
         public static bool showRoleIconTrader = true;
+
+        public static bool iconRangedShootingSpecialist = true;
+        public static bool iconRangedTriggerHappy = true;
+        public static bool iconRangedShootingMajor = true;
+        public static bool iconRangedShootingMinor = true;
+
+        public static bool iconWorkerPacifist = true;
+        public static bool iconWorkerProductionSpecialist = true;
+        public static bool iconWorkerIndustrious = true;
+        public static bool iconWorkerNeurotic = true;
+        public static bool iconWorkerCraftingMajor = true;
+
+        public static bool iconTraderMoralist = true;
+        public static bool iconTraderBeauty = true;
+        public static bool iconTraderSocialMajor = true;
+        public static bool iconTraderSocialLevel8 = true;
 
         // 设置窗口滚动位置：内容超出窗口高度时使用
         private static Vector2 settingsScrollPos = Vector2.zero;
@@ -79,13 +93,24 @@ namespace AutoEverything.Core
             // 殖民者栏按角色分组
             Scribe_Values.Look(ref groupColonistBarByRole, "ae_groupColonistBarByRole", false);
 
-            // 殖民者栏头像标识图标开关
+            // 殖民者栏头像标识图标：显示开关 + 白名单条件
             LookCompat(ref showRoleIconTough, "showRoleIconTough", true);
-            LookCompat(ref showRoleIconFrontline, "showRoleIconFrontline", true);
             LookCompat(ref showRoleIconRanged, "showRoleIconRanged", true);
-            LookCompat(ref showRoleIconCrafter, "showRoleIconCrafter", true);
             LookCompat(ref showRoleIconWorker, "showRoleIconWorker", true);
             LookCompat(ref showRoleIconTrader, "showRoleIconTrader", true);
+            LookCompat(ref iconRangedShootingSpecialist, "iconRangedShootingSpecialist", true);
+            LookCompat(ref iconRangedTriggerHappy, "iconRangedTriggerHappy", true);
+            LookCompat(ref iconRangedShootingMajor, "iconRangedShootingMajor", true);
+            LookCompat(ref iconRangedShootingMinor, "iconRangedShootingMinor", true);
+            LookCompat(ref iconWorkerPacifist, "iconWorkerPacifist", true);
+            LookCompat(ref iconWorkerProductionSpecialist, "iconWorkerProductionSpecialist", true);
+            LookCompat(ref iconWorkerIndustrious, "iconWorkerIndustrious", true);
+            LookCompat(ref iconWorkerNeurotic, "iconWorkerNeurotic", true);
+            LookCompat(ref iconWorkerCraftingMajor, "iconWorkerCraftingMajor", true);
+            LookCompat(ref iconTraderMoralist, "iconTraderMoralist", true);
+            LookCompat(ref iconTraderBeauty, "iconTraderBeauty", true);
+            LookCompat(ref iconTraderSocialMajor, "iconTraderSocialMajor", true);
+            LookCompat(ref iconTraderSocialLevel8, "iconTraderSocialLevel8", true);
 
             // 自定义评级：以 List<string> 作为存档载体（"档次#名字" 格式）
             // 存档加载后需重建运行时字典

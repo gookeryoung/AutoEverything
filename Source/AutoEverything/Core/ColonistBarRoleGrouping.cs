@@ -174,6 +174,36 @@ namespace AutoEverything.Core
                 }
             }
 
+            // 自愈：新殖民者加入时 displayOrder 为默认值 0，会被插到地图块最前面，
+            // 同一角色被切成两段 → 殖民者栏出现两个同名分组框（如两个"射手"）。
+            // 这里先按角色重写 displayOrder 并置脏，下一次 recache 重建出连续条目后再分组；
+            // 本次返回可避免用尚未重排的条目算出错误分组。
+            // 注意：玩家在组内拖拽不会触发（同组拖拽始终连续），不会覆盖玩家的组内顺序。
+            if (RoleGroupLayout.RequiresRoleReorder(origGroups, roleOrders))
+            {
+                var reordered = new int[count];
+                RoleGroupLayout.ComputeRoleStableOrder(origGroups, roleOrders, reordered);
+                bool changed = false;
+                for (int i = 0; i < count; i++)
+                {
+                    if (reordered[i] < 0) continue;
+                    Pawn pawn = entries[i].pawn;
+                    if (pawn?.playerSettings == null) continue;
+                    if (pawn.playerSettings.displayOrder == reordered[i]) continue;
+                    pawn.playerSettings.displayOrder = reordered[i];
+                    changed = true;
+                }
+
+                if (changed)
+                {
+                    // 清空映射避免这一帧用旧 group id 画错标签
+                    groupRoles.Clear();
+                    pendingApply = true;
+                    bar.MarkColonistsDirty();
+                    return;
+                }
+            }
+
             var newGroups = new int[count];
             int groupsCount = RoleGroupLayout.AssignGroupIds(origGroups, roleOrders, newGroups);
 

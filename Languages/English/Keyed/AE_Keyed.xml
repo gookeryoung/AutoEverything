@@ -256,23 +256,29 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_RoleGroup_ForceHint>Pure whitelist: a colonist is grouped only when a checked condition matches. Anything not matching a checked condition goes to "Other"; no skill/passion inference.</AE_CFG_RoleGroup_ForceHint>
   <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Group &amp; Mark tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
 
-  <!-- Group & Mark: avatar role icon rules (RoleIconDef conditions + per-icon toggles) -->
+  <!-- Group & Mark: avatar role icon rules (whitelist conditions + per-icon toggles) -->
   <AE_RoleIcon_Tough>Tough</AE_RoleIcon_Tough>
-  <AE_RoleIcon_Frontline>Frontline</AE_RoleIcon_Frontline>
   <AE_RoleIcon_Ranged>Ranged</AE_RoleIcon_Ranged>
-  <AE_RoleIcon_Crafter>Crafter</AE_RoleIcon_Crafter>
   <AE_RoleIcon_Worker>Worker</AE_RoleIcon_Worker>
   <AE_RoleIcon_Trader>Trader</AE_RoleIcon_Trader>
 
-  <AE_RoleIconCond_Tough>Tough trait (always marked, -50% damage)</AE_RoleIconCond_Tough>
-  <AE_RoleIconCond_Frontline>Tough + Brawler trait or melee double passion</AE_RoleIconCond_Frontline>
-  <AE_RoleIconCond_Ranged>Trigger-happy + shooting double or single passion</AE_RoleIconCond_Ranged>
-  <AE_RoleIconCond_Crafter>Industrious + Neurotic (both required)</AE_RoleIconCond_Crafter>
-  <AE_RoleIconCond_Worker>Industrious or Neurotic (either one)</AE_RoleIconCond_Worker>
-  <AE_RoleIconCond_Trader>Beauty trait + social double passion or level 8+</AE_RoleIconCond_Trader>
+  <AE_RoleIconCond_Tough>Tough trait (-50% damage)</AE_RoleIconCond_Tough>
+  <AE_RoleIconCond_ShootingSpecialist>Shooting specialist</AE_RoleIconCond_ShootingSpecialist>
+  <AE_RoleIconCond_TriggerHappy>Trigger-happy</AE_RoleIconCond_TriggerHappy>
+  <AE_RoleIconCond_ShootingMajor>Shooting major passion</AE_RoleIconCond_ShootingMajor>
+  <AE_RoleIconCond_ShootingMinor>Shooting minor passion</AE_RoleIconCond_ShootingMinor>
+  <AE_RoleIconCond_Pacifist>Incapable of violence</AE_RoleIconCond_Pacifist>
+  <AE_RoleIconCond_ProductionSpecialist>Production specialist</AE_RoleIconCond_ProductionSpecialist>
+  <AE_RoleIconCond_Industrious>Industrious</AE_RoleIconCond_Industrious>
+  <AE_RoleIconCond_Neurotic>Neurotic</AE_RoleIconCond_Neurotic>
+  <AE_RoleIconCond_CraftingMajor>Crafting major passion</AE_RoleIconCond_CraftingMajor>
+  <AE_RoleIconCond_Moralist>Moralist</AE_RoleIconCond_Moralist>
+  <AE_RoleIconCond_Beauty>Beautiful / Pretty</AE_RoleIconCond_Beauty>
+  <AE_RoleIconCond_SocialMajor>Social major passion</AE_RoleIconCond_SocialMajor>
+  <AE_RoleIconCond_SocialLevel8>Social level 8+</AE_RoleIconCond_SocialLevel8>
 
-  <AE_CFG_RoleIconRules_Hint>Up to 6 icons can show at once, left to right in the order above. Disabling one only hides that icon; role grouping and high-value rules are unaffected.</AE_CFG_RoleIconRules_Hint>
-  <AE_TT_RoleIconToggle>When unchecked, this icon is no longer drawn on the colonist bar; the detection rule itself is unchanged.</AE_TT_RoleIconToggle>
+  <AE_CFG_RoleIconRules_Hint>Whitelist: the icon shows when any checked condition is met. When role grouping is on, shooter/worker/trader are already labelled by the group frame, so only the Tough icon remains. Changes apply immediately.</AE_CFG_RoleIconRules_Hint>
+  <AE_TT_RoleIconToggle>The left checkbox controls whether the icon is drawn; the condition checkboxes decide which colonists trigger it.</AE_TT_RoleIconToggle>
   <AE_CFG_Front_Ghoul>Ghoul</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>Brawler trait</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>Melee specialist</AE_CFG_Front_MeleeSpecialist>

@@ -23,6 +23,92 @@ namespace AutoEverything.RoleEvaluation
         /// </summary>
         public const int NoRoleOrder = int.MinValue;
 
+        /// <summary>五类角色的可视顺序取值范围：自定义顺序数组是 0..4 的排列。</summary>
+        public const int RoleGroupCount = 5;
+
+        /// <summary>
+        /// 判断条目顺序是否需要按角色修复。
+        ///
+        /// 背景：分组框是"相邻同角色合并"而来，而原版条目顺序由
+        /// pawn.playerSettings.displayOrder 决定。新殖民者的 displayOrder 为默认值 0，
+        /// 会插到地图块最前面而不是同角色旁边，同一角色被切成两段，
+        /// 殖民者栏就会出现两个同名分组框（如两个"射手"）。
+        ///
+        /// 判定规则：同一原生分组（地图/远行队）内，角色可视顺序必须非递减；
+        /// 出现回退（同角色被其他角色隔开）即需要重写 displayOrder。
+        /// 空占位条目（NoRoleOrder）没有 Pawn，作为块内边界跳过。
+        /// 纯函数，便于单元测试。
+        /// </summary>
+        public static bool RequiresRoleReorder(IReadOnlyList<int> origGroups, IReadOnlyList<int> roleOrders)
+        {
+            if (origGroups == null || roleOrders == null) return false;
+            if (origGroups.Count != roleOrders.Count) return false;
+
+            int prevOrigGroup = 0;
+            int prevRole = NoRoleOrder;
+            for (int i = 0; i < roleOrders.Count; i++)
+            {
+                int origGroup = origGroups[i];
+                int role = roleOrders[i];
+
+                if (i == 0 || origGroup != prevOrigGroup)
+                {
+                    prevOrigGroup = origGroup;
+                    prevRole = role;
+                    continue;
+                }
+
+                if (role == NoRoleOrder || prevRole == NoRoleOrder)
+                {
+                    prevRole = role;
+                    continue;
+                }
+
+                if (role < prevRole) return true;
+                prevRole = role;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 计算修复用的 displayOrder：同一原生分组内按角色可视顺序升序稳定排序，
+        /// 同角色内保持原条目相对顺序（不覆盖玩家在组内拖拽过的顺序）。
+        /// 输出 -1 表示该条目没有 Pawn（空占位），调用方不得写 displayOrder。
+        /// 跨块按条目原顺序连续编号，保证每个 Pawn 拿到唯一值。
+        /// 纯函数，便于单元测试。
+        /// </summary>
+        public static void ComputeRoleStableOrder(IReadOnlyList<int> origGroups,
+            IReadOnlyList<int> roleOrders, IList<int> newOrders)
+        {
+            if (origGroups == null || roleOrders == null || newOrders == null) return;
+
+            int count = origGroups.Count < roleOrders.Count ? origGroups.Count : roleOrders.Count;
+            int seq = 0;
+            int i = 0;
+            while (i < count)
+            {
+                int blockEnd = i + 1;
+                while (blockEnd < count && origGroups[blockEnd] == origGroups[i]) blockEnd++;
+
+                // 按角色可视顺序分桶：rank 升序 + 同 rank 内保持原条目顺序
+                for (int rank = 0; rank < RoleGroupCount; rank++)
+                {
+                    for (int k = i; k < blockEnd; k++)
+                    {
+                        if (roleOrders[k] == rank) newOrders[k] = seq++;
+                    }
+                }
+
+                // 空占位条目没有 Pawn，不分配排序值
+                for (int k = i; k < blockEnd; k++)
+                {
+                    if (roleOrders[k] == NoRoleOrder) newOrders[k] = -1;
+                }
+
+                i = blockEnd;
+            }
+        }
+
         /// <summary>
         /// 计算每个条目重编后的 group id，返回组数（最大组 id + 1）。
         ///

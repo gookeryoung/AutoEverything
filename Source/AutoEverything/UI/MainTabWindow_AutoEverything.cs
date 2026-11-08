@@ -306,45 +306,92 @@ namespace AutoEverything.UI
             DrawHighValueMarkSection(l);
         }
 
-        // 头像标识规则行：勾选框 + 图标 + 名称 + 判定条件说明
+        // 头像标识规则行：显示开关 + 图标 + 名称 + 白名单条件列
         private const float IconRuleRowHeight = 28f;
         private const float IconRuleIconSize = 20f;
-        private const float IconRuleNameWidth = 88f;
+        private const float IconRuleNameWidth = 150f;
+        private const int IconRuleColumns = 5;
+        private const float IconRuleCellGap = 6f;
 
         /// <summary>
-        /// 头像标识规则：列出 6 种角色定位图标及其判定条件，并允许逐项关闭绘制。
-        /// 判定条件本身仍是 RoleIconDef 的硬编码规则，这里只负责说明与开关。
+        /// 头像标识规则：4 个图标（坚韧/远程/工人/贸易），每个图标一个显示开关 + 白名单条件列。
+        /// 白名单制：勾选且命中任一条件即显示该图标；工人图标已合并原"手工"图标。
         /// </summary>
         private static void DrawRoleIconRuleSection(Listing_Standard l)
         {
             BeginSection(l, "AE_CFG_Section_RoleIconRules".Translate());
 
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Tough, ColorLabelGray,
-                "AE_RoleIcon_Tough", "AE_RoleIconCond_Tough", ref AESettings.showRoleIconTough, false);
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Frontline, ColorRoleFront,
-                "AE_RoleIcon_Frontline", "AE_RoleIconCond_Frontline", ref AESettings.showRoleIconFrontline, true);
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Ranged, ColorRoleShooter,
-                "AE_RoleIcon_Ranged", "AE_RoleIconCond_Ranged", ref AESettings.showRoleIconRanged, false);
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Crafter, ColorRoleWorker,
-                "AE_RoleIcon_Crafter", "AE_RoleIconCond_Crafter", ref AESettings.showRoleIconCrafter, true);
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Worker, ColorRoleWorker,
-                "AE_RoleIcon_Worker", "AE_RoleIconCond_Worker", ref AESettings.showRoleIconWorker, false);
-            DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Trader, ColorRoleTrade,
-                "AE_RoleIcon_Trader", "AE_RoleIconCond_Trader", ref AESettings.showRoleIconTrader, true);
+            bool changed = false;
+
+            // 坚韧：只有单一条件，不提供子选项
+            changed |= DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Tough, ColorLabelGray,
+                "AE_RoleIcon_Tough", ref AESettings.showRoleIconTough, false,
+                null, null, "AE_RoleIconCond_Tough");
+
+            // 远程：射击专家 / 乱开枪 / 射击双火 / 射击单火
+            bool[] ranged = { AESettings.iconRangedShootingSpecialist, AESettings.iconRangedTriggerHappy,
+                AESettings.iconRangedShootingMajor, AESettings.iconRangedShootingMinor };
+            changed |= DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Ranged, ColorRoleShooter,
+                "AE_RoleIcon_Ranged", ref AESettings.showRoleIconRanged, true, ranged,
+                new[] { "AE_RoleIconCond_ShootingSpecialist", "AE_RoleIconCond_TriggerHappy",
+                    "AE_RoleIconCond_ShootingMajor", "AE_RoleIconCond_ShootingMinor" }, null);
+            AESettings.iconRangedShootingSpecialist = ranged[0];
+            AESettings.iconRangedTriggerHappy = ranged[1];
+            AESettings.iconRangedShootingMajor = ranged[2];
+            AESettings.iconRangedShootingMinor = ranged[3];
+
+            // 工人：无法施暴 / 生产专家 / 工作狂 / 神经质 / 生产双火（原手工条件并入）
+            bool[] worker = { AESettings.iconWorkerPacifist, AESettings.iconWorkerProductionSpecialist,
+                AESettings.iconWorkerIndustrious, AESettings.iconWorkerNeurotic, AESettings.iconWorkerCraftingMajor };
+            changed |= DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Worker, ColorRoleWorker,
+                "AE_RoleIcon_Worker", ref AESettings.showRoleIconWorker, false, worker,
+                new[] { "AE_RoleIconCond_Pacifist", "AE_RoleIconCond_ProductionSpecialist",
+                    "AE_RoleIconCond_Industrious", "AE_RoleIconCond_Neurotic", "AE_RoleIconCond_CraftingMajor" }, null);
+            AESettings.iconWorkerPacifist = worker[0];
+            AESettings.iconWorkerProductionSpecialist = worker[1];
+            AESettings.iconWorkerIndustrious = worker[2];
+            AESettings.iconWorkerNeurotic = worker[3];
+            AESettings.iconWorkerCraftingMajor = worker[4];
+
+            // 贸易：道德家 / 俊俏 / 社交双火 / 社交等级 ≥ 8
+            bool[] trader = { AESettings.iconTraderMoralist, AESettings.iconTraderBeauty,
+                AESettings.iconTraderSocialMajor, AESettings.iconTraderSocialLevel8 };
+            changed |= DrawRoleIconRuleRow(l, RoleIconDef.RoleIconType.Trader, ColorRoleTrade,
+                "AE_RoleIcon_Trader", ref AESettings.showRoleIconTrader, true, trader,
+                new[] { "AE_RoleIconCond_Moralist", "AE_RoleIconCond_Beauty",
+                    "AE_RoleIconCond_SocialMajor", "AE_RoleIconCond_SocialLevel8" }, null);
+            AESettings.iconTraderMoralist = trader[0];
+            AESettings.iconTraderBeauty = trader[1];
+            AESettings.iconTraderSocialMajor = trader[2];
+            AESettings.iconTraderSocialLevel8 = trader[3];
 
             DrawRuleText(l, "AE_CFG_RoleIconRules_Hint".Translate());
             EndSection(l);
+
+            // 条件变化会改变判定掩码，缓存必须立即清空，否则最迟 2500 tick 后才生效
+            if (changed)
+            {
+                settingsDirty = true;
+                RoleIconDef.ClearIconCache();
+            }
         }
 
-        private static void DrawRoleIconRuleRow(Listing_Standard l, RoleIconDef.RoleIconType type, Color color,
-            string nameKey, string condKey, ref bool enabled, bool alternate)
+        /// <summary>
+        /// 单行图标规则。values 为 null 时只画一行说明文字（坚韧图标无子条件）。
+        /// 返回该行是否有配置变化。
+        /// </summary>
+        private static bool DrawRoleIconRuleRow(Listing_Standard l, RoleIconDef.RoleIconType type, Color color,
+            string nameKey, ref bool enabled, bool alternate,
+            bool[] values, string[] labelKeys, string descKey)
         {
             Rect row = l.GetRect(IconRuleRowHeight);
             if (alternate) Widgets.DrawBoxSolid(row, ColorRowAlt);
             Widgets.DrawHighlightIfMouseover(row);
 
-            bool prev = enabled;
+            bool changed = false;
+            bool prevEnabled = enabled;
             Widgets.Checkbox(new Vector2(row.x, row.y + Mathf.Floor((row.height - 24f) * 0.5f)), ref enabled);
+            if (enabled != prevEnabled) changed = true;
 
             Rect iconRect = new Rect(row.x + 26f, row.y + (row.height - IconRuleIconSize) * 0.5f,
                 IconRuleIconSize, IconRuleIconSize);
@@ -358,25 +405,39 @@ namespace AutoEverything.UI
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleLeft;
 
-            Rect nameRect = new Rect(iconRect.xMax + 6f, row.y, IconRuleNameWidth, row.height);
+            Rect nameRect = new Rect(iconRect.xMax + 6f, row.y, IconRuleNameWidth - 46f, row.height);
             GUI.color = enabled ? color : ColorLabelGray;
             Widgets.Label(nameRect, nameKey.Translate());
-            GUI.color = ColorLabelGray;
-
-            Text.Font = GameFont.Tiny;
-            Rect condRect = new Rect(nameRect.xMax, row.y, Mathf.Max(0f, row.xMax - nameRect.xMax), row.height);
-            Widgets.Label(condRect, condKey.Translate());
-            Text.Font = GameFont.Small;
-
             GUI.color = Color.white;
             Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;
 
-            // 整行（排除复选框本体）可点击切换，避免玩家点文字勾不上
-            Rect clickRect = new Rect(nameRect.x, row.y, row.xMax - nameRect.x, row.height);
-            if (Widgets.ButtonInvisible(clickRect)) enabled = !enabled;
-            TooltipHandler.TipRegion(clickRect, "AE_TT_RoleIconToggle".Translate());
-            if (enabled != prev) settingsDirty = true;
+            if (values != null)
+            {
+                float cellWidth = (row.width - IconRuleNameWidth - IconRuleCellGap * (IconRuleColumns - 1))
+                    / IconRuleColumns;
+                for (int i = 0; i < values.Length && i < IconRuleColumns; i++)
+                {
+                    Rect cell = new Rect(row.x + IconRuleNameWidth + i * (cellWidth + IconRuleCellGap),
+                        row.y, cellWidth, row.height);
+                    bool prev = values[i];
+                    DrawCheckboxCell(cell, labelKeys[i], ref values[i], null);
+                    if (values[i] != prev) changed = true;
+                }
+            }
+            else if (descKey != null)
+            {
+                Text.Font = GameFont.Tiny;
+                Text.WordWrap = false;
+                GUI.color = ColorLabelGray;
+                Widgets.Label(new Rect(row.x + IconRuleNameWidth, row.y,
+                    Mathf.Max(0f, row.xMax - row.x - IconRuleNameWidth), row.height), descKey.Translate());
+                GUI.color = Color.white;
+                Text.Font = GameFont.Small;
+            }
+
+            TooltipHandler.TipRegion(row, "AE_TT_RoleIconToggle".Translate());
+            return changed;
         }
 
         /// <summary>人员评级页：评级开关 + 评级判定阈值。</summary>

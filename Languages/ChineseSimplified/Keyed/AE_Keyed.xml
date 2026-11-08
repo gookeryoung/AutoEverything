@@ -257,23 +257,29 @@
   <AE_CFG_RoleGroup_ForceHint>纯白名单制：只有勾选且命中的条件才计入对应分组，未命中任何勾选项的殖民者归入"其他"，不再按技能/兴趣推断。</AE_CFG_RoleGroup_ForceHint>
   <AE_CFG_RoleGroup_MovedHint>殖民者栏角色分组的全部判定条件已整合到【分组标记】标签页，请到该页调整。</AE_CFG_RoleGroup_MovedHint>
 
-  <!-- 分组标记：头像标识图标规则（RoleIconDef 判定条件说明 + 逐项开关） -->
+  <!-- 分组标记：头像标识图标规则（白名单条件 + 逐项显示开关） -->
   <AE_RoleIcon_Tough>坚韧</AE_RoleIcon_Tough>
-  <AE_RoleIcon_Frontline>前排</AE_RoleIcon_Frontline>
   <AE_RoleIcon_Ranged>远程</AE_RoleIcon_Ranged>
-  <AE_RoleIcon_Crafter>手工</AE_RoleIcon_Crafter>
   <AE_RoleIcon_Worker>工人</AE_RoleIcon_Worker>
   <AE_RoleIcon_Trader>贸易</AE_RoleIcon_Trader>
 
-  <AE_RoleIconCond_Tough>坚韧特质（一律标识，减伤 50%）</AE_RoleIconCond_Tough>
-  <AE_RoleIconCond_Frontline>坚韧 + 格斗者特质或近战双火</AE_RoleIconCond_Frontline>
-  <AE_RoleIconCond_Ranged>乱开枪 + 射击双火或单火</AE_RoleIconCond_Ranged>
-  <AE_RoleIconCond_Crafter>工作狂 + 神经质（同时满足）</AE_RoleIconCond_Crafter>
-  <AE_RoleIconCond_Worker>工作狂 或 神经质（满足其一）</AE_RoleIconCond_Worker>
-  <AE_RoleIconCond_Trader>俊俏/沉鱼落雁 + 社交双火或等级≥8</AE_RoleIconCond_Trader>
+  <AE_RoleIconCond_Tough>坚韧特质（减伤 50%）</AE_RoleIconCond_Tough>
+  <AE_RoleIconCond_ShootingSpecialist>射击专家</AE_RoleIconCond_ShootingSpecialist>
+  <AE_RoleIconCond_TriggerHappy>乱开枪</AE_RoleIconCond_TriggerHappy>
+  <AE_RoleIconCond_ShootingMajor>射击双火</AE_RoleIconCond_ShootingMajor>
+  <AE_RoleIconCond_ShootingMinor>射击单火</AE_RoleIconCond_ShootingMinor>
+  <AE_RoleIconCond_Pacifist>无法施暴</AE_RoleIconCond_Pacifist>
+  <AE_RoleIconCond_ProductionSpecialist>生产专家</AE_RoleIconCond_ProductionSpecialist>
+  <AE_RoleIconCond_Industrious>工作狂</AE_RoleIconCond_Industrious>
+  <AE_RoleIconCond_Neurotic>神经质</AE_RoleIconCond_Neurotic>
+  <AE_RoleIconCond_CraftingMajor>生产双火</AE_RoleIconCond_CraftingMajor>
+  <AE_RoleIconCond_Moralist>道德家</AE_RoleIconCond_Moralist>
+  <AE_RoleIconCond_Beauty>俊俏/沉鱼落雁</AE_RoleIconCond_Beauty>
+  <AE_RoleIconCond_SocialMajor>社交双火</AE_RoleIconCond_SocialMajor>
+  <AE_RoleIconCond_SocialLevel8>社交等级≥8</AE_RoleIconCond_SocialLevel8>
 
-  <AE_CFG_RoleIconRules_Hint>图标最多同时显示 6 个，按上表顺序从左到右排列；关闭某项只隐藏该标识，不影响角色分组与高价值判定。</AE_CFG_RoleIconRules_Hint>
-  <AE_TT_RoleIconToggle>取消勾选后不再在殖民者栏头像上绘制该图标，判定规则本身不变。</AE_TT_RoleIconToggle>
+  <AE_CFG_RoleIconRules_Hint>白名单制：勾选的条件命中任一即显示对应图标；角色分组开启时已用分组框标识射手/工人/贸易，此时只保留坚韧图标。条件变更立即生效。</AE_CFG_RoleIconRules_Hint>
+  <AE_TT_RoleIconToggle>左侧勾选框控制是否绘制该图标，右侧条件勾选决定哪些殖民者触发该图标。</AE_TT_RoleIconToggle>
   <AE_CFG_Front_Ghoul>食尸鬼</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>格斗者特质</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>格斗专家职位</AE_CFG_Front_MeleeSpecialist>

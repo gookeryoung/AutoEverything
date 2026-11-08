@@ -185,8 +185,87 @@ namespace AutoEverything.Tests
             failures += RunDegreeRuleTests(ref total);
             failures += RunLayoutTests(ref total);
             failures += RunGroupAssignTests(ref total);
+            failures += RunReorderTests(ref total);
             Console.WriteLine($"[RoleGroupTests] 含顺序/变更检测/布局契约共 {total - failures}/{total} passed");
             return failures;
+        }
+
+        /// <summary>
+        /// 新增殖民者触发的角色顺序修复：
+        /// 新殖民者 displayOrder 为默认值 0，会插到地图块最前而不是同角色旁，
+        /// 导致同一角色被切成两段（殖民者栏出现两个同名分组框）。
+        /// 数据契约：
+        /// 1. 同块内角色序非递减时不需要修复；
+        /// 2. 角色序回退（同角色被隔开）时必须修复；
+        /// 3. 空占位条目（NoRoleOrder）不参与比较；
+        /// 4. 修复重排按角色序稳定升序，同角色内保持原相对顺序；
+        /// 5. 跨地图/远行队块各自独立排序，互不影响。
+        /// </summary>
+        public static int RunReorderTests(ref int total)
+        {
+            int failures = 0;
+            int noRole = RoleGroupLayout.NoRoleOrder;
+
+            CheckRequiresReorder(new[] { 0, 0, 0, 0 }, new[] { 0, 0, 1, 1 }, false,
+                "角色序递增无需修复", ref failures, ref total);
+            CheckRequiresReorder(new[] { 0 }, new[] { 4 }, false,
+                "单条目无需修复", ref failures, ref total);
+            CheckRequiresReorder(new int[0], new int[0], false,
+                "空列表无需修复", ref failures, ref total);
+
+            // 回归：新射手插到最前 → 角色序 1,0,0,1 回退
+            CheckRequiresReorder(new[] { 0, 0, 0, 0 }, new[] { 1, 0, 0, 1 }, true,
+                "新殖民者插队导致同角色分段需修复", ref failures, ref total);
+            CheckRequiresReorder(new[] { 0, 0, 0 }, new[] { 2, 0, 1 }, true,
+                "角色序回退需修复", ref failures, ref total);
+
+            CheckRequiresReorder(new[] { 0, 0, 1 }, new[] { noRole, noRole, 0 }, false,
+                "空占位条目不参与比较", ref failures, ref total);
+            CheckRequiresReorder(new[] { 0, 1, 1 }, new[] { 1, 0, 0 }, false,
+                "跨块各块独立判断", ref failures, ref total);
+
+            // 修复排序：rank 升序 + 块内原顺序稳定
+            CheckStableOrder(new[] { 0, 0, 0 }, new[] { 1, 0, 1 }, new[] { 1, 0, 2 },
+                "同角色内保持原顺序", ref failures, ref total);
+            CheckStableOrder(new[] { 0, 0, 0, 0 }, new[] { 2, 2, 0, 2 }, new[] { 1, 2, 0, 3 },
+                "多条目同角色稳定排序", ref failures, ref total);
+            CheckStableOrder(new[] { 0, 0, 1, 1 }, new[] { 1, 0, 1, 0 }, new[] { 1, 0, 3, 2 },
+                "跨块各自排序", ref failures, ref total);
+            CheckStableOrder(new[] { 0, 1 }, new[] { noRole, 0 }, new[] { -1, 0 },
+                "空占位条目不分配排序值", ref failures, ref total);
+
+            Console.WriteLine($"[RoleGroupReorderTests] 累计 {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static void CheckRequiresReorder(int[] origGroups, int[] roleOrders, bool expected,
+            string label, ref int failures, ref int total)
+        {
+            total++;
+            bool actual = RoleGroupLayout.RequiresRoleReorder(origGroups, roleOrders);
+            if (actual != expected)
+            {
+                Console.WriteLine($"  FAIL RequiresRoleReorder {label}: expected {expected}, got {actual}");
+                failures++;
+            }
+        }
+
+        private static void CheckStableOrder(int[] origGroups, int[] roleOrders, int[] expected,
+            string label, ref int failures, ref int total)
+        {
+            total++;
+            int[] actual = new int[origGroups.Length];
+            RoleGroupLayout.ComputeRoleStableOrder(origGroups, roleOrders, actual);
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (actual[i] != expected[i])
+                {
+                    Console.WriteLine($"  FAIL ComputeRoleStableOrder {label}: " +
+                                      $"expected [{string.Join(",", expected)}], got [{string.Join(",", actual)}]");
+                    failures++;
+                    return;
+                }
+            }
         }
 
         /// <summary>

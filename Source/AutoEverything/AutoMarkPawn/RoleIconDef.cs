@@ -7,49 +7,35 @@ using AutoEverything.Core;
 namespace AutoEverything.AutoMarkPawn
 {
     /// <summary>
-    /// 角色定位图标判定：为殖民者栏 Rect 上的角色定位图标提供判定与取色。
+    /// 角色定位图标判定：为殖民者栏头像上的角色定位图标提供判定与取色。
     ///
-    /// 6 种角色定位（形状区分，颜色统一深红）：
+    /// 4 种角色定位（形状区分，颜色统一深红）：
     /// - <see cref="RoleIconType.Tough"/>（坚韧，盾）：坚韧（Tough）特质
-    ///   设计意图：高生存力单位（减伤 50%），无论是否近战都值得标识
-    ///   用户决策（2026-07-21）：带坚韧的角色一律标记 Tough 标识，与 Frontline 解耦
-    /// - <see cref="RoleIconType.Frontline"/>（前排，盾）：坚韧（Tough）+ 格斗（Brawler 特质 或 近战 Major）
-    ///   设计意图：高生存力的近战单位，应优先装备重甲
-    /// - <see cref="RoleIconType.Ranged"/>（远程，弓箭）：乱开枪（ShootingAccuracy degree=-1）+ 射击有火（Major 或 Minor）
-    ///   设计意图：DPS 突出的远程单位，应优先承担射击任务
-    ///   用户决策（2026-07-21）：扩展到含单火（Minor），覆盖"乱开枪+单火"S 档高价值角色
-    /// - <see cref="RoleIconType.Crafter"/>（手工，锤子铁砧）：工作狂（Industriousness degree≥1）+ 神经质（Neurotic degree≥1）
-    ///   设计意图：生产效率突出的单位（工作狂+神经质组合），应优先承担专业工作
-    /// - <see cref="RoleIconType.Worker"/>（工人，扳手螺丝刀）：工作狂（Industriousness degree≥1）或 严重神经质（Neurotic degree≥1）
-    ///   设计意图：工作倾向单位，单方面拥有工作狂或严重神经质即标记
-    ///   用户决策（2026-08-13）：新增工人图标，判定为 OR 关系
-    ///   与 Crafter 的关系：Crafter 判定为 AND（工作狂+神经质），是 Worker 的子集；
-    ///   工作狂+神经质的殖民者会同时显示 Crafter + Worker 两个图标（Crafter 标识精确组合，Worker 标识工作倾向）
-    /// - <see cref="RoleIconType.Trader"/>（贸易，钱袋）：俊俏/沉鱼落雁（Beauty degree≥1）+ 高社交（Social Major 或 Level≥8）
-    ///   设计意图：社交优势单位，适合外交与贸易
+    /// - <see cref="RoleIconType.Ranged"/>（远程，弓箭）：白名单条件（射击专家 / 乱开枪 / 射击双火 / 射击单火）
+    /// - <see cref="RoleIconType.Worker"/>（工人，扳手）：白名单条件（无法施暴 / 生产专家 / 工作狂 / 神经质 / 生产双火）
+    /// - <see cref="RoleIconType.Trader"/>（贸易，钱袋）：白名单条件（道德家 / 俊俏 / 社交双火 / 社交等级 ≥ 8）
     ///
-    /// 颜色策略（用户决策 2026-07-21）：
-    /// - 所有图标统一深红色 RGB(0.6, 0.0, 0.0)，避免多色看不清
-    /// - 形状本身已足够区分 6 种角色定位，颜色不再做分类
+    /// 设计变更（2026-11-08）：
+    /// - 原 Frontline 图标删除：前排分组框已用文字 + 红边标识，两套"前排"定义不一致易误导
+    /// - 原 Crafter 图标并入 Worker：Crafter(工作狂+神经质) 恒为 Worker 的子集，必然同时出现
+    /// - 判定从"硬编码 AND 组合"改为与分组一致的白名单制：勾选且命中任一条件即显示
     ///
-    /// 一个殖民者可同时符合多个角色定位（如坚韧格斗 + 工作狂神经质），图标横向排列显示。
+    /// 与角色分组的联动：角色分组开启时，分组框已用"射手/工人/贸易"文字与配色标识，
+    /// 此时只保留坚韧图标（分组不覆盖的维度），避免同一信息重复绘制。
     ///
-    /// 判定依据复用 <see cref="TraitDefCache"/> 与原生 <see cref="TraitDefOf"/>，
-    /// 不重复定义 TraitDef 查询。特质 degree 判定与 CombatEvaluator 评级规则保持一致。
+    /// 一个殖民者可同时符合多个角色定位（如坚韧 + 工人），图标横向排列显示。
     /// </summary>
     public static class RoleIconDef
     {
         /// <summary>
-        /// 角色定位图标类型：按战斗/工作/交易三大类分组，形状区分（颜色统一深红）。
+        /// 角色定位图标类型：形状区分（颜色统一深红）。
         /// </summary>
         public enum RoleIconType : byte
         {
-            Tough,      // 坚韧（盾）
-            Frontline,  // 前排（盾）
-            Ranged,     // 远程（弓箭）
-            Crafter,    // 手工（锤子铁砧）
-            Worker,     // 工人（扳手螺丝刀）
-            Trader      // 贸易（钱袋）
+            Tough,   // 坚韧（盾）
+            Ranged,  // 远程（弓箭）
+            Worker,  // 工人（扳手螺丝刀）
+            Trader   // 贸易（钱袋）
         }
 
         /// <summary>
@@ -60,15 +46,14 @@ namespace AutoEverything.AutoMarkPawn
 
         // 复用缓冲区：避免每帧分配（殖民者栏每帧绘制多个 Pawn，调用频繁）
         // 单线程主线程使用，无需并发保护
-        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(6);
+        private static readonly List<RoleIconType> buffer = new List<RoleIconType>(4);
 
-        // 社交技能等级阈值：达到此等级视为"高社交"，配合 Beauty 特质触发 Trader 图标
+        // 社交技能等级阈值：达到此等级视为"高社交"，配合贸易白名单条件触发 Trader 图标
         private const int SocialLevelThreshold = 8;
 
         // ===================== 角色图标掩码缓存 =====================
         // 缓解卡滞（2026-08-15）：殖民者栏 DrawColonist Postfix 每帧对每个殖民者调用
-        // GetRoleIcons——6 次特质查询（HasTrait/DegreeOfTrait 遍历特质列表）
-        // + 5 次技能查询（GetSkill 遍历技能列表），12 殖民者即每帧百余次列表遍历。
+        // GetRoleIcons——多次特质/技能/职位查询，12 殖民者即每帧百余次列表遍历。
         // 特质/技能在游戏中极少变化，掩码缓存后命中路径仅 1 次字典查询 + 位展开（零分配）。
         // TTL 2500 tick 与 TierCacheService 评级缓存一致：后天获得特质/激情变化最迟 42 秒内反映。
         private struct IconCacheEntry
@@ -82,6 +67,14 @@ namespace AutoEverything.AutoMarkPawn
         private static readonly Dictionary<Pawn, IconCacheEntry> iconCache = new Dictionary<Pawn, IconCacheEntry>();
         private static readonly List<Pawn> iconCleanupBuffer = new List<Pawn>();
         private static int lastIconCleanupTick = -9999;
+
+        /// <summary>
+        /// 清空图标判定缓存：白名单条件变化后立即调用，让新规则下一帧生效，无需等待 TTL。
+        /// </summary>
+        public static void ClearIconCache()
+        {
+            iconCache.Clear();
+        }
 
         /// <summary>
         /// 获取 Pawn 符合的所有角色定位。
@@ -107,87 +100,74 @@ namespace AutoEverything.AutoMarkPawn
                 iconCache[pawn] = new IconCacheEntry { mask = mask, tick = tick };
             }
 
+            // 角色分组开启时，分组框已用文字+配色标识射手/工人/贸易，只保留坚韧避免重复。
+            // 在展开阶段过滤而不进缓存：切换分组开关后下一帧即生效。
+            bool hideRoleIcons = AESettings.groupColonistBarByRole;
+
             // 掩码展开到共享 buffer（位序与 RoleIconType 枚举值一致）
-            // 展开时再按设置项过滤：开关关闭的图标不输出，切换后下一帧即生效，无需清缓存
+            // 展开时再按显示开关过滤：切换后下一帧即生效，无需清缓存
             if ((mask & (1 << (int)RoleIconType.Tough)) != 0 && AESettings.showRoleIconTough)
                 buffer.Add(RoleIconType.Tough);
-            if ((mask & (1 << (int)RoleIconType.Frontline)) != 0 && AESettings.showRoleIconFrontline)
-                buffer.Add(RoleIconType.Frontline);
-            if ((mask & (1 << (int)RoleIconType.Ranged)) != 0 && AESettings.showRoleIconRanged)
-                buffer.Add(RoleIconType.Ranged);
-            if ((mask & (1 << (int)RoleIconType.Crafter)) != 0 && AESettings.showRoleIconCrafter)
-                buffer.Add(RoleIconType.Crafter);
-            if ((mask & (1 << (int)RoleIconType.Worker)) != 0 && AESettings.showRoleIconWorker)
-                buffer.Add(RoleIconType.Worker);
-            if ((mask & (1 << (int)RoleIconType.Trader)) != 0 && AESettings.showRoleIconTrader)
-                buffer.Add(RoleIconType.Trader);
+            if (!hideRoleIcons)
+            {
+                if ((mask & (1 << (int)RoleIconType.Ranged)) != 0 && AESettings.showRoleIconRanged)
+                    buffer.Add(RoleIconType.Ranged);
+                if ((mask & (1 << (int)RoleIconType.Worker)) != 0 && AESettings.showRoleIconWorker)
+                    buffer.Add(RoleIconType.Worker);
+                if ((mask & (1 << (int)RoleIconType.Trader)) != 0 && AESettings.showRoleIconTrader)
+                    buffer.Add(RoleIconType.Trader);
+            }
             return buffer;
         }
 
         /// <summary>
-        /// 计算角色定位掩码（原 GetRoleIcons 判定逻辑，仅缓存 miss 时执行）。
+        /// 计算角色定位掩码（缓存 miss 时执行）。
+        /// 白名单制：勾选的条件任一命中即置位对应图标，不做额外的 AND 组合。
         /// </summary>
         private static byte ComputeRoleMask(Pawn pawn)
         {
             if (pawn.story?.traits == null) return 0;
             if (pawn.skills == null) return 0;
 
-            // 收集特质状态（复用 TraitDefCache 与 TraitDefOf，与 CombatEvaluator 一致）
             var traits = pawn.story.traits;
-            bool isTough = TraitDefCache.Tough != null && traits.HasTrait(TraitDefCache.Tough);
-            bool isBrawler = traits.HasTrait(TraitDefOf.Brawler);
-            bool isTriggerHappy = TraitDefCache.ShootingAccuracy != null
-                && traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
-            bool hasIndustrious = TraitDefCache.Industriousness != null
-                && traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1;
-            bool hasNeurotic = TraitDefCache.Neurotic != null
-                && traits.DegreeOfTrait(TraitDefCache.Neurotic) >= 1;
-            bool hasBeauty = TraitDefCache.Beauty != null
-                && traits.DegreeOfTrait(TraitDefCache.Beauty) >= 1;
-
-            // 收集技能兴趣状态（直接用 Passion 枚举比较，避免 PassionHelper 间接层）
-            bool meleeMajor = IsMajorPassion(pawn, SkillDefOf.Melee);
-            bool shootingMajor = IsMajorPassion(pawn, SkillDefOf.Shooting);
-            bool shootingMinor = IsMinorPassion(pawn, SkillDefOf.Shooting);
-            bool socialMajor = IsMajorPassion(pawn, SkillDefOf.Social);
-            int socialLevel = GetSkillLevel(pawn, SkillDefOf.Social);
-
             byte mask = 0;
 
-            // Tough：坚韧特质（一律标记，与 Frontline 解耦）
-            // 用户决策（2026-07-21）：带坚韧的角色一律标记 Tough 标识
-            // 设计：Tough 提供减伤 50% 是高价值特质，无论近战远程都值得标识
-            if (isTough)
+            // 坚韧：独立维度，分组规则不覆盖
+            // 显示开关只在展开阶段过滤，不参与掩码计算，避免开关切换后缓存残留
+            if (TraitDefCache.Tough != null && traits.HasTrait(TraitDefCache.Tough))
+            {
                 mask |= (byte)(1 << (int)RoleIconType.Tough);
+            }
 
-            // Frontline：坚韧 + 格斗（Brawler 特质 或 近战 Major）
-            // 设计：Tough 提供减伤 50% 是核心，Brawler/MeleeMajor 标识近战倾向
-            if (isTough && (isBrawler || meleeMajor))
-                mask |= (byte)(1 << (int)RoleIconType.Frontline);
+            // 远程：射击专家 / 乱开枪 / 射击双火 / 射击单火，命中任一即标识
+            bool ranged =
+                (AESettings.iconRangedShootingSpecialist && HasIdeoRole(pawn, "IdeoRole_ShootingSpecialist"))
+                || (AESettings.iconRangedTriggerHappy && TraitDefCache.ShootingAccuracy != null
+                    && traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1)
+                || (AESettings.iconRangedShootingMajor && IsMajorPassion(pawn, SkillDefOf.Shooting))
+                || (AESettings.iconRangedShootingMinor && IsMinorPassion(pawn, SkillDefOf.Shooting));
+            if (ranged) mask |= (byte)(1 << (int)RoleIconType.Ranged);
 
-            // Ranged：乱开枪 + 射击有火（Major 或 Minor）
-            // 设计：乱开枪+双火为 SSS/SS，乱开枪+单火为 S（均为高价值远程单位）
-            // 用户决策（2026-07-21）：扩展到含 Minor，覆盖"乱开枪+单火"S 档高价值角色
-            if (isTriggerHappy && (shootingMajor || shootingMinor))
-                mask |= (byte)(1 << (int)RoleIconType.Ranged);
+            // 工人（原手工图标已并入）：无法施暴 / 生产专家 / 工作狂 / 神经质 / 生产双火
+            bool worker =
+                (AESettings.iconWorkerPacifist && pawn.WorkTagIsDisabled(WorkTags.Violent))
+                || (AESettings.iconWorkerProductionSpecialist && HasIdeoRole(pawn, "IdeoRole_ProductionSpecialist"))
+                || (AESettings.iconWorkerIndustrious && TraitDefCache.Industriousness != null
+                    && traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1)
+                || (AESettings.iconWorkerNeurotic && TraitDefCache.Neurotic != null
+                    && traits.DegreeOfTrait(TraitDefCache.Neurotic) >= 1)
+                || (AESettings.iconWorkerCraftingMajor && IsMajorPassion(pawn, SkillDefOf.Crafting));
+            if (worker) mask |= (byte)(1 << (int)RoleIconType.Worker);
 
-            // Crafter：工作狂 + 神经质（AND，精确组合）
-            // 设计：工作狂神经质组合是 S 评级核心，生产效率突出
-            // 注：Crafter 是 Worker 的子集——工作狂+神经质的殖民者会同时显示 Crafter + Worker
-            if (hasIndustrious && hasNeurotic)
-                mask |= (byte)(1 << (int)RoleIconType.Crafter);
-
-            // Worker：工作狂 或 严重神经质（OR，工作倾向）
-            // 用户决策（2026-08-13）：单方面拥有工作狂或严重神经质即标记为工人
-            // 设计：工作狂（degree≥1，含勤奋+非常勤奋）或严重神经质（degree≥1，含神经质+非常神经质）
-            // 与 Crafter 关系：Crafter(AND) 是 Worker(OR) 的子集，两者可同时显示
-            if (hasIndustrious || hasNeurotic)
-                mask |= (byte)(1 << (int)RoleIconType.Worker);
-
-            // Trader：俊俏/沉鱼落雁 + 高社交
-            // 设计：Beauty degree≥1 含俊俏(1)/沉鱼落雁(2)，配合高社交（Major 或 Level≥8）触发
-            if (hasBeauty && (socialMajor || socialLevel >= SocialLevelThreshold))
-                mask |= (byte)(1 << (int)RoleIconType.Trader);
+            // 贸易：道德家 / 俊俏特质 / 社交双火 / 社交等级 ≥ 8
+            bool trader =
+                (AESettings.iconTraderMoralist && HasIdeoRole(pawn, "IdeoRole_Moralist"))
+                || (AESettings.iconTraderBeauty && TraitDefCache.Beauty != null
+                    && traits.DegreeOfTrait(TraitDefCache.Beauty) >= 1)
+                || (AESettings.iconTraderSocialMajor && IsMajorPassion(pawn, SkillDefOf.Social))
+                || (AESettings.iconTraderSocialLevel8
+                    && GetSkillLevel(pawn, SkillDefOf.Social) >= SocialLevelThreshold);
+            if (trader) mask |= (byte)(1 << (int)RoleIconType.Trader);
 
             return mask;
         }
@@ -218,6 +198,16 @@ namespace AutoEverything.AutoMarkPawn
         public static Color GetColor(RoleIconType type)
         {
             return IconColor;
+        }
+
+        /// <summary>
+        /// 判断 Pawn 是否持有指定 defName 的意识形态职位/专家。
+        /// 未启用 Ideology 或无 Ideoligion 时返回 false（pawn.Ideo 为 null）。
+        /// </summary>
+        private static bool HasIdeoRole(Pawn pawn, string defName)
+        {
+            Precept_Role role = pawn.Ideo?.GetRole(pawn);
+            return role?.def != null && role.def.defName == defName;
         }
 
         private static bool IsMajorPassion(Pawn pawn, SkillDef skill)

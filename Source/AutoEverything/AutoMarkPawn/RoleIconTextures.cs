@@ -8,14 +8,12 @@ namespace AutoEverything.AutoMarkPawn
     ///
     /// 设计原因：
     /// - 外部 PNG 图标比程序化生成的像素纹理视觉质量更高，符合 Useful Marks 风格
-    /// - 白色纹理在绘制时由 GUI.color 染色，6 种图标共用同一套白色纹理（节省资源）
+    /// - 白色纹理在绘制时由 GUI.color 染色，4 种图标共用同一套白色纹理（节省资源）
     /// - 项目已有完整的 Textures/UI/Icons/Role/ 目录结构，与现有 Role_*.png 保持一致命名约定
     ///
     /// 纹理文件（64x64 RGBA，白色形状+透明背景）：
     /// - <see cref="Tough"/>：Role_Tough.png——坚韧盾牌（带翼盾形，标识坚韧特质）
-    /// - <see cref="Frontline"/>：Role_Frontline.png——盾牌（上宽下尖的经典盾形）
     /// - <see cref="Ranged"/>：Role_Ranged.png——弓箭（弓弧+弓弦+箭杆+箭头）
-    /// - <see cref="Crafter"/>：Role_Crafter.png——锤子铁砧（锤头+锤柄+铁砧平台）
     /// - <see cref="Worker"/>：Role_Worker.png——扳手螺丝刀（交叉工具组合，标识工作倾向）
     /// - <see cref="Trader"/>：Role_Trader.png——钱袋子（扎绳+袋口+圆形袋身）
     ///
@@ -29,16 +27,10 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>坚韧盾牌纹理：坚韧</summary>
         public static readonly Texture2D Tough;
 
-        /// <summary>盾牌纹理：前排</summary>
-        public static readonly Texture2D Frontline;
-
         /// <summary>弓箭纹理：远程</summary>
         public static readonly Texture2D Ranged;
 
-        /// <summary>锤子铁砧纹理：手工</summary>
-        public static readonly Texture2D Crafter;
-
-        /// <summary>扳手纹理：工人</summary>
+        /// <summary>扳手纹理：工人（原手工图标已并入）</summary>
         public static readonly Texture2D Worker;
 
         /// <summary>钱袋子纹理：贸易</summary>
@@ -51,9 +43,7 @@ namespace AutoEverything.AutoMarkPawn
         static RoleIconTextures()
         {
             Tough = LoadOrFallback("UI/Icons/Role/Role_Tough", CreateToughShieldFallback);
-            Frontline = LoadOrFallback("UI/Icons/Role/Role_Frontline", CreateShieldFallback);
             Ranged = LoadOrFallback("UI/Icons/Role/Role_Ranged", CreateBowArrowFallback);
-            Crafter = LoadOrFallback("UI/Icons/Role/Role_Crafter", CreateHammerAnvilFallback);
             Worker = LoadOrFallback("UI/Icons/Role/Role_Worker", CreateWrenchFallback);
             Trader = LoadOrFallback("UI/Icons/Role/Role_Trader", CreateMoneyBagFallback);
         }
@@ -66,9 +56,7 @@ namespace AutoEverything.AutoMarkPawn
             switch (type)
             {
                 case RoleIconDef.RoleIconType.Tough: return Tough;
-                case RoleIconDef.RoleIconType.Frontline: return Frontline;
                 case RoleIconDef.RoleIconType.Ranged: return Ranged;
-                case RoleIconDef.RoleIconType.Crafter: return Crafter;
                 case RoleIconDef.RoleIconType.Worker: return Worker;
                 default: return Trader;
             }
@@ -125,27 +113,6 @@ namespace AutoEverything.AutoMarkPawn
             return CreateFallbackTexture(pixels);
         }
 
-        private static Texture2D CreateShieldFallback()
-        {
-            Color[] pixels = new Color[FallbackSize * FallbackSize];
-            for (int y = 0; y < FallbackSize; y++)
-            {
-                for (int x = 0; x < FallbackSize; x++)
-                {
-                    int dx = x < FallbackCenter ? FallbackCenter - x : x - FallbackCenter;
-                    bool filled = false;
-                    if (y >= 4 && y <= 28)
-                    {
-                        if (y <= 7) filled = dx <= 10;
-                        else if (y <= 20) filled = dx * 2 <= 20 - (y - 8);
-                        else filled = dx * 7 <= (28 - y) * 4;
-                    }
-                    pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
-                }
-            }
-            return CreateFallbackTexture(pixels);
-        }
-
         private static Texture2D CreateBowArrowFallback()
         {
             Color[] pixels = new Color[FallbackSize * FallbackSize];
@@ -173,30 +140,9 @@ namespace AutoEverything.AutoMarkPawn
             return CreateFallbackTexture(pixels);
         }
 
-        private static Texture2D CreateHammerAnvilFallback()
-        {
-            Color[] pixels = new Color[FallbackSize * FallbackSize];
-            for (int y = 0; y < FallbackSize; y++)
-            {
-                for (int x = 0; x < FallbackSize; x++)
-                {
-                    int dx = x < FallbackCenter ? FallbackCenter - x : x - FallbackCenter;
-                    bool filled = false;
-                    if (y >= 3 && y <= 7 && dx <= 8) filled = true;
-                    else if (y >= 7 && y <= 17 && dx <= 1) filled = true;
-                    else if (y >= 18 && y <= 21 && dx <= 10) filled = true;
-                    else if (y >= 22 && y <= 24 && dx <= 5) filled = true;
-                    else if (y >= 25 && y <= 28 && dx <= 7) filled = true;
-                    pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
-                }
-            }
-            return CreateFallbackTexture(pixels);
-        }
-
         /// <summary>
         /// Worker 降级纹理：扳手（垂直放置，开口朝上 + 圆形把手）。
         /// 简化为：顶部 U 形开口叉头 + 中间杆 + 底部圆形把手。
-        /// 与 Crafter 锤子铁砧区分：扳手有开口叉头，铁砧有平台底座。
         /// </summary>
         private static Texture2D CreateWrenchFallback()
         {
