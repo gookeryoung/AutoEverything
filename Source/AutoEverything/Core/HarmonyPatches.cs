@@ -262,10 +262,19 @@ namespace AutoEverything.Core
             /// </summary>
             private const float VanillaIconBand = 21f;
 
-            /// <summary>伤痕竖条尺寸（未缩放，像素）：条数最多 3，总宽远小于头像宽度</summary>
-            private const float ScarBarWidth = 3f;
-            private const float ScarBarHeight = 6f;
-            private const float ScarBarSpacing = 2f;
+            /// <summary>
+            /// 心灵纽带爱心基准尺寸（未缩放，像素）：用户决策 2026-11-08 在上限 16 基础上增大一倍到 32，
+            /// 便于在小头像上清晰辨认；仍按头像可用宽度收缩，避免超出头像。
+            /// </summary>
+            private const float BaseBondIconSize = 32f;
+
+            /// <summary>
+            /// 伤痕竖条尺寸（未缩放，像素）：用户反馈原 3×6 太小，增大到 4×14，间距 3；
+            /// 3 条总宽 18，远小于头像，不遮挡脸部。
+            /// </summary>
+            private const float ScarBarWidth = 4f;
+            private const float ScarBarHeight = 14f;
+            private const float ScarBarSpacing = 3f;
 
             /// <summary>1×1 白色纹理：伤痕竖条用 GUI.color 染色，避免新增贴图资源</summary>
             private static readonly Texture2D ScarBarTexture = CreateWhiteTexture();
@@ -279,8 +288,9 @@ namespace AutoEverything.Core
 
                 try
                 {
-                    DrawRoleIcons(rect, colonist);
+                    // 爱心先画：尺寸较大时优先让右上角角色图标保持可见（不遮挡）
                     DrawBondHeart(rect, colonist);
+                    DrawRoleIcons(rect, colonist);
                     DrawScarBars(rect, colonist);
                 }
                 catch (Exception ex)
@@ -335,9 +345,9 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在头像左下角绘制爱心标识：标记已建立心灵纽带的伴侣。
-            /// 同一对伴侣的爱心使用同一种颜色（双方 thingIDNumber 无序组合取色），
-            /// 因此殖民者栏中同色爱心即为伴侣；悬停显示伴侣名字。
-            /// 位置在原版底部状态图标带之上，避免遮挡。
+            /// 同一对伴侣使用相同的「颜色 + 风格」组合（4 色 × 空心/实心 2 风格），
+            /// 因此同色同风格爱心即为伴侣；悬停显示伴侣名字。
+            /// 位置在原版底部状态图标带之上，避免遮挡；尺寸为原上限 16 的一倍增大（32）。
             /// </summary>
             private static void DrawBondHeart(Rect rect, Pawn pawn)
             {
@@ -346,7 +356,7 @@ namespace AutoEverything.Core
 
                 float scale = rect.width / ColonistBar.BaseSize.x;
                 float margin = BaseMargin * scale;
-                float size = Mathf.Min(BaseIconSize * scale, rect.width - margin * 2f);
+                float size = Mathf.Min(BaseBondIconSize * scale, rect.width - margin * 2f);
                 if (size <= 0f) return;
 
                 float bottom = rect.yMax - VanillaIconBand * scale;
@@ -356,10 +366,13 @@ namespace AutoEverything.Core
                 Color heartColor = RoleIconDef.GetBondColor(pawn, partner);
                 heartColor.a = prevColor.a;
                 GUI.color = heartColor;
-                GUI.DrawTexture(heartRect, RoleIconTextures.Bond);
+                Texture2D tex = RoleIconDef.UseBondOutline(pawn, partner)
+                    ? RoleIconTextures.BondOutline
+                    : RoleIconTextures.Bond;
+                GUI.DrawTexture(heartRect, tex);
                 GUI.color = prevColor;
 
-                // 悬停提示伴侣名字，避免颜色重复时无法确认
+                // 悬停提示伴侣名字，避免配对组合重复时无法确认
                 if (Mouse.IsOver(heartRect))
                     TooltipHandler.TipRegion(heartRect, "AE_BondPartner".Translate(partner.LabelShortCap));
             }
@@ -367,9 +380,9 @@ namespace AutoEverything.Core
             /// <summary>
             /// 在头像右下角绘制伤痕竖条：1 条 = 1 处永久疤痕/缺失部位，最多 3 条。
             ///
-            /// 位置与角色图标对称：角色图标占右上角，爱心占左下角，伤痕条占右下角（互不重叠）。
+            /// 位置与爱心图标对齐：两者底边都落在原版底部图标带之上的同一条基线
+            /// （rect.yMax - VanillaIconBand*scale - margin），视觉上齐平，不会一高一低。
             /// 从右往左排列，与右上角角色图标方向一致；条数越多向左延伸，不影响头像中心。
-            /// 整体上移到原版底部状态图标带之上，避免覆盖原版状态/职位图标。
             /// 颜色琥珀橙（<see cref="ScarMarkDef.BarColor"/>），与深红角色图标区分。
             /// </summary>
             private static void DrawScarBars(Rect rect, Pawn pawn)
@@ -386,7 +399,9 @@ namespace AutoEverything.Core
                 float spacing = ScarBarSpacing * scale;
                 float margin = BaseMargin * scale;
 
-                float y = rect.yMax - VanillaIconBand * scale - barHeight - margin;
+                // 与 DrawBondHeart 使用同一基线：底边 = 底部图标带之上、再内缩 margin
+                float bottom = rect.yMax - VanillaIconBand * scale - margin;
+                float y = bottom - barHeight;
                 float x = rect.xMax - barWidth - margin;
 
                 Color prevColor = GUI.color;

@@ -16,7 +16,8 @@ namespace AutoEverything.AutoMarkPawn
     /// - <see cref="Ranged"/>：Role_Ranged.png——弓箭（弓弧+弓弦+箭杆+箭头）
     /// - <see cref="Worker"/>：Role_Worker.png——扳手螺丝刀（交叉工具组合，标识工作倾向）
     /// - <see cref="Trader"/>：Role_Trader.png——钱袋子（扎绳+袋口+圆形袋身）
-    /// - <see cref="Bond"/>：Role_Bond.png——爱心（心灵纽带伴侣标识，绘制在头像左下角）
+    /// - <see cref="Bond"/>：Role_Bond.png——实心爱心（心灵纽带伴侣标识）
+    /// - <see cref="BondOutline"/>：Role_BondOutline.png——空心爱心（与实心爱心组合区分配对）
     ///
     /// 降级策略：
     /// - 若外部 PNG 加载失败（ContentFinder 返回 null），回退到程序化生成的 32x32 像素纹理
@@ -37,8 +38,11 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>钱袋子纹理：贸易</summary>
         public static readonly Texture2D Trader;
 
-        /// <summary>爱心纹理：心灵纽带伴侣</summary>
+        /// <summary>爱心纹理：心灵纽带伴侣（实心）</summary>
         public static readonly Texture2D Bond;
+
+        /// <summary>爱心纹理：心灵纽带伴侣（空心，用于与实心组合区分配对）</summary>
+        public static readonly Texture2D BondOutline;
 
         // 降级纹理尺寸常量
         private const int FallbackSize = 32;
@@ -51,6 +55,7 @@ namespace AutoEverything.AutoMarkPawn
             Worker = LoadOrFallback("UI/Icons/Role/Role_Worker", CreateWrenchFallback);
             Trader = LoadOrFallback("UI/Icons/Role/Role_Trader", CreateMoneyBagFallback);
             Bond = LoadOrFallback("UI/Icons/Role/Role_Bond", CreateHeartFallback);
+            BondOutline = LoadOrFallback("UI/Icons/Role/Role_BondOutline", CreateHeartOutlineFallback);
         }
 
         /// <summary>
@@ -226,6 +231,33 @@ namespace AutoEverything.AutoMarkPawn
                 }
             }
             return CreateFallbackTexture(pixels);
+        }
+
+        /// <summary>
+        /// BondOutline 降级纹理：空心爱心（内心采样放大 1.6 倍后不满足隐函数的部分留空）。
+        /// </summary>
+        private static Texture2D CreateHeartOutlineFallback()
+        {
+            Color[] pixels = new Color[FallbackSize * FallbackSize];
+            for (int y = 0; y < FallbackSize; y++)
+            {
+                for (int x = 0; x < FallbackSize; x++)
+                {
+                    bool outer = HeartContains(x, y, 1f);
+                    bool inner = HeartContains(x, y, 1.6f);
+                    pixels[y * FallbackSize + x] = outer && !inner ? Color.white : Color.clear;
+                }
+            }
+            return CreateFallbackTexture(pixels);
+        }
+
+        /// <summary>心形隐函数判定；sampleScale 越大判定区域越小（用于挖空内部）。</summary>
+        private static bool HeartContains(int x, int y, float sampleScale)
+        {
+            float nx = ((x + 0.5f) / FallbackSize * 2f - 1f) * 1.15f * sampleScale;
+            float ny = (1f - (y + 0.5f) / FallbackSize * 2f) * 1.15f * sampleScale;
+            float a = nx * nx + ny * ny - 1f;
+            return a * a * a - nx * nx * ny * ny * ny <= 0f;
         }
 
         private static Texture2D CreateFallbackTexture(Color[] pixels)

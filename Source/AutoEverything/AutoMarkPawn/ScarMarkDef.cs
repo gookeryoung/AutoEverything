@@ -9,7 +9,7 @@ namespace AutoEverything.AutoMarkPawn
     ///
     /// 判定口径（2026-11-08 用户决策）：
     /// - 永久疤痕：IsPermanent 且伤口已愈合到 permanentDamageThreshold（疤痕显现）
-    /// - 缺失部位：Hediff_MissingPart（断肢、摘除器官）
+    /// - 缺失部位：Hediff_MissingPart，但被仿生/假肢（AddedPart）替换的部位不算
     /// - 按身体部位去重：同一部位的多道疤痕只算 1 条，避免烧伤等场景条数虚高
     ///
     /// 显示规则：条数 = 伤痕处数，最多 3 条（超出封顶），避免遮挡头像。
@@ -19,7 +19,7 @@ namespace AutoEverything.AutoMarkPawn
     public static class ScarMarkDef
     {
         /// <summary>头像上最多绘制的条数：超出只显示 3 条（用户决策）。</summary>
-        public const int MaxBars = 3;
+        public const int MaxBars = ScarMarkRules.MaxBars;
 
         /// <summary>条形颜色：琥珀橙，与右上角深红角色图标区分（用户决策）。</summary>
         public static readonly Color BarColor = new Color(0.95f, 0.60f, 0.15f);
@@ -53,7 +53,7 @@ namespace AutoEverything.AutoMarkPawn
                 return e.count;
 
             int count = CountDistinctScarredParts(pawn);
-            if (count > MaxBars) count = MaxBars;
+            count = ScarMarkRules.CapBars(count);
             cache[pawn] = new CountCacheEntry { count = (byte)count, tick = tick };
             return count;
         }
@@ -74,11 +74,12 @@ namespace AutoEverything.AutoMarkPawn
         {
             partBuffer.Clear();
             int count = 0;
-            List<Hediff> hediffs = pawn.health.hediffSet.hediffs;
+            HediffSet set = pawn.health.hediffSet;
+            List<Hediff> hediffs = set.hediffs;
             for (int i = 0; i < hediffs.Count; i++)
             {
                 Hediff h = hediffs[i];
-                if (!IsScarOrMissingPart(h)) continue;
+                if (!IsScarOrMissingPart(set, h)) continue;
                 if (h.Part == null)
                 {
                     count++;
@@ -89,9 +90,16 @@ namespace AutoEverything.AutoMarkPawn
             return count;
         }
 
-        private static bool IsScarOrMissingPart(Hediff hediff)
+        private static bool IsScarOrMissingPart(HediffSet set, Hediff hediff)
         {
-            if (hediff is Hediff_MissingPart) return true;
+            if (hediff is Hediff_MissingPart)
+            {
+                // 仿生/假肢替换：原部位（或其子部位，如 bionic hand 下的手指）被 AddedPart
+                // 覆盖时属于"替换"，不能算缺失，否则装了仿生肢体的殖民者也会亮条纹。
+                bool replaced = hediff.Part != null
+                    && set.PartOrAnyAncestorHasDirectlyAddedParts(hediff.Part);
+                return ScarMarkRules.ShouldCountMissingPart(replaced);
+            }
 
             Hediff_Injury injury = hediff as Hediff_Injury;
             if (injury == null) return false;
@@ -101,13 +109,12 @@ namespace AutoEverything.AutoMarkPawn
             // 疤痕真正"显现"的判定与原版 CompPostInjuryHeal 一致：伤口愈合到 permanentDamageThreshold
             // 后被钳制在该值，此时 IsPermanent 才对应肉眼可见的疤痕。
             HediffComp_GetsPermanent getsPermanent = injury.TryGetComp<HediffComp_GetsPermanent>();
-            if (getsPermanent == null || !getsPermanent.IsPermanent) return false;
+            if (getsPermanent == null) return false;
 
-            float threshold = getsPermanent.permanentDamageThreshold;
-            // 9999 是"生成即永久"（InstantPermanentInjury）的哨兵值，本身已是疤痕
-            if (threshold >= 9999f) return true;
-            // 普通部位：愈合到永久阈值才算疤痕；脆弱部位阈值为 0，愈合到 0 才算
-            return injury.Severity <= threshold;
+            return ScarMarkRules.IsScarRevealed(
+                getsPermanent.IsPermanent,
+                injury.Severity,
+                getsPermanent.permanentDamageThreshold);
         }
 
         /// <summary>

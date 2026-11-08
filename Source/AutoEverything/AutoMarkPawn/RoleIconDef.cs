@@ -203,20 +203,20 @@ namespace AutoEverything.AutoMarkPawn
         private static bool psychicBondDefResolved;
 
         /// <summary>
-        /// 心灵纽带配对配色：同色 = 同一对伴侣，便于在殖民者栏一眼配对。
-        /// 颜色取高饱和色相，深色背景下仍可区分；>8 对时按索引循环复用。
+        /// 心灵纽带配对配色：同色同风格 = 同一对伴侣。
+        /// 用户决策（2026-11-08）：颜色过多反而难区分，只保留 4 种高对比色；
+        /// 颜色不够用时换用空心爱心风格，形成 4 色 × 2 风格 = 8 组可区分标识。
         /// </summary>
         private static readonly Color[] BondColors =
         {
-            new Color(0.95f, 0.25f, 0.30f), // 红
-            new Color(0.98f, 0.60f, 0.15f), // 橙
+            new Color(0.95f, 0.28f, 0.30f), // 红
             new Color(0.95f, 0.85f, 0.20f), // 黄
-            new Color(0.35f, 0.80f, 0.35f), // 绿
-            new Color(0.25f, 0.75f, 0.80f), // 青
-            new Color(0.35f, 0.55f, 0.95f), // 蓝
-            new Color(0.70f, 0.45f, 0.95f), // 紫
-            new Color(0.95f, 0.45f, 0.70f)  // 粉
+            new Color(0.25f, 0.80f, 0.85f), // 青
+            new Color(0.85f, 0.40f, 0.90f)  // 品红
         };
+
+        /// <summary>爱心风格数：0=实心，1=空心。与颜色组合扩大可区分的配对数。</summary>
+        private const int BondStyleCount = 2;
 
         /// <summary>
         /// 获取心灵纽带伴侣；无纽带、未启用 Biotech 或数据异常时返回 null。
@@ -231,18 +231,33 @@ namespace AutoEverything.AutoMarkPawn
         }
 
         /// <summary>
-        /// 获取一对伴侣的配对颜色：以双方 thingIDNumber 的无序组合做键，
-        /// 双方算出同一个索引，因此同色爱心即为同一对伴侣。
+        /// 获取一对伴侣的配对颜色：双方 thingIDNumber 无序组合算出同一索引，
+        /// 因此同色同风格的爱心必然属于同一对伴侣。
         /// </summary>
         public static Color GetBondColor(Pawn pawn, Pawn partner)
         {
-            if (partner == null)
-                return BondColors[0];
+            int index = GetBondPairIndex(pawn, partner);
+            return BondColors[index % BondColors.Length];
+        }
+
+        /// <summary>是否使用空心爱心：配对索引超过颜色数量后，每组颜色以空心/实心交替区分。</summary>
+        public static bool UseBondOutline(Pawn pawn, Pawn partner)
+        {
+            int index = GetBondPairIndex(pawn, partner);
+            return (index / BondColors.Length) % BondStyleCount == 1;
+        }
+
+        /// <summary>
+        /// 配对索引：先用颜色铺满一轮，再用空心/实心风格区分下一轮。
+        /// </summary>
+        private static int GetBondPairIndex(Pawn pawn, Pawn partner)
+        {
+            if (partner == null) return 0;
 
             int a = Mathf.Min(pawn.thingIDNumber, partner.thingIDNumber);
             int b = Mathf.Max(pawn.thingIDNumber, partner.thingIDNumber);
             uint key = (uint)a * 397u ^ (uint)b;
-            return BondColors[(int)(key % (uint)BondColors.Length)];
+            return (int)(key % (uint)(BondColors.Length * BondStyleCount));
         }
 
         /// <summary>
