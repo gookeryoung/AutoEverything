@@ -169,7 +169,8 @@ Reassigns every 3000 ticks and on colonist count change. Existing policies with 
 When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_AutoDrugPolicy>
 
   <!-- ===== Bottom-bar Auto panel (MainTabWindow_AutoEverything) ===== -->
-  <AE_CFG_Tab_Person>Auto Tier</AE_CFG_Tab_Person>
+  <AE_CFG_Tab_Rating>Auto Tier</AE_CFG_Tab_Rating>
+  <AE_CFG_Tab_Person>Role Group</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>Auto Work</AE_CFG_Tab_Work>
   <AE_CFG_Tab_Mark>High Value</AE_CFG_Tab_Mark>
   <AE_CFG_Tab_Carry>Carry &amp; Drugs</AE_CFG_Tab_Carry>

@@ -170,6 +170,7 @@
 取消勾选仅停止自动执行，已分配的政策不变。</AE_TT_AutoDrugPolicy>
 
   <!-- ===== 底部【自动】主面板（MainTabWindow_AutoEverything） ===== -->
+  <AE_CFG_Tab_Rating>人员评级</AE_CFG_Tab_Rating>
   <AE_CFG_Tab_Person>人员自动</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>工作自动</AE_CFG_Tab_Work>
   <AE_CFG_Tab_Mark>高价值自动</AE_CFG_Tab_Mark>

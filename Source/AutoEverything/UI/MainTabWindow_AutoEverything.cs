@@ -16,7 +16,8 @@ namespace AutoEverything.UI
     /// 并按功能分标签页展示各自的"判定配置项"——这些配置直接参与判定规则计算。
     ///
     /// 标签页：
-    /// - 人员自动：殖民者栏角色分组 + 评级开关 + 评级判定阈值 + 战斗价值公式权重
+    /// - 人员评级：评级开关 + 评级判定阈值 + 战斗价值公式权重
+    /// - 人员自动：殖民者栏角色分组
     /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
     ///   （角色分组配置只保留在人员自动页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
     /// - 高价值自动：标记开关 + 高价值档位阈值 + 扫描范围 + 通知
@@ -30,7 +31,7 @@ namespace AutoEverything.UI
     public class MainTabWindow_AutoEverything : MainTabWindow
     {
         // 当前标签页（static：关闭再打开保持上次位置）
-        private static ConfigTab currentTab = ConfigTab.Person;
+        private static ConfigTab currentTab = ConfigTab.Rating;
 
         // ScrollView 滚动位置与内容高度缓存：
         // 内容高度按上一帧实际绘制高度更新，避免新增配置项时底部被裁剪
@@ -44,16 +45,27 @@ namespace AutoEverything.UI
         private enum ConfigTab
         {
             None = -1,
-            Person = 0,
-            Work = 1,
-            Mark = 2,
-            Carry = 3,
-            General = 4
+            Rating = 0,
+            Person = 1,
+            Work = 2,
+            Mark = 3,
+            Carry = 4,
+            General = 5
         }
 
         private static readonly Color ColorLabelGray = new Color(0.70f, 0.70f, 0.70f);
         private static readonly Color ColorSectionTitle = new Color(0.88f, 0.88f, 0.92f);
         private static readonly Color ColorSectionBg = new Color(0.18f, 0.20f, 0.22f, 0.45f);
+
+        // 配置块卡片：边框 + 隔行底色，让相邻配置块在视觉上明确分离
+        private static readonly Color ColorSectionBorder = new Color(0.52f, 0.56f, 0.62f, 0.85f);
+        private static readonly Color ColorRowAlt = new Color(1f, 1f, 1f, 0.035f);
+
+        // 配置块边框绘制所需的几何信息（同一时刻只绘制一个配置块，无需栈）
+        private const float SectionIndent = 10f;
+        private static float sectionTopY;
+        private static float sectionLeftX;
+        private static float sectionFullWidth = -1f;
 
         // 角色标题颜色：与殖民者栏分组框边框颜色保持一致，便于玩家对照
         private static readonly Color ColorRoleFront = new Color(0.85f, 0.30f, 0.25f);
@@ -127,6 +139,9 @@ namespace AutoEverything.UI
 
             switch (currentTab)
             {
+                case ConfigTab.Rating:
+                    DrawRatingTab(l);
+                    break;
                 case ConfigTab.Person:
                     DrawPersonTab(l);
                     break;
@@ -163,7 +178,7 @@ namespace AutoEverything.UI
 
         private void DrawTabBar(Rect rect)
         {
-            int count = 5;
+            int count = 6;
             float gap = 4f;
             float width = (rect.width - gap * (count - 1)) / count;
 
@@ -189,6 +204,7 @@ namespace AutoEverything.UI
         {
             switch (tab)
             {
+                case ConfigTab.Rating: return "AE_CFG_Tab_Rating";
                 case ConfigTab.Person: return "AE_CFG_Tab_Person";
                 case ConfigTab.Work: return "AE_CFG_Tab_Work";
                 case ConfigTab.Mark: return "AE_CFG_Tab_Mark";
@@ -215,53 +231,49 @@ namespace AutoEverything.UI
             DrawCheckbox(l, "AE_GroupByRole", ref AESettings.groupColonistBarByRole, "AE_TT_GroupByRole");
             DrawRuleText(l, "AE_CFG_RoleGroup_ForceHint".Translate());
 
+            // 角色条件以表格排布：左侧角色名固定列，右侧四个条件列等宽对齐，
+            // 各角色行的复选框位置完全一致（条件数不足的行留空列，保持列对齐）
             // 前排：食尸鬼 / 格斗者特质 / 格斗专家职位
-            DrawRoleTitle(l, "AE_RoleGroup_Front", ColorRoleFront);
             bool[] front = { AESettings.groupFrontGhoul, AESettings.groupBrawlerTraitFront, AESettings.groupFrontMeleeSpecialist };
-            DrawCheckboxRow(l,
+            DrawRoleRow(l, ColorRoleFront, "AE_RoleGroup_Front", front,
                 new[] { "AE_CFG_Front_Ghoul", "AE_CFG_Front_Brawler", "AE_CFG_Front_MeleeSpecialist" },
-                front,
-                new[] { "AE_TT_Front_Ghoul", "AE_TT_Front_Brawler", "AE_TT_Front_MeleeSpecialist" });
+                new[] { "AE_TT_Front_Ghoul", "AE_TT_Front_Brawler", "AE_TT_Front_MeleeSpecialist" }, false);
             AESettings.groupFrontGhoul = front[0];
             AESettings.groupBrawlerTraitFront = front[1];
             AESettings.groupFrontMeleeSpecialist = front[2];
 
             // 射手：射击专家职位 / 乱开枪特质 / 猎人
-            DrawRoleTitle(l, "AE_RoleGroup_Shooter", ColorRoleShooter);
             bool[] shooter = { AESettings.groupShooterSpecialist, AESettings.groupTriggerHappyShooter, AESettings.groupHunterAsShooter };
-            DrawCheckboxRow(l,
+            DrawRoleRow(l, ColorRoleShooter, "AE_RoleGroup_Shooter", shooter,
                 new[] { "AE_CFG_Shooter_Specialist", "AE_CFG_Shooter_TriggerHappy", "AE_CFG_Shooter_Hunter" },
-                shooter,
-                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_TriggerHappy", "AE_TT_Shooter_Hunter" });
+                new[] { "AE_TT_Shooter_Specialist", "AE_TT_Shooter_TriggerHappy", "AE_TT_Shooter_Hunter" }, true);
             AESettings.groupShooterSpecialist = shooter[0];
             AESettings.groupTriggerHappyShooter = shooter[1];
             AESettings.groupHunterAsShooter = shooter[2];
 
             // 工人：无法施暴 / 生产专家职位 / 工作狂特质 / 生产兴趣双火
-            DrawRoleTitle(l, "AE_RoleGroup_Worker", ColorRoleWorker);
             bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist,
                 AESettings.groupIndustriousWorker, AESettings.groupCraftingPassionWorker };
-            DrawCheckboxRow(l,
+            DrawRoleRow(l, ColorRoleWorker, "AE_RoleGroup_Worker", worker,
                 new[] { "AE_CFG_Worker_Pacifist", "AE_CFG_Worker_ProductionSpecialist",
                     "AE_CFG_Worker_Industrious", "AE_CFG_Worker_CraftingMajor" },
-                worker,
                 new[] { "AE_TT_Worker_Pacifist", "AE_TT_Worker_ProductionSpecialist",
-                    "AE_TT_Worker_Industrious", "AE_TT_Worker_CraftingMajor" });
+                    "AE_TT_Worker_Industrious", "AE_TT_Worker_CraftingMajor" }, false);
             AESettings.groupWorkerPacifist = worker[0];
             AESettings.groupWorkerProductionSpecialist = worker[1];
             AESettings.groupIndustriousWorker = worker[2];
             AESettings.groupCraftingPassionWorker = worker[3];
 
             // 贸易：道德家职位 / 俊俏/沉鱼落雁特质 / 社交兴趣双火
-            DrawRoleTitle(l, "AE_RoleGroup_Trade", ColorRoleTrade);
             bool[] trade = { AESettings.groupTradeMoralist, AESettings.groupBeautyTrade, AESettings.groupSocialPassionTrade };
-            DrawCheckboxRow(l,
+            DrawRoleRow(l, ColorRoleTrade, "AE_RoleGroup_Trade", trade,
                 new[] { "AE_CFG_Trade_Moralist", "AE_CFG_Trade_Beauty", "AE_CFG_Trade_SocialMajor" },
-                trade,
-                new[] { "AE_TT_Trade_Moralist", "AE_TT_Trade_Beauty", "AE_TT_Trade_SocialMajor" });
+                new[] { "AE_TT_Trade_Moralist", "AE_TT_Trade_Beauty", "AE_TT_Trade_SocialMajor" }, true);
             AESettings.groupTradeMoralist = trade[0];
             AESettings.groupBeautyTrade = trade[1];
             AESettings.groupSocialPassionTrade = trade[2];
+
+            l.Gap(2f);
 
             // 技能/兴趣补充判定：强制条件未命中时的兜底规则
             DrawRuleText(l, "AE_CFG_RoleGroup_SkillTitle".Translate());
@@ -292,10 +304,15 @@ namespace AutoEverything.UI
             }
         }
 
+        /// <summary>人员自动页：只负责殖民者栏角色分组。</summary>
         private static void DrawPersonTab(Listing_Standard l)
         {
             DrawRoleGroupSection(l);
+        }
 
+        /// <summary>人员评级页：评级开关 + 评级判定阈值 + 战斗价值公式权重。</summary>
+        private static void DrawRatingTab(Listing_Standard l)
+        {
             BeginSection(l, "AE_CFG_Section_PersonSwitch".Translate());
 
             DrawCheckbox(l, "AE_AutoTierTag", ref AESettings.autoTierTag, "AE_TT_AutoTierTag");
@@ -325,9 +342,16 @@ namespace AutoEverything.UI
             DrawIntSlider(l, "AE_CFG_TierSSWorkMajors", ref AESettings.tierSSWorkMajors, 1, 6, "AE_TT_TierSSWorkMajors");
             DrawIntSlider(l, "AE_CFG_TierSSSWorkMajors", ref AESettings.tierSSSWorkMajors, 1, 6, "AE_TT_TierSSSWorkMajors");
 
-            DrawCheckbox(l, "AE_CFG_SpecialTalentToS", ref AESettings.tierSpecialTalentToS, "AE_TT_SpecialTalentToS");
-            DrawCheckbox(l, "AE_CFG_BeautySocialToS", ref AESettings.tierBeautySocialToS, "AE_TT_BeautySocialToS");
-            DrawCheckbox(l, "AE_CFG_SpouseExemption", ref AESettings.spouseExemptionEnabled, "AE_TT_SpouseExemption");
+            // 三个布尔规则并排成三列表格，选项纵向对齐、节省垂直空间
+            bool[] toggles = { AESettings.tierSpecialTalentToS, AESettings.tierBeautySocialToS,
+                AESettings.spouseExemptionEnabled };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_SpecialTalentToS", "AE_CFG_BeautySocialToS", "AE_CFG_SpouseExemption" },
+                toggles,
+                new[] { "AE_TT_SpecialTalentToS", "AE_TT_BeautySocialToS", "AE_TT_SpouseExemption" });
+            AESettings.tierSpecialTalentToS = toggles[0];
+            AESettings.tierBeautySocialToS = toggles[1];
+            AESettings.spouseExemptionEnabled = toggles[2];
 
             if (AESettings.spouseExemptionEnabled)
             {
@@ -581,19 +605,29 @@ namespace AutoEverything.UI
         // ===================== 通用绘制工具 =====================
 
         /// <summary>
-        /// Section 标题行：浅色底 + 标题文字，配合 EndSection 形成分组。
+        /// Section 起始：记录内容区左上角与整体宽度，随后缩进绘制标题。
+        /// 缩进用 Indent（只移动 curX）+ ColumnWidth 收窄双管齐下，
+        /// 否则 GetRect 仍按整幅宽度取矩形，内容会压到右侧边框上。
+        /// 边框由 EndSection 在内容绘制完成后统一描边。
         /// </summary>
         private static void BeginSection(Listing_Standard l, string title)
         {
-            l.Gap(6f);
-            Rect titleRect = l.GetRect(24f);
+            l.Gap(8f);
+            sectionTopY = l.CurHeight;
+            // GetRect(0) 只用于读取当前左边界，不推进布局（maxOneColumn 下不会新开列）
+            sectionLeftX = l.GetRect(0f).x;
+            sectionFullWidth = l.ColumnWidth;
+            l.Indent(SectionIndent);
+            l.ColumnWidth = sectionFullWidth - SectionIndent * 2f;
+
+            Rect titleRect = l.GetRect(22f);
             Widgets.DrawBoxSolid(titleRect, ColorSectionBg);
 
             bool prevWrap = Text.WordWrap;
             Text.WordWrap = false;
             GUI.color = ColorSectionTitle;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(new Rect(titleRect.x + 6f, titleRect.y, titleRect.width - 6f, titleRect.height),
+            Widgets.Label(new Rect(titleRect.x + 4f, titleRect.y, titleRect.width - 4f, titleRect.height),
                 "• " + title);
             Text.Anchor = TextAnchor.UpperLeft;
             GUI.color = Color.white;
@@ -601,10 +635,23 @@ namespace AutoEverything.UI
             l.Gap(4f);
         }
 
+        /// <summary>
+        /// Section 结束：在内容外圈描边形成卡片，然后恢复缩进与列宽。
+        /// 边框必须最后绘制，若先画底色会把已绘制的内容盖住。
+        /// </summary>
         private static void EndSection(Listing_Standard l)
         {
             l.Gap(4f);
-            l.GapLine();
+            Rect border = new Rect(sectionLeftX, sectionTopY, sectionFullWidth,
+                l.CurHeight - sectionTopY);
+            Color prevColor = GUI.color;
+            GUI.color = ColorSectionBorder;
+            Widgets.DrawBox(border, 1);
+            GUI.color = prevColor;
+
+            l.ColumnWidth = sectionFullWidth;
+            l.Outdent(SectionIndent);
+            l.Gap(6f);
         }
 
         /// <summary>
@@ -624,16 +671,29 @@ namespace AutoEverything.UI
         }
 
         /// <summary>
-        /// 整数滑块：单行"标签: 数值" + 单行滑块，节省垂直空间。
+        /// 单行滑条：左侧"标签: 数值"，右侧滑条，左右对齐成两列。
+        /// 相比旧的"标签一行 + 滑条一行"节省约一半垂直空间。
+        /// </summary>
+        private static Rect DrawSliderRow(Listing_Standard l, string label, string tooltipKey)
+        {
+            Rect row = l.GetRect(24f);
+            // 标签宽度按内容自适应，但最多占 60%，保证滑条仍有可操作宽度
+            float labelWidth = Mathf.Min(Text.CalcSize(label).x + 6f, row.width * 0.6f);
+            Rect labelRect = new Rect(row.x, row.y, labelWidth, row.height);
+            DrawGrayLabel(labelRect, label);
+            if (tooltipKey != null) TooltipHandler.TipRegion(labelRect, tooltipKey.Translate());
+
+            float sliderX = row.x + labelWidth + 12f;
+            return new Rect(sliderX, row.y + 4f, Mathf.Max(60f, row.xMax - sliderX), row.height - 8f);
+        }
+
+        /// <summary>
+        /// 整数滑块：单行"标签: 数值" + 右侧滑条。
         /// </summary>
         private static void DrawIntSlider(Listing_Standard l, string labelKey, ref int value,
             int min, int max, string tooltipKey)
         {
-            Rect labelRect = l.GetRect(22f);
-            DrawGrayLabel(labelRect, labelKey.Translate() + ": " + value);
-            if (tooltipKey != null) TooltipHandler.TipRegion(labelRect, tooltipKey.Translate());
-
-            Rect sliderRect = l.GetRect(20f);
+            Rect sliderRect = DrawSliderRow(l, labelKey.Translate() + ": " + value, tooltipKey);
             int prev = value;
             value = Mathf.RoundToInt(Widgets.HorizontalSlider(sliderRect, value, min, max));
             if (value != prev) settingsDirty = true;
@@ -646,11 +706,7 @@ namespace AutoEverything.UI
             int minSec, int maxSec, string tooltipKey)
         {
             int sec = Mathf.RoundToInt(ticks / 60f);
-            Rect labelRect = l.GetRect(22f);
-            DrawGrayLabel(labelRect, labelKey.Translate() + ": " + sec + "s");
-            if (tooltipKey != null) TooltipHandler.TipRegion(labelRect, tooltipKey.Translate());
-
-            Rect sliderRect = l.GetRect(20f);
+            Rect sliderRect = DrawSliderRow(l, labelKey.Translate() + ": " + sec + "s", tooltipKey);
             int newSec = Mathf.RoundToInt(Widgets.HorizontalSlider(sliderRect, sec, minSec, maxSec));
             if (newSec != sec)
             {
@@ -665,11 +721,7 @@ namespace AutoEverything.UI
         private static void DrawFloatSlider(Listing_Standard l, string labelKey, ref float value,
             float min, float max, string format, string tooltipKey)
         {
-            Rect labelRect = l.GetRect(22f);
-            DrawGrayLabel(labelRect, labelKey.Translate() + ": " + value.ToString(format));
-            if (tooltipKey != null) TooltipHandler.TipRegion(labelRect, tooltipKey.Translate());
-
-            Rect sliderRect = l.GetRect(20f);
+            Rect sliderRect = DrawSliderRow(l, labelKey.Translate() + ": " + value.ToString(format), tooltipKey);
             float prev = value;
             value = Widgets.HorizontalSlider(sliderRect, value, min, max);
             if (!Mathf.Approximately(value, prev)) settingsDirty = true;
@@ -713,71 +765,97 @@ namespace AutoEverything.UI
             l.Gap(2f);
         }
 
-        /// <summary>
-        /// 角色标题：左侧彩色竖条 + 角色名（与殖民者栏分组框颜色一致）。
-        /// </summary>
-        private static void DrawRoleTitle(Listing_Standard l, string labelKey, Color color)
-        {
-            Rect rect = l.GetRect(20f);
-            Widgets.DrawBoxSolid(new Rect(rect.x, rect.y + 4f, 4f, 12f), color);
+        // 角色表格列宽：左侧角色名列固定，右侧四个条件列等宽，
+        // 所有角色行共用同一列宽，复选框纵向严格对齐
+        private const float RoleRowHeight = 26f;
+        private const float RoleNameWidth = 76f;
+        private const int RoleConditionColumns = 4;
+        private const float RoleCellGap = 6f;
 
+        /// <summary>
+        /// 角色条件行：一行 = 一个角色，角色名为首列，条件勾选项依次排入固定列。
+        /// 与殖民者栏分组框同色的竖条用于对照。
+        /// </summary>
+        private static void DrawRoleRow(Listing_Standard l, Color color, string roleKey,
+            bool[] values, string[] labelKeys, string[] tooltipKeys, bool alternate)
+        {
+            Rect row = l.GetRect(RoleRowHeight);
+            if (alternate) Widgets.DrawBoxSolid(row, ColorRowAlt);
+
+            // 角色名列
+            Widgets.DrawBoxSolid(new Rect(row.x, row.y + 5f, 3f, row.height - 10f), color);
             bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleLeft;
             GUI.color = color;
-            Widgets.Label(new Rect(rect.x + 8f, rect.y, rect.width - 8f, rect.height), labelKey.Translate());
+            Widgets.Label(new Rect(row.x + 8f, row.y, RoleNameWidth - 8f, row.height), roleKey.Translate());
             GUI.color = Color.white;
-            Text.Anchor = TextAnchor.UpperLeft;
+            Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;
+
+            float cellWidth = (row.width - RoleNameWidth - RoleCellGap * RoleConditionColumns)
+                / RoleConditionColumns;
+            for (int i = 0; i < values.Length && i < RoleConditionColumns; i++)
+            {
+                Rect cell = new Rect(row.x + RoleNameWidth + i * (cellWidth + RoleCellGap),
+                    row.y, cellWidth, row.height);
+                DrawCheckboxCell(cell, labelKeys[i], ref values[i],
+                    tooltipKeys != null && i < tooltipKeys.Length ? tooltipKeys[i] : null);
+            }
         }
 
         /// <summary>
-        /// 单行多列勾选框：用于"逐角色强制定位条件"，比逐行 Checkbox 节省垂直空间。
-        /// 注意：原生 CheckboxLabeled 只有 24x24 复选框本体可点击，中文标签较长时
-        /// 玩家点在文字上会"勾选不到"；这里手动绘制复选框，并让整格标签区域都可点击。
+        /// 单行多列勾选框：等宽分列形成表格，用于布尔规则并排展示。
         /// </summary>
         private static void DrawCheckboxRow(Listing_Standard l, string[] labelKeys, bool[] values,
             string[] tooltipKeys)
         {
-            const float boxSize = 24f;
-            Rect row = l.GetRect(boxSize);
+            Rect row = l.GetRect(RoleRowHeight);
             int count = labelKeys.Length;
             const float gap = 8f;
             float width = (row.width - gap * (count - 1)) / count;
 
             for (int i = 0; i < count; i++)
             {
-                Rect cell = new Rect(row.x + i * (width + gap), row.y, width, boxSize);
-                bool prev = values[i];
-
-                // 悬停高亮提示整格可点击
-                Widgets.DrawHighlightIfMouseover(cell);
-
-                // 复选框本体
-                Widgets.Checkbox(new Vector2(cell.x, cell.y), ref values[i]);
-
-                // 标签区域：同时支持点击切换（整格可点）
-                Rect labelRect = new Rect(cell.x + boxSize + 2f, cell.y,
-                    Mathf.Max(0f, cell.width - boxSize - 2f), cell.height);
-                bool prevWrap = Text.WordWrap;
-                TextAnchor prevAnchor = Text.Anchor;
-                Text.WordWrap = false;
-                Text.Anchor = TextAnchor.MiddleLeft;
-                Widgets.Label(labelRect, labelKeys[i].Translate());
-                Text.Anchor = prevAnchor;
-                Text.WordWrap = prevWrap;
-
-                if (Widgets.ButtonInvisible(labelRect))
-                {
-                    values[i] = !values[i];
-                }
-
-                if (tooltipKeys != null && i < tooltipKeys.Length && tooltipKeys[i] != null)
-                {
-                    TooltipHandler.TipRegion(cell, tooltipKeys[i].Translate());
-                }
-                if (values[i] != prev) settingsDirty = true;
+                Rect cell = new Rect(row.x + i * (width + gap), row.y, width, row.height);
+                DrawCheckboxCell(cell, labelKeys[i], ref values[i],
+                    tooltipKeys != null && i < tooltipKeys.Length ? tooltipKeys[i] : null);
             }
+        }
+
+        /// <summary>
+        /// 单元格勾选框：复选框本体 + 可点击的整格标签。
+        /// 原生 CheckboxLabeled 只有 24x24 复选框本体可点击，中文标签较长时
+        /// 玩家点在文字上会"勾选不到"；这里手动绘制并让整格标签区域都可点击。
+        /// </summary>
+        private static void DrawCheckboxCell(Rect cell, string labelKey, ref bool value, string tooltipKey)
+        {
+            bool prev = value;
+            Widgets.DrawHighlightIfMouseover(cell);
+            Widgets.Checkbox(new Vector2(cell.x, cell.y + Mathf.Floor((cell.height - 24f) * 0.5f)),
+                ref value);
+
+            Rect labelRect = new Rect(cell.x + 26f, cell.y,
+                Mathf.Max(0f, cell.width - 26f), cell.height);
+            bool prevWrap = Text.WordWrap;
+            TextAnchor prevAnchor = Text.Anchor;
+            Text.WordWrap = false;
+            Text.Anchor = TextAnchor.MiddleLeft;
+            Widgets.Label(labelRect, labelKey.Translate());
+            Text.Anchor = prevAnchor;
+            Text.WordWrap = prevWrap;
+
+            if (Widgets.ButtonInvisible(labelRect))
+            {
+                value = !value;
+            }
+
+            if (!string.IsNullOrEmpty(tooltipKey))
+            {
+                TooltipHandler.TipRegion(cell, tooltipKey.Translate());
+            }
+            if (value != prev) settingsDirty = true;
         }
 
         /// <summary>
