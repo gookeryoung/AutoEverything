@@ -53,8 +53,9 @@
   <AE_TT_DefaultSortMode>Configures how the "Auto Tier Tag" reorders the colonist bar after applying tier prefix.
 None: only apply prefix, keep original order.
 By Tier+Value: S->A->B->C->D->X left to right, within tier by combat value desc (recommended).
-By Role+Tier: Brawler -> Shooter -> Doctor -> Worker -> Pacifist -> Hunter -> Leader, within role by tier desc.
-By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may take front spots).</AE_TT_DefaultSortMode>
+By Role+Tier: Front -> Shooter -> Worker -> Trade -> Other, within role by tier desc.
+By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may take front spots).
+Note: when "group colonist bar by role" is enabled this setting is ignored; rating always reorders by role groups to keep them contiguous.</AE_TT_DefaultSortMode>
   <AE_SortMode_None>None (keep order)</AE_SortMode_None>
   <AE_SortMode_ByTierThenValue>By Tier+Value (SABCDX)</AE_SortMode_ByTierThenValue>
   <AE_SortMode_ByRoleThenTier>By Role+Tier</AE_SortMode_ByRoleThenTier>

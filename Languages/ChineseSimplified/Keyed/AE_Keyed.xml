@@ -53,8 +53,9 @@
   <AE_TT_DefaultSortMode>配置"人员自动评级"应用评级后殖民者栏的重排方式。
 不排序：仅应用前缀，保留原顺序。
 按评级+价值：S→A→B→C→D→X 从左到右，同档内按战斗价值降序（推荐）。
-按角色+评级：格斗者→射手→医生→工人→无暴力者→猎人→领袖，同角色内按评级降序。
-按战斗价值：纯按战斗价值降序，不区分评级（高技能和平主义者可能挤占前列）。</AE_TT_DefaultSortMode>
+按角色+评级：前排→射手→工人→贸易→其他，同组内按评级降序。
+按战斗价值：纯按战斗价值降序，不区分评级（高技能和平主义者可能挤占前列）。
+注意：开启"殖民者栏角色分组"后忽略此项，评级时统一按角色分组顺序重排，避免打乱分组。</AE_TT_DefaultSortMode>
   <AE_SortMode_None>不排序（保留原顺序）</AE_SortMode_None>
   <AE_SortMode_ByTierThenValue>按评级+价值（SABCDX）</AE_SortMode_ByTierThenValue>
   <AE_SortMode_ByRoleThenTier>按角色+评级</AE_SortMode_ByRoleThenTier>

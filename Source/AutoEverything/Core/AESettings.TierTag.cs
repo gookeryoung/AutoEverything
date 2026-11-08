@@ -134,37 +134,22 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 应用评级前缀并按评级降序重排殖民者栏。
-        /// 排序规则：先按 CombatTier 降序（S→A→B→C→D→X），同档内按 ComputeCombatValue 降序。
-        /// S 档殖民者排在殖民者栏左侧，X 档（和平主义者等）排在最右。
-        /// </summary>
-        public static int ApplyTierTagsAndSortByValue()
-        {
-            int touched = ApplyTierTagsToAllPawns();
-            ReorderColonistBar(ComparePawnByTierThenValueDesc);
-            return touched;
-        }
-
-        /// <summary>
-        /// 应用评级前缀并按角色分组重排殖民者栏。
-        /// 角色顺序：Brawler → Shooter → Doctor → Worker → Pacifist → Hunter → Leader → Default。
-        /// 同角色内按评级降序（S→A→B→C→D→X），同档内按战斗价值降序。
-        /// </summary>
-        public static int ApplyTierTagsAndSortByRole()
-        {
-            int touched = ApplyTierTagsToAllPawns();
-            ReorderColonistBar(ComparePawnByRoleThenValueDesc);
-            return touched;
-        }
-
-        /// <summary>
         /// 应用评级前缀并按 Mod 选项配置的默认排序重排殖民者栏。
         /// 玩家在 Mod 选项里配置 defaultSortMode，ITab "全局人物评级"按钮调用此方法。
         /// None 模式下仅应用前缀不重排。
+        /// 例外：殖民者栏角色分组开启时，线性排序会打乱分组连续性，
+        /// 统一改为"角色分组优先 + 组内评级降序"，与人员自动页的分组顺序对齐。
         /// </summary>
         public static int ApplyTierTagsWithDefaultSort()
         {
             int touched = ApplyTierTagsToAllPawns();
+
+            if (groupColonistBarByRole)
+            {
+                ReorderColonistBar(ComparePawnByRoleThenValueDesc);
+                return touched;
+            }
+
             switch (defaultSortMode)
             {
                 case ColonistBarSortMode.None:
