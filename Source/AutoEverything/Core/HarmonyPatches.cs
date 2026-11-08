@@ -345,7 +345,7 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在头像左下角绘制爱心标识：标记已建立心灵纽带的伴侣。
-            /// 同一对伴侣使用相同的「颜色 + 风格」组合（4 色 × 空心/实心 2 风格），
+            /// 同一对伴侣使用相同的「颜色 + 风格」组合（4 色 × 实心/斜线剖面 2 风格），
             /// 因此同色同风格爱心即为伴侣；悬停显示伴侣名字。
             /// 位置在原版底部状态图标带之上，避免遮挡；尺寸为原上限 16 的一倍增大（32）。
             /// </summary>
@@ -366,8 +366,8 @@ namespace AutoEverything.Core
                 Color heartColor = RoleIconDef.GetBondColor(pawn, partner);
                 heartColor.a = prevColor.a;
                 GUI.color = heartColor;
-                Texture2D tex = RoleIconDef.UseBondOutline(pawn, partner)
-                    ? RoleIconTextures.BondOutline
+                Texture2D tex = RoleIconDef.UseBondHatched(pawn, partner)
+                    ? RoleIconTextures.BondHatched
                     : RoleIconTextures.Bond;
                 GUI.DrawTexture(heartRect, tex);
                 GUI.color = prevColor;

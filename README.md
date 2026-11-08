@@ -350,7 +350,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **远程判定扩展**：用户决策（2026-07-21）"乱开枪+射击单火"（S 档高价值）也标记为远程，原仅"乱开枪+射击双火"（SS/SSS 档）标记
 - **工人与手工关系**：用户决策（2026-08-13）新增"工人"图标判定为 OR（工作狂或严重神经质），"手工"保留 AND（工作狂+神经质）。Crafter 是 Worker 的子集——工作狂+神经质的殖民者会同时显示手工（精确组合）+ 工人（工作倾向）两个图标
 - **叠加显示与尺寸**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个）。尺寸参考原版殖民者栏文化职位图标（`ColonistBarColonistDrawer.DrawIcons`）：上限 16×16 像素（略小于原版 20），图标总宽按头像可用宽度自适应缩小，图标越多单个越小，且随 `ColonistBar.Scale` 同步缩放，避免遮挡头像
-- **心灵纽带爱心**：已建立心灵纽带的伴侣在头像左下角显示爱心（32×32，为原上限 16 的一倍增大，便于辨认），伴侣双方同时显示；**同一对伴侣使用相同的「颜色 + 风格」组合**——4 种高对比色（红/黄/青/品红）× 2 种风格（实心 `Role_Bond.png` / 空心 `Role_BondOutline.png`），同色同风格即为伴侣；悬停爱心显示伴侣名字。仅在启用 Biotech 时判定，纽带建立/断裂即时反映；爱心位于原版底部状态/职位图标带上方，且绘制在角色图标之前，优先保证原版与角色图标可见
+- **心灵纽带爱心**：已建立心灵纽带的伴侣在头像左下角显示爱心（32×32，为原上限 16 的一倍增大，便于辨认），伴侣双方同时显示；**同一对伴侣使用相同的「颜色 + 风格」组合**——4 种高对比色（红/黄/青/品红）× 2 种风格（实心 `Role_Bond.png` / 斜线剖面 `Role_BondHatched.png`），同色同风格即为伴侣；悬停爱心显示伴侣名字。仅在启用 Biotech 时判定，纽带建立/断裂即时反映；爱心位于原版底部状态/职位图标带上方，且绘制在角色图标之前，优先保证原版与角色图标可见
 - **纹理资源**：64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Tough.png` 等路径，由用户从 iconfont 下载的 SVG 转换而来。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
 - **降级策略**：若外部 PNG 加载失败（ContentFinder 返回 null），自动回退到程序化生成的 32×32 像素纹理，确保 MOD 仍能正常运行
 - **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新
@@ -749,7 +749,7 @@ VSE 扩展的 6 种 passion 按以下规则统一处理：
 |------|------|------|
 | Preview | `About/Preview.png` | Steam Workshop 预览图 |
 | ModIcon | `Textures/UI/Icons/ModIcon.png` | Mod 列表图标（`About.xml` 的 `modIconPath`） |
-| 角色图标 | `Textures/UI/Icons/Role/Role_{Tough,Ranged,Worker,Trader,Bond,BondOutline,Frontline,Default}.png` | 殖民者栏头像图标与分组框标签图标 |
+| 角色图标 | `Textures/UI/Icons/Role/Role_{Tough,Ranged,Worker,Trader,Bond,BondHatched,Frontline,Default}.png` | 殖民者栏头像图标与分组框标签图标 |
 
 ### 资源加载时机
 

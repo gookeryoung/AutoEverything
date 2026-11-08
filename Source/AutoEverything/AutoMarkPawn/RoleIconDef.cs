@@ -205,7 +205,7 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>
         /// 心灵纽带配对配色：同色同风格 = 同一对伴侣。
         /// 用户决策（2026-11-08）：颜色过多反而难区分，只保留 4 种高对比色；
-        /// 颜色不够用时换用空心爱心风格，形成 4 色 × 2 风格 = 8 组可区分标识。
+        /// 颜色不够用时改用斜线剖面风格（空心辨识度不足，改为斜线），形成 4 色 × 2 风格 = 8 组可区分标识。
         /// </summary>
         private static readonly Color[] BondColors =
         {
@@ -215,7 +215,7 @@ namespace AutoEverything.AutoMarkPawn
             new Color(0.85f, 0.40f, 0.90f)  // 品红
         };
 
-        /// <summary>爱心风格数：0=实心，1=空心。与颜色组合扩大可区分的配对数。</summary>
+        /// <summary>爱心风格数：0=实心，1=斜线剖面。与颜色组合扩大可区分的配对数。</summary>
         private const int BondStyleCount = 2;
 
         /// <summary>
@@ -240,8 +240,8 @@ namespace AutoEverything.AutoMarkPawn
             return BondColors[index % BondColors.Length];
         }
 
-        /// <summary>是否使用空心爱心：配对索引超过颜色数量后，每组颜色以空心/实心交替区分。</summary>
-        public static bool UseBondOutline(Pawn pawn, Pawn partner)
+        /// <summary>是否使用斜线剖面爱心：配对索引超过颜色数量后，每组颜色以斜线/实心交替区分。</summary>
+        public static bool UseBondHatched(Pawn pawn, Pawn partner)
         {
             int index = GetBondPairIndex(pawn, partner);
             return (index / BondColors.Length) % BondStyleCount == 1;
