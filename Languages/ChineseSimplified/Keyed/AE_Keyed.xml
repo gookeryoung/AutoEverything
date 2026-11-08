@@ -177,7 +177,7 @@
   <AE_CFG_Tab_Carry>携带用药</AE_CFG_Tab_Carry>
   <AE_CFG_Tab_General>通用调试</AE_CFG_Tab_General>
 
-  <AE_CFG_Section_PersonSwitch>人员自动开关</AE_CFG_Section_PersonSwitch>
+  <AE_CFG_Section_PersonSwitch>评级开关</AE_CFG_Section_PersonSwitch>
   <AE_CFG_Section_TierRules>评级判定阈值</AE_CFG_Section_TierRules>
   <AE_CFG_Section_WorkSwitch>工作自动开关</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>工作分配判定</AE_CFG_Section_WorkRules>

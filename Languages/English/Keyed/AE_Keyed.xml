@@ -176,7 +176,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Tab_Carry>Carry &amp; Drugs</AE_CFG_Tab_Carry>
   <AE_CFG_Tab_General>General</AE_CFG_Tab_General>
 
-  <AE_CFG_Section_PersonSwitch>Auto tier switches</AE_CFG_Section_PersonSwitch>
+  <AE_CFG_Section_PersonSwitch>Tier switches</AE_CFG_Section_PersonSwitch>
   <AE_CFG_Section_TierRules>Tier rules</AE_CFG_Section_TierRules>
   <AE_CFG_Section_WorkSwitch>Auto work switches</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>Work allocation rules</AE_CFG_Section_WorkRules>
