@@ -52,6 +52,9 @@ namespace AutoEverything.Core
         public static bool showRoleIconWorker = true;
         public static bool showRoleIconTrader = true;
 
+        // 伤痕标识：头像右下角竖条，1 条 = 1 处永久疤痕/缺失部位，最多 3 条
+        public static bool showScarBars = true;
+
         public static bool iconRangedShootingSpecialist = true;
         public static bool iconRangedTriggerHappy = true;
         public static bool iconRangedShootingMajor = true;
@@ -98,6 +101,7 @@ namespace AutoEverything.Core
             LookCompat(ref showRoleIconRanged, "showRoleIconRanged", true);
             LookCompat(ref showRoleIconWorker, "showRoleIconWorker", true);
             LookCompat(ref showRoleIconTrader, "showRoleIconTrader", true);
+            LookCompat(ref showScarBars, "showScarBars", true);
             LookCompat(ref iconRangedShootingSpecialist, "iconRangedShootingSpecialist", true);
             LookCompat(ref iconRangedTriggerHappy, "iconRangedTriggerHappy", true);
             LookCompat(ref iconRangedShootingMajor, "iconRangedShootingMajor", true);

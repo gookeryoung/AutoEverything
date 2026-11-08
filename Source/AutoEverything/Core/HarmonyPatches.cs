@@ -256,6 +256,14 @@ namespace AutoEverything.Core
             /// <summary>右上角内缩留白（未缩放，像素）：避免图标紧贴殖民者栏边框</summary>
             private const float BaseMargin = 2f;
 
+            /// <summary>伤痕竖条尺寸（未缩放，像素）：条数最多 3，总宽远小于头像宽度</summary>
+            private const float ScarBarWidth = 3f;
+            private const float ScarBarHeight = 6f;
+            private const float ScarBarSpacing = 2f;
+
+            /// <summary>1×1 白色纹理：伤痕竖条用 GUI.color 染色，避免新增贴图资源</summary>
+            private static readonly Texture2D ScarBarTexture = CreateWhiteTexture();
+
             public static void Postfix(Rect rect, Pawn colonist)
             {
                 if (!AESettings.enabled || !AESettings.autoMarkPawn) return;
@@ -267,6 +275,7 @@ namespace AutoEverything.Core
                 {
                     DrawRoleIcons(rect, colonist);
                     DrawBondHeart(rect, colonist);
+                    DrawScarBars(rect, colonist);
                 }
                 catch (Exception ex)
                 {
@@ -338,6 +347,53 @@ namespace AutoEverything.Core
                 GUI.color = heartColor;
                 GUI.DrawTexture(heartRect, RoleIconTextures.Bond);
                 GUI.color = prevColor;
+            }
+
+            /// <summary>
+            /// 在头像右下角绘制伤痕竖条：1 条 = 1 处永久疤痕/缺失部位，最多 3 条。
+            ///
+            /// 位置与角色图标对称：角色图标占右上角，爱心占左下角，伤痕条占右下角（互不重叠）。
+            /// 从右往左排列，与右上角角色图标方向一致；条数越多向左延伸，不影响头像中心。
+            /// 颜色琥珀橙（<see cref="ScarMarkDef.BarColor"/>），与深红角色图标区分。
+            /// </summary>
+            private static void DrawScarBars(Rect rect, Pawn pawn)
+            {
+                if (!AESettings.showScarBars) return;
+
+                int bars = ScarMarkDef.GetBarCount(pawn);
+                if (bars <= 0) return;
+
+                // 缩放系数与原版/角色图标一致，随 ColonistBar.Scale 同步
+                float scale = rect.width / ColonistBar.BaseSize.x;
+                float barWidth = ScarBarWidth * scale;
+                float barHeight = ScarBarHeight * scale;
+                float spacing = ScarBarSpacing * scale;
+                float margin = BaseMargin * scale;
+
+                float y = rect.yMax - barHeight - margin;
+                float x = rect.xMax - barWidth - margin;
+
+                Color prevColor = GUI.color;
+                Color barColor = ScarMarkDef.BarColor;
+                // 跟随殖民者栏条目透明度（换图/拖拽时与原版图标一起淡出）
+                barColor.a = prevColor.a;
+                GUI.color = barColor;
+                for (int i = 0; i < bars; i++)
+                {
+                    GUI.DrawTexture(new Rect(x, y, barWidth, barHeight), ScarBarTexture);
+                    x -= barWidth + spacing;
+                }
+                GUI.color = prevColor;
+            }
+
+            /// <summary>程序化生成 1×1 白色纹理（RGBA32），供 GUIScale 染色绘制纯色块。</summary>
+            private static Texture2D CreateWhiteTexture()
+            {
+                Texture2D tex = new Texture2D(1, 1, TextureFormat.RGBA32, false);
+                tex.SetPixel(0, 0, Color.white);
+                tex.Apply();
+                tex.filterMode = FilterMode.Point;
+                return tex;
             }
         }
 

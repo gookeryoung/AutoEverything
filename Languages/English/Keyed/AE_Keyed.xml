@@ -262,6 +262,9 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_RoleIcon_Worker>Worker</AE_RoleIcon_Worker>
   <AE_RoleIcon_Trader>Trader</AE_RoleIcon_Trader>
 
+  <AE_RoleIcon_ScarBars>Scar marks (bottom-right bars)</AE_RoleIcon_ScarBars>
+  <AE_TT_ScarBars>Draws amber bars at the portrait's bottom-right corner: 1 bar = 1 permanent scar or missing body part, capped at 3 bars; multiple scars on the same body part count once.</AE_TT_ScarBars>
+
   <AE_RoleIconCond_Tough>Tough trait (-50% damage)</AE_RoleIconCond_Tough>
   <AE_RoleIconCond_ShootingSpecialist>Shooting specialist</AE_RoleIconCond_ShootingSpecialist>
   <AE_RoleIconCond_TriggerHappy>Trigger-happy</AE_RoleIconCond_TriggerHappy>

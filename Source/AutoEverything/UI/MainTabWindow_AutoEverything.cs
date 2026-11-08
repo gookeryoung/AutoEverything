@@ -365,6 +365,10 @@ namespace AutoEverything.UI
             AESettings.iconTraderSocialMajor = trader[2];
             AESettings.iconTraderSocialLevel8 = trader[3];
 
+            // 伤痕标识：头像右下角竖条，1 条 = 1 处永久疤痕/缺失部位，超过 3 处只画 3 条
+            l.Gap(2f);
+            DrawCheckbox(l, "AE_RoleIcon_ScarBars", ref AESettings.showScarBars, "AE_TT_ScarBars");
+
             DrawRuleText(l, "AE_CFG_RoleIconRules_Hint".Translate());
             EndSection(l);
 
