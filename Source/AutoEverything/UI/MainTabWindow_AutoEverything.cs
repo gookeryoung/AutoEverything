@@ -386,7 +386,6 @@ namespace AutoEverything.UI
         {
             Rect row = l.GetRect(IconRuleRowHeight);
             if (alternate) Widgets.DrawBoxSolid(row, ColorRowAlt);
-            Widgets.DrawHighlightIfMouseover(row);
 
             bool changed = false;
             bool prevEnabled = enabled;
@@ -436,7 +435,9 @@ namespace AutoEverything.UI
                 Text.Font = GameFont.Small;
             }
 
-            TooltipHandler.TipRegion(row, "AE_TT_RoleIconToggle".Translate());
+            // Tooltip 只挂在左侧开关区域：整行挂提示会再次暗示"整行可点"
+            TooltipHandler.TipRegion(new Rect(row.x, row.y, IconRuleNameWidth, row.height),
+                "AE_TT_RoleIconToggle".Translate());
             return changed;
         }
 
@@ -1132,9 +1133,10 @@ namespace AutoEverything.UI
         }
 
         /// <summary>
-        /// 单元格勾选框：复选框本体 + 可点击的整格标签。
+        /// 单元格勾选框：复选框本体 + 可点击的标签文字（不含右侧空白）。
         /// 原生 CheckboxLabeled 只有 24x24 复选框本体可点击，中文标签较长时
-        /// 玩家点在文字上会"勾选不到"；这里手动绘制并让整格标签区域都可点击。
+        /// 玩家点在文字上会"勾选不到"；这里手动绘制，并让"复选框 + 文字"可点击，
+        /// 空白区域保持不可点，避免误触发本格左侧的复选框。
         /// </summary>
         private static void DrawCheckboxCell(Rect cell, string labelKey, ref bool value, string tooltipKey)
         {
@@ -1143,13 +1145,17 @@ namespace AutoEverything.UI
             Widgets.Checkbox(new Vector2(cell.x, cell.y + Mathf.Floor((cell.height - 24f) * 0.5f)),
                 ref value);
 
+            string label = labelKey.Translate();
+            // 命中区只覆盖复选框和实际文字宽度：整格右侧空白不再可点，
+            // 否则玩家点在空白处会切换本格左侧的复选框，看起来像"点到了别的项"
+            float textWidth = Text.CalcSize(label).x + 6f;
             Rect labelRect = new Rect(cell.x + 26f, cell.y,
-                Mathf.Max(0f, cell.width - 26f), cell.height);
+                Mathf.Min(Mathf.Max(0f, cell.width - 26f), textWidth), cell.height);
             bool prevWrap = Text.WordWrap;
             TextAnchor prevAnchor = Text.Anchor;
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleLeft;
-            Widgets.Label(labelRect, labelKey.Translate());
+            Widgets.Label(new Rect(cell.x + 26f, cell.y, Mathf.Max(0f, cell.width - 26f), cell.height), label);
             Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;
 

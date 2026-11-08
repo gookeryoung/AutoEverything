@@ -244,16 +244,17 @@ namespace AutoEverything.Core
         public static class ColonistBarDrawer_DrawColonist_Patch
         {
             /// <summary>
-            /// 单个图标尺寸（像素）：殖民者栏头像约 48x48，图标 16x16 占右上角约 1/3，醒目不喧宾夺主。
-            /// 多个图标横向排列时总宽 = N × IconSize + (N-1) × IconSpacing，最多 4 个 = 70px。
+            /// 单个图标基准尺寸（未缩放，像素）：原版殖民者栏文化职位图标上限为
+            /// BaseIconMaxSize=20 且按头像可用宽度自适应缩小（ColonistBarColonistDrawer.DrawIcons）。
+            /// 这里取更小的 16 作为上限，图标越多继续按可用宽度缩小，总宽不超出头像宽度。
             /// </summary>
-            private const float IconSize = 16f;
+            private const float BaseIconSize = 16f;
 
-            /// <summary>图标间距（像素）：横向排列时图标之间的留白</summary>
-            private const float IconSpacing = 2f;
+            /// <summary>图标间距（未缩放，像素）：横向排列时图标之间的留白</summary>
+            private const float BaseIconSpacing = 2f;
 
-            /// <summary>右上角内缩留白（像素）：避免图标紧贴殖民者栏边框</summary>
-            private const float Margin = 2f;
+            /// <summary>右上角内缩留白（未缩放，像素）：避免图标紧贴殖民者栏边框</summary>
+            private const float BaseMargin = 2f;
 
             public static void Postfix(Rect rect, Pawn colonist)
             {
@@ -279,25 +280,39 @@ namespace AutoEverything.Core
             /// 坐标系：
             /// - rect 由 RimWorld 内部计算（已含 UI Scale 缩放），直接用 rect.xMax/yMin 定位右上角
             /// - 第一个图标右上角对齐（内缩 Margin 留白），后续图标向左排列
+            ///
+            /// 尺寸：与原版 DrawIcons 一致，图标总宽不超过头像宽度，图标越多单个越小；
+            /// 上限 16px（略小于原版文化职位图标的 20px），避免头像被大面积遮挡。
             /// </summary>
             private static void DrawRoleIcons(Rect rect, Pawn pawn)
             {
                 List<RoleIconDef.RoleIconType> icons = RoleIconDef.GetRoleIcons(pawn);
                 if (icons.Count == 0) return;
 
+                // 缩放系数取自头像实际宽度，使图标随 ColonistBar.Scale 同步缩放（与原版一致）
+                float scale = rect.width / ColonistBar.BaseSize.x;
+                float margin = BaseMargin * scale;
+                float spacing = BaseIconSpacing * scale;
+                float available = rect.width - margin * 2f - spacing * (icons.Count - 1);
+                float iconSize = Mathf.Min(BaseIconSize * scale, available / icons.Count);
+                if (iconSize <= 0f) return;
+
                 // 从右往左排列：第一个图标在最右
-                float x = rect.xMax - IconSize - Margin;
-                float y = rect.yMin + Margin;
+                float x = rect.xMax - iconSize - margin;
+                float y = rect.yMin + margin;
 
                 Color prevColor = GUI.color;
                 for (int i = 0; i < icons.Count; i++)
                 {
                     RoleIconDef.RoleIconType type = icons[i];
-                    GUI.color = RoleIconDef.GetColor(type);
+                    Color iconColor = RoleIconDef.GetColor(type);
+                    // 跟随殖民者栏条目透明度（换图/拖拽时与原版图标一起淡出）
+                    iconColor.a = prevColor.a;
+                    GUI.color = iconColor;
                     Texture2D tex = RoleIconTextures.Get(type);
-                    Rect iconRect = new Rect(x, y, IconSize, IconSize);
+                    Rect iconRect = new Rect(x, y, iconSize, iconSize);
                     GUI.DrawTexture(iconRect, tex);
-                    x -= IconSize + IconSpacing;
+                    x -= iconSize + spacing;
                 }
                 GUI.color = prevColor;
             }
