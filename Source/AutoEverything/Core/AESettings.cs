@@ -322,22 +322,16 @@ namespace AutoEverything.Core
 
         /// <summary>
         /// "殖民者栏按角色分组"开关变化回调：
-        /// - 开启：先按角色+评级重排 displayOrder（同角色相邻是分组连续的前提），
-        ///   ReorderColonistBar 内部已调 MarkColonistsDirty 触发重建分组
-        /// - 关闭：仅 MarkColonistsDirty，原生重建后保留原生地图/远行队分组
+        /// 开关切换统一只置脏：分组自愈（ColonistBarRoleGrouping）会在角色序回退时
+        /// 按角色重写 displayOrder，已分组成员保持原相对顺序，不覆盖玩家组内拖拽；
+        /// 不再调用 ReorderColonistBar，避免其"仅自由殖民者"的名单口径挤乱
+        /// 含奴隶/食尸鬼分组的组内顺序。
         /// </summary>
         public static void OnGroupByRoleChanged()
         {
             if (Current.ProgramState != ProgramState.Playing || Find.ColonistBar == null) return;
 
-            if (groupColonistBarByRole)
-            {
-                ReorderColonistBar(ComparePawnByRoleThenTierDesc);
-            }
-            else
-            {
-                Find.ColonistBar.MarkColonistsDirty();
-            }
+            Find.ColonistBar.MarkColonistsDirty();
         }
 
         /// <summary>

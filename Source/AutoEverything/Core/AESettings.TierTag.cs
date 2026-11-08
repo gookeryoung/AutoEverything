@@ -137,8 +137,8 @@ namespace AutoEverything.Core
         /// 应用评级前缀并按 Mod 选项配置的默认排序重排殖民者栏。
         /// 玩家在 Mod 选项里配置 defaultSortMode，ITab "全局人物评级"按钮调用此方法。
         /// None 模式下仅应用前缀不重排。
-        /// 例外：殖民者栏角色分组开启时，线性排序会打乱分组连续性，
-        /// 统一改为"角色分组优先 + 组内评级降序"，与人员自动页的分组顺序对齐。
+        /// 例外：殖民者栏角色分组开启时不再重排——分组连续性由角色分组自愈保证，
+        /// 组内顺序完全保留玩家拖拽结果，评分变化不应打乱已排好的人员顺序。
         /// </summary>
         public static int ApplyTierTagsWithDefaultSort()
         {
@@ -146,7 +146,10 @@ namespace AutoEverything.Core
 
             if (groupColonistBarByRole)
             {
-                ReorderColonistBar(ComparePawnByRoleThenTierDesc);
+                // 这里绝不能调用 ReorderColonistBar：它只重排自由殖民者，
+                // 而分组还包含奴隶/食尸鬼，重写自由殖民者的 displayOrder 会把
+                // 这些成员的组内位置挤乱。改为置脏让分组自愈（仅在角色序回退时重写）
+                if (Find.ColonistBar != null) Find.ColonistBar.MarkColonistsDirty();
                 return touched;
             }
 

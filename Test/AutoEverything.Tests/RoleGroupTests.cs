@@ -194,6 +194,7 @@ namespace AutoEverything.Tests
             failures += RunLayoutTests(ref total);
             failures += RunGroupAssignTests(ref total);
             failures += RunReorderTests(ref total);
+            failures += RunNewMemberOrderTests(ref total);
             Console.WriteLine($"[RoleGroupTests] 含顺序/变更检测/布局契约共 {total - failures}/{total} passed");
             return failures;
         }
@@ -244,6 +245,76 @@ namespace AutoEverything.Tests
 
             Console.WriteLine($"[RoleGroupReorderTests] 累计 {total - failures}/{total} passed");
             return failures;
+        }
+
+        /// <summary>
+        /// 新增成员追加规则（ComputeRoleStableOrderWithNew）数据契约：
+        /// 1. 已分组成员保持当前相对顺序（玩家拖拽结果不被评分/重新分组覆盖）；
+        /// 2. 新增成员一律追加到同角色组末尾，且按 arrivalKeys（加入时间）升序；
+        /// 3. 新增成员不会因为评级/条目位置插到组内中间；
+        /// 4. 跨地图/远行队块各自独立；
+        /// 5. 空占位条目不分配排序值。
+        /// </summary>
+        public static int RunNewMemberOrderTests(ref int total)
+        {
+            int failures = 0;
+            int noRole = RoleGroupLayout.NoRoleOrder;
+
+            // 已分组成员顺序保持，新成员追加到组尾
+            CheckStableOrderWithNew(new[] { 0, 0, 0 }, new[] { 0, 0, 0 },
+                new[] { false, false, true }, new[] { 10, 20, 30 }, new[] { 0, 1, 2 },
+                "新成员追加到组尾", ref failures, ref total);
+
+            // 多个新成员按加入时间升序，而不是按条目位置
+            CheckStableOrderWithNew(new[] { 0, 0, 0 }, new[] { 0, 0, 0 },
+                new[] { false, true, true }, new[] { 10, 30, 15 }, new[] { 0, 2, 1 },
+                "多个新成员按加入时间排序", ref failures, ref total);
+
+            // 新成员即使条目位置靠前也不能插进已分组成员的中间
+            CheckStableOrderWithNew(new[] { 0, 0, 0 }, new[] { 0, 0, 0 },
+                new[] { true, false, false }, new[] { 99, 10, 20 }, new[] { 2, 0, 1 },
+                "新成员不插队到已分组之前", ref failures, ref total);
+
+            // 不同角色组互不影响：新成员只追加到自己所在角色组末尾
+            CheckStableOrderWithNew(new[] { 0, 0, 0, 0 }, new[] { 0, 1, 1, 1 },
+                new[] { false, false, true, false }, new[] { 10, 20, 30, 40 }, new[] { 0, 1, 3, 2 },
+                "新成员按角色组分别追加", ref failures, ref total);
+
+            // 跨块各自独立：每块新成员都追加到该块内角色组尾
+            CheckStableOrderWithNew(new[] { 0, 0, 1, 1 }, new[] { 0, 0, 0, 0 },
+                new[] { false, true, false, true }, new[] { 10, 20, 30, 40 }, new[] { 0, 1, 2, 3 },
+                "跨地图块各自追加", ref failures, ref total);
+
+            // 空占位条目不分配排序值
+            CheckStableOrderWithNew(new[] { 0, 1 }, new[] { noRole, 0 },
+                new[] { false, false }, new[] { 0, 10 }, new[] { -1, 0 },
+                "空占位条目不分配排序值（新增版本）", ref failures, ref total);
+
+            // 全部为新增（例如换档后极端情况）按加入时间排序
+            CheckStableOrderWithNew(new[] { 0, 0, 0 }, new[] { 0, 0, 0 },
+                new[] { true, true, true }, new[] { 30, 10, 20 }, new[] { 2, 0, 1 },
+                "全部新增时按加入时间排序", ref failures, ref total);
+
+            Console.WriteLine($"[RoleGroupNewMemberTests] 累计 {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static void CheckStableOrderWithNew(int[] origGroups, int[] roleOrders, bool[] isNew,
+            int[] arrivalKeys, int[] expected, string label, ref int failures, ref int total)
+        {
+            total++;
+            int[] actual = new int[origGroups.Length];
+            RoleGroupLayout.ComputeRoleStableOrderWithNew(origGroups, roleOrders, isNew, arrivalKeys, actual);
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (actual[i] != expected[i])
+                {
+                    Console.WriteLine($"  FAIL ComputeRoleStableOrderWithNew {label}: " +
+                                      $"expected [{string.Join(",", expected)}], got [{string.Join(",", actual)}]");
+                    failures++;
+                    return;
+                }
+            }
         }
 
         private static void CheckRequiresReorder(int[] origGroups, int[] roleOrders, bool expected,

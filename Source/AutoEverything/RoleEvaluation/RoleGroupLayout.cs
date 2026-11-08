@@ -110,6 +110,63 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
+        /// 在 <see cref="ComputeRoleStableOrder"/> 基础上区分"已分组"与"新增进入该角色组"的成员：
+        /// - 已分组成员保持当前相对顺序（玩家在组内拖拽的结果不被评分/重新分组覆盖）；
+        /// - 新增成员一律追加到同角色组末尾，并按 arrivalKeys 升序排列，
+        ///   避免新成员按评级插进组内已排好的顺序。
+        /// arrivalKeys 用 Pawn.thingIDNumber（创建序号）近似"加入时间"。
+        /// newOrders 会整体重置为 -1；空占位条目不分配排序值。
+        /// 纯函数，便于单元测试。
+        /// </summary>
+        public static void ComputeRoleStableOrderWithNew(IReadOnlyList<int> origGroups,
+            IReadOnlyList<int> roleOrders, IReadOnlyList<bool> isNew,
+            IReadOnlyList<int> arrivalKeys, IList<int> newOrders)
+        {
+            if (origGroups == null || roleOrders == null || isNew == null
+                || arrivalKeys == null || newOrders == null) return;
+
+            for (int k = 0; k < newOrders.Count; k++) newOrders[k] = -1;
+
+            int count = origGroups.Count < roleOrders.Count ? origGroups.Count : roleOrders.Count;
+            if (isNew.Count < count) count = isNew.Count;
+            if (arrivalKeys.Count < count) count = arrivalKeys.Count;
+
+            int seq = 0;
+            int i = 0;
+            while (i < count)
+            {
+                int blockEnd = i + 1;
+                while (blockEnd < count && origGroups[blockEnd] == origGroups[i]) blockEnd++;
+
+                for (int rank = 0; rank < RoleGroupCount; rank++)
+                {
+                    // 已分组成员：保持条目当前相对顺序（即玩家拖拽后的顺序）
+                    for (int k = i; k < blockEnd; k++)
+                    {
+                        if (isNew[k] || roleOrders[k] != rank) continue;
+                        newOrders[k] = seq++;
+                    }
+
+                    // 新增成员：逐个取到达序最小的未分配条目，追加到组尾
+                    while (true)
+                    {
+                        int best = -1;
+                        for (int k = i; k < blockEnd; k++)
+                        {
+                            if (!isNew[k] || roleOrders[k] != rank) continue;
+                            if (newOrders[k] >= 0) continue;
+                            if (best < 0 || arrivalKeys[k] < arrivalKeys[best]) best = k;
+                        }
+                        if (best < 0) break;
+                        newOrders[best] = seq++;
+                    }
+                }
+
+                i = blockEnd;
+            }
+        }
+
+        /// <summary>
         /// 计算每个条目重编后的 group id，返回组数（最大组 id + 1）。
         ///
         /// 规则与原生一致：原生 group 变化（跨地图/远行队）、角色序变化或空占位条目都会开新组。

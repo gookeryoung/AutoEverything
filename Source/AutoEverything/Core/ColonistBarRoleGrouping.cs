@@ -61,6 +61,18 @@ namespace AutoEverything.Core
         // group id → 五类角色；由 Apply 每次重编分组时重建，供绘制标签使用
         private static readonly Dictionary<int, RoleGroup> groupRoles = new Dictionary<int, RoleGroup>();
 
+        // 已确认进入分组的成员标识（Pawn.thingIDNumber + 角色组）。
+        // 用于区分"已分组"与"新增进入分组"：新成员追加到组尾并按加入时间排序，
+        // 而不是按评级插进组内已有顺序。运行时维护，读档/换档时清空重建基线。
+        private static readonly HashSet<long> knownGroupMembers = new HashSet<long>();
+
+        // 本轮新增成员（Pawn.thingIDNumber），用于在已分组与新增人员之间绘制分隔符；
+        // 玩家手动拖动该分组内任意殖民者后清除（视为已核对）。
+        private static readonly HashSet<int> newPawnIds = new HashSet<int>();
+
+        // 当前 Game 引用：换档/读档后重置成员识别状态，避免 thingIDNumber 跨存档串用
+        private static Game lastGame;
+
         // 右键拖拽状态：-1 表示未拖拽；拖动分组框标签/边框开始，释放到目标分组完成换序
         private static int draggingFromGroup = -1;
         private static RoleGroup draggingRole;
@@ -112,13 +124,17 @@ namespace AutoEverything.Core
         /// </summary>
         public static void TryApply(ColonistBar __instance)
         {
+            ResetIfGameChanged();
             if (recacheDepth > 1) return;
             if (!pendingApply) return;
             if (!AESettings.enabled || !AESettings.groupColonistBarByRole)
             {
-                // 关闭时清空映射与拖拽状态，避免残留 group id 命中错误标签
+                // 关闭时清空映射与拖拽状态，避免残留 group id 命中错误标签；
+                // 同时清空成员识别，下次开启时以当前顺序重建基线（不重排已有人员）
                 pendingApply = false;
                 groupRoles.Clear();
+                knownGroupMembers.Clear();
+                newPawnIds.Clear();
                 draggingFromGroup = -1;
                 return;
             }
@@ -157,6 +173,12 @@ namespace AutoEverything.Core
             var origGroups = new int[count];
             var roleOrders = new int[count];
             var roles = new RoleGroup[count];
+            var isNew = new bool[count];
+            var arrivalKeys = new int[count];
+            var membershipKeys = new long[count];
+            // 首次分组（空地图/新档/刚开启分组）：把当前顺序作为基线，不把所有人当新增
+            bool baseline = knownGroupMembers.Count == 0;
+            bool anyNew = false;
             for (int i = 0; i < count; i++)
             {
                 ColonistBar.Entry entry = entries[i];
@@ -166,6 +188,15 @@ namespace AutoEverything.Core
                     roles[i] = RoleDetector.DetectRoleGroup(entry.pawn);
                     // 可视顺序：使用玩家右键拖拽后的自定义顺序，重新分组时保持该顺序
                     roleOrders[i] = AESettings.GetRoleGroupOrder(roles[i]);
+                    // 成员标识 = Pawn + 角色组：角色变化后进入新组也视为"新增进入分组"
+                    membershipKeys[i] = MembershipKey(entry.pawn.thingIDNumber, roles[i]);
+                    // 加入时间用 thingIDNumber（创建序号）近似，保证新成员组内按时间追加
+                    arrivalKeys[i] = entry.pawn.thingIDNumber;
+                    if (!baseline && !knownGroupMembers.Contains(membershipKeys[i]))
+                    {
+                        isNew[i] = true;
+                        anyNew = true;
+                    }
                 }
                 else
                 {
@@ -174,15 +205,16 @@ namespace AutoEverything.Core
                 }
             }
 
-            // 自愈：新殖民者加入时 displayOrder 为默认值 0，会被插到地图块最前面，
-            // 同一角色被切成两段 → 殖民者栏出现两个同名分组框（如两个"射手"）。
-            // 这里先按角色重写 displayOrder 并置脏，下一次 recache 重建出连续条目后再分组；
-            // 本次返回可避免用尚未重排的条目算出错误分组。
-            // 注意：玩家在组内拖拽不会触发（同组拖拽始终连续），不会覆盖玩家的组内顺序。
-            if (RoleGroupLayout.RequiresRoleReorder(origGroups, roleOrders))
+            // 自愈：新殖民者加入时其条目会落在原生块尾（displayOrder 未设置哨兵），
+            // 但若曾点过"全局人物评级"，可能被评级插进组内中间，导致同一角色被切成两段。
+            // 这里按角色重写 displayOrder 并置脏，下一次 recache 重建出连续条目后再分组。
+            // 关键：已分组成员保持当前相对顺序（玩家在组内拖拽的结果），
+            // 新增成员一律追加到组尾，并按加入时间排序——绝不按评级插队。
+            if (anyNew || RoleGroupLayout.RequiresRoleReorder(origGroups, roleOrders))
             {
                 var reordered = new int[count];
-                RoleGroupLayout.ComputeRoleStableOrder(origGroups, roleOrders, reordered);
+                RoleGroupLayout.ComputeRoleStableOrderWithNew(
+                    origGroups, roleOrders, isNew, arrivalKeys, reordered);
                 bool changed = false;
                 for (int i = 0; i < count; i++)
                 {
@@ -194,6 +226,18 @@ namespace AutoEverything.Core
                     changed = true;
                 }
 
+                // 本轮已处理完毕：全部记为已分组，下一轮不再判定为新增；
+                // 分隔符标记独立保存，供绘制期使用，玩家手动拖动后清除
+                RememberMembership(membershipKeys, count);
+                if (anyNew)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (!isNew[i] || entries[i].pawn == null) continue;
+                        newPawnIds.Add(entries[i].pawn.thingIDNumber);
+                    }
+                }
+
                 if (changed)
                 {
                     // 清空映射避免这一帧用旧 group id 画错标签
@@ -202,6 +246,11 @@ namespace AutoEverything.Core
                     bar.MarkColonistsDirty();
                     return;
                 }
+            }
+            else if (baseline)
+            {
+                // 基线轮也要登记成员，否则下一轮会把所有人误判为新增并重排到组尾
+                RememberMembership(membershipKeys, count);
             }
 
             var newGroups = new int[count];
@@ -269,6 +318,122 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
+        /// 换档/读档检测：thingIDNumber 只在单个存档内唯一，跨存档复用会误判成员身份。
+        /// 检测到 Game 变了就清空成员识别（下一轮以当前条码顺序重建基线）并强制重新分组。
+        /// </summary>
+        private static void ResetIfGameChanged()
+        {
+            Game game = Current.Game;
+            if (ReferenceEquals(game, lastGame)) return;
+            lastGame = game;
+            knownGroupMembers.Clear();
+            newPawnIds.Clear();
+            groupRoles.Clear();
+            pendingApply = true;
+        }
+
+        /// <summary>
+        /// 成员标识 = Pawn.thingIDNumber + 角色组（RoleGroup 为 0..4，3 bit 足够）。
+        /// 角色变化后进入新组时标识不同，因此同样按"新增进入分组"处理。
+        /// </summary>
+        private static long MembershipKey(int pawnId, RoleGroup role)
+        {
+            return ((long)pawnId << 3) | (byte)role;
+        }
+
+        /// <summary>
+        /// 登记本轮所有成员为已分组。0 表示空占位条目（无 Pawn），不登记。
+        /// </summary>
+        private static void RememberMembership(long[] membershipKeys, int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                if (membershipKeys[i] == 0L) continue;
+                knownGroupMembers.Add(membershipKeys[i]);
+            }
+        }
+
+        /// <summary>
+        /// ColonistBar.Reorder 的 Postfix：玩家在分组内手动拖动换序后，
+        /// 视为已核对该组的新增人员，清除该组的新增标记（分隔符随之消失）。
+        /// </summary>
+        public static void OnUserReorder(int entryGroup)
+        {
+            if (newPawnIds.Count == 0) return;
+            ColonistBar bar = Find.ColonistBar;
+            if (bar == null) return;
+
+            List<ColonistBar.Entry> entries =
+                (List<ColonistBar.Entry>)fiCachedEntries.GetValue(bar);
+            if (entries == null) return;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].group != entryGroup) continue;
+                Pawn pawn = entries[i].pawn;
+                if (pawn == null) continue;
+                newPawnIds.Remove(pawn.thingIDNumber);
+            }
+        }
+
+        /// <summary>
+        /// 在"已分组成员"与"新增进入分组的人员"之间绘制竖向分隔符。
+        /// 新增人员始终排在组尾，因此每个分组最多出现一条分隔线；
+        /// 竖线画在两组头像之间的空隙里，避免遮挡头像。
+        /// </summary>
+        private static void DrawNewMemberSeparator(ColonistBar bar, int group, Rect visibleRect, float scale)
+        {
+            if (newPawnIds.Count == 0) return;
+
+            List<ColonistBar.Entry> entries =
+                (List<ColonistBar.Entry>)fiCachedEntries.GetValue(bar);
+            List<Vector2> drawLocs = (List<Vector2>)fiCachedDrawLocs.GetValue(bar);
+            if (entries == null || drawLocs == null) return;
+
+            int count = entries.Count < drawLocs.Count ? entries.Count : drawLocs.Count;
+            int prevIndex = -1;
+            bool prevNew = false;
+            for (int i = 0; i < count; i++)
+            {
+                if (entries[i].group != group)
+                {
+                    prevIndex = -1;
+                    continue;
+                }
+
+                Pawn pawn = entries[i].pawn;
+                bool isNew = pawn != null && newPawnIds.Contains(pawn.thingIDNumber);
+
+                // 只在"上一个不是新增、当前是新增"的边界画线
+                if (isNew && prevIndex >= 0 && !prevNew)
+                {
+                    float x;
+                    if (Mathf.Abs(drawLocs[i].y - drawLocs[prevIndex].y) < 0.5f)
+                    {
+                        // 同一行：取两槽空隙中点（槽间距 = BaseSize.x + 24，均乘 scale）
+                        x = (drawLocs[prevIndex].x + drawLocs[i].x) * 0.5f
+                            + ColonistBar.BaseSize.x * scale * 0.5f;
+                    }
+                    else
+                    {
+                        // 新增段换行：画在新行首个新增头像左侧
+                        x = drawLocs[i].x - 4f;
+                    }
+                    float lineHeight = Mathf.Max(0f,
+                        visibleRect.height - RoleGroupLayout.HeaderHeight);
+                    Rect line = new Rect(x - 1f,
+                        visibleRect.y + RoleGroupLayout.HeaderHeight,
+                        2f,
+                        lineHeight);
+                    Widgets.DrawBoxSolid(line, new Color(1f, 1f, 1f, 0.65f));
+                }
+
+                prevIndex = i;
+                prevNew = isNew;
+            }
+        }
+
+        /// <summary>
         /// DrawGroupFrame 的 Postfix：在原生分组框上叠加"图标 + 文字"标签与彩色边界，
         /// 并处理右键拖拽换序。分组框 id 来自 Apply 的 groupRoles 映射，未映射（空地图占位）不绘制。
         /// 坐标说明：GroupFrameRect 与 Event.mousePosition 均处于同一 GUI Group 内，可直接命中测试。
@@ -309,6 +474,7 @@ namespace AutoEverything.Core
 
             DrawBorder(visibleRect, role, group);
             DrawTag(rect, scale, role);
+            DrawNewMemberSeparator(bar, group, visibleRect, scale);
 
             // 头部整条标签带都可作为拖拽把手：悬停时提示右键拖动，降低发现成本
             Rect headerRect = new Rect(visibleRect.x, visibleRect.y, visibleRect.width,

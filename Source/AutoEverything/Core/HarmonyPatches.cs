@@ -149,6 +149,12 @@ namespace AutoEverything.Core
                             postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
                                 nameof(ColonistBarRoleGrouping.HandleGroupInputOnGui)));
                     }
+
+                    // Reorder Postfix：玩家在分组内手动拖动换序后清除该组"新增人员"标记，
+                    // 让已分组/新增之间的分隔符随核对动作消失
+                    harmony.Patch(AccessTools.Method(typeof(ColonistBar), nameof(ColonistBar.Reorder)),
+                        postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
+                            nameof(ColonistBarRoleGrouping.OnUserReorder)));
                 }
                 else
                 {
