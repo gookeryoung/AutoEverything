@@ -7,7 +7,7 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.AutoCarry
 {
     /// <summary>
-    /// 携带物品策略：根据玩家在【自动】→ 携带用药面板中的逐项配置生成携带清单。
+    /// 携带物品策略：根据玩家在【自动】→ 自动携带面板中的逐项配置生成携带清单。
     ///
     /// 设计意图：
     /// - 食物：按"总量 + 优先级"选取具体食物类型，避免每种食物都带 x3 撑爆背包

@@ -159,7 +159,7 @@
   <AE_CFG_Tab_Person>人员自动</AE_CFG_Tab_Person>
   <AE_CFG_Tab_Work>工作自动</AE_CFG_Tab_Work>
   <AE_CFG_Tab_Mark>高价值自动</AE_CFG_Tab_Mark>
-  <AE_CFG_Tab_Carry>携带用药</AE_CFG_Tab_Carry>
+  <AE_CFG_Tab_Carry>自动携带</AE_CFG_Tab_Carry>
   <AE_CFG_Tab_General>通用调试</AE_CFG_Tab_General>
 
   <AE_CFG_Section_PersonSwitch>评级开关</AE_CFG_Section_PersonSwitch>
@@ -168,10 +168,9 @@
   <AE_CFG_Section_WorkRules>工作分配判定</AE_CFG_Section_WorkRules>
   <AE_CFG_Section_MarkSwitch>高价值标记开关</AE_CFG_Section_MarkSwitch>
   <AE_CFG_Section_MarkRules>高价值判定</AE_CFG_Section_MarkRules>
-  <AE_CFG_Section_Carry>自动携带</AE_CFG_Section_Carry>
-  <AE_CFG_Section_CarryDrugs>携带药品（成瘾品）</AE_CFG_Section_CarryDrugs>
-  <AE_CFG_Section_CarrySerums>携带强化血清</AE_CFG_Section_CarrySerums>
-  <AE_CFG_Section_Drug>自动用药方案</AE_CFG_Section_Drug>
+  <AE_CFG_Section_CarryFood>食物</AE_CFG_Section_CarryFood>
+  <AE_CFG_Section_CarryDrugs>成瘾品</AE_CFG_Section_CarryDrugs>
+  <AE_CFG_Section_CarrySerums>强化血清</AE_CFG_Section_CarrySerums>
   <AE_CFG_Section_General>通用</AE_CFG_Section_General>
   <AE_CFG_Section_ColonistBar>殖民者栏</AE_CFG_Section_ColonistBar>
 
@@ -207,6 +206,7 @@
   <AE_CFG_MarkTier>高价值档位阈值</AE_CFG_MarkTier>
   <AE_CFG_MarkRulesHint>达到阈值的单位会在殖民者栏或地图头顶显示档位标记；该档位同时决定血清携带的最低评级。</AE_CFG_MarkRulesHint>
 
+  <AE_CFG_CarryEnable>启用自动携带</AE_CFG_CarryEnable>
   <AE_CFG_CarryFoodCount>携带食物总量</AE_CFG_CarryFoodCount>
   <AE_CFG_CarrySerumHighValueOnly>仅高价值单位携带血清</AE_CFG_CarrySerumHighValueOnly>
   <AE_CFG_CarryDrugHint>滑条为 0 表示不携带。药品实际携带量还受药品政策“携带”列限制：开启“用药方案”后会自动把这里的数量同步进 AE-* 政策；未开启时按两者较小值携带，避免被游戏丢在地上。</AE_CFG_CarryDrugHint>

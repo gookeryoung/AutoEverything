@@ -109,7 +109,7 @@ namespace AutoEverything.AutoDrugPolicy
         /// - 薄片/亚咯（Flake/Yayo）：全部 false（所有档禁止，强制戒断危险成瘾品）
         ///
         /// 携带列（takeToInventory）统一由 SyncConfiguredCarryCounts 覆盖为
-        /// 【自动】→ 携带用药面板的逐项数量；上面的 0/1 只是"面板缺省值"的兜底写法，
+        /// 【自动】→ 自动携带面板的逐项数量；上面的 0/1 只是"面板缺省值"的兜底写法，
         /// 避免玩家没打开面板时政策出现意外预支。
         /// </summary>
         public static void FillPolicyEntries(DrugPolicy policy, DrugTier tier)
@@ -190,7 +190,7 @@ namespace AutoEverything.AutoDrugPolicy
             }
 
             // ── 逐项携带数量同步 ──
-            // 【自动】→ 携带用药面板中的数量即目标"携带"列（takeToInventory）；
+            // 【自动】→ 自动携带面板中的数量即目标"携带"列（takeToInventory）；
             // 低于该档位允许范围的药品强制 0，保持评级门槛（活力水/佩诺西林仅 AB+，血清仅 S+）。
             SyncConfiguredCarryCounts(policy, tier);
         }

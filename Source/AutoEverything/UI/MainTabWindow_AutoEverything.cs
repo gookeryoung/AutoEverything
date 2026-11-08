@@ -21,7 +21,7 @@ namespace AutoEverything.UI
     /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
     ///   （角色分组配置只保留在人员自动页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
     /// - 高价值自动：标记开关 + 高价值档位阈值 + 扫描范围 + 通知
-    /// - 携带用药：自动携带数量/周期 + 用药方案开关
+    /// - 自动携带：顶部启用开关 + 食物、成瘾品、强化血清三个配置块（用药方案开关并入成瘾品块）
     /// - 通用调试：主开关、殖民者栏默认排序、调试日志
     ///
     /// 持久化：所有字段均为 AESettings 静态字段（ModSettings），
@@ -434,14 +434,14 @@ namespace AutoEverything.UI
             Text.Font = GameFont.Small;
         }
 
-        // ===================== 携带与用药 =====================
+        // ===================== 自动携带 =====================
 
         private static void DrawCarryTab(Listing_Standard l)
         {
-            BeginSection(l, "AE_CFG_Section_Carry".Translate());
+            // 启用开关置顶：整页配置都以该开关为前提，不放进卡片区，打开页面即可看到
+            DrawCheckbox(l, "AE_CFG_CarryEnable", ref AESettings.autoCarryEnabled, "AE_TT_AutoCarry");
 
-            DrawCheckbox(l, "AE_AutoCarry", ref AESettings.autoCarryEnabled, "AE_TT_AutoCarry");
-            DrawIntSlider(l, "AE_CFG_CarryFoodCount", ref AESettings.carryFoodCount, 0, 20, "AE_TT_CarryFoodCount");
+            // 周期与全局操作紧跟开关，保持顶部区域紧凑
             DrawSecondsSlider(l, "AE_CFG_CarryInterval", ref AESettings.carryIntervalTicks, 30, 300, "AE_TT_CarryInterval");
             l.Gap(2f);
 
@@ -460,29 +460,37 @@ namespace AutoEverything.UI
                 settingsDirty = true;
             }
             TooltipHandler.TipRegion(resetRect, "AE_TT_ResetCarryItems".Translate());
+
+            // ── 食物 ──
+            BeginSection(l, "AE_CFG_Section_CarryFood".Translate());
+            DrawIntSlider(l, "AE_CFG_CarryFoodCount", ref AESettings.carryFoodCount, 0, 20, "AE_TT_CarryFoodCount");
             EndSection(l);
 
+            // ── 成瘾品 ──
             BeginSection(l, "AE_CFG_Section_CarryDrugs".Translate());
             DrawCarryItemGrid(l, CarryItemKind.Drug);
             DrawRuleText(l, "AE_CFG_CarryDrugHint".Translate());
-            EndSection(l);
 
-            BeginSection(l, "AE_CFG_Section_CarrySerums".Translate());
-            DrawCheckbox(l, "AE_CFG_CarrySerumHighValueOnly", ref AESettings.carrySerumHighValueOnly,
-                "AE_TT_CarrySerumHighValueOnly");
-            DrawCarryItemGrid(l, CarryItemKind.Serum);
-            EndSection(l);
-
-            BeginSection(l, "AE_CFG_Section_Drug".Translate());
+            // 用药方案作用于成瘾品的实际服用/携带，归入本块；分隔线避免被误认为又一项药品
+            l.Gap(4f);
+            Rect divider = l.GetRect(1f);
+            Widgets.DrawLineHorizontal(divider.x, divider.y, divider.width);
+            l.Gap(4f);
 
             DrawCheckbox(l, "AE_AutoDrugPolicy", ref AESettings.autoDrugPolicyEnabled, "AE_TT_AutoDrugPolicy");
             l.Gap(2f);
-
             Rect drugBtnRect = l.GetRect(28f);
             if (Widgets.ButtonText(drugBtnRect, "AE_CFG_ApplyDrugNow".Translate()))
             {
                 AutoExecutor.TriggerDrugPolicyNow();
             }
+            EndSection(l);
+
+            // ── 强化血清 ──
+            BeginSection(l, "AE_CFG_Section_CarrySerums".Translate());
+            DrawCheckbox(l, "AE_CFG_CarrySerumHighValueOnly", ref AESettings.carrySerumHighValueOnly,
+                "AE_TT_CarrySerumHighValueOnly");
+            DrawCarryItemGrid(l, CarryItemKind.Serum);
             EndSection(l);
         }
 
