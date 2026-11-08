@@ -508,10 +508,10 @@ namespace AutoEverything.UI
         // 行 = 档位，列 = 判定维度（乱开枪 / 坚韧格斗 / 工作狂+神经质）。
         // 每格勾选框对应 AESettings 中一条规则开关，取消勾选即该组合不参与评级；
         // 工作狂系列的 SS/SSS 需要专业工作双火数，数值滑条直接放在格内调整。
-        private const float TierRuleNameWidth = 64f;
+        private const float TierRuleNameWidth = 76f;
         private const float TierRuleCellGap = 6f;
         private const int TierRuleColumns = 3;
-        private const float TierRuleHeaderHeight = 22f;
+        private const float TierRuleHeaderHeight = 36f;
         private const float TierRuleCheckHeight = 24f;
         private const float TierRuleSliderHeight = 20f;
 
@@ -519,37 +519,87 @@ namespace AutoEverything.UI
         {
             BeginSection(l, "AE_CFG_Section_TierTable".Translate());
 
-            // 表头：首列为档位名占位，其余三列为判定维度
+            DrawTierRuleTools(l);
+
+            // 表头：主标题 + 一行小字释义，悬停给出特质全称与判定维度
             Rect header = l.GetRect(TierRuleHeaderHeight);
             DrawTierRuleHeaderCell(new Rect(header.x, header.y, TierRuleNameWidth, header.height),
-                "AE_CFG_TierCol_Tier");
-            DrawTierRuleHeaderCell(TierRuleCellRect(header, 0), "AE_CFG_TierCol_TriggerHappy");
-            DrawTierRuleHeaderCell(TierRuleCellRect(header, 1), "AE_CFG_TierCol_ToughMelee");
-            DrawTierRuleHeaderCell(TierRuleCellRect(header, 2), "AE_CFG_TierCol_Workaholic");
+                "AE_CFG_TierCol_Tier", null, null);
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 0), "AE_CFG_TierCol_TriggerHappy",
+                "AE_CFG_TierCol_TriggerHappyDesc", "AE_TT_TierCol_TriggerHappy");
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 1), "AE_CFG_TierCol_ToughMelee",
+                "AE_CFG_TierCol_ToughMeleeDesc", "AE_TT_TierCol_ToughMelee");
+            DrawTierRuleHeaderCell(TierRuleCellRect(header, 2), "AE_CFG_TierCol_Workaholic",
+                "AE_CFG_TierCol_WorkaholicDesc", "AE_TT_TierCol_Workaholic");
 
-            // SSS：工作狂系列含"双火数 >= N"数值条件，格内附滑条
+            // SSS：工作狂+严重神经质组合，格内滑条控制所需专业双火数
             DrawTierRuleRowWithSlider(l, CombatTier.SSS, ColorTierSSS,
-                "AE_TierRule_TH_SSS", ref AESettings.tierRuleTriggerHappySSS,
-                "AE_TierRule_TM_SSS", ref AESettings.tierRuleToughMeleeSSS,
+                "AE_TierRule_TH_SSS".Translate(), ref AESettings.tierRuleTriggerHappySSS,
+                "AE_TierRule_TM_SSS".Translate(), ref AESettings.tierRuleToughMeleeSSS,
                 "AE_TierRule_Work_SSS".Translate(AESettings.tierSSSWorkMajors),
                 ref AESettings.tierRuleWorkaholicSSS,
                 ref AESettings.tierSSSWorkMajors);
 
-            DrawTierRuleRowWithSlider(l, CombatTier.SS, ColorTierSS,
-                "AE_TierRule_TH_SS", ref AESettings.tierRuleTriggerHappySS,
-                "AE_TierRule_TM_SS", ref AESettings.tierRuleToughMeleeSS,
-                "AE_TierRule_Work_SS".Translate(AESettings.tierSSWorkMajors),
-                ref AESettings.tierRuleWorkaholicSS,
-                ref AESettings.tierSSWorkMajors);
+            // SS：工作狂+严重神经质组合即得，不再要求专业双火数
+            DrawTierRuleRow(l, CombatTier.SS, ColorTierSS,
+                "AE_TierRule_TH_SS".Translate(), ref AESettings.tierRuleTriggerHappySS,
+                "AE_TierRule_TM_SS".Translate(), ref AESettings.tierRuleToughMeleeSS,
+                "AE_TierRule_Work_SS".Translate(), ref AESettings.tierRuleWorkaholicSS);
 
-            // S：工作狂组合即 S，无额外双火要求
+            // S：工作狂或严重神经质任一顶级特质 + 至少 1 个专业双火
             DrawTierRuleRow(l, CombatTier.S, ColorTierS,
-                "AE_TierRule_TH_S", ref AESettings.tierRuleTriggerHappyS,
-                "AE_TierRule_TM_S", ref AESettings.tierRuleToughMeleeS,
-                "AE_TierRule_Work_S", ref AESettings.tierRuleWorkaholicS);
+                "AE_TierRule_TH_S".Translate(), ref AESettings.tierRuleTriggerHappyS,
+                "AE_TierRule_TM_S".Translate(), ref AESettings.tierRuleToughMeleeS,
+                "AE_TierRule_Work_S".Translate(), ref AESettings.tierRuleWorkaholicS);
 
+            // 档位划分依据：回答"为什么是 S / SS / SSS"
+            l.Gap(2f);
+            DrawRuleText(l, "AE_CFG_TierRuleBasis".Translate());
+            DrawRuleText(l, "AE_CFG_TierRuleBasisNote".Translate());
+            DrawRuleText(l, "AE_CFG_TierRulePassionNote".Translate());
             DrawRuleText(l, "AE_CFG_TierTableHint".Translate());
             EndSection(l);
+        }
+
+        /// <summary>规则表顶部快捷操作：全选 / 全不选 / 恢复默认（默认值与 AESettings 初始值一致）。</summary>
+        private static void DrawTierRuleTools(Listing_Standard l)
+        {
+            Rect row = l.GetRect(26f);
+            const float buttonWidth = 84f;
+            const float gap = 6f;
+            Rect resetRect = new Rect(row.xMax - buttonWidth, row.y, buttonWidth, 24f);
+            Rect noneRect = new Rect(resetRect.x - gap - buttonWidth, row.y, buttonWidth, 24f);
+            Rect allRect = new Rect(noneRect.x - gap - buttonWidth, row.y, buttonWidth, 24f);
+
+            if (Widgets.ButtonText(allRect, "AE_CFG_TierRule_All".Translate()))
+            {
+                SetAllTierRules(true);
+                settingsDirty = true;
+            }
+            if (Widgets.ButtonText(noneRect, "AE_CFG_TierRule_None".Translate()))
+            {
+                SetAllTierRules(false);
+                settingsDirty = true;
+            }
+            if (Widgets.ButtonText(resetRect, "AE_CFG_TierRule_Reset".Translate()))
+            {
+                SetAllTierRules(true);
+                AESettings.tierSSSWorkMajors = 3;
+                settingsDirty = true;
+            }
+        }
+
+        private static void SetAllTierRules(bool enabled)
+        {
+            AESettings.tierRuleTriggerHappySSS = enabled;
+            AESettings.tierRuleTriggerHappySS = enabled;
+            AESettings.tierRuleTriggerHappyS = enabled;
+            AESettings.tierRuleToughMeleeSSS = enabled;
+            AESettings.tierRuleToughMeleeSS = enabled;
+            AESettings.tierRuleToughMeleeS = enabled;
+            AESettings.tierRuleWorkaholicSSS = enabled;
+            AESettings.tierRuleWorkaholicSS = enabled;
+            AESettings.tierRuleWorkaholicS = enabled;
         }
 
         private static void DrawTierRuleRow(Listing_Standard l, CombatTier tier, Color color,
@@ -610,8 +660,8 @@ namespace AutoEverything.UI
                 row.y, cellWidth, row.height);
         }
 
-        /// <summary>表头单元格：小字、居中、不换行，避免中文撑乱列宽。</summary>
-        private static void DrawTierRuleHeaderCell(Rect rect, string labelKey)
+        /// <summary>表头单元格：主标题 + 一行小字释义，悬停给出特质全称，避免只靠英文或缩写。</summary>
+        private static void DrawTierRuleHeaderCell(Rect rect, string labelKey, string descKey, string tooltipKey)
         {
             bool prevWrap = Text.WordWrap;
             TextAnchor prevAnchor = Text.Anchor;
@@ -619,14 +669,23 @@ namespace AutoEverything.UI
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleCenter;
             GUI.color = ColorSectionTitle;
-            Widgets.Label(rect, labelKey.Translate());
+            Widgets.Label(new Rect(rect.x, rect.y + 2f, rect.width, 16f), labelKey.Translate());
+            if (!string.IsNullOrEmpty(descKey))
+            {
+                GUI.color = ColorLabelGray;
+                Widgets.Label(new Rect(rect.x, rect.y + 18f, rect.width, 16f), descKey.Translate());
+            }
             GUI.color = Color.white;
             Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;
             Text.Font = GameFont.Small;
+            if (!string.IsNullOrEmpty(tooltipKey)) TooltipHandler.TipRegion(rect, tooltipKey.Translate());
         }
 
-        /// <summary>档位名列：左侧竖条用档位色，与名字评级着色对应。</summary>
+        /// <summary>
+        /// 档位名列：左侧竖条用档位色，档位字母后追加"王牌/核心/高价值"定位，
+        /// 让 S/SS/SSS 不只靠字母与颜色区分。
+        /// </summary>
         private static void DrawTierRuleTierName(Rect row, CombatTier tier, Color color)
         {
             Widgets.DrawBoxSolid(new Rect(row.x, row.y + 5f, 3f, TierRuleCheckHeight - 10f), color);
@@ -635,12 +694,33 @@ namespace AutoEverything.UI
             TextAnchor prevAnchor = Text.Anchor;
             Text.WordWrap = false;
             Text.Anchor = TextAnchor.MiddleLeft;
+            string tierLabel = tier.ToString();
             GUI.color = color;
             Widgets.Label(new Rect(row.x + 8f, row.y, TierRuleNameWidth - 8f, TierRuleCheckHeight),
-                tier.ToString());
+                tierLabel);
+
+            string roleKey = GetTierRoleKey(tier);
+            if (roleKey != null)
+            {
+                float tierWidth = Text.CalcSize(tierLabel).x;
+                Text.Font = GameFont.Tiny;
+                GUI.color = ColorLabelGray;
+                Widgets.Label(new Rect(row.x + 10f + tierWidth, row.y,
+                    Mathf.Max(0f, TierRuleNameWidth - 10f - tierWidth), TierRuleCheckHeight),
+                    roleKey.Translate());
+                Text.Font = GameFont.Small;
+            }
             GUI.color = Color.white;
             Text.Anchor = prevAnchor;
             Text.WordWrap = prevWrap;
+        }
+
+        private static string GetTierRoleKey(CombatTier tier)
+        {
+            if (tier == CombatTier.SSS) return "AE_CFG_TierRole_SSS";
+            if (tier == CombatTier.SS) return "AE_CFG_TierRole_SS";
+            if (tier == CombatTier.S) return "AE_CFG_TierRole_S";
+            return null;
         }
 
         /// <summary>

@@ -187,20 +187,32 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_TierBPassionTotal>B: total passions</AE_CFG_TierBPassionTotal>
   <AE_CFG_Section_TierTable>Tier rule table (SSS / SS / S)</AE_CFG_Section_TierTable>
   <AE_CFG_TierCol_Tier>Tier</AE_CFG_TierCol_Tier>
-  <AE_CFG_TierCol_TriggerHappy>Trigger-happy</AE_CFG_TierCol_TriggerHappy>
-  <AE_CFG_TierCol_ToughMelee>Tough melee</AE_CFG_TierCol_ToughMelee>
-  <AE_CFG_TierCol_Workaholic>Industrious+Neurotic</AE_CFG_TierCol_Workaholic>
-  <AE_TierRule_TH_SSS>Trigger-happy+Tough+Shooting major</AE_TierRule_TH_SSS>
-  <AE_TierRule_TH_SS>Trigger-happy+Shooting major</AE_TierRule_TH_SS>
-  <AE_TierRule_TH_S>Trigger-happy+Shooting minor</AE_TierRule_TH_S>
-  <AE_TierRule_TM_SSS>Tough+Melee major+Nimble/Brawler</AE_TierRule_TM_SSS>
-  <AE_TierRule_TM_SS>Tough+Melee major</AE_TierRule_TM_SS>
-  <AE_TierRule_TM_S>Tough+Melee passion</AE_TierRule_TM_S>
-  <AE_TierRule_Work_SSS>Work combo + majors ≥ {0}</AE_TierRule_Work_SSS>
-  <AE_TierRule_Work_SS>Work combo + majors ≥ {0}</AE_TierRule_Work_SS>
-  <AE_TierRule_Work_S>Work combo (S by itself)</AE_TierRule_Work_S>
-  <AE_CFG_TierTableHint>Checked rules take part in evaluation; unchecking disables that combination only. The work-combo sliders set the professional-work major count needed for SS/SSS. Changes clear the rating cache immediately.</AE_CFG_TierTableHint>
-  <AE_CFG_SpecialTalentToS>Special talent → S</AE_CFG_SpecialTalentToS>
+  <AE_CFG_TierCol_TriggerHappy>Ranged · Trigger-happy</AE_CFG_TierCol_TriggerHappy>
+  <AE_CFG_TierCol_ToughMelee>Melee · Tough + Brawler</AE_CFG_TierCol_ToughMelee>
+  <AE_CFG_TierCol_Workaholic>Work · Workaholic/Neurotic</AE_CFG_TierCol_Workaholic>
+  <AE_CFG_TierCol_TriggerHappyDesc>Faster fire, −1 accuracy</AE_CFG_TierCol_TriggerHappyDesc>
+  <AE_CFG_TierCol_ToughMeleeDesc>Damage-reduction frontliner</AE_CFG_TierCol_ToughMeleeDesc>
+  <AE_CFG_TierCol_WorkaholicDesc>Degree-2 traits only</AE_CFG_TierCol_WorkaholicDesc>
+  <AE_CFG_TierRole_SSS>Ace</AE_CFG_TierRole_SSS>
+  <AE_CFG_TierRole_SS>Core</AE_CFG_TierRole_SS>
+  <AE_CFG_TierRole_S>High value</AE_CFG_TierRole_S>
+  <AE_CFG_TierRule_All>All</AE_CFG_TierRule_All>
+  <AE_CFG_TierRule_None>None</AE_CFG_TierRule_None>
+  <AE_CFG_TierRule_Reset>Reset</AE_CFG_TierRule_Reset>
+  <AE_TierRule_TH_SSS>Trigger-happy + Tough + Shooting double</AE_TierRule_TH_SSS>
+  <AE_TierRule_TH_SS>Trigger-happy + Shooting double</AE_TierRule_TH_SS>
+  <AE_TierRule_TH_S>Trigger-happy + Shooting single</AE_TierRule_TH_S>
+  <AE_TierRule_TM_SSS>Tough + Melee double + Nimble/Brawler</AE_TierRule_TM_SSS>
+  <AE_TierRule_TM_SS>Tough + Melee double</AE_TierRule_TM_SS>
+  <AE_TierRule_TM_S>Tough + any Melee passion</AE_TierRule_TM_S>
+  <AE_TierRule_Work_SSS>Combo + professional majors ≥ {0}</AE_TierRule_Work_SSS>
+  <AE_TierRule_Work_SS>Workaholic + Neurotic (combo = SS)</AE_TierRule_Work_SS>
+  <AE_TierRule_Work_S>Workaholic or Neurotic + professional major</AE_TierRule_Work_S>
+  <AE_CFG_TierRuleBasis>Tier basis: S = Workaholic or Neurotic (both degree 2) + at least 1 professional major; SS = both traits combined; SSS = combo + professional majors ≥ 3 (slider adjustable).</AE_CFG_TierRuleBasis>
+  <AE_CFG_TierRuleBasisNote>Only degree-2 Workaholic/Neurotic count; Industrious and Nervous are ignored. Higher conditions override lower ones within a dimension; the three dimensions take the highest tier and never stack.</AE_CFG_TierRuleBasisNote>
+  <AE_CFG_TierRulePassionNote>Single/double = one/two passion flames. Professional work = Crafting/Construction/Artistic/Cooking/Plants/Mining.</AE_CFG_TierRulePassionNote>
+  <AE_CFG_TierTableHint>Checked rules take part in evaluation; the slider only bounds the professional-major count for SSS. Changes clear the rating cache immediately.</AE_CFG_TierTableHint>
+  <AE_CFG_SpecialTalentToS>Special talent or ability → S</AE_CFG_SpecialTalentToS>
   <AE_CFG_BeautySocialToS>Beautiful + Social major → S</AE_CFG_BeautySocialToS>
   <AE_CFG_SpouseExemption>Spouse tier exemption</AE_CFG_SpouseExemption>
   <AE_CFG_SpouseExemptionTier>Minimum exemption tier</AE_CFG_SpouseExemptionTier>
@@ -232,8 +244,11 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_TierBMajorMin>Minimum number of double passions required for tier B.</AE_TT_TierBMajorMin>
   <AE_TT_TierBPassionTotal>Minimum total of double plus single passions required for tier B.</AE_TT_TierBPassionTotal>
   <AE_TT_TierRuleCell>Rule switch: when unchecked this combination no longer participates in evaluation; other rules are unaffected.</AE_TT_TierRuleCell>
-  <AE_TT_TierRuleWorkMajors>Professional-work double passions (Crafting/Construction/Artistic/Cooking/Plants/Mining) needed to upgrade the Industrious+Neurotic combo.</AE_TT_TierRuleWorkMajors>
-  <AE_TT_SpecialTalentToS>Pawns with one of the special talents are rated S directly.</AE_TT_SpecialTalentToS>
+  <AE_TT_TierCol_TriggerHappy>Trigger-happy: −1 shooting accuracy, faster but less accurate fire; combines with Shooting passion to judge ranged value.</AE_TT_TierCol_TriggerHappy>
+  <AE_TT_TierCol_ToughMelee>Tough: reduces incoming damage; combines with Melee passion and Nimble/Brawler to judge frontliner value.</AE_TT_TierCol_ToughMelee>
+  <AE_TT_TierCol_Workaholic>Workaholic = Industriousness degree 2; Neurotic = Neurotic degree 2. S needs either trait + a professional major; SS needs both traits combined.</AE_TT_TierCol_Workaholic>
+  <AE_TT_TierRuleWorkMajors>Professional-work double passions (Crafting/Construction/Artistic/Cooking/Plants/Mining) needed to upgrade the SSS combo.</AE_TT_TierRuleWorkMajors>
+  <AE_TT_SpecialTalentToS>Pawns with one of the special talents, or with the unnatural healing / transmute steel ability, are rated S directly.</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>Pawns with Beautiful (beauty level 2) and a double Social passion are rated S directly.</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>When the spouse reaches the selected tier, this pawn is rated at least that tier.</AE_TT_SpouseExemption>
   <AE_TT_SpouseExemptionTier>Minimum spouse tier required to trigger the exemption.</AE_TT_SpouseExemptionTier>

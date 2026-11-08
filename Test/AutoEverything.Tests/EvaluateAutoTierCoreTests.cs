@@ -33,20 +33,27 @@ namespace AutoEverything.Tests
             Check(Empty(tough: true, meleeMajor: true, nimble: true), CombatTier.SSS, "坚韧+格斗双火+敏捷 → SSS", ref failures, ref total);
             Check(Empty(tough: true, meleeMajor: true, brawler: true), CombatTier.SSS, "坚韧+格斗双火+格斗者 → SSS", ref failures, ref total);
 
-            // ── 维度3：工作狂神经质系列 ────────────────────────────
-            // 用户决策（2026-07-21）：
-            //   1) degree 要求从 == 2 放宽到 >= 1（HasIndustrious/HasNeurotic 表示"拥有任一 degree"）
-            //   2) 组合即 S（无需 workMajors），workMajors 仅决定升档（>=2 SS，>=3 SSS）
-            // 修复：原实现把 S 档也要求 workMajors>=1，导致无工作双火的组合落入 A/B 判定
-            Check(Empty(hasIndustrious: true), CombatTier.C, "工作狂+无神经质 → C（不触发维度3）", ref failures, ref total);
-            Check(Empty(hasNeurotic: true), CombatTier.C, "无工作狂+神经质 → C（不触发维度3）", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), CombatTier.S, "工作狂+神经质+0双火 → S（组合即 S）", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 1), CombatTier.S, "工作狂+神经质+1双火 → S（workMajors<2 不升档）", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2), CombatTier.SS, "工作狂+神经质+2双火 → SS", ref failures, ref total);
-            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), CombatTier.SSS, "工作狂+神经质+3双火 → SSS", ref failures, ref total);
+            // ── 维度3：工作狂/严重神经质系列 ──────────────────────
+            // 用户决策（2026-11-08）：原"组合即 S"过于苛刻，改为
+            //   S:   (工作狂 || 严重神经质) + 至少 1 个专业双火
+            //   SS:  工作狂 && 严重神经质（组合即 SS，不看双火数）
+            //   SSS: 工作狂 && 严重神经质 && workMajors >= SSSWorkMajors
+            // HasIndustrious/HasNeurotic 只认 degree 2（工作狂/严重神经质）
+            Check(Empty(hasIndustrious: true), CombatTier.C, "工作狂+无专业双火 → C（S 需要专业双火）", ref failures, ref total);
+            Check(Empty(hasNeurotic: true), CombatTier.C, "严重神经质+无专业双火 → C（S 需要专业双火）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, workMajors: 1), CombatTier.S, "工作狂+1专业双火 → S", ref failures, ref total);
+            Check(Empty(hasNeurotic: true, workMajors: 1), CombatTier.S, "严重神经质+1专业双火 → S", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, workMajors: 2), CombatTier.S, "工作狂+2专业双火 → S（单特质不升 SS）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 0), CombatTier.SS, "工作狂+严重神经质+0双火 → SS（组合即 SS）", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 1), CombatTier.SS, "工作狂+严重神经质+1双火 → SS", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 2), CombatTier.SS, "工作狂+严重神经质+2双火 → SS", ref failures, ref total);
+            Check(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), CombatTier.SSS, "工作狂+严重神经质+3双火 → SSS", ref failures, ref total);
 
-            // ── 特殊天赋 → S ───────────────────────────────────────
+            // ── 特殊天赋 / 特殊技能 → S ────────────────────────────
             Check(Empty(hasSpecialTalent: true), CombatTier.S, "特殊天赋 → S", ref failures, ref total);
+            Check(Empty(hasSpecialAbility: true), CombatTier.S, "异常医术/转化钢铁技能 → S", ref failures, ref total);
+            Check(Empty(hasSpecialAbility: true, majorCount: 2, minorCount: 1), CombatTier.S,
+                "特殊技能S + A档条件 → S（不走A/B）", ref failures, ref total);
 
             // ── 沉鱼落雁 + 社交双火 → S ────────────────────────────
             Check(Empty(beauty2: true), CombatTier.C, "沉鱼落雁+无社交火 → C（不触发）", ref failures, ref total);
@@ -142,12 +149,18 @@ namespace AutoEverything.Tests
             CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), workSssOff, CombatTier.SS,
                 "关闭工作狂 SSS 规则 → 3 双火降级为 SS", ref failures, ref total);
 
-            // 格内滑条调整 SS/SSS 双火阈值：SS≥4、SSS≥5 时，3 双火只到 S
+            var specialOff = CombatEvaluator.TierRules.Default;
+            specialOff.SpecialTalentToS = false;
+            CheckWithRules(Empty(hasSpecialAbility: true), specialOff, CombatTier.C,
+                "关闭特殊天赋/技能规则 → 特殊技能不再评 S", ref failures, ref total);
+
+            // 格内滑条调整 SSS 双火阈值：SSS≥5 时，3 双火只到 SS，5 双火升 SSS
             var customThreshold = CombatEvaluator.TierRules.Default;
-            customThreshold.SSWorkMajors = 4;
             customThreshold.SSSWorkMajors = 5;
             CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 3), customThreshold,
-                CombatTier.S, "自定义 SS/SSS 双火阈值 → 3 双火仅 S", ref failures, ref total);
+                CombatTier.SS, "自定义 SSS 双火阈值 → 3 双火仅 SS", ref failures, ref total);
+            CheckWithRules(Empty(hasIndustrious: true, hasNeurotic: true, workMajors: 5), customThreshold,
+                CombatTier.SSS, "自定义 SSS 双火阈值 → 5 双火 SSS", ref failures, ref total);
 
             Console.WriteLine($"[EvaluateAutoTierCoreTests] {total - failures}/{total} passed");
             return failures;
@@ -155,13 +168,13 @@ namespace AutoEverything.Tests
 
         /// <summary>
         /// 构造默认输入（全 false/0），按参数覆盖指定字段。
-        /// 注：HasIndustrious/HasNeurotic 字段含义为"拥有任一 degree 的工作狂/神经质特质"
-        /// （用户决策 2026-07-21：放宽 degree 要求从 == 2 到 >= 1）。
+        /// 注：HasIndustrious/HasNeurotic 表示拥有 degree 2 的工作狂/严重神经质
+        /// （用户决策 2026-11-08：S 只需任一顶级特质 + 专业双火，SS 才要求组合）。
         /// </summary>
         private static CombatEvaluator.TierEvaluationInput Empty(
             bool triggerHappy = false, bool tough = false, bool nimble = false, bool brawler = false,
             bool hasIndustrious = false, bool hasNeurotic = false, bool beauty2 = false,
-            bool hasSpecialTalent = false,
+            bool hasSpecialTalent = false, bool hasSpecialAbility = false,
             bool shootingMajor = false, bool shootingMinor = false,
             bool meleeMajor = false, bool meleeMinor = false, bool socialMajor = false,
             int majorCount = 0, int minorCount = 0, int workMajors = 0)
@@ -176,6 +189,7 @@ namespace AutoEverything.Tests
                 HasNeurotic = hasNeurotic,
                 Beauty2 = beauty2,
                 HasSpecialTalent = hasSpecialTalent,
+                HasSpecialAbility = hasSpecialAbility,
                 ShootingMajor = shootingMajor,
                 ShootingMinor = shootingMinor,
                 MeleeMajor = meleeMajor,

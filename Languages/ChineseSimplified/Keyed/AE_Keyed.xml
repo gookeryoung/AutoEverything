@@ -188,20 +188,32 @@
   <AE_CFG_TierBPassionTotal>B 档兴趣合计</AE_CFG_TierBPassionTotal>
   <AE_CFG_Section_TierTable>评级判定规则表（SSS / SS / S）</AE_CFG_Section_TierTable>
   <AE_CFG_TierCol_Tier>档位</AE_CFG_TierCol_Tier>
-  <AE_CFG_TierCol_TriggerHappy>乱开枪系列</AE_CFG_TierCol_TriggerHappy>
-  <AE_CFG_TierCol_ToughMelee>坚韧格斗系列</AE_CFG_TierCol_ToughMelee>
-  <AE_CFG_TierCol_Workaholic>工作狂+神经质系列</AE_CFG_TierCol_Workaholic>
-  <AE_TierRule_TH_SSS>乱开枪+坚韧+射击双火</AE_TierRule_TH_SSS>
-  <AE_TierRule_TH_SS>乱开枪+射击双火</AE_TierRule_TH_SS>
-  <AE_TierRule_TH_S>乱开枪+射击单火</AE_TierRule_TH_S>
-  <AE_TierRule_TM_SSS>坚韧+格斗双火+敏捷/格斗者</AE_TierRule_TM_SSS>
-  <AE_TierRule_TM_SS>坚韧+格斗双火</AE_TierRule_TM_SS>
-  <AE_TierRule_TM_S>坚韧+格斗有火</AE_TierRule_TM_S>
-  <AE_TierRule_Work_SSS>工作狂+神经质+双火≥{0}</AE_TierRule_Work_SSS>
-  <AE_TierRule_Work_SS>工作狂+神经质+双火≥{0}</AE_TierRule_Work_SS>
-  <AE_TierRule_Work_S>工作狂+神经质（组合即 S）</AE_TierRule_Work_S>
-  <AE_CFG_TierTableHint>勾选即参与评级，取消勾选即停用该条规则；工作狂系列的滑条调整 SS/SSS 所需专业工作双火数。改动会立即清空评级缓存并生效。</AE_CFG_TierTableHint>
-  <AE_CFG_SpecialTalentToS>特殊天赋特质直接 S</AE_CFG_SpecialTalentToS>
+  <AE_CFG_TierCol_TriggerHappy>远程 · 乱开枪</AE_CFG_TierCol_TriggerHappy>
+  <AE_CFG_TierCol_ToughMelee>近战 · 坚韧＋格斗</AE_CFG_TierCol_ToughMelee>
+  <AE_CFG_TierCol_Workaholic>生产 · 工作狂/神经质</AE_CFG_TierCol_Workaholic>
+  <AE_CFG_TierCol_TriggerHappyDesc>射击更快、精度 −1</AE_CFG_TierCol_TriggerHappyDesc>
+  <AE_CFG_TierCol_ToughMeleeDesc>减伤近战前排</AE_CFG_TierCol_ToughMeleeDesc>
+  <AE_CFG_TierCol_WorkaholicDesc>均取 2 级特质</AE_CFG_TierCol_WorkaholicDesc>
+  <AE_CFG_TierRole_SSS>王牌</AE_CFG_TierRole_SSS>
+  <AE_CFG_TierRole_SS>核心</AE_CFG_TierRole_SS>
+  <AE_CFG_TierRole_S>高价值</AE_CFG_TierRole_S>
+  <AE_CFG_TierRule_All>全选</AE_CFG_TierRule_All>
+  <AE_CFG_TierRule_None>全不选</AE_CFG_TierRule_None>
+  <AE_CFG_TierRule_Reset>恢复默认</AE_CFG_TierRule_Reset>
+  <AE_TierRule_TH_SSS>乱开枪＋坚韧＋射击双火</AE_TierRule_TH_SSS>
+  <AE_TierRule_TH_SS>乱开枪＋射击双火</AE_TierRule_TH_SS>
+  <AE_TierRule_TH_S>乱开枪＋射击单火</AE_TierRule_TH_S>
+  <AE_TierRule_TM_SSS>坚韧＋格斗双火＋敏捷/格斗者</AE_TierRule_TM_SSS>
+  <AE_TierRule_TM_SS>坚韧＋格斗双火</AE_TierRule_TM_SS>
+  <AE_TierRule_TM_S>坚韧＋格斗有火</AE_TierRule_TM_S>
+  <AE_TierRule_Work_SSS>组合＋专业双火 ≥ {0}</AE_TierRule_Work_SSS>
+  <AE_TierRule_Work_SS>工作狂＋严重神经质（组合即 SS）</AE_TierRule_Work_SS>
+  <AE_TierRule_Work_S>工作狂/严重神经质＋专业双火</AE_TierRule_Work_S>
+  <AE_CFG_TierRuleBasis>档位依据：S＝工作狂或严重神经质（均 2 级）＋至少 1 个专业双火；SS＝两者组合；SSS＝组合＋专业双火 ≥ 3（滑条可调）。</AE_CFG_TierRuleBasis>
+  <AE_CFG_TierRuleBasisNote>工作狂/严重神经质只认 2 级，勤奋、紧张不计入；同维度高条件覆盖低条件，三大维度取最高档，不跨维度累加。</AE_CFG_TierRuleBasisNote>
+  <AE_CFG_TierRulePassionNote>单火/双火＝该技能的单/双热情；专业工作＝手工/建造/艺术/烹饪/种植/采矿。</AE_CFG_TierRulePassionNote>
+  <AE_CFG_TierTableHint>勾选即参与评级；滑条只控制 SSS 所需专业双火数。改动立即清空评级缓存并生效。</AE_CFG_TierTableHint>
+  <AE_CFG_SpecialTalentToS>特殊天赋/技能直接 S</AE_CFG_SpecialTalentToS>
   <AE_CFG_BeautySocialToS>沉鱼落雁+社交双火直接 S</AE_CFG_BeautySocialToS>
   <AE_CFG_SpouseExemption>配偶评级豁免</AE_CFG_SpouseExemption>
   <AE_CFG_SpouseExemptionTier>豁免最低档位</AE_CFG_SpouseExemptionTier>
@@ -233,8 +245,11 @@
   <AE_TT_TierBMajorMin>B 档要求的最少双火数量</AE_TT_TierBMajorMin>
   <AE_TT_TierBPassionTotal>B 档要求的双火+单火合计数量</AE_TT_TierBPassionTotal>
   <AE_TT_TierRuleCell>规则开关：取消勾选后该组合不再参与评级，其他规则不受影响</AE_TT_TierRuleCell>
-  <AE_TT_TierRuleWorkMajors>工作狂+神经质组合升档所需的专业工作双火数（手工/建造/艺术/烹饪/种植/采矿）</AE_TT_TierRuleWorkMajors>
-  <AE_TT_SpecialTalentToS>拥有博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经之一时直接评为 S 档</AE_TT_SpecialTalentToS>
+  <AE_TT_TierCol_TriggerHappy>乱开枪：射击精度 −1，射速更快但命中下降；配合射击兴趣判定远程价值</AE_TT_TierCol_TriggerHappy>
+  <AE_TT_TierCol_ToughMelee>坚韧：减少受到的伤害；配合近战兴趣与敏捷/格斗者特质判定前排价值</AE_TT_TierCol_ToughMelee>
+  <AE_TT_TierCol_Workaholic>工作狂＝Industriousness 2 级；严重神经质＝Neurotic 2 级。S 只需任一特质 + 专业双火，SS 要求两者组合</AE_TT_TierCol_Workaholic>
+  <AE_TT_TierRuleWorkMajors>SSS 组合升档所需的专业工作双火数（手工/建造/艺术/烹饪/种植/采矿）</AE_TT_TierRuleWorkMajors>
+  <AE_TT_SpecialTalentToS>拥有博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经特质之一，或拥有异常医术/转化钢铁技能时，直接评为 S 档</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>沉鱼落雁（美貌 2 级）且社交双火时直接评为 S 档</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>配偶达到指定档位时，本人评级不低于该档位</AE_TT_SpouseExemption>
   <AE_TT_SpouseExemptionTier>触发配偶豁免所需的最低配偶档位</AE_TT_SpouseExemptionTier>

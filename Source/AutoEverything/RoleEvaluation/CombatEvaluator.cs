@@ -93,20 +93,21 @@ namespace AutoEverything.RoleEvaluation
         /// 获取自动计算的评级档次（忽略自定义评级覆盖）。
         /// 供面板显示与"自动档"对比使用。
         ///
-        /// 新评级规则（三大维度取最高档 + 原S条件4/5 + A/B）：
+        /// 新评级规则（三大维度取最高档 + S 特殊条件 + A/B）：
         ///   SSS：顶级组合
         ///     1. 乱开枪 + 坚韧 + 射击双火
         ///     2. 坚韧 + 格斗双火 + 敏捷或格斗者
-        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 3 个专业工作双火
+        ///     3. 工作狂（degree 2）+ 严重神经质（degree 2）+ 3 个专业工作双火（阈值可调）
         ///   SS：强化组合
         ///     1. 乱开枪 + 射击双火
         ///     2. 坚韧 + 格斗双火
-        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）+ 2 个专业工作双火
+        ///     3. 工作狂（degree 2）+ 严重神经质（degree 2）（组合即 SS）
         ///   S：全局高价值
         ///     1. 乱开枪 + 射击单火
         ///     2. 坚韧 + 格斗有火（Minor 或 Major）
-        ///     3. 工作狂（任意 degree）+ 神经质（任意 degree）（组合即 S，无需工作双火）
-        ///     4. 拥有任一"特殊天赋"特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经）
+        ///     3. 工作狂或严重神经质（degree 2）+ 至少 1 个专业工作双火
+        ///     4. 拥有任一"特殊天赋"特质（博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经），
+        ///        或变异体专属技能（异常医术/转化钢铁，异常 DLC）
         ///     5. 沉鱼落雁（Beauty degree=2）+ 社交双火
         ///   A：≥ 2 个双 Major + ≥ 1 个 Minor 以上
         ///   B：≥ 1 个双 Major + ≥ 2 个 Minor 以上（合计 ≥ 3）
@@ -114,8 +115,9 @@ namespace AutoEverything.RoleEvaluation
         ///   D：自动评级不产生此档（仅供玩家自定义评级使用）
         ///   X：无法从事暴力活动（先于一切判定）
         ///
-        /// 用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级，
-        /// degree 要求从 == 2 放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）。
+        /// 用户决策（2026-11-08）：生产维度门槛放宽为 degree 2 单特质 + 专业双火 = S，
+        ///   两者组合才升 SS，并新增异常医术/转化钢铁技能作为 S 档依据。
+        ///   早期（2026-07-21）"degree >= 1 即计数"的放宽已被上述决策取代，只认 degree 2。
         ///
         /// 用户决策（2026-07-26）：移除负面特质降档逻辑，S/SS/SSS 一律按命中档次标记，
         /// 不再因纵火狂/脑子慢/脆弱/工作懒惰怠惰等负面特质降一档。
@@ -140,12 +142,13 @@ namespace AutoEverything.RoleEvaluation
             public bool IsTough;           // 坚韧 Tough
             public bool IsNimble;          // 敏捷 Nimble
             public bool IsBrawler;         // 格斗者 Brawler
-            // 工作狂/神经质：放宽到 degree >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）
-            // 用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级，放宽 degree 要求
-            public bool HasIndustrious;    // 工作狂 Industriousness degree >= 1（努力/勤奋）
-            public bool HasNeurotic;       // 神经质 Neurotic degree >= 1（轻度/严重）
+            // 工作狂/严重神经质：只认 degree 2（工作狂 / 严重神经质），勤奋、紧张不计入评级
+            // 用户决策（2026-11-08）：S 档放宽为"任一顶级特质 + 专业双火"，SS 才要求两者组合
+            public bool HasIndustrious;    // 工作狂 Industriousness degree 2
+            public bool HasNeurotic;       // 严重神经质 Neurotic degree 2
             public bool Beauty2;           // 沉鱼落雁 Beauty degree=2
             public bool HasSpecialTalent;  // 特殊天赋特质之一
+            public bool HasSpecialAbility; // 异常医术/转化钢铁技能（异常 DLC 变异体专属）
 
             // 技能兴趣状态
             public bool ShootingMajor;
@@ -171,7 +174,6 @@ namespace AutoEverything.RoleEvaluation
             public int APassionTotal;
             public int BMajorMin;
             public int BPassionTotal;
-            public int SSWorkMajors;
             public int SSSWorkMajors;
             public bool SpecialTalentToS;
             public bool BeautySocialToS;
@@ -195,7 +197,6 @@ namespace AutoEverything.RoleEvaluation
                     rules.APassionTotal = 3;
                     rules.BMajorMin = 1;
                     rules.BPassionTotal = 3;
-                    rules.SSWorkMajors = 2;
                     rules.SSSWorkMajors = 3;
                     rules.SpecialTalentToS = true;
                     rules.BeautySocialToS = true;
@@ -220,7 +221,6 @@ namespace AutoEverything.RoleEvaluation
                 rules.APassionTotal = AESettings.tierAPassionTotal;
                 rules.BMajorMin = AESettings.tierBMajorMin;
                 rules.BPassionTotal = AESettings.tierBPassionTotal;
-                rules.SSWorkMajors = AESettings.tierSSWorkMajors;
                 rules.SSSWorkMajors = AESettings.tierSSSWorkMajors;
                 rules.SpecialTalentToS = AESettings.tierSpecialTalentToS;
                 rules.BeautySocialToS = AESettings.tierBeautySocialToS;
@@ -285,28 +285,25 @@ namespace AutoEverything.RoleEvaluation
                     tier = MaxTier(tier, CombatTier.S);
             }
 
-            // 维度3（工作狂神经质系列）：industrious AND neurotic → 组合即 S，workMajors 决定升档
-            //   用户决策（2026-07-21）：「神经质+工作狂」组合应给高评级（至少 S）
-            //   degree 要求放宽到 >= 1（含 degree=1 努力/轻度神经质 + degree=2 勤奋/严重神经质）
-            //   S:   hasIndustrious && hasNeurotic（组合即 S，无需 workMajors）
-            //   SS:  hasIndustrious && hasNeurotic && workMajors >= 2
-            //   SSS: hasIndustrious && hasNeurotic && workMajors >= 3
-            //   修复（2026-07-21）：原实现把 S 档也要求 workMajors>=1，导致无工作双火的组合
-            //     落入 A/B 判定路径（如 1 Major+2 Minor → B），违背"组合即 S"决策
-            if (input.HasIndustrious && input.HasNeurotic)
-            {
-                if (rules.WorkaholicS)
-                    tier = MaxTier(tier, CombatTier.S);
-                if (rules.WorkaholicSS && input.WorkMajors >= rules.SSWorkMajors)
-                    tier = MaxTier(tier, CombatTier.SS);
-                if (rules.WorkaholicSSS && input.WorkMajors >= rules.SSSWorkMajors)
-                    tier = MaxTier(tier, CombatTier.SSS);
-            }
+            // 维度3（工作狂/严重神经质系列）：只认 degree 2 的两项特质
+            //   用户决策（2026-11-08）：原"组合即 S"过于苛刻，S 改由任一顶级特质 + 专业双火触发
+            //   S:   (工作狂 || 严重神经质) && workMajors >= 1
+            //   SS:  工作狂 && 严重神经质（组合即 SS，不看双火数）
+            //   SSS: 工作狂 && 严重神经质 && workMajors >= SSSWorkMajors
+            bool hasWorkTrait = input.HasIndustrious || input.HasNeurotic;
+            bool hasWorkCombo = input.HasIndustrious && input.HasNeurotic;
+            if (hasWorkTrait && input.WorkMajors >= 1 && rules.WorkaholicS)
+                tier = MaxTier(tier, CombatTier.S);
+            if (hasWorkCombo && rules.WorkaholicSS)
+                tier = MaxTier(tier, CombatTier.SS);
+            if (hasWorkCombo && input.WorkMajors >= rules.SSSWorkMajors && rules.WorkaholicSSS)
+                tier = MaxTier(tier, CombatTier.SSS);
 
-            // 原 S 条件 4：拥有特殊天赋特质之一（可在【自动】面板关闭）
-            //   博闻强识 TooSmart / 开心果 Joyous / 极致体能 BodyMastery
-            //   痴迷虚空 VoidFascination / 神秘学者 Occultist / 怪诞不经 Disturbing
-            if (rules.SpecialTalentToS && input.HasSpecialTalent)
+            // 原 S 条件 4：拥有特殊天赋特质之一，或变异体专属技能（可在【自动】面板关闭）
+            //   特质：博闻强识 TooSmart / 开心果 Joyous / 极致体能 BodyMastery
+            //         痴迷虚空 VoidFascination / 神秘学者 Occultist / 怪诞不经 Disturbing
+            //   技能：异常医术 UnnaturalHealing / 转化钢铁 TransmuteSteel（异常 DLC）
+            if (rules.SpecialTalentToS && (input.HasSpecialTalent || input.HasSpecialAbility))
             {
                 tier = MaxTier(tier, CombatTier.S);
             }
@@ -364,14 +361,15 @@ namespace AutoEverything.RoleEvaluation
                 input.IsTriggerHappy = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy) == -1;
             }
             input.HasIndustrious = hasTraits && TraitDefCache.Industriousness != null
-                                  && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 1;
+                                  && pawn.story.traits.DegreeOfTrait(TraitDefCache.Industriousness) >= 2;
             input.HasNeurotic = hasTraits && TraitDefCache.Neurotic != null
-                                && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) >= 1;
+                                && pawn.story.traits.DegreeOfTrait(TraitDefCache.Neurotic) >= 2;
             input.Beauty2 = hasTraits && TraitDefCache.Beauty != null
                             && pawn.story.traits.DegreeOfTrait(TraitDefCache.Beauty) == 2;
 
             input.WorkMajors = CountWorkMajors(pawn);
             input.HasSpecialTalent = HasSpecialTalentTrait(pawn);
+            input.HasSpecialAbility = HasSpecialAbility(pawn);
 
             return input;
         }
@@ -438,6 +436,18 @@ namespace AutoEverything.RoleEvaluation
             if (TraitDefCache.Occultist != null && pawn.story.traits.HasTrait(TraitDefCache.Occultist)) return true;
             if (TraitDefCache.Disturbing != null && pawn.story.traits.HasTrait(TraitDefCache.Disturbing)) return true;
             return false;
+        }
+
+        /// <summary>
+        /// 判定是否拥有变异体专属技能（异常医术 / 转化钢铁）。
+        /// 这两项能力只由异常 DLC 的 CreepJoiner 赋予，无法后天获得，故视为 S 档依据。
+        /// 未加载异常 DLC 时 AbilityDefCache 中为 null，直接跳过。
+        /// </summary>
+        private static bool HasSpecialAbility(Pawn pawn)
+        {
+            if (!ModsConfig.AnomalyActive || pawn?.abilities == null) return false;
+            return pawn.abilities.GetAbility(AbilityDefCache.UnnaturalHealing) != null
+                || pawn.abilities.GetAbility(AbilityDefCache.TransmuteSteel) != null;
         }
 
         /// <summary>

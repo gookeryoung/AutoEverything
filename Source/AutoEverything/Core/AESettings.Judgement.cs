@@ -31,8 +31,7 @@ namespace AutoEverything.Core
         public static int tierBMajorMin = 1;
         public static int tierBPassionTotal = 3;
 
-        // 工作狂+神经质组合升档所需的专业工作双火数（S 档为组合即得，无需双火）
-        public static int tierSSWorkMajors = 2;
+        // SSS 组合升档所需的专业工作双火数（S 档=任一顶级特质+1 双火，SS 档=组合即得，均无需配置）
         public static int tierSSSWorkMajors = 3;
 
         // S/SS/SSS 三大维度逐条规则开关（默认全开）：
@@ -242,7 +241,6 @@ namespace AutoEverything.Core
             LookCompat(ref tierAPassionTotal, "tierAPassionTotal", 3);
             LookCompat(ref tierBMajorMin, "tierBMajorMin", 1);
             LookCompat(ref tierBPassionTotal, "tierBPassionTotal", 3);
-            LookCompat(ref tierSSWorkMajors, "tierSSWorkMajors", 2);
             LookCompat(ref tierSSSWorkMajors, "tierSSSWorkMajors", 3);
             LookCompat(ref tierRuleTriggerHappySSS, "tierRuleTriggerHappySSS", true);
             LookCompat(ref tierRuleTriggerHappySS, "tierRuleTriggerHappySS", true);
