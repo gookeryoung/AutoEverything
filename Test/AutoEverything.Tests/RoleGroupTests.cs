@@ -48,6 +48,8 @@ namespace AutoEverything.Tests
                 RoleGroup.Shooter, "乱开枪特性 → 射手", ref failures, ref total);
             Check(rules, new RoleGroupInput { HasIndustrious = true },
                 RoleGroup.Worker, "工作狂特质 → 工人", ref failures, ref total);
+            Check(rules, new RoleGroupInput { HasNeurotic = true },
+                RoleGroup.Worker, "神经质特质 → 工人", ref failures, ref total);
             Check(rules, new RoleGroupInput { CraftingPassionMajor = true },
                 RoleGroup.Worker, "生产兴趣双火 → 工人", ref failures, ref total);
             Check(rules, new RoleGroupInput { HasBeauty = true },
@@ -110,6 +112,11 @@ namespace AutoEverything.Tests
             Check(noIndustrious, new RoleGroupInput { HasIndustrious = true },
                 RoleGroup.Other, "关闭工作狂开关后归入其他", ref failures, ref total);
 
+            RoleGroupRules noNeurotic = RoleGroupRules.Default;
+            noNeurotic.NeuroticToWorker = false;
+            Check(noNeurotic, new RoleGroupInput { HasNeurotic = true },
+                RoleGroup.Other, "关闭神经质开关后归入其他", ref failures, ref total);
+
             RoleGroupRules noCraftingMajor = RoleGroupRules.Default;
             noCraftingMajor.CraftingMajorToWorker = false;
             Check(noCraftingMajor, new RoleGroupInput { CraftingPassionMajor = true },
@@ -160,6 +167,7 @@ namespace AutoEverything.Tests
             allOff.PacifistToWorker = false;
             allOff.ProductionSpecialistToWorker = false;
             allOff.IndustriousToWorker = false;
+            allOff.NeuroticToWorker = false;
             allOff.CraftingMajorToWorker = false;
             allOff.SocialSpecialistToTrade = false;
             allOff.BeautyToTrade = false;
@@ -169,7 +177,7 @@ namespace AutoEverything.Tests
                     IsGhoul = true, HasBrawlerTrait = true, IsMeleeSpecialist = true,
                     IsShootingSpecialist = true, IsTriggerHappy = true, IsHunter = true,
                     ViolentDisabled = true, IsProductionSpecialist = true, HasIndustrious = true,
-                    CraftingPassionMajor = true, IsSocialSpecialist = true, HasBeauty = true,
+                    HasNeurotic = true, CraftingPassionMajor = true, IsSocialSpecialist = true, HasBeauty = true,
                     SocialPassionMajor = true
                 },
                 RoleGroup.Other, "全部取消勾选 → 全部归其他", ref failures, ref total);
@@ -286,6 +294,10 @@ namespace AutoEverything.Tests
             CheckBool(RoleGroupRules.IsIndustriousDegree(-1), false, "懒惰 degree=-1 不命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsIndustriousDegree(-2), false, "极度懒惰 degree=-2 不命中", ref failures, ref total);
 
+            CheckBool(RoleGroupRules.IsNeuroticDegree(1), true, "严重神经质 degree=1 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsNeuroticDegree(0), true, "神经质 degree=0 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsNeuroticDegree(-1), false, "无神经质 degree=-1 不命中", ref failures, ref total);
+
             CheckBool(RoleGroupRules.IsBeautyDegree(2), true, "沉鱼落雁 degree=2 命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsBeautyDegree(1), true, "俊俏 degree=1 命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsBeautyDegree(0), false, "俊俏 degree=0 不命中", ref failures, ref total);
@@ -365,6 +377,29 @@ namespace AutoEverything.Tests
                     "缩放 " + scale.ToString("0.0") + " 标签贴在可见顶边下方", ref failures, ref total);
             }
 
+            // 底边下探：名字高度固定像素，缩放越小越容易探出原版 12*scale 的下边距
+            CheckFloat(RoleGroupLayout.ComputeFrameBottomExtend(1f, RoleGroupLayout.NameLabelHeight), 0f,
+                "scale=1 小字体名字不需要下探", ref failures, ref total);
+            CheckFloat(RoleGroupLayout.ComputeFrameBottomExtend(1f, RoleGroupLayout.NameLabelHeightLarge), 2f,
+                "scale=1 大字体名字需下探", ref failures, ref total);
+            CheckFloat(RoleGroupLayout.ComputeFrameBottomExtend(0.5f, RoleGroupLayout.NameLabelHeight), 6f,
+                "scale=0.5 小字体名字需下探", ref failures, ref total);
+            for (float scale = 0.4f; scale <= 1.001f; scale += 0.1f)
+            {
+                foreach (float labelHeight in new[]
+                {
+                    RoleGroupLayout.NameLabelHeight, RoleGroupLayout.NameLabelHeightLarge
+                })
+                {
+                    float extend = RoleGroupLayout.ComputeFrameBottomExtend(scale, labelHeight);
+                    float nameBottom = labelHeight - 4f * scale;
+                    float frameBottom = RoleGroupLayout.GroupFrameMargin * scale + extend;
+                    CheckBool(frameBottom >= nameBottom + RoleGroupLayout.NameBottomPadding - 0.001f, true,
+                        "缩放 " + scale.ToString("0.0") + " 名字不越过分组框下边",
+                        ref failures, ref total);
+                }
+            }
+
             Console.WriteLine($"[RoleGroupLayoutTests] 累计 {total - failures}/{total} passed");
             return failures;
         }
@@ -426,6 +461,10 @@ namespace AutoEverything.Tests
             r = RoleGroupRules.Default;
             r.IndustriousToWorker = false;
             CheckBool(r.DiffersFrom(baseRules), true, "工作狂开关变化被检测", ref failures, ref total);
+
+            r = RoleGroupRules.Default;
+            r.NeuroticToWorker = false;
+            CheckBool(r.DiffersFrom(baseRules), true, "神经质开关变化被检测", ref failures, ref total);
 
             r = RoleGroupRules.Default;
             r.CraftingMajorToWorker = false;

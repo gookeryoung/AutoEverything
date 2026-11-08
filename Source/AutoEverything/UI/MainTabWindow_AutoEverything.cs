@@ -251,18 +251,20 @@ namespace AutoEverything.UI
             AESettings.groupTriggerHappyShooter = shooter[1];
             AESettings.groupHunterAsShooter = shooter[2];
 
-            // 工人：无法施暴 / 生产专家职位 / 工作狂特质 / 生产兴趣双火
+            // 工人：无法施暴 / 生产专家职位 / 工作狂特质 / 神经质特质 / 生产兴趣双火
             bool[] worker = { AESettings.groupWorkerPacifist, AESettings.groupWorkerProductionSpecialist,
-                AESettings.groupIndustriousWorker, AESettings.groupCraftingPassionWorker };
+                AESettings.groupIndustriousWorker, AESettings.groupNeuroticWorker,
+                AESettings.groupCraftingPassionWorker };
             DrawRoleRow(l, ColorRoleWorker, "AE_RoleGroup_Worker", worker,
                 new[] { "AE_CFG_Worker_Pacifist", "AE_CFG_Worker_ProductionSpecialist",
-                    "AE_CFG_Worker_Industrious", "AE_CFG_Worker_CraftingMajor" },
+                    "AE_CFG_Worker_Industrious", "AE_CFG_Worker_Neurotic", "AE_CFG_Worker_CraftingMajor" },
                 new[] { "AE_TT_Worker_Pacifist", "AE_TT_Worker_ProductionSpecialist",
-                    "AE_TT_Worker_Industrious", "AE_TT_Worker_CraftingMajor" }, false);
+                    "AE_TT_Worker_Industrious", "AE_TT_Worker_Neurotic", "AE_TT_Worker_CraftingMajor" }, false);
             AESettings.groupWorkerPacifist = worker[0];
             AESettings.groupWorkerProductionSpecialist = worker[1];
             AESettings.groupIndustriousWorker = worker[2];
-            AESettings.groupCraftingPassionWorker = worker[3];
+            AESettings.groupNeuroticWorker = worker[3];
+            AESettings.groupCraftingPassionWorker = worker[4];
 
             // 贸易：道德家职位 / 俊俏/沉鱼落雁特质 / 社交兴趣双火
             bool[] trade = { AESettings.groupTradeMoralist, AESettings.groupBeautyTrade, AESettings.groupSocialPassionTrade };
@@ -749,11 +751,11 @@ namespace AutoEverything.UI
             l.Gap(2f);
         }
 
-        // 角色表格列宽：左侧角色名列固定，右侧四个条件列等宽，
+        // 角色表格列宽：左侧角色名列固定，右侧五个条件列等宽，
         // 所有角色行共用同一列宽，复选框纵向严格对齐
         private const float RoleRowHeight = 26f;
         private const float RoleNameWidth = 76f;
-        private const int RoleConditionColumns = 4;
+        private const int RoleConditionColumns = 5;
         private const float RoleCellGap = 6f;
 
         /// <summary>

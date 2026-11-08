@@ -71,6 +71,15 @@ namespace AutoEverything.RoleEvaluation
         /// <summary>原版分组框向外扩展的上边距（BaseGroupFrameMargin）。</summary>
         public const float GroupFrameMargin = 12f;
 
+        /// <summary>Tiny 字体下殖民者名字背景条高度（GenMapUI.DrawPawnLabel 固定 12px）。</summary>
+        public const float NameLabelHeight = 12f;
+
+        /// <summary>关闭小字体时名字背景条高度（固定 16px，不随缩放变化）。</summary>
+        public const float NameLabelHeightLarge = 16f;
+
+        /// <summary>名字底边与分组框下边之间的安全间距。</summary>
+        public const float NameBottomPadding = 2f;
+
         /// <summary>标签内角色图标边长。</summary>
         public const float IconSize = 16f;
 
@@ -111,6 +120,21 @@ namespace AutoEverything.RoleEvaluation
         public static float ComputeTagY(float frameY, float scale)
         {
             return ComputeFrameVisibleTop(frameY, scale) + TagMargin;
+        }
+
+        /// <summary>
+        /// 计算分组框下边需要额外下探的距离，让殖民者名字不被下边框穿过。
+        /// 名字由 GenMapUI.DrawPawnLabel 绘制：顶部位于槽位底边上方 4*scale，
+        /// 高度为固定像素（Tiny 12 / 大字体 16，不随殖民者栏缩放变化）；
+        /// 而原版分组框下边距只有 12*scale。缩放比越小，名字越容易探出下边框，
+        /// 因此返回两者差值加安全间距（结果不小于 0）。
+        /// </summary>
+        public static float ComputeFrameBottomExtend(float scale, float labelHeight)
+        {
+            float labelBottom = labelHeight - 4f * scale;
+            float frameBottom = GroupFrameMargin * scale;
+            float extend = labelBottom + NameBottomPadding - frameBottom;
+            return extend > 0f ? extend : 0f;
         }
 
         /// <summary>

@@ -67,8 +67,10 @@ namespace AutoEverything.Core
         // 射手补充条件：乱开枪特性（ShootingAccuracy degree=-1）
         public static bool groupTriggerHappyShooter = true;
 
-        // 工人补充条件：工作狂特质（Industriousness degree>=1）、生产（手工）兴趣双火
+        // 工人补充条件：工作狂特质（Industriousness degree>=1）、神经质特质（Neurotic degree>=0）、
+        // 生产（手工）兴趣双火
         public static bool groupIndustriousWorker = true;
+        public static bool groupNeuroticWorker = true;
         public static bool groupCraftingPassionWorker = true;
 
         // 贸易补充条件：俊俏/沉鱼落雁特质（Beauty degree>=1）、社交兴趣双火
@@ -244,6 +246,7 @@ namespace AutoEverything.Core
             LookCompat(ref groupTradeMoralist, "groupTradeMoralist", true);
             LookCompat(ref groupTriggerHappyShooter, "groupTriggerHappyShooter", true);
             LookCompat(ref groupIndustriousWorker, "groupIndustriousWorker", true);
+            LookCompat(ref groupNeuroticWorker, "groupNeuroticWorker", true);
             LookCompat(ref groupCraftingPassionWorker, "groupCraftingPassionWorker", true);
             LookCompat(ref groupBeautyTrade, "groupBeautyTrade", true);
             LookCompat(ref groupSocialPassionTrade, "groupSocialPassionTrade", true);

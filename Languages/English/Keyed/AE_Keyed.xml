@@ -270,6 +270,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_Worker_Pacifist>Violent disabled</AE_CFG_Worker_Pacifist>
   <AE_CFG_Worker_ProductionSpecialist>Production specialist</AE_CFG_Worker_ProductionSpecialist>
   <AE_CFG_Worker_Industrious>Industrious trait</AE_CFG_Worker_Industrious>
+  <AE_CFG_Worker_Neurotic>Neurotic trait</AE_CFG_Worker_Neurotic>
   <AE_CFG_Worker_CraftingMajor>Crafting passion (major)</AE_CFG_Worker_CraftingMajor>
   <AE_CFG_Trade_Moralist>Moralist</AE_CFG_Trade_Moralist>
   <AE_CFG_Trade_Beauty>Pretty / Beautiful</AE_CFG_Trade_Beauty>
@@ -284,6 +285,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_Worker_Pacifist>Colonists unable to do violent work are put in Worker.</AE_TT_Worker_Pacifist>
   <AE_TT_Worker_ProductionSpecialist>Colonists holding the production specialist ideoligion role are put in Worker.</AE_TT_Worker_ProductionSpecialist>
   <AE_TT_Worker_Industrious>Colonists with the industrious trait (Industrious or Very industrious) are put in Worker.</AE_TT_Worker_Industrious>
+  <AE_TT_Worker_Neurotic>Colonists with the neurotic trait (Neurotic or Very neurotic) are put in Worker.</AE_TT_Worker_Neurotic>
   <AE_TT_Worker_CraftingMajor>Colonists with a major passion in Crafting are put in Worker.</AE_TT_Worker_CraftingMajor>
   <AE_TT_Trade_Moralist>Colonists holding the moralist ideoligion role are put in Trade.</AE_TT_Trade_Moralist>
   <AE_TT_Trade_Beauty>Colonists with the Pretty or Beautiful trait are put in Trade.</AE_TT_Trade_Beauty>

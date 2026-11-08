@@ -264,6 +264,13 @@ namespace AutoEverything.Core
             Rect visibleRect = ClipToVisibleTop(rect, scale);
             if (visibleRect.width <= 0f || visibleRect.height <= 0f) return;
 
+            // 名字高度是固定像素、不随殖民者栏缩放；原版 12*scale 的下边距不够时
+            // 下探分组框底边，避免名字穿过下边框
+            float labelHeight = Prefs.DisableTinyText
+                ? RoleGroupLayout.NameLabelHeightLarge
+                : RoleGroupLayout.NameLabelHeight;
+            visibleRect.yMax += RoleGroupLayout.ComputeFrameBottomExtend(scale, labelHeight);
+
             DrawBorder(visibleRect, role);
             Rect tagRect = DrawTag(rect, scale, role);
             HandleGroupInput(visibleRect, tagRect, group, role);

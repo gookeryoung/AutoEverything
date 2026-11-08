@@ -67,6 +67,7 @@ namespace AutoEverything.RoleEvaluation
         public bool IsSocialSpecialist;         // 道德家职位 → 贸易
         public bool IsTriggerHappy;             // 乱开枪特质 → 射手
         public bool HasIndustrious;             // 工作狂特质 → 工人
+        public bool HasNeurotic;                // 神经质特质 → 工人
         public bool CraftingPassionMajor;       // 生产（手工）兴趣双火 → 工人
         public bool HasBeauty;                  // 俊俏/沉鱼落雁特质 → 贸易
         public bool SocialPassionMajor;         // 社交兴趣双火 → 贸易
@@ -91,6 +92,7 @@ namespace AutoEverything.RoleEvaluation
         public bool SocialSpecialistToTrade;
         public bool TriggerHappyToShooter;
         public bool IndustriousToWorker;
+        public bool NeuroticToWorker;
         public bool CraftingMajorToWorker;
         public bool BeautyToTrade;
         public bool SocialMajorToTrade;
@@ -110,6 +112,7 @@ namespace AutoEverything.RoleEvaluation
                 rules.SocialSpecialistToTrade = true;
                 rules.TriggerHappyToShooter = true;
                 rules.IndustriousToWorker = true;
+                rules.NeuroticToWorker = true;
                 rules.CraftingMajorToWorker = true;
                 rules.BeautyToTrade = true;
                 rules.SocialMajorToTrade = true;
@@ -133,6 +136,7 @@ namespace AutoEverything.RoleEvaluation
                 || SocialSpecialistToTrade != other.SocialSpecialistToTrade
                 || TriggerHappyToShooter != other.TriggerHappyToShooter
                 || IndustriousToWorker != other.IndustriousToWorker
+                || NeuroticToWorker != other.NeuroticToWorker
                 || CraftingMajorToWorker != other.CraftingMajorToWorker
                 || BeautyToTrade != other.BeautyToTrade
                 || SocialMajorToTrade != other.SocialMajorToTrade;
@@ -156,6 +160,12 @@ namespace AutoEverything.RoleEvaluation
             return degree >= 1;
         }
 
+        /// <summary>神经质：Neurotic degree ≥ 0（神经质 / 严重神经质均命中），无此特质为 -1。</summary>
+        public static bool IsNeuroticDegree(int degree)
+        {
+            return degree >= 0;
+        }
+
         /// <summary>兴趣是否达到双火：Major 及以上（VSE Natural 归入 Major，Critical 亦命中）。</summary>
         public static bool IsMajorPassionTier(PassionHelper.PassionTier tier)
         {
@@ -175,6 +185,7 @@ namespace AutoEverything.RoleEvaluation
             rules.SocialSpecialistToTrade = AESettings.groupTradeMoralist;
             rules.TriggerHappyToShooter = AESettings.groupTriggerHappyShooter;
             rules.IndustriousToWorker = AESettings.groupIndustriousWorker;
+            rules.NeuroticToWorker = AESettings.groupNeuroticWorker;
             rules.CraftingMajorToWorker = AESettings.groupCraftingPassionWorker;
             rules.BeautyToTrade = AESettings.groupBeautyTrade;
             rules.SocialMajorToTrade = AESettings.groupSocialPassionTrade;
@@ -352,6 +363,8 @@ namespace AutoEverything.RoleEvaluation
                 && RoleGroupRules.IsTriggerHappyDegree(traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy));
             input.HasIndustrious = traits != null && TraitDefCache.Industriousness != null
                 && RoleGroupRules.IsIndustriousDegree(traits.DegreeOfTrait(TraitDefCache.Industriousness));
+            input.HasNeurotic = traits != null && TraitDefCache.Neurotic != null
+                && RoleGroupRules.IsNeuroticDegree(traits.DegreeOfTrait(TraitDefCache.Neurotic));
             input.HasBeauty = traits != null && TraitDefCache.Beauty != null
                 && RoleGroupRules.IsBeautyDegree(traits.DegreeOfTrait(TraitDefCache.Beauty));
 
@@ -396,11 +409,12 @@ namespace AutoEverything.RoleEvaluation
         /// 6. 被指派狩猎 → 射手
         /// 7. 生产专家职位 → 工人
         /// 8. 工作狂特质 → 工人
-        /// 9. 生产（手工）兴趣双火 → 工人
-        /// 10. 道德家职位 → 贸易
-        /// 11. 俊俏/沉鱼落雁特质 → 贸易
-        /// 12. 社交兴趣双火 → 贸易
-        /// 13. 其余 → 其他
+        /// 9. 神经质特质 → 工人
+        /// 10. 生产（手工）兴趣双火 → 工人
+        /// 11. 道德家职位 → 贸易
+        /// 12. 俊俏/沉鱼落雁特质 → 贸易
+        /// 13. 社交兴趣双火 → 贸易
+        /// 14. 其余 → 其他
         /// </summary>
         public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
         {
@@ -413,6 +427,7 @@ namespace AutoEverything.RoleEvaluation
             if (rules.HunterAsShooter && input.IsHunter) return RoleGroup.Shooter;
             if (rules.ProductionSpecialistToWorker && input.IsProductionSpecialist) return RoleGroup.Worker;
             if (rules.IndustriousToWorker && input.HasIndustrious) return RoleGroup.Worker;
+            if (rules.NeuroticToWorker && input.HasNeurotic) return RoleGroup.Worker;
             if (rules.CraftingMajorToWorker && input.CraftingPassionMajor) return RoleGroup.Worker;
             if (rules.SocialSpecialistToTrade && input.IsSocialSpecialist) return RoleGroup.Trade;
             if (rules.BeautyToTrade && input.HasBeauty) return RoleGroup.Trade;

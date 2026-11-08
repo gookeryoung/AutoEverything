@@ -271,6 +271,7 @@
   <AE_CFG_Worker_Pacifist>无法施暴</AE_CFG_Worker_Pacifist>
   <AE_CFG_Worker_ProductionSpecialist>生产专家职位</AE_CFG_Worker_ProductionSpecialist>
   <AE_CFG_Worker_Industrious>工作狂特质</AE_CFG_Worker_Industrious>
+  <AE_CFG_Worker_Neurotic>神经质特质</AE_CFG_Worker_Neurotic>
   <AE_CFG_Worker_CraftingMajor>生产兴趣双火</AE_CFG_Worker_CraftingMajor>
   <AE_CFG_Trade_Moralist>道德家职位</AE_CFG_Trade_Moralist>
   <AE_CFG_Trade_Beauty>俊俏/沉鱼落雁</AE_CFG_Trade_Beauty>
@@ -285,6 +286,7 @@
   <AE_TT_Worker_Pacifist>无法进行暴力工作的殖民者（和平主义者）直接归入工人</AE_TT_Worker_Pacifist>
   <AE_TT_Worker_ProductionSpecialist>担任“生产专家”意识形态职位的殖民者直接归入工人</AE_TT_Worker_ProductionSpecialist>
   <AE_TT_Worker_Industrious>拥有“工作狂”特质（努力/勤奋）的殖民者直接归入工人</AE_TT_Worker_Industrious>
+  <AE_TT_Worker_Neurotic>拥有“神经质”特质（神经质/严重神经质）的殖民者直接归入工人</AE_TT_Worker_Neurotic>
   <AE_TT_Worker_CraftingMajor>生产（手工）技能双火的殖民者直接归入工人</AE_TT_Worker_CraftingMajor>
   <AE_TT_Trade_Moralist>担任“道德家”意识形态职位的殖民者直接归入贸易</AE_TT_Trade_Moralist>
   <AE_TT_Trade_Beauty>拥有“俊俏”或“沉鱼落雁”特质（Beauty）的殖民者直接归入贸易</AE_TT_Trade_Beauty>
