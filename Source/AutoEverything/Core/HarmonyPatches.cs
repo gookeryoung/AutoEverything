@@ -13,7 +13,7 @@ namespace AutoEverything.Core
     /// Auto Everything MOD 的全部 Harmony 补丁集合。
     /// 补丁职责：
     /// 1) TickManager.DoSingleTick Postfix：作为 AutoExecutor 的全局 Tick 入口
-    /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标
+    /// 2) ColonistBarColonistDrawer.DrawColonist Postfix：在殖民者栏固定位置为人类 Pawn 绘制角色定位图标（右上角）与心灵纽带爱心标识（左下角）
     /// 3) PawnUIOverlay.DrawPawnGUIOverlay Postfix：在地图上为非殖民者栏的高价值单位（敌方/中立/野生）绘制标记
     /// 全部采用 Postfix 零侵入方式，不拦截原方法。
     ///
@@ -266,6 +266,7 @@ namespace AutoEverything.Core
                 try
                 {
                     DrawRoleIcons(rect, colonist);
+                    DrawBondHeart(rect, colonist);
                 }
                 catch (Exception ex)
                 {
@@ -314,6 +315,28 @@ namespace AutoEverything.Core
                     GUI.DrawTexture(iconRect, tex);
                     x -= iconSize + spacing;
                 }
+                GUI.color = prevColor;
+            }
+
+            /// <summary>
+            /// 在头像左下角绘制爱心标识：标记已建立心灵纽带的伴侣。
+            /// 尺寸/缩放规则与右上角角色图标一致，单图标取上限 16px。
+            /// </summary>
+            private static void DrawBondHeart(Rect rect, Pawn pawn)
+            {
+                if (!RoleIconDef.HasPsychicBond(pawn)) return;
+
+                float scale = rect.width / ColonistBar.BaseSize.x;
+                float margin = BaseMargin * scale;
+                float size = Mathf.Min(BaseIconSize * scale, rect.width - margin * 2f);
+                if (size <= 0f) return;
+
+                Rect heartRect = new Rect(rect.xMin + margin, rect.yMax - size - margin, size, size);
+                Color prevColor = GUI.color;
+                Color heartColor = RoleIconDef.IconColor;
+                heartColor.a = prevColor.a;
+                GUI.color = heartColor;
+                GUI.DrawTexture(heartRect, RoleIconTextures.Bond);
                 GUI.color = prevColor;
             }
         }

@@ -194,6 +194,40 @@ namespace AutoEverything.AutoMarkPawn
             return IconColor;
         }
 
+        // ===================== 心灵纽带标识判定 =====================
+        // 心灵纽带（Biotech 心灵纽带基因产生）在伴侣双方各有一个 Hediff_PsychicBond，
+        // 因此直接检查 Hediff 即可标记双方头像。
+        // 不做 TTL 缓存：纽带建立/断裂需要即时反映，HediffSet 查询本身开销极低。
+
+        private static HediffDef psychicBondDef;
+        private static bool psychicBondDefResolved;
+
+        /// <summary>
+        /// 判断 Pawn 是否处于心灵纽带关系中（用于头像左下角爱心标识）。
+        /// 未启用 Biotech 时心灵纽带不可能存在，直接返回 false。
+        /// </summary>
+        public static bool HasPsychicBond(Pawn pawn)
+        {
+            if (pawn?.health?.hediffSet == null) return false;
+            if (!ModsConfig.BiotechActive) return false;
+            HediffDef def = GetPsychicBondDef();
+            return def != null && pawn.health.hediffSet.HasHediff(def);
+        }
+
+        /// <summary>
+        /// 延迟解析 DLC HediffDef：Biotech 未启用时 DefDatabase 中不存在该 Def，
+        /// 不能依赖原生 DefOf 字段（可能为 null），用 GetNamed 带 false 静默失败。
+        /// </summary>
+        private static HediffDef GetPsychicBondDef()
+        {
+            if (!psychicBondDefResolved)
+            {
+                psychicBondDefResolved = true;
+                psychicBondDef = DefDatabase<HediffDef>.GetNamed("PsychicBond", false);
+            }
+            return psychicBondDef;
+        }
+
         /// <summary>
         /// 判断 Pawn 是否持有指定 defName 的意识形态职位/专家。
         /// 未启用 Ideology 或无 Ideoligion 时返回 false（pawn.Ideo 为 null）。

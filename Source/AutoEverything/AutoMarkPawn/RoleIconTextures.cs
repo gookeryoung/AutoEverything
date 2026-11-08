@@ -16,6 +16,7 @@ namespace AutoEverything.AutoMarkPawn
     /// - <see cref="Ranged"/>：Role_Ranged.png——弓箭（弓弧+弓弦+箭杆+箭头）
     /// - <see cref="Worker"/>：Role_Worker.png——扳手螺丝刀（交叉工具组合，标识工作倾向）
     /// - <see cref="Trader"/>：Role_Trader.png——钱袋子（扎绳+袋口+圆形袋身）
+    /// - <see cref="Bond"/>：Role_Bond.png——爱心（心灵纽带伴侣标识，绘制在头像左下角）
     ///
     /// 降级策略：
     /// - 若外部 PNG 加载失败（ContentFinder 返回 null），回退到程序化生成的 32x32 像素纹理
@@ -36,6 +37,9 @@ namespace AutoEverything.AutoMarkPawn
         /// <summary>钱袋子纹理：贸易</summary>
         public static readonly Texture2D Trader;
 
+        /// <summary>爱心纹理：心灵纽带伴侣</summary>
+        public static readonly Texture2D Bond;
+
         // 降级纹理尺寸常量
         private const int FallbackSize = 32;
         private const int FallbackCenter = FallbackSize / 2;
@@ -46,6 +50,7 @@ namespace AutoEverything.AutoMarkPawn
             Ranged = LoadOrFallback("UI/Icons/Role/Role_Ranged", CreateBowArrowFallback);
             Worker = LoadOrFallback("UI/Icons/Role/Role_Worker", CreateWrenchFallback);
             Trader = LoadOrFallback("UI/Icons/Role/Role_Trader", CreateMoneyBagFallback);
+            Bond = LoadOrFallback("UI/Icons/Role/Role_Bond", CreateHeartFallback);
         }
 
         /// <summary>
@@ -196,6 +201,27 @@ namespace AutoEverything.AutoMarkPawn
                         int dy = y - 17;
                         if (dx * dx + dy * dy <= 100) filled = true;
                     }
+                    pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
+                }
+            }
+            return CreateFallbackTexture(pixels);
+        }
+
+        /// <summary>
+        /// Bond 降级纹理：爱心（经典心形隐函数 (x²+y²-1)³ - x²y³ ≤ 0 填充）。
+        /// </summary>
+        private static Texture2D CreateHeartFallback()
+        {
+            Color[] pixels = new Color[FallbackSize * FallbackSize];
+            for (int y = 0; y < FallbackSize; y++)
+            {
+                for (int x = 0; x < FallbackSize; x++)
+                {
+                    // 映射到 [-1.15, 1.15] 并翻转 Y（纹理坐标向下为正，心形公式向上为正）
+                    float nx = ((x + 0.5f) / FallbackSize * 2f - 1f) * 1.15f;
+                    float ny = (1f - (y + 0.5f) / FallbackSize * 2f) * 1.15f;
+                    float a = nx * nx + ny * ny - 1f;
+                    bool filled = a * a * a - nx * nx * ny * ny * ny <= 0f;
                     pixels[y * FallbackSize + x] = filled ? Color.white : Color.clear;
                 }
             }
