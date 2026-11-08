@@ -17,12 +17,12 @@ namespace AutoEverything.AutoEquip
             if (weapon == null || weapon.def == null) return input;
 
             input.DefName = weapon.def.defName;
-            input.MarketValue = weapon.MarketValue;
             input.QualityRank = GetQualityRank(weapon);
 
-            float traitValue;
-            input.IsSpecial = WeaponClassifier.TryGetTraitValue(weapon, out traitValue);
-            input.TraitValue = traitValue;
+            // 只统计战斗特性价值：纯装饰特性（镶金/镶玉）不构成特化优势；
+            // 装饰特性价值为 0 时降级为普通武器，与普通武器一起按品质+战斗评分比较
+            input.TraitValue = WeaponClassifier.GetCombatTraitValue(weapon);
+            input.IsSpecial = input.TraitValue > 0f;
             input.CombatScore = ComputeCombatScore(weapon, role, kind);
             return input;
         }
@@ -41,8 +41,36 @@ namespace AutoEverything.AutoEquip
             if (kind == WeaponKind.Ranged)
                 return ComputeRangedScore(weapon, role);
             if (kind == WeaponKind.Thrown)
-                return weapon.MarketValue * 0.05f;
+                return ComputeThrownScore(weapon);
             return 0f;
+        }
+
+        /// <summary>
+        /// 投掷物评分：按弹丸伤害与爆炸范围加权，不使用市价。
+        /// 市价会被材质/装饰特性抬高，不代表杀伤力。
+        /// </summary>
+        public static float ComputeThrownScore(ThingWithComps weapon)
+        {
+            if (weapon == null || weapon.def == null) return 0f;
+
+            VerbProperties verb = FindRangedVerb(weapon.def);
+            if (verb == null || verb.defaultProjectile == null || verb.defaultProjectile.projectile == null)
+                return 0f;
+
+            float score = 0f;
+            try
+            {
+                ProjectileProperties projectile = verb.defaultProjectile.projectile;
+                score = projectile.GetDamageAmount(weapon, null);
+                if (projectile.explosionRadius > 0f)
+                    score *= 1f + projectile.explosionRadius * 0.1f;
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 投掷物评分失败: " + ex.Message,
+                    weapon.thingIDNumber ^ 0xA922);
+            }
+            return score;
         }
 
         private static float ComputeMeleeScore(ThingWithComps weapon, RoleGroup role)

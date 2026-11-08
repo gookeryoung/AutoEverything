@@ -351,6 +351,7 @@ namespace AutoEverything.AutoEquip
             if (kinds >= AESettings.equipMaxThrownKinds) return false;
 
             ThingWithComps best = null;
+            float bestScore = 0f;
             for (int i = 0; i < WeaponCandidates.Count; i++)
             {
                 ThingWithComps candidate = WeaponCandidates[i];
@@ -359,8 +360,13 @@ namespace AutoEverything.AutoEquip
                 if (WeaponClassifier.IsLockedToOtherPawn(candidate, pawn)) continue;
                 if (InventoryContainsDef(pawn, candidate.def)) continue;
 
-                if (best == null || candidate.MarketValue > best.MarketValue)
+                // 按杀伤力而非市价选投掷物，避免高价材质/装饰特性干扰
+                float score = WeaponScorer.ComputeThrownScore(candidate);
+                if (best == null || score > bestScore)
+                {
                     best = candidate;
+                    bestScore = score;
+                }
             }
 
             if (best == null) return false;

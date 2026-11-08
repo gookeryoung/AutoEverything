@@ -28,38 +28,44 @@ namespace AutoEverything.Tests
             int failures = 0;
 
             // 特化武器即使战斗分更低，也优先于一般武器
-            WeaponScoreInput general = Make(false, 0f, 999f, 6, 5000f, "GunA");
-            WeaponScoreInput special = Make(true, 1f, 1f, 0, 100f, "UniqueA");
+            WeaponScoreInput general = Make(false, 0f, 999f, 6, "GunA");
+            WeaponScoreInput special = Make(true, 1f, 1f, 0, "UniqueA");
             CheckCompare(special, general, true, "特化 > 一般（无视战斗分）", ref failures, ref total);
 
-            // 同为特化：特性价格高者优先
-            WeaponScoreInput specialLow = Make(true, 10f, 500f, 2, 4000f, "UniqueA");
-            WeaponScoreInput specialHigh = Make(true, 30f, 100f, 2, 4200f, "UniqueA");
-            CheckCompare(specialHigh, specialLow, true, "特化同武器：特性价格高者优先", ref failures, ref total);
+            // 同为特化：战斗特性价值高者优先
+            WeaponScoreInput specialLow = Make(true, 10f, 500f, 2, "UniqueA");
+            WeaponScoreInput specialHigh = Make(true, 30f, 100f, 2, "UniqueA");
+            CheckCompare(specialHigh, specialLow, true, "特化同武器：特性价值高者优先", ref failures, ref total);
 
-            // 特性价格相同时比较战斗分
-            WeaponScoreInput specialCombatLow = Make(true, 10f, 100f, 2, 4000f, "UniqueA");
-            WeaponScoreInput specialCombatHigh = Make(true, 10f, 200f, 2, 4000f, "UniqueB");
+            // 特性价值相同时比较战斗分
+            WeaponScoreInput specialCombatLow = Make(true, 10f, 100f, 2, "UniqueA");
+            WeaponScoreInput specialCombatHigh = Make(true, 10f, 200f, 2, "UniqueB");
             CheckCompare(specialCombatHigh, specialCombatLow, true, "特化同特性价：战斗分高者优先", ref failures, ref total);
 
             // 普通武器：品质优先于战斗分
-            WeaponScoreInput normalGood = Make(false, 0f, 10f, 3, 100f, "GunA");
-            WeaponScoreInput normalLegendary = Make(false, 0f, 1f, 6, 100f, "GunA");
+            WeaponScoreInput normalGood = Make(false, 0f, 10f, 3, "GunA");
+            WeaponScoreInput normalLegendary = Make(false, 0f, 1f, 6, "GunA");
             CheckCompare(normalLegendary, normalGood, true, "普通武器：品质高者优先", ref failures, ref total);
 
             // 普通武器同品质：战斗分高者优先
-            WeaponScoreInput normalLow = Make(false, 0f, 10f, 2, 100f, "GunA");
-            WeaponScoreInput normalHigh = Make(false, 0f, 20f, 2, 100f, "GunA");
+            WeaponScoreInput normalLow = Make(false, 0f, 10f, 2, "GunA");
+            WeaponScoreInput normalHigh = Make(false, 0f, 20f, 2, "GunA");
             CheckCompare(normalHigh, normalLow, true, "普通武器同品质：战斗分高者优先", ref failures, ref total);
 
             // 完全同分：按 defName 稳定排序
-            WeaponScoreInput sameA = Make(false, 0f, 10f, 2, 100f, "GunA");
-            WeaponScoreInput sameB = Make(false, 0f, 10f, 2, 100f, "GunB");
+            WeaponScoreInput sameA = Make(false, 0f, 10f, 2, "GunA");
+            WeaponScoreInput sameB = Make(false, 0f, 10f, 2, "GunB");
             CheckCompare(sameA, sameB, true, "同分按 defName 稳定排序", ref failures, ref total);
 
             // 可比分数：特化基数远高于一般
             CheckBool(EquipPolicy.ComparableScore(special) > EquipPolicy.ComparableScore(general), true,
                 "可比分数：特化 > 一般", ref failures, ref total);
+
+            // 可比分数不含市价：战斗分与品质完全相同的武器分数必须相等
+            WeaponScoreInput valueA = Make(false, 0f, 10f, 2, "GunA");
+            WeaponScoreInput valueB = Make(false, 0f, 10f, 2, "GunB");
+            CheckBool(Math.Abs(EquipPolicy.ComparableScore(valueA) - EquipPolicy.ComparableScore(valueB)) < 0.0001f,
+                true, "可比分数与市价无关", ref failures, ref total);
 
             Console.WriteLine($"[EquipPolicyTests/Compare] {total - failures}/{total} passed");
             return failures;
@@ -149,14 +155,13 @@ namespace AutoEverything.Tests
         }
 
         private static WeaponScoreInput Make(bool isSpecial, float traitValue, float combat,
-            int quality, float marketValue, string defName)
+            int quality, string defName)
         {
             WeaponScoreInput input = new WeaponScoreInput();
             input.IsSpecial = isSpecial;
             input.TraitValue = traitValue;
             input.CombatScore = combat;
             input.QualityRank = quality;
-            input.MarketValue = marketValue;
             input.DefName = defName;
             return input;
         }

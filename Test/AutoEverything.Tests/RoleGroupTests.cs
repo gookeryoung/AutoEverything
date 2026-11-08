@@ -32,6 +32,14 @@ namespace AutoEverything.Tests
                 RoleGroup.Front, "食尸鬼 → 前排", ref failures, ref total);
             Check(rules, new RoleGroupInput { HasBrawlerTrait = true },
                 RoleGroup.Front, "格斗者特质 → 前排", ref failures, ref total);
+            // 回归：玩家奴隶原生 IsColonist=false，通过身份门槛后仍须按格斗者特质进前排
+            Check(rules, new RoleGroupInput { HasBrawlerTrait = true },
+                RoleGroup.Front, "格斗者特质的玩家奴隶 → 前排", ref failures, ref total);
+
+            RoleGroupRules noBrawlerRule = RoleGroupRules.Default;
+            noBrawlerRule.BrawlerTraitToFront = false;
+            Check(noBrawlerRule, new RoleGroupInput { HasBrawlerTrait = true },
+                RoleGroup.Other, "取消勾选格斗者后带该特质者不进前排", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsMeleeSpecialist = true },
                 RoleGroup.Front, "格斗专家职位 → 前排", ref failures, ref total);
             Check(rules, new RoleGroupInput { IsShootingSpecialist = true },
@@ -413,15 +421,24 @@ namespace AutoEverything.Tests
             CheckBool(RoleGroupRules.IsNeuroticDegree(0), false, "无神经质 degree=0 不命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsNeuroticDegree(-1), false, "无神经质 degree=-1 不命中", ref failures, ref total);
 
-            // 分组资格：不得依赖 Spawned/精神崩溃状态（远行队与精神崩溃中的殖民者仍参与）
-            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, true, true), true,
-                "殖民者栏成员即使远行队/精神崩溃也应参与分组", ref failures, ref total);
-            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, true, true), false,
-                "非殖民者栏成员不参与分组", ref failures, ref total);
-            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, false, true), false,
-                "无技能组件不参与分组", ref failures, ref total);
-            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, true, false), false,
-                "无背景组件不参与分组", ref failures, ref total);
+            // 分组资格：不得依赖 Spawned/精神崩溃状态（远行队与精神崩溃中的殖民者仍参与）；
+            // 身份为"玩家侧人形"三者之一即可：自由殖民者 / 玩家奴隶 / 玩家控制亚人
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, false, false, true, true), true,
+                "自由殖民者参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, true, false, true, true), true,
+                "玩家奴隶参与分组（原生 IsColonist 对未稳固奴隶为 false）", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, false, true, true, true), true,
+                "玩家控制亚人参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, false, false, true, true), false,
+                "非玩家侧人形不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, true, false, false, true), false,
+                "奴隶缺技能组件不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, true, false, true, false), false,
+                "奴隶缺背景组件不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, false, false, false, true), false,
+                "殖民者缺技能组件不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, false, false, true, false), false,
+                "殖民者缺背景组件不参与分组", ref failures, ref total);
 
             CheckBool(RoleGroupRules.IsBeautyDegree(2), true, "沉鱼落雁 degree=2 命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsBeautyDegree(1), true, "俊俏 degree=1 命中", ref failures, ref total);

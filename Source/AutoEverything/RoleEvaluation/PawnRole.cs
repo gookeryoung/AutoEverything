@@ -168,13 +168,17 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 参与角色分组的资格判断（纯函数，便于单元测试）。
-        /// 只要求是殖民者栏收录的玩家侧人形（含远行队外出、精神崩溃、奴隶），
-        /// 不能用 Pawn.IsColonistPlayerControlled：它要求 Spawned 且无精神崩溃状态，
-        /// 会把远行队与精神崩溃中的殖民者误判成"其他"。
+        /// 只要求是"玩家侧、会出现在殖民者栏的人形"：自由殖民者 / 玩家奴隶 / 玩家控制的亚人（食尸鬼）。
+        /// 这里不能用 Pawn.IsColonist：原生实现要求"奴隶已稳固"（guest.SlaveIsSecure），
+        /// 未稳固的奴隶返回 false，会让带格斗者特质等条件的奴隶直接落到"其他"。
+        /// 同样不能用 IsColonistPlayerControlled：它要求 Spawned 且无精神崩溃。
         /// </summary>
-        public static bool IsRoleGroupCandidate(bool isBarColonist, bool hasSkills, bool hasStory)
+        public static bool IsRoleGroupCandidate(
+            bool isColonist, bool isSlaveOfColony, bool isSubhumanControlled,
+            bool hasSkills, bool hasStory)
         {
-            return isBarColonist && hasSkills && hasStory;
+            return (isColonist || isSlaveOfColony || isSubhumanControlled)
+                && hasSkills && hasStory;
         }
 
         /// <summary>兴趣是否达到双火：Major 及以上（VSE Natural 归入 Major，Critical 亦命中）。</summary>
@@ -352,9 +356,14 @@ namespace AutoEverything.RoleEvaluation
             if (rules.GhoulToFront && DLCCompat.IsGhoul(pawn)) return RoleGroup.Front;
 
             // 远行队（未 Spawned）、精神崩溃中的殖民者仍应分组，故不能用 IsColonistPlayerControlled；
-            // 与原版殖民者栏收录范围保持一致：殖民者 + 玩家侧改造人（食尸鬼等）
-            bool isBarColonist = pawn.IsColonist || pawn.IsColonySubhumanPlayerControlled;
-            if (!RoleGroupRules.IsRoleGroupCandidate(isBarColonist, pawn.skills != null, pawn.story != null))
+            // 与原版殖民者栏收录范围保持一致：自由殖民者 + 玩家奴隶 + 玩家侧改造人（食尸鬼等）。
+            // 必须显式纳入奴隶：原生 IsColonist 对"未稳固"的奴隶返回 false，
+            // 曾导致带格斗者特质的奴隶在门槛处就被判成"其他"。
+            bool isColonist = pawn.IsColonist;
+            bool isSlave = pawn.IsSlaveOfColony;
+            bool isSubhuman = pawn.IsColonySubhumanPlayerControlled;
+            if (!RoleGroupRules.IsRoleGroupCandidate(isColonist, isSlave, isSubhuman,
+                    pawn.skills != null, pawn.story != null))
             {
                 return RoleGroup.Other;
             }
@@ -385,7 +394,15 @@ namespace AutoEverything.RoleEvaluation
             input.CraftingPassionMajor = IsMajorPassion(pawn, SkillDefOf.Crafting);
             input.SocialPassionMajor = IsMajorPassion(pawn, SkillDefOf.Social);
 
-            return EvaluateRoleGroupCore(input, rules);
+            RoleGroup group = EvaluateRoleGroupCore(input, rules);
+            // 诊断日志：玩家反馈"有格斗者特质仍分到其他"时，可据此确认是身份门槛还是规则问题
+            if (AEDebug.IsActive)
+            {
+                AEDebug.Log(() => "[AutoEverything][RoleGroup] " + pawn.LabelShort
+                    + ": colonist=" + isColonist + " slave=" + isSlave + " subhuman=" + isSubhuman
+                    + " brawler=" + input.HasBrawlerTrait + " -> " + group);
+            }
+            return group;
         }
 
         /// <summary>

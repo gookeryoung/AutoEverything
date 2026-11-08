@@ -64,61 +64,67 @@ namespace AutoEverything.AutoEquip
         }
 
         /// <summary>
-        /// 读取武器特性总价值：Σ marketValueOffset。
-        /// 覆盖 Odyssey 独特武器与 Royalty 人格武器两条实现链；
-        /// 特性好坏完全由游戏数据决定，MOD 新增特性自动兼容。
+        /// 读取“战斗特性”价值：只统计带战斗属性影响（statOffsets/statFactors/abilities）的特性。
+        /// 装饰特性（镶金/镶玉等纯美观与售价）不计入，
+        /// 避免高价但无战斗力的花架子武器被优先选择。
+        /// 覆盖 Odyssey 独特武器与 Royalty 人格武器两条实现链。
         /// </summary>
-        public static bool TryGetTraitValue(ThingWithComps weapon, out float traitValue)
+        public static float GetCombatTraitValue(ThingWithComps weapon)
         {
-            traitValue = 0f;
-            if (weapon == null) return false;
+            if (weapon == null) return 0f;
 
-            bool hasTrait = false;
+            float value = 0f;
             try
             {
                 if (ModsConfig.OdysseyActive)
                 {
                     CompUniqueWeapon unique = weapon.TryGetComp<CompUniqueWeapon>();
-                    if (unique != null && unique.TraitsListForReading != null)
-                    {
-                        List<WeaponTraitDef> traits = unique.TraitsListForReading;
-                        for (int i = 0; i < traits.Count; i++)
-                        {
-                            if (traits[i] == null) continue;
-                            traitValue += traits[i].marketValueOffset;
-                            hasTrait = true;
-                        }
-                    }
+                    if (unique != null) AccumulateCombatValue(unique.TraitsListForReading, ref value);
                 }
 
                 if (ModsConfig.RoyaltyActive)
                 {
                     CompBladelinkWeapon blade = weapon.TryGetComp<CompBladelinkWeapon>();
-                    if (blade != null && blade.TraitsListForReading != null)
-                    {
-                        List<WeaponTraitDef> traits = blade.TraitsListForReading;
-                        for (int i = 0; i < traits.Count; i++)
-                        {
-                            if (traits[i] == null) continue;
-                            traitValue += traits[i].marketValueOffset;
-                            hasTrait = true;
-                        }
-                    }
+                    if (blade != null) AccumulateCombatValue(blade.TraitsListForReading, ref value);
                 }
             }
             catch (Exception ex)
             {
                 Log.ErrorOnce("[AutoEverything] 武器特性读取失败: " + ex.Message,
                     (weapon.thingIDNumber ^ TraitErrorSalt));
-                return false;
+                return 0f;
             }
 
-            return hasTrait;
+            return value;
+        }
+
+        private static void AccumulateCombatValue(List<WeaponTraitDef> traits, ref float value)
+        {
+            if (traits == null) return;
+            for (int i = 0; i < traits.Count; i++)
+            {
+                WeaponTraitDef trait = traits[i];
+                if (trait == null || !IsCombatTrait(trait)) continue;
+                value += trait.marketValueOffset;
+            }
         }
 
         /// <summary>
-        /// 拼接武器特性名称，供调试日志说明“为什么这件特化武器更好”。
-        /// 与 TryGetTraitValue 复用同一条数据链，无特性时返回空串。
+        /// 特性是否影响战斗：带属性加成/惩罚即算。
+        /// 纯装饰特性（无任何属性影响，仅改售价/美观）返回 false，
+        /// 因此镶金/镶玉类特性不构成“特化优先”的依据。
+        /// </summary>
+        public static bool IsCombatTrait(WeaponTraitDef trait)
+        {
+            if (trait == null) return false;
+            if (trait.statOffsets != null && trait.statOffsets.Count > 0) return true;
+            if (trait.statFactors != null && trait.statFactors.Count > 0) return true;
+            return false;
+        }
+
+        /// <summary>
+        /// 拼接武器特性名称与价值，供调试日志说明“为什么这件特化武器更好”。
+        /// 战斗特性标注价格，装饰特性标注“(装饰)”，便于核对优先级来源。
         /// </summary>
         public static string DescribeTraits(ThingWithComps weapon)
         {
@@ -156,6 +162,10 @@ namespace AutoEverything.AutoEquip
                 if (trait == null) continue;
                 if (sb.Length > 0) sb.Append('/');
                 sb.Append(string.IsNullOrEmpty(trait.label) ? trait.defName : trait.label);
+                if (IsCombatTrait(trait))
+                    sb.Append('(').Append(trait.marketValueOffset.ToString("+0.#;-0.#")).Append(')');
+                else
+                    sb.Append("(装饰)");
             }
         }
 

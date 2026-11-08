@@ -199,7 +199,7 @@
   <AE_CFG_EquipMinImprovement>换装最小提升</AE_CFG_EquipMinImprovement>
   <AE_CFG_EquipMaxThrownKinds>投掷物种类上限</AE_CFG_EquipMaxThrownKinds>
   <AE_CFG_EquipRoleHint>白名单按殖民者栏角色分组生效：勾选近战/远程决定主武器类别，副武器数量为额外放入背包的远程武器数；投掷物勾选后才携带手雷/燃烧弹。</AE_CFG_EquipRoleHint>
-  <AE_CFG_EquipPriorityHint>特化武器（带特性的独特/人格武器）永远优先于一般武器；同为特化时按特性价格（marketValueOffset 总和）排序，同为一般时按品质再按战斗评分。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
+  <AE_CFG_EquipPriorityHint>特化武器（带战斗相关特性的独特/人格武器）优先于一般武器；同为特化时按战斗特性价格（marketValueOffset 总和）排序，同为一般时按品质再按战斗评分。镶金/镶玉等纯装饰特性不计入，只带装饰特性的武器按一般武器处理；市价不参与选择。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
   <AE_CFG_EquipApparelHint>服装只从殖民者当前【管理→着装】政策允许的范围内选择，不会修改或覆盖玩家的着装政策；换装提升不足时保持当前衣物。</AE_CFG_EquipApparelHint>
   <AE_CFG_EquipSidearmHint>副武器与手雷只放入背包，不占用主武器栏；原版不会自动切换或投掷，需要玩家手动操作。</AE_CFG_EquipSidearmHint>
 
