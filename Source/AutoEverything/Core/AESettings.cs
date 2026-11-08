@@ -7,7 +7,7 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.Core
 {
     /// <summary>
-    /// 主 Mod 设置：开关、战斗价值权重、自定义评级、Mod 选项窗口。
+    /// 主 Mod 设置：开关、评级阈值、自定义评级、Mod 选项窗口。
     /// 评级标签相关逻辑（Nick 前缀应用/清除、殖民者栏重排）见 <see cref="AESettings.TierTag.cs"/>。
     /// </summary>
     public partial class AESettings : ModSettings
@@ -23,27 +23,13 @@ namespace AutoEverything.Core
         // 用药方案自动配置：默认关闭——会修改殖民者的 DrugPolicy 分配（覆盖玩家手动设置），玩家主动开启更安全
         public static bool autoDrugPolicyEnabled = false; // AutoDrugPolicy 用药方案（AE-S/AE-AB/AE-CDX 三套政策按评级自动分配）
 
-        // 战斗价值公式可调权重（用于评级排序与高价值标记判定）
-        // 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
-        // 兴趣乘数：无火 1.0，单火 1.5，双火 2.0
-        public static float cvSkillWeight = 1.0f;            // 技能等级整体权重
-        public static float cvPassionNoneMult = 1.0f;        // 无火兴趣乘数
-        public static float cvPassionMinorMult = 1.5f;       // 单火兴趣乘数
-        public static float cvPassionMajorMult = 2.0f;       // 双火兴趣乘数
-
-        // 特质加分（可调）：原生特质对战斗价值的额外修正
-        // 设计意图：玩家可按自己理解调整特质价值
-        public static float cvToughBonus = 30f;              // 坚韧 Tough：减伤 50%
-        public static float cvTriggerHappyPenalty = -15f;    // 乱开枪 ShootingAccuracy degree=-1：精度大幅下降
-        public static float cvCarefulShooterBonus = 15f;     // 冷枪手 ShootingAccuracy degree=+1：精度提升但冷却慢
-
         // 自定义战斗评级识别码
         // 设计：玩家可为指定殖民者手动指定档次，跳过自动公式计算
         //   场景：玩家认为某个 S 档殖民者特别关键，强制锁为 S；
         //         或某 X 档小人有特殊价值，需提升到 A
         //   存档载体：List<string>，元素格式 "档次#Pawn名字"，如 "S#王五"
         //   运行时：解析为 Dictionary<名字, CombatTier> 供快速查询
-        //   命中自定义评级的 Pawn 不再走 ComputeCombatValue 公式，直接采用指定档次
+        //   命中自定义评级的 Pawn 跳过自动评级逻辑，直接采用指定档次
         public static List<string> customTierEntries = new List<string>();
         public static Dictionary<string, CombatTier> customTierMap = new Dictionary<string, CombatTier>();
 
@@ -68,13 +54,6 @@ namespace AutoEverything.Core
             // 兼容旧存档：加载时先读无前缀旧键，再读 ae_ 新键（若存在则覆盖）
             // 保存时只写 ae_ 新键，旧存档升级后自动迁移
             LookCompat(ref enabled, "enabled", true);
-            LookCompat(ref cvSkillWeight, "cvSkillWeight", 1.0f);
-            LookCompat(ref cvPassionNoneMult, "cvPassionNoneMult", 1.0f);
-            LookCompat(ref cvPassionMinorMult, "cvPassionMinorMult", 1.5f);
-            LookCompat(ref cvPassionMajorMult, "cvPassionMajorMult", 2.0f);
-            LookCompat(ref cvToughBonus, "cvToughBonus", 30f);
-            LookCompat(ref cvTriggerHappyPenalty, "cvTriggerHappyPenalty", -15f);
-            LookCompat(ref cvCarefulShooterBonus, "cvCarefulShooterBonus", 15f);
             LookCompat(ref debugLogging, "debugLogging", false);
             LookCompat(ref autoWorkEnabled, "autoWorkEnabled", true);
             LookCompat(ref autoTierTag, "autoTierTag", true);
@@ -84,6 +63,9 @@ namespace AutoEverything.Core
 
             // 殖民者栏默认排序方式
             Scribe_Values.Look(ref defaultSortMode, "ae_defaultSortMode", ColonistBarSortMode.ByTierThenValue);
+            // 旧存档可能保存了已移除的"按战斗价值"模式，统一迁移为按评级排序
+            if (defaultSortMode == ColonistBarSortMode.ByCombatValue)
+                defaultSortMode = ColonistBarSortMode.ByTierThenValue;
 
             // 殖民者栏按角色分组
             Scribe_Values.Look(ref groupColonistBarByRole, "ae_groupColonistBarByRole", false);
@@ -259,17 +241,6 @@ namespace AutoEverything.Core
             l.CheckboxLabeled("AE_AutoCarry".Translate(), ref autoCarryEnabled);
             l.CheckboxLabeled("AE_AutoDrugPolicy".Translate(), ref autoDrugPolicyEnabled);
 
-            // 战斗价值公式权重
-            l.GapLine();
-            l.Label("AE_CombatValueWeights".Translate());
-            DrawCompactSlider(l, "AE_cvSkillWeight".Translate(), ref cvSkillWeight, 0.1f, 3.0f);
-            DrawCompactSlider(l, "AE_cvPassionNoneMult".Translate(), ref cvPassionNoneMult, 0.1f, 3.0f);
-            DrawCompactSlider(l, "AE_cvPassionMinorMult".Translate(), ref cvPassionMinorMult, 0.1f, 3.0f);
-            DrawCompactSlider(l, "AE_cvPassionMajorMult".Translate(), ref cvPassionMajorMult, 0.1f, 3.0f);
-            DrawCompactSlider(l, "AE_cvToughBonus".Translate(), ref cvToughBonus, 0f, 100f, "F0");
-            DrawCompactSlider(l, "AE_cvTriggerHappyPenalty".Translate(), ref cvTriggerHappyPenalty, -50f, 0f, "F0");
-            DrawCompactSlider(l, "AE_cvCarefulShooterBonus".Translate(), ref cvCarefulShooterBonus, 0f, 50f, "F0");
-
             // 调试
             l.GapLine();
             l.CheckboxLabeled("AE_DebugLogging".Translate(), ref debugLogging, "AE_DebugLogging_Desc".Translate());
@@ -287,9 +258,7 @@ namespace AutoEverything.Core
                     new FloatMenuOption(GetSortModeLabel(ColonistBarSortMode.ByTierThenValue),
                         () => defaultSortMode = ColonistBarSortMode.ByTierThenValue),
                     new FloatMenuOption(GetSortModeLabel(ColonistBarSortMode.ByRoleThenTier),
-                        () => defaultSortMode = ColonistBarSortMode.ByRoleThenTier),
-                    new FloatMenuOption(GetSortModeLabel(ColonistBarSortMode.ByCombatValue),
-                        () => defaultSortMode = ColonistBarSortMode.ByCombatValue)
+                        () => defaultSortMode = ColonistBarSortMode.ByRoleThenTier)
                 };
                 Find.WindowStack.Add(new FloatMenu(sortOptions));
             }
@@ -314,7 +283,7 @@ namespace AutoEverything.Core
 
             if (groupColonistBarByRole)
             {
-                ReorderColonistBar(ComparePawnByRoleThenValueDesc);
+                ReorderColonistBar(ComparePawnByRoleThenTierDesc);
             }
             else
             {

@@ -111,7 +111,8 @@ namespace AutoEverything.Core
         // 发现高价值单位时是否弹消息通知
         public static bool markNotifyMessage = true;
 
-        // 扫描范围：true = 所有派系人类单位；false = 仅玩家阵营（殖民者/奴隶/囚犯）
+        // 扫描范围（互斥二选一）：true = 仅非玩家阵营（敌对/中立/盟友/野生人类）；
+        // false = 仅玩家阵营（殖民者/奴隶/囚犯）
         public static bool markIncludeNonPlayer = true;
 
         // ════════════════════════════════

@@ -16,7 +16,7 @@ namespace AutoEverything.UI
     /// 并按功能分标签页展示各自的"判定配置项"——这些配置直接参与判定规则计算。
     ///
     /// 标签页：
-    /// - 人员评级：评级开关 + 评级判定阈值 + 战斗价值公式权重
+    /// - 人员评级：评级开关 + 评级判定阈值
     /// - 人员自动：殖民者栏角色分组
     /// - 工作自动：工作分配开关 + 保底人数/技能保底/核心工作上限/触发周期
     ///   （角色分组配置只保留在人员自动页，工作自动页仅给出跳转提示，避免同一份配置重复展示）
@@ -295,7 +295,7 @@ namespace AutoEverything.UI
             DrawRoleGroupSection(l);
         }
 
-        /// <summary>人员评级页：评级开关 + 评级判定阈值 + 战斗价值公式权重。</summary>
+        /// <summary>人员评级页：评级开关 + 评级判定阈值。</summary>
         private static void DrawRatingTab(Listing_Standard l)
         {
             BeginSection(l, "AE_CFG_Section_PersonSwitch".Translate());
@@ -351,17 +351,6 @@ namespace AutoEverything.UI
                     });
             }
             EndSection(l);
-
-            BeginSection(l, "AE_CombatValueWeights".Translate());
-
-            DrawFloatSlider(l, "AE_cvSkillWeight", ref AESettings.cvSkillWeight, 0.1f, 3.0f, "F2", "AE_TT_cvSkillWeight");
-            DrawFloatSlider(l, "AE_cvPassionNoneMult", ref AESettings.cvPassionNoneMult, 0.1f, 3.0f, "F2", "AE_TT_cvPassionMult");
-            DrawFloatSlider(l, "AE_cvPassionMinorMult", ref AESettings.cvPassionMinorMult, 0.1f, 3.0f, "F2", "AE_TT_cvPassionMult");
-            DrawFloatSlider(l, "AE_cvPassionMajorMult", ref AESettings.cvPassionMajorMult, 0.1f, 3.0f, "F2", "AE_TT_cvPassionMult");
-            DrawFloatSlider(l, "AE_cvToughBonus", ref AESettings.cvToughBonus, 0f, 100f, "F0", "AE_TT_cvTraitBonus");
-            DrawFloatSlider(l, "AE_cvTriggerHappyPenalty", ref AESettings.cvTriggerHappyPenalty, -50f, 0f, "F0", "AE_TT_cvTraitBonus");
-            DrawFloatSlider(l, "AE_cvCarefulShooterBonus", ref AESettings.cvCarefulShooterBonus, 0f, 50f, "F0", "AE_TT_cvTraitBonus");
-            EndSection(l);
         }
 
         // ===================== 工作自动 =====================
@@ -406,9 +395,16 @@ namespace AutoEverything.UI
         {
             BeginSection(l, "AE_CFG_Section_MarkSwitch".Translate());
 
+            bool prevAutoMark = AESettings.autoMarkPawn;
             DrawCheckbox(l, "AE_AutoMarkPawn", ref AESettings.autoMarkPawn, "AE_TT_AutoMarkPawn");
             DrawCheckbox(l, "AE_CFG_MarkNotify", ref AESettings.markNotifyMessage, "AE_TT_MarkNotify");
+            bool prevScope = AESettings.markIncludeNonPlayer;
             DrawCheckbox(l, "AE_CFG_MarkIncludeNonPlayer", ref AESettings.markIncludeNonPlayer, "AE_TT_MarkIncludeNonPlayer");
+            // 勾选状态或扫描范围变化后立即重扫描：让消息列表马上反映新的扫描范围
+            if (AESettings.autoMarkPawn != prevAutoMark || AESettings.markIncludeNonPlayer != prevScope)
+            {
+                AutoExecutor.TriggerMarkNow();
+            }
             l.Gap(2f);
 
             Rect btnRect = l.GetRect(28f);
@@ -567,6 +563,8 @@ namespace AutoEverything.UI
                 List<FloatMenuOption> options = new List<FloatMenuOption>();
                 foreach (ColonistBarSortMode mode in Enum.GetValues(typeof(ColonistBarSortMode)))
                 {
+                    // 已废弃模式仅用于旧存档兼容，不进入 UI
+                    if (mode == ColonistBarSortMode.ByCombatValue) continue;
                     ColonistBarSortMode local = mode;
                     options.Add(new FloatMenuOption(("AE_SortMode_" + local).Translate(), () =>
                     {
@@ -701,7 +699,7 @@ namespace AutoEverything.UI
         }
 
         /// <summary>
-        /// 浮点滑块：用于战斗价值公式权重。
+        /// 浮点滑块：用于连续数值配置。
         /// </summary>
         private static void DrawFloatSlider(Listing_Standard l, string labelKey, ref float value,
             float min, float max, string format, string tooltipKey)

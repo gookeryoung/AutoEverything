@@ -146,7 +146,7 @@ namespace AutoEverything.Core
 
             if (groupColonistBarByRole)
             {
-                ReorderColonistBar(ComparePawnByRoleThenValueDesc);
+                ReorderColonistBar(ComparePawnByRoleThenTierDesc);
                 return touched;
             }
 
@@ -156,13 +156,10 @@ namespace AutoEverything.Core
                     // 不重排：保留殖民者栏原顺序
                     break;
                 case ColonistBarSortMode.ByTierThenValue:
-                    ReorderColonistBar(ComparePawnByTierThenValueDesc);
+                    ReorderColonistBar(ComparePawnByTierThenSkillDesc);
                     break;
                 case ColonistBarSortMode.ByRoleThenTier:
-                    ReorderColonistBar(ComparePawnByRoleThenValueDesc);
-                    break;
-                case ColonistBarSortMode.ByCombatValue:
-                    ReorderColonistBar(ComparePawnByCombatValueOnlyDesc);
+                    ReorderColonistBar(ComparePawnByRoleThenTierDesc);
                     break;
             }
             return touched;
@@ -206,42 +203,32 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 评级降序比较器：先按 CombatTier 降序（S→A→B→C→D→X），
-        /// 同档内再按 ComputeCombatValue 降序。
+        /// 评级降序比较器：先按 CombatTier 降序（SSS→SS→S→A→B→C→D→X），
+        /// 同档内按 9 大核心技能等级和降序。
         /// 设计意图：和平主义者（X 档）即使技能高也排在最右，
         /// 避免高技能的 X 档殖民者挤占 S/A 档位置。
         /// </summary>
-        private static int ComparePawnByTierThenValueDesc(Pawn a, Pawn b)
+        private static int ComparePawnByTierThenSkillDesc(Pawn a, Pawn b)
         {
             // CombatTier 枚举值：X=0, D=1, C=2, B=3, A=4, S=5，降序即 S 在前
-            // ReorderColonistBar 调用前已 Invalidate 这两个 Pawn，首次访问会重算并缓存
             CombatTier ta = TierCacheService.GetTier(a);
             CombatTier tb = TierCacheService.GetTier(b);
             if (ta != tb) return tb.CompareTo(ta);
-            return TierCacheService.GetValue(b).CompareTo(TierCacheService.GetValue(a));
-        }
-
-        /// <summary>
-        /// 仅按战斗价值降序比较器：不区分评级，纯按 ComputeCombatValue 排序。
-        /// 注意：高技能的和平主义者（X 档）可能挤占 S/A 档前列位置，
-        /// 仅适用于玩家明确希望"纯战斗价值优先"的场景。
-        /// </summary>
-        private static int ComparePawnByCombatValueOnlyDesc(Pawn a, Pawn b)
-        {
-            return TierCacheService.GetValue(b).CompareTo(TierCacheService.GetValue(a));
+            return CombatEvaluator.ComputeCoreSkillLevelSum(b)
+                .CompareTo(CombatEvaluator.ComputeCoreSkillLevelSum(a));
         }
 
         /// <summary>
         /// 角色分组优先级 + 评级降序比较器。
         /// 分组顺序：前排(0) → 射手(1) → 工人(2) → 贸易(3) → 其他(4)。
-        /// 同分组内按评级降序（S→A→B→C→D→X），同档内按战斗价值降序。
+        /// 同分组内按评级降序（S→A→B→C→D→X），同档内按核心技能等级和降序。
         /// </summary>
-        private static int ComparePawnByRoleThenValueDesc(Pawn a, Pawn b)
+        private static int ComparePawnByRoleThenTierDesc(Pawn a, Pawn b)
         {
             int ra = sortRoleCache[a];
             int rb = sortRoleCache[b];
             if (ra != rb) return ra.CompareTo(rb);
-            return ComparePawnByTierThenValueDesc(a, b);
+            return ComparePawnByTierThenSkillDesc(a, b);
         }
 
         /// <summary>

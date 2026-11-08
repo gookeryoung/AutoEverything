@@ -8,11 +8,12 @@ using AutoEverything.RoleEvaluation;
 namespace AutoEverything.AutoMarkPawn
 {
     /// <summary>
-    /// 高价值单位扫描通知模块：扫描所有人类单位中的 S+ 高价值目标，通过消息通知玩家。
+    /// 高价值单位扫描通知模块：扫描指定扫描范围（玩家阵营 / 非玩家阵营）内的 S+ 高价值目标，通过消息通知玩家。
     ///
     /// 设计目的：
     /// - 玩家一眼可辨高价值单位（S/SS/SSS 档），便于优先俘虏、招募、警惕或培养
-    /// - 范围覆盖所有人类单位：殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类/难民
+    /// - 扫描范围由【自动】面板配置，两个方向互斥：默认只扫非玩家阵营（敌对/中立/盟友/野生），
+    ///   可切换为只扫玩家阵营（殖民者/奴隶/囚犯）
     /// - 不修改任何 Pawn 的 Nick/Name，纯消息通知，安全可逆，无存档副作用
     ///
     /// 模块职责（v3 演进后）：
@@ -121,7 +122,9 @@ namespace AutoEverything.AutoMarkPawn
         /// - 未死亡（Dead）
         /// - 人类like 种族（CanManageGear），排除动物/机械族/昆虫/异常实体
         ///
-        /// 范围覆盖：殖民者、奴隶、囚犯、敌对、中立/盟友、野生人类。
+        /// 范围由【自动】面板的扫描范围决定（二选一）：
+        /// - 非玩家阵营：敌对、中立/盟友、野生人类/难民
+        /// - 玩家阵营：殖民者、奴隶、囚犯
         /// 倒下（Downed）的仍标记：便于优先俘虏高价值敌人。
         /// </summary>
         public static bool IsMarkableTarget(Pawn pawn)
@@ -130,10 +133,11 @@ namespace AutoEverything.AutoMarkPawn
             if (!pawn.Spawned) return false;
             if (pawn.Dead) return false;
             if (!PawnSuitabilityChecker.CanManageGear(pawn)) return false;
-            // 扫描范围由【自动】面板配置：默认覆盖所有派系，可收窄为仅玩家阵营
-            if (!AESettings.markIncludeNonPlayer
-                && pawn.Faction != Faction.OfPlayer
-                && !pawn.IsPrisonerOfColony)
+            // 扫描范围由【自动】面板配置，两个方向互斥：
+            // markIncludeNonPlayer=true  → 只扫描非玩家阵营（敌对/中立/盟友/野生人类）
+            // markIncludeNonPlayer=false → 只扫描玩家阵营（殖民者/奴隶/囚犯）
+            bool isPlayerSide = pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony;
+            if (AESettings.markIncludeNonPlayer == isPlayerSide)
             {
                 return false;
             }

@@ -5,35 +5,16 @@ using AutoEverything.Core;
 namespace AutoEverything.RoleEvaluation
 {
     /// <summary>
-    /// 殖民者战斗价值评估器：计算战斗价值分、评级档次、综合价值评分。
+    /// 殖民者评级评估器：计算 CombatTier 档次与同档精排所用的核心技能等级和。
     ///
     /// 设计目的：
-    /// - 把"战斗价值"离散化为 SSS/SS/S/A/B/C/D/X 八档，便于玩家直观判断优先级
-    /// - 战斗价值分用于精确排序（同档内精排）
-    /// - 命中自定义评级的 Pawn 不走公式，直接采用对应档次的代表分
-    ///
-    /// 战斗价值分 = (射击等级×兴趣乘数 + 近战等级×兴趣乘数) × 技能权重 + Σ特质加分
-    /// 兴趣乘数：无火 1.0，单火 1.5，双火 2.0
+    /// - 把全局价值离散化为 SSS/SS/S/A/B/C/D/X 八档，便于玩家直观判断优先级
+    /// - 档内精排只用 9 大核心技能等级和，不再维护独立的价值公式
+    /// - 命中自定义评级的 Pawn 不参与自动判定，直接采用指定档次
     /// </summary>
     public static class CombatEvaluator
     {
-        // 自定义评级档次对应的"代表分"，用于排序时与公式计算值同尺度比较
-        // 设计：自动公式下 D≈0~10，B≈10~30，A≈30~50，S≈50~80，SS≈80~95，SSS≈95~110
-        // 自定义评级分数取每档中段：D=5, C=15, B=25, A=50, S=80, SS=95, SSS=110, X=-1
-        // 这样自定义 SSS 档总能排到自动公式的 SSS 档之前（同档自定义优先）
-        private static readonly float[] tierRepresentativeScore = new float[]
-        {
-            -1f,   // X
-            5f,    // D
-            15f,   // C
-            25f,   // B
-            50f,   // A
-            80f,   // S
-            95f,   // SS
-            110f   // SSS
-        };
-
-        // 9 大核心技能：评级 Major/Minor 计数与综合价值评分共用
+        // 9 大核心技能：评级 Major/Minor 计数与同档精排共用
         // 包含 Shooting/Melee（战斗）+ Social（社交）+ 6 大专业工作技能
         private static readonly SkillDef[] coreSkills =
         {
@@ -53,103 +34,7 @@ namespace AutoEverything.RoleEvaluation
         // Brawler（格斗者）是原生 DefOf 始终存在，直接引用 TraitDefOf.Brawler
 
         /// <summary>
-        /// 尝试获取覆盖分（自定义评级或配偶评级豁免命中时）。
-        /// 用于 <see cref="ComputeCombatValue"/> 与 <see cref="ComputePawnValueScore"/> 开头共享的早返回路径：
-        /// - 命中自定义评级 → 返回该档代表分 +0.5（让自定义档略优先于同档自动）
-        /// - 配偶为 S+ 档 → 返回 S 代表分 +0.5（保证排序一致）
-        /// - 均未命中 → 返回 false，由调用方走公式
-        /// </summary>
-        private static bool TryGetOverrideScore(Pawn pawn, out float score)
-        {
-            if (AESettings.TryGetCustomTier(GetPawnLookupName(pawn), out CombatTier customTier))
-            {
-                score = tierRepresentativeScore[(int)customTier] + 0.5f;
-                return true;
-            }
-            if (AESettings.spouseExemptionEnabled
-                && HasSpouseTierAtLeast(pawn, AESettings.spouseExemptionTier))
-            {
-                score = tierRepresentativeScore[(int)AESettings.spouseExemptionTier] + 0.5f;
-                return true;
-            }
-            score = 0f;
-            return false;
-        }
-
-        /// <summary>
-        /// 计算 Pawn 的战斗价值分（用于评级排序与高价值标记判定）。
-        /// 公式：战斗价值 = (射击等级×射击兴趣乘数 + 近战等级×近战兴趣乘数) × 技能权重 + Σ特质加分
-        /// 兴趣乘数、技能权重、特质加分均可在面板上由玩家调整。
-        /// 命中自定义评级的 Pawn 不走公式，直接采用对应档次的代表分（保证排序稳定）。
-        /// </summary>
-        public static float ComputeCombatValue(Pawn pawn)
-        {
-            if (pawn == null) return 0f;
-
-            // 命中自定义评级或配偶豁免：不走公式，直接采用代表分（加 0.5 微量偏向，让自定义档略优先于同档自动）
-            if (TryGetOverrideScore(pawn, out float overrideScore))
-                return overrideScore;
-
-            if (pawn.skills == null) return 0f;
-
-            float total = 0f;
-            SkillRecord shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
-            SkillRecord melee = pawn.skills.GetSkill(SkillDefOf.Melee);
-
-            if (shooting != null)
-                total += shooting.Level * GetPassionMult(shooting.passion);
-
-            if (melee != null)
-                total += melee.Level * GetPassionMult(melee.passion);
-
-            // 技能整体权重
-            total *= AESettings.cvSkillWeight;
-
-            // 特质加分
-            // Tough：减伤 50%，对所有战斗均有价值（不在原生 DefOf 中，需 null 检查）
-            // ShootingAccuracy degree=-1 是乱开枪（精度大幅下降）
-            // ShootingAccuracy degree=+1 是冷枪手（精度提升但冷却慢）
-            if (pawn.story?.traits != null)
-            {
-                if (TraitDefCache.Tough != null && pawn.story.traits.HasTrait(TraitDefCache.Tough))
-                    total += AESettings.cvToughBonus;
-
-                if (TraitDefCache.ShootingAccuracy != null)
-                {
-                    int shootingAccDegree = pawn.story.traits.DegreeOfTrait(TraitDefCache.ShootingAccuracy);
-                    if (shootingAccDegree < 0)
-                        total += AESettings.cvTriggerHappyPenalty;
-                    else if (shootingAccDegree > 0)
-                        total += AESettings.cvCarefulShooterBonus;
-                }
-            }
-
-            return total;
-        }
-
-        private static float GetPassionMult(Passion passion)
-        {
-            // 兼容 VSE：通过 PassionTier 统一处理 6 种 passion 类型
-            var tier = PassionHelper.GetPassionTier(passion);
-            switch (tier)
-            {
-                case PassionHelper.PassionTier.Apathy:
-                    return AESettings.cvPassionNoneMult * 0.5f;
-                case PassionHelper.PassionTier.Minor:
-                    return AESettings.cvPassionMinorMult;
-                case PassionHelper.PassionTier.Major:
-                    return AESettings.cvPassionMajorMult;
-                case PassionHelper.PassionTier.Critical:
-                    return AESettings.cvPassionMajorMult * 1.5f;
-                default: // None
-                    return AESettings.cvPassionNoneMult;
-            }
-        }
-
-        /// <summary>
-        /// 计算 Pawn 的战斗价值档次（用于 DEBUG 显示与重配优先级离散判断）。
-        /// 档次与战斗价值公式协同工作：档次用于人眼可读的分级展示，
-        /// 战斗价值分数用于精确排序。
+        /// 计算 Pawn 的评级档次（用于 DEBUG 显示与重配优先级离散判断）。
         /// 命中自定义评级的 Pawn 直接采用指定档次，跳过自动判定。
         /// </summary>
         public static CombatTier GetCombatTier(Pawn pawn)
@@ -188,70 +73,24 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 计算 Pawn 的综合价值评分，用于同档内精排。
-        /// 评分由三部分组成（玩家可读，单位为"价值分"）：
-        ///   1. 特质数量：每条特质 +5 分（玩家培养投入越多价值越高）
-        ///   2. 兴趣总分：9 大核心技能求和，Major=2, Minor=1, None=0
-        ///   3. 技能等级总分：9 大核心技能 Level 求和
-        ///
-        /// 设计意图：评级 CombatTier 是离散分级（S/A/B/C/D），
-        ///   但同档内仍有差异——同为 S 档，Tough+Melee 双火 与 双火带特殊天赋
-        ///   价值并不相同；该分数提供档内精排依据。
-        ///   排序时先按 CombatTier 降序，同档内再用此分数精排。
+        /// 计算 Pawn 在 9 大核心技能上的等级总和，用于同档内精排。
+        /// 档内排序只反映培养深度，不引入独立的价值公式。
         /// </summary>
-        public static float ComputePawnValueScore(Pawn pawn)
+        public static int ComputeCoreSkillLevelSum(Pawn pawn)
         {
-            if (pawn == null) return 0f;
+            if (pawn?.skills == null) return 0;
 
-            // 命中自定义评级或配偶豁免：用代表分 +0.5，让自定义档略优先于同档自动
-            if (TryGetOverrideScore(pawn, out float overrideScore))
-                return overrideScore;
-
-            float score = 0f;
-
-            // 1. 特质数量：每条 +5
-            if (pawn.story?.traits != null)
-            {
-                // 遍历 traits.allTraits 是 O(traits.Count)，通常 ≤3 条
-                int traitCount = pawn.story.traits.allTraits.Count;
-                score += traitCount * 5f;
-            }
-
-            if (pawn.skills == null) return score;
-
-            // 2 & 3. 兴趣总分 + 技能等级总分（9 大核心技能）
+            int sum = 0;
             for (int i = 0; i < coreSkills.Length; i++)
             {
-                AddSkillScore(pawn, coreSkills[i], ref score);
+                SkillRecord s = pawn.skills.GetSkill(coreSkills[i]);
+                if (s != null) sum += s.Level;
             }
-
-            return score;
+            return sum;
         }
 
         /// <summary>
-        /// 累加单技能的分数到 score：
-        ///   兴趣分：Major=2, Minor=1, None=0
-        ///   等级分：直接加 Level（0-20）
-        /// </summary>
-        private static void AddSkillScore(Pawn pawn, SkillDef skillDef, ref float score)
-        {
-            SkillRecord s = pawn.skills?.GetSkill(skillDef);
-            if (s == null) return;
-            // 兴趣分：按 tier 累加（兼容 VSE：Natural=2 等同双火；Critical=3 最高；Apathy 不加分）
-            var tier = PassionHelper.GetPassionTier(s.passion);
-            switch (tier)
-            {
-                case PassionHelper.PassionTier.Minor: score += 1f; break;
-                case PassionHelper.PassionTier.Major: score += 2f; break;
-                case PassionHelper.PassionTier.Critical: score += 3f; break;
-                    // Apathy 与 None 不加分
-            }
-            // 等级分
-            score += s.Level;
-        }
-
-        /// <summary>
-        /// 获取自动计算的战斗价值档次（忽略自定义评级覆盖）。
+        /// 获取自动计算的评级档次（忽略自定义评级覆盖）。
         /// 供面板显示与"自动档"对比使用。
         ///
         /// 新评级规则（三大维度取最高档 + 原S条件4/5 + A/B）：

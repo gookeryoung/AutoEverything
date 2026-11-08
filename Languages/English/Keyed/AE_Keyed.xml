@@ -38,28 +38,16 @@
   <AE_DebugLogging>Debug logging</AE_DebugLogging>
   <AE_DebugLogging_Desc>Enable verbose logging for troubleshooting.</AE_DebugLogging_Desc>
 
-  <!-- Combat value formula weights -->
-  <AE_CombatValueWeights>Combat Value Formula Weights</AE_CombatValueWeights>
-  <AE_cvSkillWeight>Skill weight</AE_cvSkillWeight>
-  <AE_cvPassionNoneMult>None passion multiplier</AE_cvPassionNoneMult>
-  <AE_cvPassionMinorMult>Minor passion multiplier</AE_cvPassionMinorMult>
-  <AE_cvPassionMajorMult>Major passion multiplier</AE_cvPassionMajorMult>
-  <AE_cvToughBonus>Tough bonus</AE_cvToughBonus>
-  <AE_cvTriggerHappyPenalty>Trigger-happy penalty</AE_cvTriggerHappyPenalty>
-  <AE_cvCarefulShooterBonus>Careful shooter bonus</AE_cvCarefulShooterBonus>
-
   <!-- Colonist bar default sort mode (Mod settings) -->
   <AE_DefaultSortMode>Default Sort</AE_DefaultSortMode>
   <AE_TT_DefaultSortMode>Configures how the "Auto Tier Tag" reorders the colonist bar after applying tier prefix.
 None: only apply prefix, keep original order.
-By Tier+Value: S->A->B->C->D->X left to right, within tier by combat value desc (recommended).
+By Tier+Skill: S->A->B->C->D->X left to right, within tier by core skill level sum desc (recommended).
 By Role+Tier: Front -> Shooter -> Worker -> Trade -> Other, within role by tier desc.
-By Combat Value: pure combat value desc, ignoring tier (high-skill pacifists may take front spots).
 Note: when "group colonist bar by role" is enabled this setting is ignored; rating always reorders by role groups to keep them contiguous.</AE_TT_DefaultSortMode>
   <AE_SortMode_None>None (keep order)</AE_SortMode_None>
-  <AE_SortMode_ByTierThenValue>By Tier+Value (SABCDX)</AE_SortMode_ByTierThenValue>
+  <AE_SortMode_ByTierThenValue>By Tier+Skill (SABCDX)</AE_SortMode_ByTierThenValue>
   <AE_SortMode_ByRoleThenTier>By Role+Tier</AE_SortMode_ByRoleThenTier>
-  <AE_SortMode_ByCombatValue>By Combat Value</AE_SortMode_ByCombatValue>
 
   <!-- Colonist bar grouping by role (Auto panel → Auto Tier) -->
   <AE_GroupByRole>Group colonist bar by role</AE_GroupByRole>
@@ -85,8 +73,6 @@ The checkboxes below are the only criteria: a colonist is grouped only when a ch
   <AE_Tier_X>X: violent work disabled (pacifist etc., determined before other tiers)</AE_Tier_X>
 
   <!-- Panel status badges -->
-  <AE_Badge_CombatValue>Combat Value</AE_Badge_CombatValue>
-  <AE_Badge_PawnValue>Pawn Value</AE_Badge_PawnValue>
   <AE_Badge_Ghoul>Ghoul</AE_Badge_Ghoul>
   <AE_GhoulHint>Ghouls cannot use gear. Tier shown for player reference only.</AE_GhoulHint>
 
@@ -114,9 +100,7 @@ The checkboxes below are the only criteria: a colonist is grouped only when a ch
   <AE_TT_Context_Hunting>Hunting: performing hunting job</AE_TT_Context_Hunting>
   <AE_TT_Context_Cold>Cold: ambient temp below comfort range for 2500 ticks</AE_TT_Context_Cold>
   <AE_TT_Context_Hot>Hot: ambient temp above comfort range for 2500 ticks</AE_TT_Context_Hot>
-  <AE_TT_Tier>Tier S/A/B/C/D/X discretized from combat value, decides colonist bar sort priority</AE_TT_Tier>
-  <AE_TT_CombatValue>Combat Value = (Shooting*passion + Melee*passion) * skill weight + trait bonus</AE_TT_CombatValue>
-  <AE_TT_PawnValue>Pawn Value: comprehensive evaluation of skills, traits, health</AE_TT_PawnValue>
+  <AE_TT_Tier>Tier S/A/B/C/D/X determined by passion and trait combinations, decides colonist bar sort priority</AE_TT_Tier>
   <AE_TT_ArmorPref_Heavy>Heavy[front]: prefers heavy armor to absorb frontline damage (display only, no auto-allocation)</AE_TT_ArmorPref_Heavy>
   <AE_TT_ArmorPref_Flexible>Flex[back]: free choice by score (display only, no auto-allocation)</AE_TT_ArmorPref_Flexible>
   <AE_TT_ArmorPref_Light>Light[worker]: prefers light armor for work efficiency (display only, no auto-allocation)</AE_TT_ArmorPref_Light>
@@ -131,7 +115,7 @@ The checkboxes below are the only criteria: a colonist is grouped only when a ch
 Executes once immediately when checked; when unchecked, clears all tier tags and restores original names.</AE_TT_AutoTierTag>
   <AE_TT_AutoWorkConfig>When checked, auto-executes work reallocation: marks pending on colonist count change, executes when 2500 tick cooldown elapses AND no combat on map; fires immediately on new colonist.
 Executes once immediately when checked; when unchecked, only stops auto-execution, keeps current work assignment.</AE_TT_AutoWorkConfig>
-  <AE_TT_AutoMarkPawn>When checked, draws a colored star marker above ALL humanlike pawns of S+ tier (S/SS/SSS) in real time.
+  <AE_TT_AutoMarkPawn>When checked, draws a high-value marker above humanlike pawns of S+ tier (S/SS/SSS) within the scan scope (see "Scan non-player factions only" below).
 Color by category: Colonist=Gold, Slave=Orange, Prisoner=Yellow, Enemy=Red, Neutral/Ally=Cyan, Wild=White. For quick identification of high-value targets to prioritize capture, recruitment or vigilance.
 Toggling the checkbox triggers a global rescan and pops a message listing all current high-value targets; while checked, when map personnel increase, auto-scans new pawns and pops a message when new high-value targets are discovered.
 Does not modify any object name, pure frontend drawing, safe and reversible, no save side effects; when unchecked, the star disappears automatically.</AE_TT_AutoMarkPawn>
@@ -218,7 +202,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_WorkRulesHint>Skill floor: when the related skill reaches a threshold, its work priority never drops below the floor value. Core works are those at priority 1/2.</AE_CFG_WorkRulesHint>
 
   <AE_CFG_MarkNotify>Notify on discovery</AE_CFG_MarkNotify>
-  <AE_CFG_MarkIncludeNonPlayer>Scan non-player factions</AE_CFG_MarkIncludeNonPlayer>
+  <AE_CFG_MarkIncludeNonPlayer>Scan non-player factions only</AE_CFG_MarkIncludeNonPlayer>
   <AE_CFG_MarkTier>High-value tier threshold</AE_CFG_MarkTier>
   <AE_CFG_MarkRulesHint>Pawns reaching the threshold show a tier badge in the colonist bar or above their head; the tier also sets the minimum rating for carrying serum.</AE_CFG_MarkRulesHint>
 
@@ -246,16 +230,13 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_WorkInterval>Interval of automatic work reallocation. Shorter is more responsive but costs more CPU.</AE_TT_WorkInterval>
   <AE_TT_SkipInCombat>Pause work reallocation and auto carry during combat (drafted or fighting) to avoid interrupting treatment or leaving posts.</AE_TT_SkipInCombat>
   <AE_TT_MarkNotify>Show a message when new high-value pawns are found.</AE_TT_MarkNotify>
-  <AE_TT_MarkIncludeNonPlayer>When off, only player-faction pawns (colonists/slaves/prisoners) are scanned and marked.</AE_TT_MarkIncludeNonPlayer>
+  <AE_TT_MarkIncludeNonPlayer>When checked, only non-player factions (hostile/neutral/ally/wild humans) are scanned and marked; when off, only player-faction pawns (colonists/slaves/prisoners) are scanned and marked.</AE_TT_MarkIncludeNonPlayer>
   <AE_TT_MarkTier>Pawns at or above this tier are treated as high value; it also sets the minimum tier for serum carrying.</AE_TT_MarkTier>
   <AE_TT_CarryFoodCount>Total food carried per colonist (summed across food types); concrete food is chosen by priority: packaged meal → pemmican → lavish → fine → simple → nutrient paste. 0 disables food carrying.</AE_TT_CarryFoodCount>
   <AE_TT_CarrySerumHighValueOnly>When checked, only units reaching the high-value tier threshold (configured on the High-value tab) carry serums; uncheck to let all eligible colonists carry them.</AE_TT_CarrySerumHighValueOnly>
   <AE_TT_CarryItemCount>Drag to 0 to disable. Also keep the drug policy "take" column at least this high.</AE_TT_CarryItemCount>
   <AE_TT_ResetCarryItems>Restore drug and serum amounts to defaults (total food and carry interval are unchanged).</AE_TT_ResetCarryItems>
   <AE_TT_CarryInterval>Interval of automatic carrying.</AE_TT_CarryInterval>
-  <AE_TT_cvSkillWeight>Weight of overall skill level in the combat value formula.</AE_TT_cvSkillWeight>
-  <AE_TT_cvPassionMult>Multiplier applied per passion level (none/single/double) in the combat value formula.</AE_TT_cvPassionMult>
-  <AE_TT_cvTraitBonus>Combat-related trait bonus or penalty in the combat value formula.</AE_TT_cvTraitBonus>
   <!-- Auto Tier: colonist bar five-role grouping rules -->
   <AE_CFG_Section_RoleGroup>Colonist bar role groups</AE_CFG_Section_RoleGroup>
 

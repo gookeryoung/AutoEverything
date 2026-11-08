@@ -92,7 +92,7 @@ namespace AutoEverything.Core
         private static int lastColonistCount = -1;
 
         // 全人类单位数量缓存：-1 = 首次只记录不触发（用于高价值标记事件检测）
-        // 范围：殖民者+奴隶+囚犯+敌对+中立/盟友+野生人类，与 PawnMarker.IsMarkableTarget 一致
+        // 计数覆盖全部人类like 单位（不区分扫描范围），范围过滤由 PawnMarker.IsMarkableTarget 负责
         private static int lastAllHumanlikeCount = -1;
 
         // Mark 扫描复用缓冲区（避免 Tick 路径 new List<>() 触发 GC）
