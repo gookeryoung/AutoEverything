@@ -196,22 +196,53 @@ namespace AutoEverything.AutoMarkPawn
 
         // ===================== 心灵纽带标识判定 =====================
         // 心灵纽带（Biotech 心灵纽带基因产生）在伴侣双方各有一个 Hediff_PsychicBond，
-        // 因此直接检查 Hediff 即可标记双方头像。
+        // 其 target 指向伴侣本人，因此一对伴侣的两个头像可算出同一个配色索引。
         // 不做 TTL 缓存：纽带建立/断裂需要即时反映，HediffSet 查询本身开销极低。
 
         private static HediffDef psychicBondDef;
         private static bool psychicBondDefResolved;
 
         /// <summary>
-        /// 判断 Pawn 是否处于心灵纽带关系中（用于头像左下角爱心标识）。
-        /// 未启用 Biotech 时心灵纽带不可能存在，直接返回 false。
+        /// 心灵纽带配对配色：同色 = 同一对伴侣，便于在殖民者栏一眼配对。
+        /// 颜色取高饱和色相，深色背景下仍可区分；>8 对时按索引循环复用。
         /// </summary>
-        public static bool HasPsychicBond(Pawn pawn)
+        private static readonly Color[] BondColors =
         {
-            if (pawn?.health?.hediffSet == null) return false;
-            if (!ModsConfig.BiotechActive) return false;
+            new Color(0.95f, 0.25f, 0.30f), // 红
+            new Color(0.98f, 0.60f, 0.15f), // 橙
+            new Color(0.95f, 0.85f, 0.20f), // 黄
+            new Color(0.35f, 0.80f, 0.35f), // 绿
+            new Color(0.25f, 0.75f, 0.80f), // 青
+            new Color(0.35f, 0.55f, 0.95f), // 蓝
+            new Color(0.70f, 0.45f, 0.95f), // 紫
+            new Color(0.95f, 0.45f, 0.70f)  // 粉
+        };
+
+        /// <summary>
+        /// 获取心灵纽带伴侣；无纽带、未启用 Biotech 或数据异常时返回 null。
+        /// </summary>
+        public static Pawn GetBondPartner(Pawn pawn)
+        {
+            if (pawn?.health?.hediffSet == null) return null;
+            if (!ModsConfig.BiotechActive) return null;
             HediffDef def = GetPsychicBondDef();
-            return def != null && pawn.health.hediffSet.HasHediff(def);
+            if (def == null) return null;
+            return (pawn.health.hediffSet.GetFirstHediffOfDef(def) as Hediff_PsychicBond)?.target as Pawn;
+        }
+
+        /// <summary>
+        /// 获取一对伴侣的配对颜色：以双方 thingIDNumber 的无序组合做键，
+        /// 双方算出同一个索引，因此同色爱心即为同一对伴侣。
+        /// </summary>
+        public static Color GetBondColor(Pawn pawn, Pawn partner)
+        {
+            if (partner == null)
+                return BondColors[0];
+
+            int a = Mathf.Min(pawn.thingIDNumber, partner.thingIDNumber);
+            int b = Mathf.Max(pawn.thingIDNumber, partner.thingIDNumber);
+            uint key = (uint)a * 397u ^ (uint)b;
+            return BondColors[(int)(key % (uint)BondColors.Length)];
         }
 
         /// <summary>

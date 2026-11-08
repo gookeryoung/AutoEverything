@@ -216,7 +216,7 @@
 - **设计变更**：原"前排"图标已删除（分组框已用文字 + 红色描边标识前排，且两套"前排"定义不一致）；原"手工"图标已并入"工人"（手工条件"工作狂+神经质"恒为工人条件的子集，必然同时出现）
 - **与分组的联动**：角色分组开启与否都始终在头像上显示全部图标（坚韧/远程/工人/贸易）；分组框只表达"分组归属"，头像图标表达"个体能力特征"，两者互不替代
 - **即时生效**：显示开关在图标掩码展开阶段过滤，条件变更会立即清空图标缓存（无需等待 2500 tick）
-- **伤痕标识**：头像**右下角**绘制琥珀橙竖条，1 条 = 1 处永久疤痕或缺失部位，按身体部位去重，超过 3 处只显示 3 条；判定结果按 Pawn 缓存 2500 tick。与右上角角色图标、左下角心灵纽带爱心互不重叠
+- **伤痕标识**：头像**右下角**绘制琥珀橙竖条，1 条 = 1 处已愈合显现的永久疤痕或缺失部位（正在愈合的新鲜伤口不计），按身体部位去重，超过 3 处只显示 3 条；判定结果按 Pawn 缓存 2500 tick。竖条位于原版底部状态/职位图标带上方，不遮挡原版图标；与右上角角色图标、左下角心灵纽带爱心互不重叠
 - **配置项**：`AESettings.iconRanged*` / `iconWorker*` / `iconTrader*`（存档键 `ae_icon*`，默认全勾选）；`AESettings.showScarBars`（存档键 `ae_showScarBars`，默认开启）
 
 ## 自动工作分配（AutoWork）
@@ -331,7 +331,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 
 `AutoMarkPawn/` 模块包含三个职责：
 - **角色定位图标**（`RoleIconDef.cs` + `RoleIconTextures.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在殖民者栏 Rect 右上角绘制角色定位图标（坚韧盾/前排盾/远程弓/手工锤/工人扳手/贸易钱袋），基于特质与技能组合判定；判定结果按 Pawn 缓存 2500 tick（与评级缓存独立），命中路径仅 1 次字典查询 + 掩码展开（零分配）
-- **伤痕标识**（`ScarMarkDef.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在头像右下角绘制琥珀橙竖条，统计永久疤痕（`HediffUtility.IsPermanent`）与缺失部位（`Hediff_MissingPart`），按身体部位去重，最多 3 条；计数按 Pawn 缓存 2500 tick
+- **伤痕标识**（`ScarMarkDef.cs` + `HarmonyPatches.ColonistBarDrawer_DrawColonist_Patch`）：在头像右下角绘制琥珀橙竖条，统计已"显现"的永久疤痕（`IsPermanent` 且 `Severity <= permanentDamageThreshold`，与 `CompPostInjuryHeal` 的疤痕钳制逻辑一致，正在愈合的新鲜伤口不算）与缺失部位（`Hediff_MissingPart`），按身体部位去重，最多 3 条；计数按 Pawn 缓存 2500 tick
 - **S+ 高价值扫描通知**（`PawnMarker.cs`）：扫描当前扫描范围内的 S+ 目标，通过消息通知玩家（不再绘制 ★）
 
 #### 角色定位图标（6 种）
@@ -350,7 +350,7 @@ Passion 量化：None=0, Minor=1, Major=2。
 - **远程判定扩展**：用户决策（2026-07-21）"乱开枪+射击单火"（S 档高价值）也标记为远程，原仅"乱开枪+射击双火"（SS/SSS 档）标记
 - **工人与手工关系**：用户决策（2026-08-13）新增"工人"图标判定为 OR（工作狂或严重神经质），"手工"保留 AND（工作狂+神经质）。Crafter 是 Worker 的子集——工作狂+神经质的殖民者会同时显示手工（精确组合）+ 工人（工作倾向）两个图标
 - **叠加显示与尺寸**：一个殖民者符合多个角色定位时，所有图标从右往左横向排列（最多 4 个）。尺寸参考原版殖民者栏文化职位图标（`ColonistBarColonistDrawer.DrawIcons`）：上限 16×16 像素（略小于原版 20），图标总宽按头像可用宽度自适应缩小，图标越多单个越小，且随 `ColonistBar.Scale` 同步缩放，避免遮挡头像
-- **心灵纽带爱心**：已建立心灵纽带的伴侣在头像左下角显示红色爱心（`Role_Bond.png`），伴侣双方同时显示；仅在启用 Biotech 时判定，纽带建立/断裂即时反映
+- **心灵纽带爱心**：已建立心灵纽带的伴侣在头像左下角显示爱心（`Role_Bond.png`），伴侣双方同时显示；**同一对伴侣使用同一种颜色**（按双方 thingIDNumber 无序组合从 8 色配对调色板取色），殖民者栏中同色爱心即为伴侣，悬停爱心显示伴侣名字。仅在启用 Biotech 时判定，纽带建立/断裂即时反映；爱心位于原版底部状态/职位图标带上方，不遮挡原版图标
 - **纹理资源**：64×64 RGBA PNG 图标（白色形状 + 透明背景），位于 `Textures/UI/Icons/Role/Role_Tough.png` 等路径，由用户从 iconfont 下载的 SVG 转换而来。绘制时用 `GUI.color` 染色，无需为每种颜色单独制作图标
 - **降级策略**：若外部 PNG 加载失败（ContentFinder 返回 null），自动回退到程序化生成的 32×32 像素纹理，确保 MOD 仍能正常运行
 - **不依赖评级**：判定基于特质组合直接计算，不走 `TierCacheService`，避免缓存失效导致图标延迟刷新

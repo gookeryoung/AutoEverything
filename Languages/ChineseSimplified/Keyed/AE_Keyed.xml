@@ -264,7 +264,8 @@
   <AE_RoleIcon_Trader>贸易</AE_RoleIcon_Trader>
 
   <AE_RoleIcon_ScarBars>伤痕标识（右下角竖条）</AE_RoleIcon_ScarBars>
-  <AE_TT_ScarBars>在头像右下角绘制琥珀橙竖条：1 条 = 1 处永久疤痕或缺失部位，超过 3 处只显示 3 条；同一身体部位的多道疤痕只计 1 条。</AE_TT_ScarBars>
+  <AE_TT_ScarBars>在头像右下角绘制琥珀橙竖条：1 条 = 1 处永久疤痕或缺失部位，超过 3 处只显示 3 条；同一身体部位的多道疤痕只计 1 条。竖条位于原版状态/职位图标上方，不遮挡原版图标。</AE_TT_ScarBars>
+  <AE_BondPartner>心灵纽带伴侣：{0}（同色爱心 = 同一对伴侣）</AE_BondPartner>
 
   <AE_RoleIconCond_Tough>坚韧特质（减伤 50%）</AE_RoleIconCond_Tough>
   <AE_RoleIconCond_ShootingSpecialist>射击专家</AE_RoleIconCond_ShootingSpecialist>

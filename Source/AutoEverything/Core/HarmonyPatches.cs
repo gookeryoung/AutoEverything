@@ -256,6 +256,12 @@ namespace AutoEverything.Core
             /// <summary>右上角内缩留白（未缩放，像素）：避免图标紧贴殖民者栏边框</summary>
             private const float BaseMargin = 2f;
 
+            /// <summary>
+            /// 原版底部图标带高度（未缩放，像素）：原版 DrawIcons 在头像底部绘制状态/职位图标，
+            /// 尺寸上限 20 且与底边留 1px。爱心与伤痕条上移至此高度之上，避免覆盖原版图标。
+            /// </summary>
+            private const float VanillaIconBand = 21f;
+
             /// <summary>伤痕竖条尺寸（未缩放，像素）：条数最多 3，总宽远小于头像宽度</summary>
             private const float ScarBarWidth = 3f;
             private const float ScarBarHeight = 6f;
@@ -329,24 +335,33 @@ namespace AutoEverything.Core
 
             /// <summary>
             /// 在头像左下角绘制爱心标识：标记已建立心灵纽带的伴侣。
-            /// 尺寸/缩放规则与右上角角色图标一致，单图标取上限 16px。
+            /// 同一对伴侣的爱心使用同一种颜色（双方 thingIDNumber 无序组合取色），
+            /// 因此殖民者栏中同色爱心即为伴侣；悬停显示伴侣名字。
+            /// 位置在原版底部状态图标带之上，避免遮挡。
             /// </summary>
             private static void DrawBondHeart(Rect rect, Pawn pawn)
             {
-                if (!RoleIconDef.HasPsychicBond(pawn)) return;
+                Pawn partner = RoleIconDef.GetBondPartner(pawn);
+                if (partner == null) return;
 
                 float scale = rect.width / ColonistBar.BaseSize.x;
                 float margin = BaseMargin * scale;
                 float size = Mathf.Min(BaseIconSize * scale, rect.width - margin * 2f);
                 if (size <= 0f) return;
 
-                Rect heartRect = new Rect(rect.xMin + margin, rect.yMax - size - margin, size, size);
+                float bottom = rect.yMax - VanillaIconBand * scale;
+                Rect heartRect = new Rect(rect.xMin + margin, bottom - size - margin, size, size);
+
                 Color prevColor = GUI.color;
-                Color heartColor = RoleIconDef.IconColor;
+                Color heartColor = RoleIconDef.GetBondColor(pawn, partner);
                 heartColor.a = prevColor.a;
                 GUI.color = heartColor;
                 GUI.DrawTexture(heartRect, RoleIconTextures.Bond);
                 GUI.color = prevColor;
+
+                // 悬停提示伴侣名字，避免颜色重复时无法确认
+                if (Mouse.IsOver(heartRect))
+                    TooltipHandler.TipRegion(heartRect, "AE_BondPartner".Translate(partner.LabelShortCap));
             }
 
             /// <summary>
@@ -354,6 +369,7 @@ namespace AutoEverything.Core
             ///
             /// 位置与角色图标对称：角色图标占右上角，爱心占左下角，伤痕条占右下角（互不重叠）。
             /// 从右往左排列，与右上角角色图标方向一致；条数越多向左延伸，不影响头像中心。
+            /// 整体上移到原版底部状态图标带之上，避免覆盖原版状态/职位图标。
             /// 颜色琥珀橙（<see cref="ScarMarkDef.BarColor"/>），与深红角色图标区分。
             /// </summary>
             private static void DrawScarBars(Rect rect, Pawn pawn)
@@ -370,7 +386,7 @@ namespace AutoEverything.Core
                 float spacing = ScarBarSpacing * scale;
                 float margin = BaseMargin * scale;
 
-                float y = rect.yMax - barHeight - margin;
+                float y = rect.yMax - VanillaIconBand * scale - barHeight - margin;
                 float x = rect.xMax - barWidth - margin;
 
                 Color prevColor = GUI.color;
