@@ -116,6 +116,19 @@ namespace AutoEverything.Core
             OnGroupByRoleChanged();
         }
 
+        /// <summary>
+        /// 交换顺序数组中相邻两项（设置页"上移/下移"按钮），然后写盘并重排殖民者栏。
+        /// 纯逻辑在 RoleDetector.SwapRoleGroupInOrder，保证与右键拖拽一致的合法性约束。
+        /// </summary>
+        public static void SwapRoleGroupOrder(int indexA, int indexB)
+        {
+            if (roleGroupOrder == null) roleGroupOrder = RoleDetector.DefaultRoleGroupOrder();
+            if (!RoleDetector.SwapRoleGroupInOrder(roleGroupOrder, indexA, indexB)) return;
+
+            AutoEverythingMod.settings?.Write();
+            OnGroupByRoleChanged();
+        }
+
         // ════════════════════════════════
         // 高价值自动标记判定
         // ════════════════════════════════

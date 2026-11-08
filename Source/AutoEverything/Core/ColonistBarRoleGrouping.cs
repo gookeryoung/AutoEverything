@@ -302,8 +302,14 @@ namespace AutoEverything.Core
                 : RoleGroupLayout.NameLabelHeight;
             visibleRect.yMax += RoleGroupLayout.ComputeFrameBottomExtend(scale, labelHeight);
 
-            DrawBorder(visibleRect, role);
+            DrawBorder(visibleRect, role, group);
             DrawTag(rect, scale, role);
+
+            // 头部整条标签带都可作为拖拽把手：悬停时提示右键拖动，降低发现成本
+            Rect headerRect = new Rect(visibleRect.x, visibleRect.y, visibleRect.width,
+                RoleGroupLayout.HeaderHeight);
+            if (Mouse.IsOver(headerRect))
+                TooltipHandler.TipRegion(headerRect, "AE_TT_DragGroupOrder".Translate());
 
             // 拖拽跟随光标的小标签：只在被拖拽的组上绘制一次，避免重复叠加
             if (draggingFromGroup == group) DrawDragGhost(role);
@@ -465,19 +471,22 @@ namespace AutoEverything.Core
             return new Rect(frameRect.x, visibleTop, frameRect.width, frameRect.yMax - visibleTop);
         }
 
-        private static void DrawBorder(Rect rect, RoleGroup role)
+        private static void DrawBorder(Rect rect, RoleGroup role, int group)
         {
             Color prev = GUI.color;
             GUI.color = GetRoleColor(role);
             Widgets.DrawBox(rect, 2);
 
             // 拖拽悬停到本分组：白色高亮表示释放目标
-            if (draggingFromGroup >= 0 && Event.current != null
+            if (draggingFromGroup >= 0 && draggingFromGroup != group && Event.current != null
                 && Event.current.type != EventType.MouseUp
                 && rect.Contains(Event.current.mousePosition))
             {
                 GUI.color = Color.white;
                 Widgets.DrawBox(rect, 1);
+
+                // 插入位置指示线：线在目标分组左边缘，表示"插入到该分组之前"
+                Widgets.DrawBoxSolid(new Rect(rect.x - 1f, rect.y, 3f, rect.height), Color.white);
             }
             GUI.color = prev;
         }
@@ -575,12 +584,17 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 拖拽把手：标签区域，或分组框四周 5px 宽的边框带（头像区域留给原生右键菜单）。
+        /// 拖拽把手：整个头部标签带（含标签上下留白，横向覆盖整框宽度），
+        /// 或分组框四周 5px 宽的边框带（头像区域留给原生右键菜单）。
+        /// 头部带按 HeaderHeight 计算，悬停提示与绘制使用同一高度，命中范围与视觉一致。
         /// </summary>
         private static bool IsDragHandle(Rect frameRect, Rect tagRect, Vector2 mouse)
         {
-            if (tagRect.Contains(mouse)) return true;
             if (!frameRect.Contains(mouse)) return false;
+
+            // 头部整条标签带：y 从可见顶边到 HeaderHeight 下沿
+            if (mouse.y <= frameRect.y + RoleGroupLayout.HeaderHeight) return true;
+            if (tagRect.Contains(mouse)) return true;
 
             const float Band = 5f;
             return mouse.x <= frameRect.x + Band

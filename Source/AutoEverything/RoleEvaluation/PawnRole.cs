@@ -515,6 +515,24 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
+        /// 交换顺序数组中相邻两个位置（供设置页"上移/下移"按钮使用）。
+        /// "其他"固定最后：涉及"其他"的交换一律拒绝，保证兜底分组永远排在末尾。
+        /// 返回是否实际发生变化；由 AESettings.SwapRoleGroupOrder 负责写盘与重排。
+        /// </summary>
+        public static bool SwapRoleGroupInOrder(List<int> order, int indexA, int indexB)
+        {
+            if (order == null) return false;
+            if (indexA < 0 || indexB < 0 || indexA >= order.Count || indexB >= order.Count) return false;
+            if (indexA == indexB) return false;
+            if (order[indexA] == (int)RoleGroup.Other || order[indexB] == (int)RoleGroup.Other) return false;
+
+            int tmp = order[indexA];
+            order[indexA] = order[indexB];
+            order[indexB] = tmp;
+            return true;
+        }
+
+        /// <summary>
         /// 按自定义顺序取分组序号：顺序数组中的下标即可视序号，缺失时回退枚举顺序。
         /// </summary>
         public static int GetRoleGroupOrderIn(List<int> order, int group)

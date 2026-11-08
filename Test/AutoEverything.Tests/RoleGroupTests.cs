@@ -603,6 +603,19 @@ namespace AutoEverything.Tests
                 false, "拖到自身不变化", ref failures, ref total);
             CheckOrder(order, new[] { 2, 0, 3, 1, 4 }, "拖到自身后顺序不变", ref failures, ref total);
 
+            // 设置页"上移/下移"按钮：交换相邻两项
+            List<int> swapOrder = RoleDetector.DefaultRoleGroupOrder();
+            CheckBool(RoleDetector.SwapRoleGroupInOrder(swapOrder, 0, 1), true,
+                "交换前排与射手应成功", ref failures, ref total);
+            CheckOrder(swapOrder, new[] { 1, 0, 2, 3, 4 }, "前排与射手交换", ref failures, ref total);
+            CheckBool(RoleDetector.SwapRoleGroupInOrder(swapOrder, 3, 4), false,
+                "不可与其他交换（其他固定在最后）", ref failures, ref total);
+            CheckOrder(swapOrder, new[] { 1, 0, 2, 3, 4 }, "与其他交换被拒后顺序不变", ref failures, ref total);
+            CheckBool(RoleDetector.SwapRoleGroupInOrder(swapOrder, -1, 0), false,
+                "越界交换被拒", ref failures, ref total);
+            CheckBool(RoleDetector.SwapRoleGroupInOrder(swapOrder, 2, 2), false,
+                "同位置交换不变化", ref failures, ref total);
+
             // 非法顺序必须被识别（缺失、重复、越界、其他不在最后、空）
             CheckBool(RoleDetector.IsValidRoleGroupOrder(null), false, "null 非法", ref failures, ref total);
             CheckBool(RoleDetector.IsValidRoleGroupOrder(new List<int> { 0, 1, 2, 3 }), false,

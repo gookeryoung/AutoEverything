@@ -326,9 +326,15 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_Trade_Beauty>Colonists with the Pretty or Beautiful trait are put in Trade.</AE_TT_Trade_Beauty>
   <AE_TT_Trade_SocialMajor>Colonists with a major passion in Social are put in Trade.</AE_TT_Trade_SocialMajor>
 
-  <AE_CFG_RoleGroupRule_Order>Default group order: Front → Shooter → Worker → Trade → Other (first four are right-draggable; Other is always last)</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Order>Group display order (top → bottom = left to right on the colonist bar): Front → Shooter → Worker → Trade → Other; "Other" is always last</AE_CFG_RoleGroupRule_Order>
   <AE_CFG_RoleGroupRule_Other>• Other: colonists matching no checked condition (unchecking one condition only sends its matches here).</AE_CFG_RoleGroupRule_Other>
-  <AE_CFG_RoleGroupRule_Drag>• Right-drag a group's tag or border onto another group to reorder ("Other" is the fallback group, always last and not draggable). Colonists are re-grouped in the new order.</AE_CFG_RoleGroupRule_Drag>
+  <AE_CFG_RoleGroupRule_Drag>• To reorder: use the Up/Down buttons below, or right-drag a group's top header band or border onto another group. Colonists are re-grouped in the new order.</AE_CFG_RoleGroupRule_Drag>
+
+  <AE_CFG_RoleGroupOrder_Title>Group display order (top → bottom = left to right on the colonist bar)</AE_CFG_RoleGroupOrder_Title>
+  <AE_CFG_RoleGroupOrder_Up>Up</AE_CFG_RoleGroupOrder_Up>
+  <AE_CFG_RoleGroupOrder_Down>Down</AE_CFG_RoleGroupOrder_Down>
+  <AE_TT_RoleGroupOrder>Use Up/Down to reorder groups; you can also right-drag a group's top header band on the colonist bar. "Other" is always last and cannot be moved.</AE_TT_RoleGroupOrder>
+  <AE_TT_DragGroupOrder>Right-drag this header band onto another group to reorder groups</AE_TT_DragGroupOrder>
 
   <AE_RoleGroup_Front>Front</AE_RoleGroup_Front>
   <AE_RoleGroup_Shooter>Shooter</AE_RoleGroup_Shooter>

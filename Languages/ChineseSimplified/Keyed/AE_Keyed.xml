@@ -327,9 +327,15 @@
   <AE_TT_Trade_Beauty>拥有“俊俏”或“沉鱼落雁”特质（Beauty）的殖民者直接归入贸易</AE_TT_Trade_Beauty>
   <AE_TT_Trade_SocialMajor>社交技能双火的殖民者直接归入贸易</AE_TT_Trade_SocialMajor>
 
-  <AE_CFG_RoleGroupRule_Order>默认分组顺序：前排 → 射手 → 工人 → 贸易 → 其他（前四组可右键拖拽调整，其他固定最后）</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Order>分组显示顺序（上 → 下 = 殖民者栏从左到右）：前排 → 射手 → 工人 → 贸易 → 其他；"其他"固定最后</AE_CFG_RoleGroupRule_Order>
   <AE_CFG_RoleGroupRule_Other>• 其他：未命中任何已勾选条件的殖民者（关闭某条件后，仅该条件命中的人会落到这里）。</AE_CFG_RoleGroupRule_Other>
-  <AE_CFG_RoleGroupRule_Drag>• 右键按住分组框的标签或边框拖动到另一个分组，即可调整顺序（"其他"为兜底分组，固定排在最后、不可拖动）；重新分组后人员会按新顺序排列。</AE_CFG_RoleGroupRule_Drag>
+  <AE_CFG_RoleGroupRule_Drag>• 调整顺序：用下方"上移/下移"按钮，或在殖民者栏右键按住分组框顶部标签带/边框拖到另一个分组；重新分组后人员会按新顺序排列。</AE_CFG_RoleGroupRule_Drag>
+
+  <AE_CFG_RoleGroupOrder_Title>分组显示顺序（上 → 下 = 殖民者栏从左到右）</AE_CFG_RoleGroupOrder_Title>
+  <AE_CFG_RoleGroupOrder_Up>上移</AE_CFG_RoleGroupOrder_Up>
+  <AE_CFG_RoleGroupOrder_Down>下移</AE_CFG_RoleGroupOrder_Down>
+  <AE_TT_RoleGroupOrder>点"上移/下移"调整分组左右顺序；也可在殖民者栏右键拖动分组框顶部标签带。"其他"固定最后，不可移动。</AE_TT_RoleGroupOrder>
+  <AE_TT_DragGroupOrder>右键按住此标签带并拖到其他分组，可调整分组顺序</AE_TT_DragGroupOrder>
 
   <AE_RoleGroup_Front>前排</AE_RoleGroup_Front>
   <AE_RoleGroup_Shooter>射手</AE_RoleGroup_Shooter>

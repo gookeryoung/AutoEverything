@@ -284,6 +284,8 @@ namespace AutoEverything.UI
             l.Gap(2f);
 
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Order".Translate());
+            // 备用排序入口：拖拽之外用上移/下移按钮调整，小屏或拖拽不便时也能完成排序
+            DrawRoleGroupOrderRows(l);
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Other".Translate());
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Drag".Translate());
             EndSection(l);
@@ -293,6 +295,87 @@ namespace AutoEverything.UI
                 || before.DiffersFrom(RoleGroupRules.FromSettings()))
             {
                 AESettings.OnGroupByRoleChanged();
+            }
+        }
+
+        /// <summary>
+        /// 分组显示顺序列表：每行 = 色条 + 角色名 + 上移/下移按钮。
+        /// 与殖民者栏右键拖拽共用同一份 roleGroupOrder，"其他"固定最后且按钮禁用。
+        /// </summary>
+        private static void DrawRoleGroupOrderRows(Listing_Standard l)
+        {
+            List<int> order = AESettings.roleGroupOrder;
+            if (order == null || order.Count == 0) return;
+
+            const float RowHeight = 24f;
+            const float ButtonWidth = 50f;
+            const float ButtonGap = 4f;
+
+            Rect titleRow = l.GetRect(20f);
+            DrawGrayLabel(titleRow, "AE_CFG_RoleGroupOrder_Title".Translate());
+            TooltipHandler.TipRegion(titleRow, "AE_TT_RoleGroupOrder".Translate());
+
+            for (int i = 0; i < order.Count; i++)
+            {
+                RoleGroup role = (RoleGroup)order[i];
+                Rect row = l.GetRect(RowHeight);
+                if ((i & 1) == 1) Widgets.DrawBoxSolid(row, ColorRowAlt);
+
+                // 左侧色条与殖民者栏分组框边框同色，便于对照
+                Widgets.DrawBoxSolid(new Rect(row.x, row.y + 4f, 3f, row.height - 8f), GetRoleGroupColor(role));
+
+                float labelWidth = row.width - (ButtonWidth * 2f + ButtonGap) - 12f;
+                Rect labelRect = new Rect(row.x + 8f, row.y, labelWidth, row.height);
+                bool prevWrap = Text.WordWrap;
+                TextAnchor prevAnchor = Text.Anchor;
+                Text.WordWrap = false;
+                Text.Anchor = TextAnchor.MiddleLeft;
+                Widgets.Label(labelRect, GetRoleGroupLabelKey(role).Translate());
+                Text.Anchor = prevAnchor;
+                Text.WordWrap = prevWrap;
+
+                bool isOther = role == RoleGroup.Other;
+                bool canUp = !isOther && i > 0;
+                // "其他"必须固定在最后：禁止与"其他"交换
+                bool canDown = !isOther && i + 1 < order.Count && order[i + 1] != (int)RoleGroup.Other;
+
+                Rect upRect = new Rect(row.xMax - ButtonWidth * 2f - ButtonGap, row.y + 1f,
+                    ButtonWidth, row.height - 2f);
+                Rect downRect = new Rect(row.xMax - ButtonWidth, row.y + 1f,
+                    ButtonWidth, row.height - 2f);
+
+                bool prevEnabled = GUI.enabled;
+                GUI.enabled = canUp;
+                if (Widgets.ButtonText(upRect, "AE_CFG_RoleGroupOrder_Up".Translate()))
+                    AESettings.SwapRoleGroupOrder(i, i - 1);
+                GUI.enabled = canDown;
+                if (Widgets.ButtonText(downRect, "AE_CFG_RoleGroupOrder_Down".Translate()))
+                    AESettings.SwapRoleGroupOrder(i, i + 1);
+                GUI.enabled = prevEnabled;
+            }
+        }
+
+        private static Color GetRoleGroupColor(RoleGroup role)
+        {
+            switch (role)
+            {
+                case RoleGroup.Front: return ColorRoleFront;
+                case RoleGroup.Shooter: return ColorRoleShooter;
+                case RoleGroup.Worker: return ColorRoleWorker;
+                case RoleGroup.Trade: return ColorRoleTrade;
+                default: return new Color(0.60f, 0.60f, 0.60f);
+            }
+        }
+
+        private static string GetRoleGroupLabelKey(RoleGroup role)
+        {
+            switch (role)
+            {
+                case RoleGroup.Front: return "AE_RoleGroup_Front";
+                case RoleGroup.Shooter: return "AE_RoleGroup_Shooter";
+                case RoleGroup.Worker: return "AE_RoleGroup_Worker";
+                case RoleGroup.Trade: return "AE_RoleGroup_Trade";
+                default: return "AE_RoleGroup_Other";
             }
         }
 
