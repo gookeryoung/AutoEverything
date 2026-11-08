@@ -160,10 +160,25 @@ namespace AutoEverything.RoleEvaluation
             return degree >= 1;
         }
 
-        /// <summary>神经质：Neurotic degree ≥ 0（神经质 / 严重神经质均命中），无此特质为 -1。</summary>
+        /// <summary>
+        /// 神经质：Neurotic degree ≥ 1（神经质 / 严重神经质）。
+        /// 注意 DegreeOfTrait 在"没有该特质"时返回 0，而原生 Neurotic 的 degree 从 1 起，
+        /// 因此阈值必须是 1，用 ≥0 会把所有殖民者都误判为神经质。
+        /// </summary>
         public static bool IsNeuroticDegree(int degree)
         {
-            return degree >= 0;
+            return degree >= 1;
+        }
+
+        /// <summary>
+        /// 参与角色分组的资格判断（纯函数，便于单元测试）。
+        /// 只要求是殖民者栏收录的玩家侧人形（含远行队外出、精神崩溃、奴隶），
+        /// 不能用 Pawn.IsColonistPlayerControlled：它要求 Spawned 且无精神崩溃状态，
+        /// 会把远行队与精神崩溃中的殖民者误判成"其他"。
+        /// </summary>
+        public static bool IsRoleGroupCandidate(bool isBarColonist, bool hasSkills, bool hasStory)
+        {
+            return isBarColonist && hasSkills && hasStory;
         }
 
         /// <summary>兴趣是否达到双火：Major 及以上（VSE Natural 归入 Major，Critical 亦命中）。</summary>
@@ -341,8 +356,13 @@ namespace AutoEverything.RoleEvaluation
             // 食尸鬼不是殖民者，勾选"食尸鬼 → 前排"时允许其进入分组判定
             if (rules.GhoulToFront && DLCCompat.IsGhoul(pawn)) return RoleGroup.Front;
 
-            if (pawn.skills == null || pawn.story == null) return RoleGroup.Other;
-            if (!pawn.IsColonistPlayerControlled) return RoleGroup.Other;
+            // 远行队（未 Spawned）、精神崩溃中的殖民者仍应分组，故不能用 IsColonistPlayerControlled；
+            // 与原版殖民者栏收录范围保持一致：殖民者 + 玩家侧改造人（食尸鬼等）
+            bool isBarColonist = pawn.IsColonist || pawn.IsColonySubhumanPlayerControlled;
+            if (!RoleGroupRules.IsRoleGroupCandidate(isBarColonist, pawn.skills != null, pawn.story != null))
+            {
+                return RoleGroup.Other;
+            }
 
             RoleGroupInput input = new RoleGroupInput();
             input.HasBrawlerTrait = pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true;

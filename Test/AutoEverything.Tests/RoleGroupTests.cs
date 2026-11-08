@@ -294,9 +294,22 @@ namespace AutoEverything.Tests
             CheckBool(RoleGroupRules.IsIndustriousDegree(-1), false, "懒惰 degree=-1 不命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsIndustriousDegree(-2), false, "极度懒惰 degree=-2 不命中", ref failures, ref total);
 
-            CheckBool(RoleGroupRules.IsNeuroticDegree(1), true, "严重神经质 degree=1 命中", ref failures, ref total);
-            CheckBool(RoleGroupRules.IsNeuroticDegree(0), true, "神经质 degree=0 命中", ref failures, ref total);
+            // 原生 Neurotic 的 degree 从 1 起（神经质=1、严重神经质=2）；
+            // DegreeOfTrait 在"没有该特质"时返回 0，因此 0 必须判为不命中
+            CheckBool(RoleGroupRules.IsNeuroticDegree(2), true, "严重神经质 degree=2 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsNeuroticDegree(1), true, "神经质 degree=1 命中", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsNeuroticDegree(0), false, "无神经质 degree=0 不命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsNeuroticDegree(-1), false, "无神经质 degree=-1 不命中", ref failures, ref total);
+
+            // 分组资格：不得依赖 Spawned/精神崩溃状态（远行队与精神崩溃中的殖民者仍参与）
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, true, true), true,
+                "殖民者栏成员即使远行队/精神崩溃也应参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(false, true, true), false,
+                "非殖民者栏成员不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, false, true), false,
+                "无技能组件不参与分组", ref failures, ref total);
+            CheckBool(RoleGroupRules.IsRoleGroupCandidate(true, true, false), false,
+                "无背景组件不参与分组", ref failures, ref total);
 
             CheckBool(RoleGroupRules.IsBeautyDegree(2), true, "沉鱼落雁 degree=2 命中", ref failures, ref total);
             CheckBool(RoleGroupRules.IsBeautyDegree(1), true, "俊俏 degree=1 命中", ref failures, ref total);
