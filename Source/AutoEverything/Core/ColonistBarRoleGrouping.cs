@@ -407,7 +407,9 @@ namespace AutoEverything.Core
             Event e = Event.current;
             if (e == null) return;
 
-            if (e.type == EventType.MouseDown && e.button == 1 && IsDragHandle(frameRect, tagRect, e.mousePosition))
+            // "其他"是未命中白名单者的兜底分组，固定排在最后，不允许拖动
+            if (e.type == EventType.MouseDown && e.button == 1 && role != RoleGroup.Other
+                && IsDragHandle(frameRect, tagRect, e.mousePosition))
             {
                 draggingFromGroup = group;
                 draggingRole = role;

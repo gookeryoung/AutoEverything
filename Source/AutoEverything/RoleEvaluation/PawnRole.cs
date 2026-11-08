@@ -38,28 +38,24 @@ namespace AutoEverything.RoleEvaluation
     /// 殖民者栏分组用的五类角色（顺序即分组顺序）：
     /// 前排 → 射手 → 工人 → 贸易 → 其他。
     /// 与 <see cref="Role"/> 的区别：Role 面向徽章/护甲/狩猎等细分类，
-    /// 本枚举只用于"按角色分组"这一视觉功能，判定阈值可由【自动】面板调整。
+    /// 本枚举只用于"按角色分组"这一视觉功能，判定完全由玩家勾选的白名单条件决定。
     /// </summary>
     public enum RoleGroup : byte
     {
-        Front = 0,   // 前排：近战为主（格斗者特质/近战阈值/近战有火）
-        Shooter = 1, // 射手：远程为主（射击阈值/射击有火/被指派狩猎）
-        Worker = 2,  // 工人：战斗技能偏低或无法施暴
-        Trade = 3,   // 贸易：社交技能突出
-        Other = 4    // 其他：不满足以上规则者
+        Front = 0,   // 前排：食尸鬼 / 格斗者特质 / 格斗专家职位（按勾选）
+        Shooter = 1, // 射手：射击专家职位 / 乱开枪 / 猎人（按勾选）
+        Worker = 2,  // 工人：无法施暴 / 生产专家 / 工作狂 / 生产双火（按勾选）
+        Trade = 3,   // 贸易：道德家职位 / 俊俏特质 / 社交双火（按勾选）
+        Other = 4    // 其他：未命中任何已勾选条件者
     }
 
     /// <summary>
     /// 角色分组判定输入（纯数据，便于单元测试）。
+    /// 只承载白名单条件的命中状态，不含技能/兴趣数值。
     /// </summary>
     public struct RoleGroupInput
     {
-        public int Shooting;
-        public int Melee;
-        public int Social;
         public bool HasBrawlerTrait;
-        public bool MeleePassion;
-        public bool ShootingPassion;
         public bool IsHunter;
         public bool ViolentDisabled;
 
@@ -77,20 +73,16 @@ namespace AutoEverything.RoleEvaluation
     }
 
     /// <summary>
-    /// 角色分组判定阈值（纯数据，不依赖 ModSettings）。
+    /// 角色分组白名单规则（纯数据，不依赖 ModSettings）。
     /// 生产路径由 FromSettings 读取【自动】面板；测试路径使用 Default。
+    /// 每个字段对应面板上一个勾选项：勾选且命中才归组，未勾选则完全不参与判定。
     /// </summary>
     public struct RoleGroupRules
     {
-        public int FrontSkillMin;
-        public int ShooterSkillMin;
-        public int TradeSkillMin;
-        public int WorkerMaxCombatSkill;
-        public bool PassionPriority;
         public bool BrawlerTraitToFront;
         public bool HunterAsShooter;
 
-        // 强制判定开关：勾选后符合条件者直接归入对应角色，优先于技能/兴趣判定
+        // 白名单条件：勾选后符合条件者归入对应角色
         public bool GhoulToFront;
         public bool MeleeSpecialistToFront;
         public bool ShootingSpecialistToShooter;
@@ -108,11 +100,6 @@ namespace AutoEverything.RoleEvaluation
             get
             {
                 RoleGroupRules rules = new RoleGroupRules();
-                rules.FrontSkillMin = 8;
-                rules.ShooterSkillMin = 8;
-                rules.TradeSkillMin = 8;
-                rules.WorkerMaxCombatSkill = 5;
-                rules.PassionPriority = true;
                 rules.BrawlerTraitToFront = true;
                 rules.HunterAsShooter = true;
                 rules.GhoulToFront = true;
@@ -136,12 +123,7 @@ namespace AutoEverything.RoleEvaluation
         /// </summary>
         public bool DiffersFrom(RoleGroupRules other)
         {
-            return FrontSkillMin != other.FrontSkillMin
-                || ShooterSkillMin != other.ShooterSkillMin
-                || TradeSkillMin != other.TradeSkillMin
-                || WorkerMaxCombatSkill != other.WorkerMaxCombatSkill
-                || PassionPriority != other.PassionPriority
-                || BrawlerTraitToFront != other.BrawlerTraitToFront
+            return BrawlerTraitToFront != other.BrawlerTraitToFront
                 || HunterAsShooter != other.HunterAsShooter
                 || GhoulToFront != other.GhoulToFront
                 || MeleeSpecialistToFront != other.MeleeSpecialistToFront
@@ -183,11 +165,6 @@ namespace AutoEverything.RoleEvaluation
         public static RoleGroupRules FromSettings()
         {
             RoleGroupRules rules = new RoleGroupRules();
-            rules.FrontSkillMin = AESettings.groupFrontSkillMin;
-            rules.ShooterSkillMin = AESettings.groupShooterSkillMin;
-            rules.TradeSkillMin = AESettings.groupTradeSkillMin;
-            rules.WorkerMaxCombatSkill = AESettings.groupWorkerMaxCombatSkill;
-            rules.PassionPriority = AESettings.groupPassionPriority;
             rules.BrawlerTraitToFront = AESettings.groupBrawlerTraitFront;
             rules.HunterAsShooter = AESettings.groupHunterAsShooter;
             rules.GhoulToFront = AESettings.groupFrontGhoul;
@@ -341,7 +318,8 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 检测 Pawn 所属的五类分组（前排/射手/工人/贸易/其他）。
-        /// 仅用于殖民者栏按角色分组，判定阈值来自【自动】面板。
+        /// 仅用于殖民者栏按角色分组：完全由【自动】→ 人员自动面板的白名单勾选项决定，
+        /// 不做任何技能/兴趣推断，未命中任何已勾选条件即归入"其他"。
         /// </summary>
         public static RoleGroup DetectRoleGroup(Pawn pawn)
         {
@@ -356,9 +334,6 @@ namespace AutoEverything.RoleEvaluation
             if (!pawn.IsColonistPlayerControlled) return RoleGroup.Other;
 
             RoleGroupInput input = new RoleGroupInput();
-            input.Shooting = pawn.skills.GetSkill(SkillDefOf.Shooting)?.Level ?? 0;
-            input.Melee = pawn.skills.GetSkill(SkillDefOf.Melee)?.Level ?? 0;
-            input.Social = pawn.skills.GetSkill(SkillDefOf.Social)?.Level ?? 0;
             input.HasBrawlerTrait = pawn.story.traits?.HasTrait(TraitDefOf.Brawler) == true;
 
             // 意识形态职位：专家/道德家按职位强制归组（开关由玩家控制）
@@ -366,12 +341,6 @@ namespace AutoEverything.RoleEvaluation
             input.IsShootingSpecialist = HasIdeoRole(pawn, "IdeoRole_ShootingSpecialist");
             input.IsProductionSpecialist = HasIdeoRole(pawn, "IdeoRole_ProductionSpecialist");
             input.IsSocialSpecialist = HasIdeoRole(pawn, "IdeoRole_Moralist");
-
-            // 兴趣优先：用 PassionHelper 兼容 VSE（Apathy 视为无火及以下）
-            Passion shootingPassion = pawn.skills.GetSkill(SkillDefOf.Shooting)?.passion ?? Passion.None;
-            Passion meleePassion = pawn.skills.GetSkill(SkillDefOf.Melee)?.passion ?? Passion.None;
-            input.ShootingPassion = PassionHelper.GetPassionTier(shootingPassion) > PassionHelper.PassionTier.None;
-            input.MeleePassion = PassionHelper.GetPassionTier(meleePassion) > PassionHelper.PassionTier.None;
 
             input.IsHunter = pawn.workSettings != null && pawn.workSettings.EverWork
                 && pawn.workSettings.GetPriority(WorkTypeDefOf.Hunting) == 1;
@@ -415,34 +384,26 @@ namespace AutoEverything.RoleEvaluation
 
         /// <summary>
         /// 分组判定纯逻辑核心（不依赖 Pawn/ModSettings，便于单元测试）。
-        /// 规则按优先级自上而下，命中即返回：
-        ///
-        /// 强制判定（面板逐角色勾选，优先于技能/兴趣）：
-        /// 0. 无法施暴 → 工人（可关闭）
-        /// 1. 食尸鬼 → 前排（可关闭）
-        /// 2. 格斗者特质 → 前排（可关闭）
-        /// 3. 格斗专家职位 → 前排（可关闭）
-        /// 4. 射击专家职位 → 射手（可关闭）
-        /// 5. 乱开枪特质 → 射手（可关闭）
-        /// 6. 被指派狩猎 → 射手（可关闭）
-        /// 7. 生产专家职位 → 工人（可关闭）
-        /// 8. 工作狂特质 → 工人（可关闭）
-        /// 9. 生产（手工）兴趣双火 → 工人（可关闭）
-        /// 10. 道德家职位 → 贸易（可关闭）
-        /// 11. 俊俏/沉鱼落雁特质 → 贸易（可关闭）
-        /// 12. 社交兴趣双火 → 贸易（可关闭）
-        ///
-        /// 技能/兴趣补充判定（强制条件未命中时）：
-        /// 13. 兴趣优先：近战有火且射击无火 → 前排；反之 → 射手（可关闭）
-        /// 14. 近战 ≥ 前排阈值且高于射击 → 前排
-        /// 15. 射击 ≥ 射手阈值且高于近战 → 射手
-        /// 16. 社交 ≥ 贸易阈值且不低于射击/近战 → 贸易
-        /// 17. 射击与近战均低于工人阈值 → 工人
-        /// 18. 其余 → 其他
+        /// 纯白名单制：每个条件对应面板上一个勾选项，勾选且命中才归入该角色；
+        /// 不做任何技能/兴趣兜底推断，未命中任何已勾选项即归入"其他"。
+        /// 命中多个条件时按下列顺序取第一个：
+        /// 0. 无法施暴 → 工人
+        /// 1. 食尸鬼 → 前排
+        /// 2. 格斗者特质 → 前排
+        /// 3. 格斗专家职位 → 前排
+        /// 4. 射击专家职位 → 射手
+        /// 5. 乱开枪特质 → 射手
+        /// 6. 被指派狩猎 → 射手
+        /// 7. 生产专家职位 → 工人
+        /// 8. 工作狂特质 → 工人
+        /// 9. 生产（手工）兴趣双火 → 工人
+        /// 10. 道德家职位 → 贸易
+        /// 11. 俊俏/沉鱼落雁特质 → 贸易
+        /// 12. 社交兴趣双火 → 贸易
+        /// 13. 其余 → 其他
         /// </summary>
         public static RoleGroup EvaluateRoleGroupCore(RoleGroupInput input, RoleGroupRules rules)
         {
-            // ── 强制判定条件 ──
             if (rules.PacifistToWorker && input.ViolentDisabled) return RoleGroup.Worker;
             if (rules.GhoulToFront && input.IsGhoul) return RoleGroup.Front;
             if (rules.BrawlerTraitToFront && input.HasBrawlerTrait) return RoleGroup.Front;
@@ -457,28 +418,7 @@ namespace AutoEverything.RoleEvaluation
             if (rules.BeautyToTrade && input.HasBeauty) return RoleGroup.Trade;
             if (rules.SocialMajorToTrade && input.SocialPassionMajor) return RoleGroup.Trade;
 
-            // ── 技能/兴趣补充判定 ──
-            if (rules.PassionPriority)
-            {
-                if (input.MeleePassion && !input.ShootingPassion) return RoleGroup.Front;
-                if (input.ShootingPassion && !input.MeleePassion) return RoleGroup.Shooter;
-            }
-
-            if (input.Melee >= rules.FrontSkillMin && input.Melee > input.Shooting) return RoleGroup.Front;
-            if (input.Shooting >= rules.ShooterSkillMin && input.Shooting > input.Melee) return RoleGroup.Shooter;
-
-            if (input.Social >= rules.TradeSkillMin
-                && input.Social >= input.Shooting
-                && input.Social >= input.Melee)
-            {
-                return RoleGroup.Trade;
-            }
-
-            if (input.Shooting < rules.WorkerMaxCombatSkill && input.Melee < rules.WorkerMaxCombatSkill)
-            {
-                return RoleGroup.Worker;
-            }
-
+            // 白名单外的人员一律归入"其他"，不再按技能/兴趣推断
             return RoleGroup.Other;
         }
 
@@ -507,7 +447,8 @@ namespace AutoEverything.RoleEvaluation
         }
 
         /// <summary>
-        /// 校验顺序数组必须是 0..4 的完整排列（无缺失、无重复、无越界）。
+        /// 校验顺序数组必须是 0..4 的完整排列（无缺失、无重复、无越界），
+        /// 且"其他"必须固定在最后一位（未命中白名单者的兜底分组不参与拖拽换序）。
         /// 存档损坏或旧版本数据不合法时由调用方回退默认顺序。
         /// </summary>
         public static bool IsValidRoleGroupOrder(List<int> order)
@@ -521,16 +462,19 @@ namespace AutoEverything.RoleEvaluation
                 if (value < 0 || value >= 5 || seen[value]) return false;
                 seen[value] = true;
             }
-            return true;
+            return order[order.Count - 1] == (int)RoleGroup.Other;
         }
 
         /// <summary>
         /// 在顺序数组中把 from 移到 to 的位置（插入到 to 之前）。
+        /// "其他"固定最后：不允许拖动"其他"本身，拖到"其他"上也只是插入其前，
+        /// 保证兜底分组永远排在末尾。
         /// 返回是否实际发生变化；由 AESettings.MoveRoleGroup 负责写盘与重排。
         /// </summary>
         public static bool MoveRoleGroupInOrder(List<int> order, int from, int to)
         {
             if (order == null) return false;
+            if (from == (int)RoleGroup.Other) return false;
 
             int fromIdx = order.IndexOf(from);
             int toIdx = order.IndexOf(to);

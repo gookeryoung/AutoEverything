@@ -47,22 +47,8 @@ namespace AutoEverything.Core
 
         // ════════════════════════════════
         // 殖民者栏五类角色分组判定（前排/射手/工人/贸易/其他）
+        // 纯白名单制：勾选且命中才归组，不做技能/兴趣兜底推断
         // ════════════════════════════════
-
-        // 前排：近战技能达到该值且高于射击
-        public static int groupFrontSkillMin = 8;
-
-        // 射手：射击技能达到该值且高于近战
-        public static int groupShooterSkillMin = 8;
-
-        // 贸易：社交技能达到该值且不低于射击/近战
-        public static int groupTradeSkillMin = 8;
-
-        // 工人：射击与近战均低于该值
-        public static int groupWorkerMaxCombatSkill = 5;
-
-        // 兴趣优先：近战有火且射击无火 → 前排；射击有火且近战无火 → 射手
-        public static bool groupPassionPriority = true;
 
         // 格斗者特质直接归入前排
         public static bool groupBrawlerTraitFront = true;
@@ -248,11 +234,6 @@ namespace AutoEverything.Core
             Scribe_Values.Look(ref spouseExemptionTier, "ae_spouseExemptionTier", CombatTier.S);
 
             // 殖民者栏五类角色分组判定
-            LookCompat(ref groupFrontSkillMin, "groupFrontSkillMin", 8);
-            LookCompat(ref groupShooterSkillMin, "groupShooterSkillMin", 8);
-            LookCompat(ref groupTradeSkillMin, "groupTradeSkillMin", 8);
-            LookCompat(ref groupWorkerMaxCombatSkill, "groupWorkerMaxCombatSkill", 5);
-            LookCompat(ref groupPassionPriority, "groupPassionPriority", true);
             LookCompat(ref groupBrawlerTraitFront, "groupBrawlerTraitFront", true);
             LookCompat(ref groupHunterAsShooter, "groupHunterAsShooter", true);
             LookCompat(ref groupFrontGhoul, "groupFrontGhoul", true);

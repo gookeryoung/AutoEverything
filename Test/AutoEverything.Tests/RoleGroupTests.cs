@@ -27,32 +27,32 @@ namespace AutoEverything.Tests
             int total = 0;
             RoleGroupRules rules = RoleGroupRules.Default;
 
-            // ── 强制判定：默认勾选时命中即归入对应角色 ──
-            Check(rules, new RoleGroupInput { IsGhoul = true, Shooting = 20, Melee = 0 },
+            // ── 白名单：默认勾选时命中即归入对应角色 ──
+            Check(rules, new RoleGroupInput { IsGhoul = true },
                 RoleGroup.Front, "食尸鬼 → 前排", ref failures, ref total);
-            Check(rules, new RoleGroupInput { HasBrawlerTrait = true, Shooting = 20, Melee = 0 },
+            Check(rules, new RoleGroupInput { HasBrawlerTrait = true },
                 RoleGroup.Front, "格斗者特质 → 前排", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsMeleeSpecialist = true, Shooting = 20, Melee = 0 },
+            Check(rules, new RoleGroupInput { IsMeleeSpecialist = true },
                 RoleGroup.Front, "格斗专家职位 → 前排", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsShootingSpecialist = true, Melee = 20, Shooting = 0 },
+            Check(rules, new RoleGroupInput { IsShootingSpecialist = true },
                 RoleGroup.Shooter, "射击专家职位 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsHunter = true, Melee = 20, Shooting = 0 },
+            Check(rules, new RoleGroupInput { IsHunter = true },
                 RoleGroup.Shooter, "猎人 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { ViolentDisabled = true, Melee = 20 },
+            Check(rules, new RoleGroupInput { ViolentDisabled = true },
                 RoleGroup.Worker, "无法施暴 → 工人", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsProductionSpecialist = true, Shooting = 20 },
+            Check(rules, new RoleGroupInput { IsProductionSpecialist = true },
                 RoleGroup.Worker, "生产专家职位 → 工人", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsSocialSpecialist = true, Shooting = 20, Melee = 20 },
+            Check(rules, new RoleGroupInput { IsSocialSpecialist = true },
                 RoleGroup.Trade, "道德家职位 → 贸易", ref failures, ref total);
-            Check(rules, new RoleGroupInput { IsTriggerHappy = true, Shooting = 0, Melee = 0 },
+            Check(rules, new RoleGroupInput { IsTriggerHappy = true },
                 RoleGroup.Shooter, "乱开枪特性 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { HasIndustrious = true, Shooting = 20 },
+            Check(rules, new RoleGroupInput { HasIndustrious = true },
                 RoleGroup.Worker, "工作狂特质 → 工人", ref failures, ref total);
-            Check(rules, new RoleGroupInput { CraftingPassionMajor = true, Shooting = 20 },
+            Check(rules, new RoleGroupInput { CraftingPassionMajor = true },
                 RoleGroup.Worker, "生产兴趣双火 → 工人", ref failures, ref total);
-            Check(rules, new RoleGroupInput { HasBeauty = true, Shooting = 20, Melee = 20 },
+            Check(rules, new RoleGroupInput { HasBeauty = true },
                 RoleGroup.Trade, "俊俏/沉鱼落雁 → 贸易", ref failures, ref total);
-            Check(rules, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 20 },
+            Check(rules, new RoleGroupInput { SocialPassionMajor = true },
                 RoleGroup.Trade, "社交兴趣双火 → 贸易", ref failures, ref total);
 
             // ── 新增条件与既有条件的优先级交叉 ──
@@ -79,57 +79,56 @@ namespace AutoEverything.Tests
             Check(rules, new RoleGroupInput { IsShootingSpecialist = true, IsHunter = true },
                 RoleGroup.Shooter, "射击专家与猎人同为射手", ref failures, ref total);
 
-            // ── 关闭开关后不生效，回落到技能判定 ──
+            // ── 关闭勾选项后该条件完全不生效：命中者归入其他 ──
             RoleGroupRules noGhoul = RoleGroupRules.Default;
             noGhoul.GhoulToFront = false;
-            Check(noGhoul, new RoleGroupInput { IsGhoul = true, Shooting = 20, Melee = 10 },
-                RoleGroup.Shooter, "关闭食尸鬼开关后回落到射手", ref failures, ref total);
+            Check(noGhoul, new RoleGroupInput { IsGhoul = true },
+                RoleGroup.Other, "关闭食尸鬼开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noPacifist = RoleGroupRules.Default;
             noPacifist.PacifistToWorker = false;
-            Check(noPacifist, new RoleGroupInput { ViolentDisabled = true, Melee = 9, Shooting = 1 },
-                RoleGroup.Front, "关闭无法施暴开关后回落到前排", ref failures, ref total);
+            Check(noPacifist, new RoleGroupInput { ViolentDisabled = true },
+                RoleGroup.Other, "关闭无法施暴开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noHunter = RoleGroupRules.Default;
             noHunter.HunterAsShooter = false;
-            Check(noHunter, new RoleGroupInput { IsHunter = true, Shooting = 0, Melee = 0 },
-                RoleGroup.Worker, "关闭猎人开关后按低战斗技能归工人", ref failures, ref total);
+            Check(noHunter, new RoleGroupInput { IsHunter = true },
+                RoleGroup.Other, "关闭猎人开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noMoralist = RoleGroupRules.Default;
             noMoralist.SocialSpecialistToTrade = false;
-            Check(noMoralist, new RoleGroupInput { IsSocialSpecialist = true, Shooting = 0, Melee = 0, Social = 0 },
-                RoleGroup.Worker, "关闭道德家开关后不再归贸易", ref failures, ref total);
+            Check(noMoralist, new RoleGroupInput { IsSocialSpecialist = true },
+                RoleGroup.Other, "关闭道德家开关后归入其他", ref failures, ref total);
 
-            // 新增补充条件可独立关闭，关闭后回落到技能/兴趣判定
             RoleGroupRules noTriggerHappy = RoleGroupRules.Default;
             noTriggerHappy.TriggerHappyToShooter = false;
-            Check(noTriggerHappy, new RoleGroupInput { IsTriggerHappy = true, Shooting = 0, Melee = 0 },
-                RoleGroup.Worker, "关闭乱开枪开关后按低战斗技能归工人", ref failures, ref total);
+            Check(noTriggerHappy, new RoleGroupInput { IsTriggerHappy = true },
+                RoleGroup.Other, "关闭乱开枪开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noIndustrious = RoleGroupRules.Default;
             noIndustrious.IndustriousToWorker = false;
-            Check(noIndustrious, new RoleGroupInput { HasIndustrious = true, Shooting = 20, Melee = 0 },
-                RoleGroup.Shooter, "关闭工作狂开关后回落到射手", ref failures, ref total);
+            Check(noIndustrious, new RoleGroupInput { HasIndustrious = true },
+                RoleGroup.Other, "关闭工作狂开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noCraftingMajor = RoleGroupRules.Default;
             noCraftingMajor.CraftingMajorToWorker = false;
-            Check(noCraftingMajor, new RoleGroupInput { CraftingPassionMajor = true, Shooting = 20, Melee = 0 },
-                RoleGroup.Shooter, "关闭生产双火开关后回落到射手", ref failures, ref total);
+            Check(noCraftingMajor, new RoleGroupInput { CraftingPassionMajor = true },
+                RoleGroup.Other, "关闭生产双火开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noBeauty = RoleGroupRules.Default;
             noBeauty.BeautyToTrade = false;
-            Check(noBeauty, new RoleGroupInput { HasBeauty = true, Shooting = 20, Melee = 0 },
-                RoleGroup.Shooter, "关闭俊俏开关后回落到射手", ref failures, ref total);
+            Check(noBeauty, new RoleGroupInput { HasBeauty = true },
+                RoleGroup.Other, "关闭俊俏开关后归入其他", ref failures, ref total);
 
             RoleGroupRules noSocialMajor = RoleGroupRules.Default;
             noSocialMajor.SocialMajorToTrade = false;
-            Check(noSocialMajor, new RoleGroupInput { SocialPassionMajor = true, Shooting = 20, Melee = 0 },
-                RoleGroup.Shooter, "关闭社交双火开关后回落到射手", ref failures, ref total);
+            Check(noSocialMajor, new RoleGroupInput { SocialPassionMajor = true },
+                RoleGroup.Other, "关闭社交双火开关后归入其他", ref failures, ref total);
 
             // 新开关彼此独立：关闭一个不应影响另一个条件
             RoleGroupRules noBeautyKeepSocial = RoleGroupRules.Default;
             noBeautyKeepSocial.BeautyToTrade = false;
-            Check(noBeautyKeepSocial, new RoleGroupInput { HasBeauty = true, SocialPassionMajor = true, Shooting = 20 },
+            Check(noBeautyKeepSocial, new RoleGroupInput { HasBeauty = true, SocialPassionMajor = true },
                 RoleGroup.Trade, "关闭俊俏开关后社交双火仍归贸易", ref failures, ref total);
 
             RoleGroupRules noIndustriousKeepCrafting = RoleGroupRules.Default;
@@ -147,21 +146,33 @@ namespace AutoEverything.Tests
             Check(noTriggerHappyKeepSpecialist, new RoleGroupInput { IsTriggerHappy = true, IsShootingSpecialist = true },
                 RoleGroup.Shooter, "关闭乱开枪开关后射击专家仍归射手", ref failures, ref total);
 
-            // ── 技能/兴趣补充判定 ──
-            Check(rules, new RoleGroupInput { Melee = 9, Shooting = 3, MeleePassion = true },
-                RoleGroup.Front, "近战兴趣优先 → 前排", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Melee = 3, Shooting = 3, ShootingPassion = true },
-                RoleGroup.Shooter, "射击兴趣优先 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Melee = 20, Shooting = 5, MeleePassion = true, ShootingPassion = true },
-                RoleGroup.Front, "双兴趣时近战等级更高 → 前排", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Shooting = 9, Melee = 3 },
-                RoleGroup.Shooter, "射击阈值高于近战 → 射手", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Social = 9, Shooting = 0, Melee = 0 },
-                RoleGroup.Trade, "社交阈值达标 → 贸易", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Shooting = 4, Melee = 4 },
-                RoleGroup.Worker, "双低战斗技能 → 工人", ref failures, ref total);
-            Check(rules, new RoleGroupInput { Shooting = 6, Melee = 6 },
-                RoleGroup.Other, "未命中任何规则 → 其他", ref failures, ref total);
+            // ── 纯白名单：无任何勾选项命中即其他（不做技能/兴趣兜底）──
+            Check(rules, new RoleGroupInput(),
+                RoleGroup.Other, "无任何条件命中 → 其他", ref failures, ref total);
+
+            RoleGroupRules allOff = RoleGroupRules.Default;
+            allOff.GhoulToFront = false;
+            allOff.MeleeSpecialistToFront = false;
+            allOff.BrawlerTraitToFront = false;
+            allOff.ShootingSpecialistToShooter = false;
+            allOff.TriggerHappyToShooter = false;
+            allOff.HunterAsShooter = false;
+            allOff.PacifistToWorker = false;
+            allOff.ProductionSpecialistToWorker = false;
+            allOff.IndustriousToWorker = false;
+            allOff.CraftingMajorToWorker = false;
+            allOff.SocialSpecialistToTrade = false;
+            allOff.BeautyToTrade = false;
+            allOff.SocialMajorToTrade = false;
+            Check(allOff, new RoleGroupInput
+                {
+                    IsGhoul = true, HasBrawlerTrait = true, IsMeleeSpecialist = true,
+                    IsShootingSpecialist = true, IsTriggerHappy = true, IsHunter = true,
+                    ViolentDisabled = true, IsProductionSpecialist = true, HasIndustrious = true,
+                    CraftingPassionMajor = true, IsSocialSpecialist = true, HasBeauty = true,
+                    SocialPassionMajor = true
+                },
+                RoleGroup.Other, "全部取消勾选 → 全部归其他", ref failures, ref total);
 
             Console.WriteLine($"[RoleGroupTests] 判定规则 {total - failures}/{total} passed");
 
@@ -377,26 +388,6 @@ namespace AutoEverything.Tests
 
             // 逐字段变更：任一字段变化必须被检测到
             RoleGroupRules r = RoleGroupRules.Default;
-            r.FrontSkillMin = 9;
-            CheckBool(r.DiffersFrom(baseRules), true, "前排阈值变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
-            r.ShooterSkillMin = 9;
-            CheckBool(r.DiffersFrom(baseRules), true, "射手阈值变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
-            r.TradeSkillMin = 9;
-            CheckBool(r.DiffersFrom(baseRules), true, "贸易阈值变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
-            r.WorkerMaxCombatSkill = 6;
-            CheckBool(r.DiffersFrom(baseRules), true, "工人战斗阈值变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
-            r.PassionPriority = false;
-            CheckBool(r.DiffersFrom(baseRules), true, "兴趣优先开关变化被检测", ref failures, ref total);
-
-            r = RoleGroupRules.Default;
             r.BrawlerTraitToFront = false;
             CheckBool(r.DiffersFrom(baseRules), true, "格斗者开关变化被检测", ref failures, ref total);
 
@@ -473,16 +464,23 @@ namespace AutoEverything.Tests
                 "前排可视序号应为 2", ref failures, ref total);
             CheckBool(RoleDetector.IsValidRoleGroupOrder(order), true, "换序后仍是合法排列", ref failures, ref total);
 
-            // 其他拖到射手：插入到射手之前 → [其他, 射手, 工人, 前排, 贸易]
-            RoleDetector.MoveRoleGroupInOrder(order, (int)RoleGroup.Other, (int)RoleGroup.Shooter);
-            CheckOrder(order, new[] { 4, 1, 2, 0, 3 }, "其他插入到射手之前", ref failures, ref total);
+            // "其他"固定最后：不允许拖动自身，拖到射手无变化
+            CheckBool(RoleDetector.MoveRoleGroupInOrder(order, (int)RoleGroup.Other, (int)RoleGroup.Shooter),
+                false, "其他分组不可拖动", ref failures, ref total);
+            CheckOrder(order, new[] { 1, 2, 0, 3, 4 }, "拖其他后顺序不变", ref failures, ref total);
+
+            // 拖到"其他"上 = 插入到其前，仍保持其他最后
+            CheckBool(RoleDetector.MoveRoleGroupInOrder(order, (int)RoleGroup.Shooter, (int)RoleGroup.Other),
+                true, "拖到其他上应发生变化", ref failures, ref total);
+            CheckOrder(order, new[] { 2, 0, 3, 1, 4 }, "插入到其他之前", ref failures, ref total);
+            CheckBool(RoleDetector.IsValidRoleGroupOrder(order), true, "其他仍在最后", ref failures, ref total);
 
             // 拖到自己身上不应变化
             CheckBool(RoleDetector.MoveRoleGroupInOrder(order, (int)RoleGroup.Worker, (int)RoleGroup.Worker),
                 false, "拖到自身不变化", ref failures, ref total);
-            CheckOrder(order, new[] { 4, 1, 2, 0, 3 }, "拖到自身后顺序不变", ref failures, ref total);
+            CheckOrder(order, new[] { 2, 0, 3, 1, 4 }, "拖到自身后顺序不变", ref failures, ref total);
 
-            // 非法顺序必须被识别（缺失、重复、越界、空）
+            // 非法顺序必须被识别（缺失、重复、越界、其他不在最后、空）
             CheckBool(RoleDetector.IsValidRoleGroupOrder(null), false, "null 非法", ref failures, ref total);
             CheckBool(RoleDetector.IsValidRoleGroupOrder(new List<int> { 0, 1, 2, 3 }), false,
                 "数量不足非法", ref failures, ref total);
@@ -490,6 +488,8 @@ namespace AutoEverything.Tests
                 "重复值非法", ref failures, ref total);
             CheckBool(RoleDetector.IsValidRoleGroupOrder(new List<int> { 0, 1, 2, 3, 5 }), false,
                 "越界值非法", ref failures, ref total);
+            CheckBool(RoleDetector.IsValidRoleGroupOrder(new List<int> { 4, 1, 2, 0, 3 }), false,
+                "其他不在最后非法", ref failures, ref total);
 
             Console.WriteLine($"[RoleGroupOrderTests] 累计 {total - failures}/{total} passed");
             return failures;

@@ -65,7 +65,7 @@ Note: when "group colonist bar by role" is enabled this setting is ignored; rati
   <AE_GroupByRole>Group colonist bar by role</AE_GroupByRole>
   <AE_TT_GroupByRole>Split colonist bar portraits into five role groups (Front/Shooter/Worker/Trade/Other). Pawns inside a group frame can be reordered together.
 When enabled, the bar is automatically sorted by Role+Tier; when disabled, vanilla map/caravan grouping is restored.
-The thresholds below decide which group each colonist belongs to.</AE_TT_GroupByRole>
+The checkboxes below are the only criteria: a colonist is grouped only when a checked condition matches.</AE_TT_GroupByRole>
 
   <!-- Custom tier override -->
   <AE_ReallocRules_CustomTier>Custom Tier Code</AE_ReallocRules_CustomTier>
@@ -258,17 +258,9 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_cvTraitBonus>Combat-related trait bonus or penalty in the combat value formula.</AE_TT_cvTraitBonus>
   <!-- Auto Tier: colonist bar five-role grouping rules -->
   <AE_CFG_Section_RoleGroup>Colonist bar role groups</AE_CFG_Section_RoleGroup>
-  <AE_CFG_GroupFrontSkillMin>Front: melee threshold</AE_CFG_GroupFrontSkillMin>
-  <AE_CFG_GroupShooterSkillMin>Shooter: shooting threshold</AE_CFG_GroupShooterSkillMin>
-  <AE_CFG_GroupTradeSkillMin>Trade: social threshold</AE_CFG_GroupTradeSkillMin>
-  <AE_CFG_GroupWorkerMaxCombatSkill>Worker: combat skill cap</AE_CFG_GroupWorkerMaxCombatSkill>
-  <AE_CFG_GroupPassionPriority>Passion priority</AE_CFG_GroupPassionPriority>
-  <AE_CFG_GroupBrawlerTraitFront>Brawler trait → Front</AE_CFG_GroupBrawlerTraitFront>
-  <AE_CFG_GroupHunterAsShooter>Hunters → Shooter</AE_CFG_GroupHunterAsShooter>
 
-  <AE_CFG_RoleGroup_ForceHint>Checked conditions force matching colonists into that role, taking priority over skill/passion rules.</AE_CFG_RoleGroup_ForceHint>
-  <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Auto Tier tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
-  <AE_CFG_RoleGroup_SkillTitle>Skill/passion fallback rules (used when no forced condition matches):</AE_CFG_RoleGroup_SkillTitle>
+  <AE_CFG_RoleGroup_ForceHint>Pure whitelist: a colonist is grouped only when a checked condition matches. Anything not matching a checked condition goes to "Other"; no skill/passion inference.</AE_CFG_RoleGroup_ForceHint>
+  <AE_CFG_RoleGroup_MovedHint>All role grouping conditions now live in the Role Group tab. Configure them there.</AE_CFG_RoleGroup_MovedHint>
   <AE_CFG_Front_Ghoul>Ghoul</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>Brawler trait</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>Melee specialist</AE_CFG_Front_MeleeSpecialist>
@@ -297,21 +289,9 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_TT_Trade_Beauty>Colonists with the Pretty or Beautiful trait are put in Trade.</AE_TT_Trade_Beauty>
   <AE_TT_Trade_SocialMajor>Colonists with a major passion in Social are put in Trade.</AE_TT_Trade_SocialMajor>
 
-  <AE_TT_GroupFrontSkillMin>Melee skill at or above this value and higher than shooting puts the pawn in Front.</AE_TT_GroupFrontSkillMin>
-  <AE_TT_GroupShooterSkillMin>Shooting skill at or above this value and higher than melee puts the pawn in Shooter.</AE_TT_GroupShooterSkillMin>
-  <AE_TT_GroupTradeSkillMin>Social skill at or above this value and not lower than shooting/melee puts the pawn in Trade.</AE_TT_GroupTradeSkillMin>
-  <AE_TT_GroupWorkerMaxCombatSkill>Both shooting and melee below this value puts the pawn in Worker.</AE_TT_GroupWorkerMaxCombatSkill>
-  <AE_TT_GroupPassionPriority>Melee passion without shooting passion → Front; shooting passion without melee passion → Shooter. Off = skill levels only.</AE_TT_GroupPassionPriority>
-  <AE_TT_GroupBrawlerTraitFront>Pawns with the Brawler trait are always put in Front.</AE_TT_GroupBrawlerTraitFront>
-  <AE_TT_GroupHunterAsShooter>Pawns assigned to hunting at priority 1 are put in Shooter.</AE_TT_GroupHunterAsShooter>
-
-  <AE_CFG_RoleGroupRule_Order>Default group order: Front → Shooter → Worker → Trade → Other (right-drag to reorder)</AE_CFG_RoleGroupRule_Order>
-  <AE_CFG_RoleGroupRule_Front>• Front: Brawler trait; or melee ≥ {0} and higher than shooting; or melee passion without shooting passion</AE_CFG_RoleGroupRule_Front>
-  <AE_CFG_RoleGroupRule_Shooter>• Shooter: shooting ≥ {0} and higher than melee; or shooting passion without melee passion; or assigned hunting</AE_CFG_RoleGroupRule_Shooter>
-  <AE_CFG_RoleGroupRule_Trade>• Trade: social ≥ {0} and not lower than shooting/melee</AE_CFG_RoleGroupRule_Trade>
-  <AE_CFG_RoleGroupRule_Worker>• Worker: violent work disabled; or shooting and melee both below {0}</AE_CFG_RoleGroupRule_Worker>
-  <AE_CFG_RoleGroupRule_Other>• Other: anything not matched above (e.g. ideoligion leaders). Disabled switches remove their rule from evaluation.</AE_CFG_RoleGroupRule_Other>
-  <AE_CFG_RoleGroupRule_Drag>• Right-drag a group's tag or border onto another group to reorder. Colonists are re-grouped in the new order.</AE_CFG_RoleGroupRule_Drag>
+  <AE_CFG_RoleGroupRule_Order>Default group order: Front → Shooter → Worker → Trade → Other (first four are right-draggable; Other is always last)</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Other>• Other: colonists matching no checked condition (unchecking one condition only sends its matches here).</AE_CFG_RoleGroupRule_Other>
+  <AE_CFG_RoleGroupRule_Drag>• Right-drag a group's tag or border onto another group to reorder ("Other" is the fallback group, always last and not draggable). Colonists are re-grouped in the new order.</AE_CFG_RoleGroupRule_Drag>
 
   <AE_RoleGroup_Front>Front</AE_RoleGroup_Front>
   <AE_RoleGroup_Shooter>Shooter</AE_RoleGroup_Shooter>

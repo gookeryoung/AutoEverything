@@ -217,8 +217,8 @@ namespace AutoEverything.UI
 
         /// <summary>
         /// 殖民者栏五类角色分组配置（前排/射手/工人/贸易/其他）。
-        /// 只在人员自动页展示一次，工作自动页不再重复绘制同一份配置；
-        /// 分组框支持右键拖拽换序，任一条件变化后立即重排殖民者栏。
+        /// 纯白名单制：只有勾选且命中的条件才计入分组，未命中者归入"其他"；
+        /// 分组框支持右键拖拽换序，任一勾选项变化后立即重排殖民者栏。
         /// </summary>
         private static void DrawRoleGroupSection(Listing_Standard l)
         {
@@ -275,23 +275,7 @@ namespace AutoEverything.UI
 
             l.Gap(2f);
 
-            // 技能/兴趣补充判定：强制条件未命中时的兜底规则
-            DrawRuleText(l, "AE_CFG_RoleGroup_SkillTitle".Translate());
-
-            DrawIntSlider(l, "AE_CFG_GroupFrontSkillMin", ref AESettings.groupFrontSkillMin, 5, 18, "AE_TT_GroupFrontSkillMin");
-            DrawIntSlider(l, "AE_CFG_GroupShooterSkillMin", ref AESettings.groupShooterSkillMin, 5, 18, "AE_TT_GroupShooterSkillMin");
-            DrawIntSlider(l, "AE_CFG_GroupTradeSkillMin", ref AESettings.groupTradeSkillMin, 5, 18, "AE_TT_GroupTradeSkillMin");
-            DrawIntSlider(l, "AE_CFG_GroupWorkerMaxCombatSkill", ref AESettings.groupWorkerMaxCombatSkill, 0, 12,
-                "AE_TT_GroupWorkerMaxCombatSkill");
-
-            DrawCheckbox(l, "AE_CFG_GroupPassionPriority", ref AESettings.groupPassionPriority, "AE_TT_GroupPassionPriority");
-
-            // 判定准则说明：数值随滑块实时变化，玩家可对照调整
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Order".Translate());
-            DrawRuleText(l, "AE_CFG_RoleGroupRule_Front".Translate(AESettings.groupFrontSkillMin));
-            DrawRuleText(l, "AE_CFG_RoleGroupRule_Shooter".Translate(AESettings.groupShooterSkillMin));
-            DrawRuleText(l, "AE_CFG_RoleGroupRule_Trade".Translate(AESettings.groupTradeSkillMin));
-            DrawRuleText(l, "AE_CFG_RoleGroupRule_Worker".Translate(AESettings.groupWorkerMaxCombatSkill));
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Other".Translate());
             DrawRuleText(l, "AE_CFG_RoleGroupRule_Drag".Translate());
             EndSection(l);

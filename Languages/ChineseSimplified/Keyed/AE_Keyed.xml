@@ -65,7 +65,7 @@
   <AE_GroupByRole>殖民者栏按角色分组</AE_GroupByRole>
   <AE_TT_GroupByRole>把殖民者栏头像按五类角色（前排/射手/工人/贸易/其他）分成独立分组，分组框内可整体拖拽管理。
 开启时自动按"角色+评级"重排；关闭后恢复原生按地图/远行队分组。
-下方判定阈值决定每名殖民者归属哪一组。</AE_TT_GroupByRole>
+下方勾选项是唯一判定依据：勾选且命中的殖民者才归入对应分组。</AE_TT_GroupByRole>
 
   <!-- 自定义评级识别码 -->
   <AE_ReallocRules_CustomTier>自定义评级识别码</AE_ReallocRules_CustomTier>
@@ -259,17 +259,9 @@
   <AE_TT_cvTraitBonus>战斗相关特质对战斗价值的加成或扣减（绝对值）</AE_TT_cvTraitBonus>
   <!-- 人员自动：殖民者栏五类角色分组判定 -->
   <AE_CFG_Section_RoleGroup>殖民者栏角色分组</AE_CFG_Section_RoleGroup>
-  <AE_CFG_GroupFrontSkillMin>前排：近战阈值</AE_CFG_GroupFrontSkillMin>
-  <AE_CFG_GroupShooterSkillMin>射手：射击阈值</AE_CFG_GroupShooterSkillMin>
-  <AE_CFG_GroupTradeSkillMin>贸易：社交阈值</AE_CFG_GroupTradeSkillMin>
-  <AE_CFG_GroupWorkerMaxCombatSkill>工人：战斗技能上限</AE_CFG_GroupWorkerMaxCombatSkill>
-  <AE_CFG_GroupPassionPriority>兴趣优先判定</AE_CFG_GroupPassionPriority>
-  <AE_CFG_GroupBrawlerTraitFront>格斗者特质归前排</AE_CFG_GroupBrawlerTraitFront>
-  <AE_CFG_GroupHunterAsShooter>猎人归射手</AE_CFG_GroupHunterAsShooter>
 
-  <AE_CFG_RoleGroup_ForceHint>勾选下方条件后，符合条件的殖民者直接归入该角色，优先于技能/兴趣判定。</AE_CFG_RoleGroup_ForceHint>
+  <AE_CFG_RoleGroup_ForceHint>纯白名单制：只有勾选且命中的条件才计入对应分组，未命中任何勾选项的殖民者归入"其他"，不再按技能/兴趣推断。</AE_CFG_RoleGroup_ForceHint>
   <AE_CFG_RoleGroup_MovedHint>殖民者栏角色分组的全部判定条件已整合到【人员自动】标签页，请到该页调整。</AE_CFG_RoleGroup_MovedHint>
-  <AE_CFG_RoleGroup_SkillTitle>技能与兴趣补充判定（强制条件未命中时生效）：</AE_CFG_RoleGroup_SkillTitle>
   <AE_CFG_Front_Ghoul>食尸鬼</AE_CFG_Front_Ghoul>
   <AE_CFG_Front_Brawler>格斗者特质</AE_CFG_Front_Brawler>
   <AE_CFG_Front_MeleeSpecialist>格斗专家职位</AE_CFG_Front_MeleeSpecialist>
@@ -298,21 +290,9 @@
   <AE_TT_Trade_Beauty>拥有“俊俏”或“沉鱼落雁”特质（Beauty）的殖民者直接归入贸易</AE_TT_Trade_Beauty>
   <AE_TT_Trade_SocialMajor>社交技能双火的殖民者直接归入贸易</AE_TT_Trade_SocialMajor>
 
-  <AE_TT_GroupFrontSkillMin>近战技能达到该值且高于射击时归入前排</AE_TT_GroupFrontSkillMin>
-  <AE_TT_GroupShooterSkillMin>射击技能达到该值且高于近战时归入射手</AE_TT_GroupShooterSkillMin>
-  <AE_TT_GroupTradeSkillMin>社交技能达到该值且不低于射击/近战时归入贸易</AE_TT_GroupTradeSkillMin>
-  <AE_TT_GroupWorkerMaxCombatSkill>射击与近战均低于该值时归入工人</AE_TT_GroupWorkerMaxCombatSkill>
-  <AE_TT_GroupPassionPriority>近战有火且射击无火 → 前排；射击有火且近战无火 → 射手；关闭后只按技能等级判定</AE_TT_GroupPassionPriority>
-  <AE_TT_GroupBrawlerTraitFront>拥有“格斗者”特质的殖民者直接归入前排</AE_TT_GroupBrawlerTraitFront>
-  <AE_TT_GroupHunterAsShooter>狩猎工作优先级为 1 的殖民者归入射手</AE_TT_GroupHunterAsShooter>
-
-  <AE_CFG_RoleGroupRule_Order>默认分组顺序：前排 → 射手 → 工人 → 贸易 → 其他（可右键拖拽调整）</AE_CFG_RoleGroupRule_Order>
-  <AE_CFG_RoleGroupRule_Front>• 前排：格斗者特质；或近战 ≥ {0} 且高于射击；或近战有火且射击无火</AE_CFG_RoleGroupRule_Front>
-  <AE_CFG_RoleGroupRule_Shooter>• 射手：射击 ≥ {0} 且高于近战；或射击有火且近战无火；或指派狩猎</AE_CFG_RoleGroupRule_Shooter>
-  <AE_CFG_RoleGroupRule_Trade>• 贸易：社交 ≥ {0}，且不低于射击与近战</AE_CFG_RoleGroupRule_Trade>
-  <AE_CFG_RoleGroupRule_Worker>• 工人：无法施暴；或射击与近战均低于 {0}</AE_CFG_RoleGroupRule_Worker>
-  <AE_CFG_RoleGroupRule_Other>• 其他：未命中上述规则者（含意识形态领袖等）。关闭对应开关后该条规则不参与判定。</AE_CFG_RoleGroupRule_Other>
-  <AE_CFG_RoleGroupRule_Drag>• 右键按住分组框的标签或边框拖动到另一个分组，即可调整分组顺序；重新分组后人员会按新顺序排列。</AE_CFG_RoleGroupRule_Drag>
+  <AE_CFG_RoleGroupRule_Order>默认分组顺序：前排 → 射手 → 工人 → 贸易 → 其他（前四组可右键拖拽调整，其他固定最后）</AE_CFG_RoleGroupRule_Order>
+  <AE_CFG_RoleGroupRule_Other>• 其他：未命中任何已勾选条件的殖民者（关闭某条件后，仅该条件命中的人会落到这里）。</AE_CFG_RoleGroupRule_Other>
+  <AE_CFG_RoleGroupRule_Drag>• 右键按住分组框的标签或边框拖动到另一个分组，即可调整顺序（"其他"为兜底分组，固定排在最后、不可拖动）；重新分组后人员会按新顺序排列。</AE_CFG_RoleGroupRule_Drag>
 
   <AE_RoleGroup_Front>前排</AE_RoleGroup_Front>
   <AE_RoleGroup_Shooter>射手</AE_RoleGroup_Shooter>
