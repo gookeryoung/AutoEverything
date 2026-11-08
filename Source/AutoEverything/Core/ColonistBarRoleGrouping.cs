@@ -211,10 +211,15 @@ namespace AutoEverything.Core
             for (int i = 0; i < count; i++)
             {
                 ColonistBar.Entry entry = entries[i];
-                entry.group = newGroups[i];
-                entries[i] = entry;  // Entry 是 struct，需写回
-                if (entry.group > maxGroup) maxGroup = entry.group;
-                if (roleOrders[i] != RoleGroupLayout.NoRoleOrder) groupRoles[entry.group] = roles[i];
+                int newGroupId = newGroups[i];
+                // 必须用构造函数重建 Entry，而不是只改 group 字段：
+                // 原生 Entry 在构造时用构造参数 group 捕获 reorderAction/
+                // extraDraggedItemOnGUI 闭包（Find.ColonistBar.Reorder(from, to, group)），
+                // 只改字段会让拖拽换序仍按"旧地图组 id"查找条目——旧 id 恰好命中
+                // 另一个角色分组（如 0=前排），表现为"拖动射手却移动了前排"。
+                entries[i] = new ColonistBar.Entry(entry.pawn, entry.map, newGroupId);
+                if (newGroupId > maxGroup) maxGroup = newGroupId;
+                if (roleOrders[i] != RoleGroupLayout.NoRoleOrder) groupRoles[newGroupId] = roles[i];
             }
 
             // 防御：groupsCount 必须覆盖所有已写入的 group id，否则原生

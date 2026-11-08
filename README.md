@@ -204,7 +204,7 @@
 - **图标与边界**：每个分组框左上角叠加"角色图标 + 中文文字"标签（`DrawGroupFrame` Postfix），并用角色专属颜色描边（前排红 / 射手黄 / 工人绿 / 贸易紫 / 其他灰），便于快速区分。分组框可见顶边下方预留固定头部带（标签 18 + 间距），殖民者栏整体下移相应高度，保证头像纹理不探出分组框顶部；分组过窄时标签自动收缩、只显示文字
 - **右键拖拽换序**：右键按住分组框顶部整条标签带（或 5px 边框带）拖到另一分组即可调整顺序（仅前四组可拖，"其他"固定最后）；拖拽经过目标分组时显示白色高亮与左缘插入指示线，头部带悬停有"右键拖动排序"提示；顺序写入 `ae_roleGroupOrder`，重新分组与"按角色+评级"排序都按新顺序执行（头像区域保留原生右键菜单）
 - **备用排序入口**：分组标记页提供"分组显示顺序"列表（色条 + 角色名 + 上移/下移按钮），与右键拖拽共用同一份 `ae_roleGroupOrder`；"其他"行按钮自动禁用，保证兜底分组永远最后
-- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙与缩放，并按头像纹理上探量整体下移绘制位置；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`，布局计算见纯函数 `RoleGroupLayout.cs`）。右键拖拽的鼠标事件挂在 `ColonistBarOnGUI` Postfix 上（原版仅在 Repaint 事件调用 `DrawGroupFrame`，无法收到鼠标事件）
+- **原理**：Postfix `ColonistBar.CheckRecacheEntries`，把同地图内相邻的同分组条目重编 `Entry.group`，再重调 `CalculateDrawLocs` 重算组间空隙与缩放，并按头像纹理上探量整体下移绘制位置；分组框绘制（`DrawGroupFrame`）、组内拖拽、分组点击跳转全部复用原生逻辑（`ColonistBarRoleGrouping.cs`，布局计算见纯函数 `RoleGroupLayout.cs`）。右键拖拽的鼠标事件挂在 `ColonistBarOnGUI` Postfix 上（原版仅在 Repaint 事件调用 `DrawGroupFrame`，无法收到鼠标事件）。重编组必须用 `new ColonistBar.Entry(pawn, map, newGroup)` 重建条目，因为原生 Entry 在构造时用 group 参数捕获拖拽换序闭包，只改字段会导致"拖射手却移动前排"
 - **开启时**：自动按"角色+评级"重排（同分组相邻是分组连续的前提），后续评级重排也强制使用该顺序，不会打乱分组；关闭时恢复原生按地图/远行队分组
 - **新增殖民者自动归组**：新加入者的 `displayOrder` 为默认值会插到地图块最前，导致同一角色被切成两段、出现两个同名分组框；检测到角色序回退时先按角色重写 `displayOrder` 并重建一次，下一次 recache 即合并进已有分组，同角色内保持原相对顺序（不覆盖玩家组内拖拽）
 - **性能**：`Entries` getter 每帧多次调用 `CheckRecacheEntries`，用 `MarkColonistsDirty` Postfix 置脏 + Postfix 消费一次的标记位，保证 `DetectRoleGroup` 不进入每帧路径

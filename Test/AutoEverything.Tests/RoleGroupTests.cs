@@ -304,6 +304,18 @@ namespace AutoEverything.Tests
             CheckInt(groups, 3, "多地图组数", ref failures, ref total);
             CheckGroupIds(assigned, groups, "多地图组数覆盖所有 id", ref failures, ref total);
 
+            // 回归（拖错人）：原生 Entry.reorderAction 用构造参数 group 捕获拖拽作用域，
+            // 重编组后每个 group id 必须只对应一个连续条目块，局部下标才能唯一映射到自己的 pawn。
+            // 若同一 id 出现在不连续块，拖拽射手（id=2）会按旧 id 找到前排（id=0）的 pawn。
+            int[] scopeOrig = { 0, 0, 0, 0, 1, 1, 1 };
+            int[] scopeRole = { 0, 0, 1, 1, 0, 1, 1 };
+            int[] scopeAssigned = new int[scopeOrig.Length];
+            int scopeGroups = RoleGroupLayout.AssignGroupIds(scopeOrig, scopeRole, scopeAssigned);
+            CheckInt(scopeGroups, 4, "多图多角色组数", ref failures, ref total);
+            CheckOrder(new List<int>(scopeAssigned), new[] { 0, 0, 1, 1, 2, 3, 3 }, "多图多角色 id 分配",
+                ref failures, ref total);
+            CheckContiguousScopes(scopeAssigned, "拖拽作用域必须连续", ref failures, ref total);
+
             // 任意混合序列都必须满足 id ∈ [0, groupsCount)
             int[] mixedOrig = { 0, 0, 0, 1, 1, 2, 2, 2, 3 };
             int[] mixedOrder = { 4, 4, noRole, 1, 2, 0, 0, noRole, 3 };
@@ -313,6 +325,7 @@ namespace AutoEverything.Tests
             CheckInt(mixedAssigned[0], mixedAssigned[1], "混合序列首两项应同组", ref failures, ref total);
             CheckBool(mixedAssigned[1] != mixedAssigned[2], true,
                 "空占位条目应另起一组", ref failures, ref total);
+            CheckContiguousScopes(mixedAssigned, "混合序列拖拽作用域必须连续", ref failures, ref total);
 
             Console.WriteLine($"[RoleGroupAssignTests] 累计 {total - failures}/{total} passed");
             return failures;
@@ -344,6 +357,30 @@ namespace AutoEverything.Tests
                     failures++;
                     return;
                 }
+            }
+        }
+
+        /// <summary>
+        /// 硬约束：同一 group id 必须只出现在一个连续块中。
+        /// 原生拖拽换序按 group id 统计条目下标，若同一 id 出现多个不连续块，
+        /// 下标会串到别组的 pawn（曾表现为"拖射手实际移动前排"）。
+        /// </summary>
+        private static void CheckContiguousScopes(int[] assigned, string label,
+            ref int failures, ref int total)
+        {
+            total++;
+            var seen = new Dictionary<int, int>();
+            for (int i = 0; i < assigned.Length; i++)
+            {
+                int id = assigned[i];
+                int lastIndex;
+                if (seen.TryGetValue(id, out lastIndex) && lastIndex != i - 1)
+                {
+                    Console.WriteLine($"  FAIL {label}: id={id} 在 {lastIndex} 与 {i} 处被不连续复用");
+                    failures++;
+                    return;
+                }
+                seen[id] = i;
             }
         }
 
