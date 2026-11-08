@@ -130,8 +130,9 @@ namespace AutoEverything.Core
                     harmony.Patch(AccessTools.Method(typeof(ColonistBar), nameof(ColonistBar.MarkColonistsDirty)),
                         postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping), nameof(ColonistBarRoleGrouping.NotifyDirty)));
 
-                    // DrawGroupFrame Postfix：分组框叠加"图标 + 文字"标签、彩色边界与右键拖拽换序
-                    // ColonistBarOnGUI Postfix：右键在分组框外释放时清理拖拽状态
+                    // DrawGroupFrame Postfix：分组框叠加"图标 + 文字"标签与彩色边界
+                    // ColonistBarOnGUI Postfix：处理右键拖拽换序（DrawGroupFrame 仅 Repaint 调用，
+                    // 鼠标事件必须挂在 ColonistBarOnGUI 上才能收到）
                     var groupFrameMethod = AccessTools.Method(typeof(ColonistBarColonistDrawer), "DrawGroupFrame");
                     if (groupFrameMethod != null)
                     {
@@ -146,7 +147,7 @@ namespace AutoEverything.Core
                     {
                         harmony.Patch(barGuiMethod,
                             postfix: new HarmonyMethod(typeof(ColonistBarRoleGrouping),
-                                nameof(ColonistBarRoleGrouping.EndGroupDragIfReleased)));
+                                nameof(ColonistBarRoleGrouping.HandleGroupInputOnGui)));
                     }
                 }
                 else

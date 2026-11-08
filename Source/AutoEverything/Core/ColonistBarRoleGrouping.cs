@@ -290,7 +290,8 @@ namespace AutoEverything.Core
 
             // 原版分组框向上扩到屏幕外，可见顶边在栏基线；描边与命中都用可见框
             ColonistBar bar = Find.ColonistBar;
-            float scale = bar != null ? bar.Scale : 1f;
+            if (bar == null) return;
+            float scale = bar.Scale;
             Rect visibleRect = ClipToVisibleTop(rect, scale);
             if (visibleRect.width <= 0f || visibleRect.height <= 0f) return;
 
@@ -302,23 +303,154 @@ namespace AutoEverything.Core
             visibleRect.yMax += RoleGroupLayout.ComputeFrameBottomExtend(scale, labelHeight);
 
             DrawBorder(visibleRect, role);
-            Rect tagRect = DrawTag(rect, scale, role);
-            HandleGroupInput(visibleRect, tagRect, group, role);
+            DrawTag(rect, scale, role);
 
             // 拖拽跟随光标的小标签：只在被拖拽的组上绘制一次，避免重复叠加
             if (draggingFromGroup == group) DrawDragGhost(role);
         }
 
         /// <summary>
-        /// ColonistBarOnGUI 的 Postfix：右键在分组框外释放时清理拖拽状态，
-        /// 避免拖拽标记残留导致后续右键误判。
+        /// ColonistBarOnGUI 的 Postfix：处理分组框右键拖拽换序。
+        ///
+        /// 必须放在这里而不是 DrawGroupFrame Postfix：原版仅在 EventType.repaint
+        /// 时调用 DrawGroupFrame，MouseDown/MouseDrag/MouseUp 根本不会进入该方法
+        /// （这是此前右键拖拽完全无响应的根因）。ColonistBarOnGUI 对所有事件类型
+        /// 都会执行，且此时 cachedEntries/cachedDrawLocs 已由本帧循环刷新。
         /// </summary>
-        public static void EndGroupDragIfReleased()
+        public static void HandleGroupInputOnGui(ColonistBar __instance)
         {
-            if (draggingFromGroup >= 0 && Event.current != null && Event.current.type == EventType.MouseUp)
+            Event e = Event.current;
+            if (e == null) return;
+            // Layout/Repaint 不处理输入；MouseDown 等事件才是拖拽入口
+            if (e.type == EventType.Layout || e.type == EventType.Repaint) return;
+
+            if (!AESettings.enabled || !AESettings.groupColonistBarByRole)
             {
                 draggingFromGroup = -1;
+                return;
             }
+
+            var entries = (List<ColonistBar.Entry>)fiCachedEntries.GetValue(__instance);
+            if (entries == null || entries.Count == 0)
+            {
+                draggingFromGroup = -1;
+                return;
+            }
+
+            // 新的右键按下视为新一轮拖拽，先清理可能残留的状态
+            if (e.type == EventType.MouseDown)
+            {
+                draggingFromGroup = -1;
+                if (e.button != 1) return;
+
+                int group;
+                RoleGroup role;
+                if (!TryFindGroupAt(__instance, entries, e.mousePosition, true, out group, out role)) return;
+                // "其他"固定最后，不允许拖动
+                if (role == RoleGroup.Other) return;
+
+                draggingFromGroup = group;
+                draggingRole = role;
+                e.Use();
+                return;
+            }
+
+            if (draggingFromGroup < 0) return;
+
+            // 拖拽期间消费事件，避免右键拖拽在殖民者栏触发其他行为
+            if (e.type == EventType.MouseDrag)
+            {
+                e.Use();
+                return;
+            }
+
+            if (e.type == EventType.MouseUp && e.button == 1)
+            {
+                int group;
+                RoleGroup role;
+                if (TryFindGroupAt(__instance, entries, e.mousePosition, false, out group, out role)
+                    && role != draggingRole)
+                {
+                    AESettings.MoveRoleGroup(draggingRole, role);
+                }
+                draggingFromGroup = -1;
+                e.Use();
+            }
+        }
+
+        /// <summary>
+        /// 查找鼠标位置命中的角色分组。
+        /// handleOnly=true 用于按下判定，只认标签或 5px 边框带（头像区域保留原生右键菜单）；
+        /// handleOnly=false 用于释放判定，分组框内部任意位置都算目标。
+        /// </summary>
+        private static bool TryFindGroupAt(ColonistBar bar, List<ColonistBar.Entry> entries,
+            Vector2 mouse, bool handleOnly, out int group, out RoleGroup role)
+        {
+            group = -1;
+            role = RoleGroup.Other;
+
+            ColonistBarColonistDrawer drawer = bar.drawer;
+            float scale = bar.Scale;
+            int prevGroup = int.MinValue;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                int g = entries[i].group;
+                if (g == prevGroup) continue;
+                prevGroup = g;
+
+                RoleGroup r;
+                if (!groupRoles.TryGetValue(g, out r)) continue;
+
+                Rect rawRect, visibleRect;
+                if (!TryGetFrameRects(bar, drawer, g, out rawRect, out visibleRect)) continue;
+
+                if (handleOnly)
+                {
+                    if (!IsDragHandle(visibleRect, ComputeTagRect(rawRect, scale, r), mouse)) continue;
+                }
+                else if (!visibleRect.Contains(mouse))
+                {
+                    continue;
+                }
+
+                group = g;
+                role = r;
+                return true;
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 计算分组框的原始矩形与可见矩形（含向下扩展的名字避让）。
+        /// GroupFrameRect 为私有方法，仅在命中判定/绘制时调用，反射开销可接受。
+        /// </summary>
+        private static bool TryGetFrameRects(ColonistBar bar, ColonistBarColonistDrawer drawer,
+            int group, out Rect rawRect, out Rect visibleRect)
+        {
+            rawRect = Rect.zero;
+            visibleRect = Rect.zero;
+
+            try
+            {
+                rawRect = (Rect)miGroupFrameRect.Invoke(drawer, new object[] { group });
+            }
+            catch (System.Exception ex)
+            {
+                Log.ErrorOnce("[AutoEverything] 分组框矩形获取失败: " + ex.Message, 0xA901);
+                return false;
+            }
+            if (rawRect.width <= 0f || rawRect.height <= 0f) return false;
+
+            float scale = bar.Scale;
+            visibleRect = ClipToVisibleTop(rawRect, scale);
+            if (visibleRect.width <= 0f || visibleRect.height <= 0f) return false;
+
+            float labelHeight = Prefs.DisableTinyText
+                ? RoleGroupLayout.NameLabelHeightLarge
+                : RoleGroupLayout.NameLabelHeight;
+            visibleRect.yMax += RoleGroupLayout.ComputeFrameBottomExtend(scale, labelHeight);
+            return true;
         }
 
         /// <summary>
@@ -351,32 +483,15 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 在分组框头部带绘制"图标 + 文字"标签，返回标签矩形（作为右键拖拽把手）。
+        /// 在分组框头部带绘制"图标 + 文字"标签。
         /// 位置取可见顶边下方，尺寸按分组框实际宽度收缩；关闭换行避免中文撑乱布局。
         /// </summary>
-        private static Rect DrawTag(Rect frameRect, float scale, RoleGroup role)
+        private static void DrawTag(Rect frameRect, float scale, RoleGroup role)
         {
+            Rect tag = ComputeTagRect(frameRect, scale, role);
+            if (tag.width <= 0f) return;
+
             string label = GetRoleLabel(role);
-
-            GameFont prevFont = Text.Font;
-            bool prevWrap = Text.WordWrap;
-            TextAnchor prevAnchor = Text.Anchor;
-
-            Text.Font = GameFont.Tiny;
-            Vector2 textSize = Text.CalcSize(label);
-            float width = RoleGroupLayout.ComputeTagWidth(textSize.x, frameRect.width);
-            if (width <= 0f)
-            {
-                Text.Font = prevFont;
-                return Rect.zero;
-            }
-
-            Rect tag = new Rect(
-                frameRect.x + RoleGroupLayout.TagMargin,
-                RoleGroupLayout.ComputeTagY(frameRect.y, scale),
-                width,
-                RoleGroupLayout.TagHeight);
-
             Widgets.DrawBoxSolid(tag, new Color(0f, 0f, 0f, 0.55f));
 
             Texture2D icon = null;
@@ -384,7 +499,7 @@ namespace AutoEverything.Core
 
             float textX;
             float textWidth;
-            if (icon != null && RoleGroupLayout.CanShowTagIcon(width))
+            if (icon != null && RoleGroupLayout.CanShowTagIcon(tag.width))
             {
                 GUI.DrawTexture(
                     new Rect(tag.x + RoleGroupLayout.TagPadding,
@@ -403,16 +518,41 @@ namespace AutoEverything.Core
 
             if (textWidth > 0f)
             {
+                GameFont prevFont = Text.Font;
+                bool prevWrap = Text.WordWrap;
+                TextAnchor prevAnchor = Text.Anchor;
+
+                Text.Font = GameFont.Tiny;
                 Text.WordWrap = false;
                 Text.Anchor = TextAnchor.MiddleLeft;
                 GUI.color = Color.white;
                 Widgets.Label(new Rect(textX, tag.y, textWidth, RoleGroupLayout.TagHeight), label);
-            }
 
-            Text.Anchor = prevAnchor;
-            Text.WordWrap = prevWrap;
+                Text.Anchor = prevAnchor;
+                Text.WordWrap = prevWrap;
+                Text.Font = prevFont;
+            }
+        }
+
+        /// <summary>
+        /// 计算标签矩形（绘制与命中判定共用同一套尺寸算法，避免两处不一致）。
+        /// frameRect 必须是未裁剪的原始分组框矩形，否则标签定位与绘制会偏移。
+        /// </summary>
+        private static Rect ComputeTagRect(Rect frameRect, float scale, RoleGroup role)
+        {
+            GameFont prevFont = Text.Font;
+            Text.Font = GameFont.Tiny;
+            Vector2 textSize = Text.CalcSize(GetRoleLabel(role));
             Text.Font = prevFont;
-            return tag;
+
+            float width = RoleGroupLayout.ComputeTagWidth(textSize.x, frameRect.width);
+            if (width <= 0f) return Rect.zero;
+
+            return new Rect(
+                frameRect.x + RoleGroupLayout.TagMargin,
+                RoleGroupLayout.ComputeTagY(frameRect.y, scale),
+                width,
+                RoleGroupLayout.TagHeight);
         }
 
         private static void DrawDragGhost(RoleGroup role)
@@ -432,44 +572,6 @@ namespace AutoEverything.Core
             Widgets.Label(ghost, GetRoleLabel(role));
             Text.Anchor = TextAnchor.UpperLeft;
             Text.WordWrap = prevWrap;
-        }
-
-        /// <summary>
-        /// 右键拖拽换序：
-        /// - MouseDown 命中"标签或分组框边缘 5px 边框带"才开始拖拽，避免抢走原生右键（如右键殖民者头像）
-        /// - MouseUp 落在另一分组框内 → 按该位置重排分组顺序并写盘
-        /// </summary>
-        private static void HandleGroupInput(Rect frameRect, Rect tagRect, int group, RoleGroup role)
-        {
-            Event e = Event.current;
-            if (e == null) return;
-
-            // "其他"是未命中白名单者的兜底分组，固定排在最后，不允许拖动
-            if (e.type == EventType.MouseDown && e.button == 1 && role != RoleGroup.Other
-                && IsDragHandle(frameRect, tagRect, e.mousePosition))
-            {
-                draggingFromGroup = group;
-                draggingRole = role;
-                e.Use();
-                return;
-            }
-
-            if (draggingFromGroup < 0) return;
-
-            if (e.type == EventType.MouseDrag)
-            {
-                // 消费事件，避免右键拖拽在殖民者栏触发其他行为
-                e.Use();
-            }
-            else if (e.type == EventType.MouseUp && e.button == 1)
-            {
-                if (frameRect.Contains(e.mousePosition) && role != draggingRole)
-                {
-                    AESettings.MoveRoleGroup(draggingRole, role);
-                }
-                draggingFromGroup = -1;
-                e.Use();
-            }
         }
 
         /// <summary>
