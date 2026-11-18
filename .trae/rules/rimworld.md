@@ -2,7 +2,7 @@
 
 ## 技术栈
 
-- C# 7.3（禁用 8.0+，`.csproj` 显式 `<LangVersion>7.3</LangVersion>`），.NET 5.0，RimWorld 1.6+
+- C# 7.3（禁用 8.0+，`.csproj` 显式 `<LangVersion>7.3</LangVersion>`），.NET Framework 4.7.2（`net472`），RimWorld 1.6+
 
 ## 编码规范
 
