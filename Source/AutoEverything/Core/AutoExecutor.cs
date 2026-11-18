@@ -73,6 +73,9 @@ namespace AutoEverything.Core
             get { return AESettings.ClampEquipInterval(AESettings.equipIntervalTicks); }
         }
 
+        // 袭击换装窗口内的补齐节奏：5 秒一件，避免凑齐整套要等 100 秒 × 件数
+        private const int CombatArmingInterval = 300;
+
         // 用药方案周期：与评级周期一致（3000 tick ≈ 50 秒）
         // 评级变化才会改变对应政策，复用评级周期避免独立计时
         private const int DrugPolicyInterval = ExecuteInterval;
@@ -190,6 +193,13 @@ namespace AutoEverything.Core
                     && (equip.pending || EquipAllocator.IsDirty || tick - equip.lastTick >= EquipExecuteInterval));
             bool combatActive = needCombatCheck && AESettings.skipAutoInCombat && AnyCombatActive();
 
+            // 战斗档案（默认关闭）：每 60 tick 汇报一次"地图上是否有敌对单位"，
+            // 由分配器决定是否在征召前完成战斗护甲换装。
+            if (AESettings.autoEquipEnabled && AESettings.equipCombatProfileEnabled)
+                EquipAllocator.NotifyRaidState(AnyHostileSpawned(), tick);
+            else
+                EquipAllocator.NotifyRaidState(false, tick);
+
             // 待重配触发：工作重配需战斗过滤（SetPriority 取消 Job）
             if (work.pending && tick - work.lastTick >= ReallocCooldown && !combatActive)
             {
@@ -212,10 +222,13 @@ namespace AutoEverything.Core
             if (tick - carry.lastTick >= CarryExecuteInterval && !combatActive)
                 ExecuteCarry(tick, showMessage: false);
 
-            // 自动装备：周期、事件脏标或新殖民者加入触发；战斗过滤避免打断医疗与战斗 Job
+            // 自动装备：周期、事件脏标或新殖民者加入触发。
+            // 袭击换装窗口（默认关闭）例外放行：此时只换服装，且只处理身后没有敌人的 Pawn。
+            bool combatArming = EquipAllocator.CombatArmingActive;
+            int equipInterval = combatArming ? CombatArmingInterval : EquipExecuteInterval;
             if (AESettings.autoEquipEnabled
-                && (equip.pending || EquipAllocator.IsDirty || tick - equip.lastTick >= EquipExecuteInterval)
-                && !combatActive)
+                && (equip.pending || EquipAllocator.IsDirty || tick - equip.lastTick >= equipInterval)
+                && (!combatActive || combatArming))
                 ExecuteEquip(tick, showMessage: false);
 
             // 用药方案触发：事件待触发 或 周期触发
@@ -467,6 +480,26 @@ namespace AutoEverything.Core
                     if (p.Faction == Faction.OfPlayer && p.Drafted) return true;
                     // 任何 Pawn 正在执行战斗 Job（alwaysShowWeapon=true）
                     if (p.CurJob != null && p.CurJob.def.alwaysShowWeapon) return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 地图上是否存在敌对单位（战斗档案的进入判据）。
+        /// 与 <see cref="AnyCombatActive"/> 不同：这里只看真正的敌对单位，不含"玩家主动征召"。
+        /// </summary>
+        private static bool AnyHostileSpawned()
+        {
+            foreach (Map map in Find.Maps)
+            {
+                if (map == null || map.mapPawns == null) continue;
+                IReadOnlyList<Pawn> all = map.mapPawns.AllPawnsSpawned;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    Pawn p = all[i];
+                    if (p == null || p.Dead || p.Downed) continue;
+                    if (p.HostileTo(Faction.OfPlayer)) return true;
                 }
             }
             return false;

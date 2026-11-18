@@ -199,8 +199,18 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_EquipMaxThrownKinds>Max thrown kinds</AE_CFG_EquipMaxThrownKinds>
   <AE_CFG_EquipRoleHint>Whitelist applies by colonist-bar role group: melee/ranged decide the primary weapon category; sidearm count is the number of extra ranged weapons placed in inventory; thrown must be checked to carry grenades/molotovs.</AE_CFG_EquipRoleHint>
   <AE_CFG_EquipPriorityHint>Specialized weapons (unique/persona weapons with combat-relevant traits) outrank general weapons; among specialized weapons, combat traits are compared by marketValueOffset sum; among general weapons, quality comes first, then combat score. Decorative traits such as jade/gold inlay are ignored, and weapons with only decorative traits are treated as general weapons. Market value does not affect selection. General weapons below the minimum quality are ignored.</AE_CFG_EquipPriorityHint>
-  <AE_CFG_EquipApparelHint>Apparel is chosen only from the colonist's current Assign → Outfit policy; the policy itself is never modified. If the improvement is below the threshold, current apparel is kept.</AE_CFG_EquipApparelHint>
+  <AE_CFG_EquipApparelHint>Armor is scored as a whole outfit: body-part coverage x layers x sharp/blunt/heat armor, balanced against insulation, move/work penalties and durability. Layers on the same body part stack their mitigation but also wear faster. Apparel is chosen only from the colonist's current Assign -> Outfit policy; the policy itself is never modified, and apparel required by an ideoligion role or a royal title is never replaced.</AE_CFG_EquipApparelHint>
   <AE_CFG_EquipSidearmHint>Sidearms and grenades go into inventory and do not occupy the primary weapon slot; vanilla RimWorld will not auto-switch or throw them, so manual action is required.</AE_CFG_EquipSidearmHint>
+  <AE_CFG_EquipArmor>Auto-wear armor and clothing</AE_CFG_EquipArmor>
+  <AE_CFG_EquipCombatProfile>Combat/work dual profile (default off)</AE_CFG_EquipCombatProfile>
+  <AE_CFG_EquipNudistException>Nudist armor exception</AE_CFG_EquipNudistException>
+  <AE_CFG_EquipArmorPreset>Armor scoring preset</AE_CFG_EquipArmorPreset>
+  <AE_CFG_EquipArmorDurability>Minimum armor durability (%)</AE_CFG_EquipArmorDurability>
+  <AE_CFG_EquipArmorDistance>Max armor pickup distance (cells)</AE_CFG_EquipArmorDistance>
+
+  <AE_EquipPreset_Balanced>Balanced</AE_EquipPreset_Balanced>
+  <AE_EquipPreset_Heavy>Armor first</AE_EquipPreset_Heavy>
+  <AE_EquipPreset_Light>Mobility first</AE_EquipPreset_Light>
 
   <AE_TT_AutoEquip>When enabled, automatically finds primary weapons and apparel by role whitelist, and puts sidearms/grenades into inventory.
 Disabled by default; paused during combat; colonists in medical treatment, rituals or sleep are skipped; at most one equip job per colonist per cycle.</AE_TT_AutoEquip>
@@ -210,7 +220,13 @@ Disabled by default; paused during combat; colonists in medical treatment, ritua
   <AE_TT_EquipRanged>Allow this role to use ranged weapons as primary.</AE_TT_EquipRanged>
   <AE_TT_EquipThrown>Allow this role to carry grenades, molotovs and other thrown weapons in inventory.</AE_TT_EquipThrown>
   <AE_TT_EquipSidearms>Number of extra ranged weapons placed in inventory (0-3); click the number to cycle.</AE_TT_EquipSidearms>
-  <AE_TT_EquipMinQuality>Minimum quality for general weapons; specialized weapons ignore this. Awful means no limit.</AE_TT_EquipMinQuality>
+  <AE_TT_EquipMinQuality>Minimum quality for general weapons and apparel; specialized weapons ignore this. Awful means no limit.</AE_TT_EquipMinQuality>
+  <AE_TT_EquipArmor>Inherits the auto-equip master switch. When off, only weapons are swapped automatically.</AE_TT_EquipArmor>
+  <AE_TT_EquipCombatProfile>When on, as soon as hostiles appear on the map, undrafted colonists with no hostile within 15 cells are pre-dressed in a protection-heavy outfit; after the raid ends the profile is held for a while before switching back to work gear. Switches have a 2500-tick cooldown and at most 2 per colonist per raid; combat-profile swaps touch clothing only, never weapons. Default off.</AE_TT_EquipCombatProfile>
+  <AE_TT_EquipNudistException>By default nudists are never auto-dressed. When checked, they are dressed only when cold/heat insulation is needed; otherwise they are still skipped.</AE_TT_EquipNudistException>
+  <AE_TT_EquipArmorPreset>Adjusts armor scoring: Balanced is the default; Armor first values protection and tolerates move/work penalties; Mobility first values movement and work speed.</AE_TT_EquipArmorPreset>
+  <AE_TT_EquipArmorDurability>Apparel below this durability is never picked up on its own; if the current apparel is already below the floor, swapping to a more durable piece is allowed regardless of the improvement threshold.</AE_TT_EquipArmorDurability>
+  <AE_TT_EquipArmorDistance>Only pick up armor within this distance, to avoid long walks for a tiny improvement.</AE_TT_EquipArmorDistance>
   <AE_TT_EquipMinImprovement>A candidate must improve over current gear by more than this percentage before swapping, preventing oscillation.</AE_TT_EquipMinImprovement>
   <AE_TT_EquipMaxThrownKinds>Maximum number of different thrown weapon types each colonist may carry.</AE_TT_EquipMaxThrownKinds>
 

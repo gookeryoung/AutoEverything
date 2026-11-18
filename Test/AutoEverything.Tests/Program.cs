@@ -44,6 +44,7 @@ namespace AutoEverything.Tests
                 failures += PawnCarryCheckerTests.RunAll();
                 failures += CarryPolicyTests.RunAll();
                 failures += EquipPolicyTests.RunAll();
+                failures += ApparelScoreTests.RunAll();
                 failures += ConfigTabLayoutTests.RunAll();
                 failures += ScarMarkTests.RunAll();
 

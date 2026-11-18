@@ -200,8 +200,18 @@
   <AE_CFG_EquipMaxThrownKinds>投掷物种类上限</AE_CFG_EquipMaxThrownKinds>
   <AE_CFG_EquipRoleHint>白名单按殖民者栏角色分组生效：勾选近战/远程决定主武器类别，副武器数量为额外放入背包的远程武器数；投掷物勾选后才携带手雷/燃烧弹。</AE_CFG_EquipRoleHint>
   <AE_CFG_EquipPriorityHint>特化武器（带战斗相关特性的独特/人格武器）优先于一般武器；同为特化时按战斗特性价格（marketValueOffset 总和）排序，同为一般时按品质再按战斗评分。镶金/镶玉等纯装饰特性不计入，只带装饰特性的武器按一般武器处理；市价不参与选择。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
-  <AE_CFG_EquipApparelHint>服装只从殖民者当前【管理→着装】政策允许的范围内选择，不会修改或覆盖玩家的着装政策；换装提升不足时保持当前衣物。</AE_CFG_EquipApparelHint>
+  <AE_CFG_EquipApparelHint>护甲按"整套装备"评分：部位覆盖率 × 分层 × 锐/钝/热护甲，兼顾绝缘、移动/工作速度惩罚与耐久；同一部位多层会叠加减伤，也会加速磨损。服装只从殖民者当前【管理→着装】政策允许的范围内选择，不会修改玩家政策；不会替换满足意识形态角色或头衔要求的衣物。</AE_CFG_EquipApparelHint>
   <AE_CFG_EquipSidearmHint>副武器与手雷只放入背包，不占用主武器栏；原版不会自动切换或投掷，需要玩家手动操作。</AE_CFG_EquipSidearmHint>
+  <AE_CFG_EquipArmor>自动穿戴护甲与服装</AE_CFG_EquipArmor>
+  <AE_CFG_EquipCombatProfile>战斗/工作双档案（默认关闭）</AE_CFG_EquipCombatProfile>
+  <AE_CFG_EquipNudistException>裸体主义者护甲例外</AE_CFG_EquipNudistException>
+  <AE_CFG_EquipArmorPreset>护甲评分预设</AE_CFG_EquipArmorPreset>
+  <AE_CFG_EquipArmorDurability>护甲最低耐久（%）</AE_CFG_EquipArmorDurability>
+  <AE_CFG_EquipArmorDistance>护甲最远拾取距离（格）</AE_CFG_EquipArmorDistance>
+
+  <AE_EquipPreset_Balanced>稳健</AE_EquipPreset_Balanced>
+  <AE_EquipPreset_Heavy>重甲优先</AE_EquipPreset_Heavy>
+  <AE_EquipPreset_Light>轻装优先</AE_EquipPreset_Light>
 
   <AE_TT_AutoEquip>开启后按角色白名单自动寻找并装备主武器、服装，并把副武器与手雷放入背包。
 默认关闭；战斗中会暂停，医疗/仪式/睡眠中的殖民者跳过；每轮每个殖民者最多派发一个装备任务。</AE_TT_AutoEquip>
@@ -211,7 +221,13 @@
   <AE_TT_EquipRanged>允许该角色把远程武器作为主武器。</AE_TT_EquipRanged>
   <AE_TT_EquipThrown>允许该角色携带手雷、燃烧弹等投掷物（放入背包）。</AE_TT_EquipThrown>
   <AE_TT_EquipSidearms>额外放入背包的远程武器数量，0-3；点击数字循环切换。</AE_TT_EquipSidearms>
-  <AE_TT_EquipMinQuality>一般武器的最低品质；特化武器不受此限制。Awful 表示不设下限。</AE_TT_EquipMinQuality>
+  <AE_TT_EquipMinQuality>一般武器与服装的最低品质；特化武器不受此限制。极差表示不设下限。</AE_TT_EquipMinQuality>
+  <AE_TT_EquipArmor>继承自动装备总开关。关闭后只自动换武器，不再换任何护甲与服装。</AE_TT_EquipArmor>
+  <AE_TT_EquipCombatProfile>开启后，地图上出现敌对单位时，会为身后 15 格内没有敌人、且未被征召的殖民者提前换上偏重护甲的一套；袭击结束后按滞回保持一段时间再切回工作装。切换有 2500 tick 冷却，每轮袭击每人最多 2 次；战斗档案换装只换服装、不动武器。默认关闭。</AE_TT_EquipCombatProfile>
+  <AE_TT_EquipNudistException>默认裸体主义者不会被自动穿任何衣物。勾选后仅在寒冷/炎热需要保暖或散热时放行，其余情况仍跳过。</AE_TT_EquipNudistException>
+  <AE_TT_EquipArmorPreset>调整护甲评分的取向：稳健为默认；重甲优先更看重护甲、容忍移速与工作惩罚；轻装优先更看重移速与工作速度。</AE_TT_EquipArmorPreset>
+  <AE_TT_EquipArmorDurability>低于该耐久的衣物不会被主动换上；若当前衣物已低于下限，则允许换成耐久更高的衣物（哪怕提升不足阈值）。</AE_TT_EquipArmorDurability>
+  <AE_TT_EquipArmorDistance>只拾取该距离内的护甲，避免为很小的提升让小人大范围走动。</AE_TT_EquipArmorDistance>
   <AE_TT_EquipMinImprovement>候选装备必须比当前装备提升超过该百分比才会换装，用于防止来回换装。</AE_TT_EquipMinImprovement>
   <AE_TT_EquipMaxThrownKinds>每个殖民者最多携带几种不同的投掷物。</AE_TT_EquipMaxThrownKinds>
 

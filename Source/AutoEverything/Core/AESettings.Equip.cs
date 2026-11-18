@@ -13,6 +13,12 @@ namespace AutoEverything.Core
     public partial class AESettings
     {
         public static bool autoEquipEnabled = false;
+        public static bool autoEquipArmor = true;
+        public static ApparelPreset equipArmorPreset = ApparelPreset.Balanced;
+        public static int equipMinApparelDurabilityPct = 25;
+        public static int equipArmorMaxDistance = 40;
+        public static bool equipCombatProfileEnabled = false;
+        public static bool equipArmorNudistException = false;
         public static int equipIntervalTicks = 6000;
         public static QualityCategory equipMinQuality = QualityCategory.Awful;
         public static int equipMinImprovementPct = 10;
@@ -24,7 +30,13 @@ namespace AutoEverything.Core
         private static void ExposeEquipData()
         {
             LookCompat(ref autoEquipEnabled, "ae_autoEquipEnabled", false);
+            LookCompat(ref autoEquipArmor, "ae_autoEquipArmor", true);
 
+            Scribe_Values.Look(ref equipArmorPreset, "ae_equipArmorPreset", ApparelPreset.Balanced);
+            Scribe_Values.Look(ref equipMinApparelDurabilityPct, "ae_equipMinApparelDurabilityPct", 25);
+            Scribe_Values.Look(ref equipArmorMaxDistance, "ae_equipArmorMaxDistance", 40);
+            Scribe_Values.Look(ref equipCombatProfileEnabled, "ae_equipCombatProfileEnabled", false);
+            Scribe_Values.Look(ref equipArmorNudistException, "ae_equipArmorNudistException", false);
             Scribe_Values.Look(ref equipIntervalTicks, "ae_equipIntervalTicks", 6000);
             Scribe_Values.Look(ref equipMinQuality, "ae_equipMinQuality", QualityCategory.Awful);
             Scribe_Values.Look(ref equipMinImprovementPct, "ae_equipMinImprovementPct", 10);
@@ -36,6 +48,8 @@ namespace AutoEverything.Core
             equipIntervalTicks = ClampEquipInterval(equipIntervalTicks);
             equipMinImprovementPct = Math.Max(0, Math.Min(50, equipMinImprovementPct));
             equipMaxThrownKinds = Math.Max(0, Math.Min(4, equipMaxThrownKinds));
+            equipMinApparelDurabilityPct = Math.Max(0, Math.Min(90, equipMinApparelDurabilityPct));
+            equipArmorMaxDistance = Math.Max(5, Math.Min(80, equipArmorMaxDistance));
         }
 
         public static EquipRoleRule GetEquipRoleRule(int role)

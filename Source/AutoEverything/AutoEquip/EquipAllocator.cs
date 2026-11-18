@@ -23,6 +23,7 @@ namespace AutoEverything.AutoEquip
         private static readonly List<ThingWithComps> WeaponCandidates = new List<ThingWithComps>();
         private static readonly List<Apparel> ApparelCandidates = new List<Apparel>();
         private static readonly List<Pawn> PawnBuffer = new List<Pawn>();
+        private static readonly List<Apparel> ConflictBuffer = new List<Apparel>();
         private static readonly List<ThingDef> InventoryDefBuffer = new List<ThingDef>();
         private static readonly List<string> DetailLines = new List<string>();
         private static readonly Comparison<Pawn> PawnTierComparison = ComparePawnTier;
@@ -60,13 +61,16 @@ namespace AutoEverything.AutoEquip
                 CollectPawns();
                 if (PawnBuffer.Count == 0) return 0;
 
+                ApparelScorer.BeginRound();
                 PawnBuffer.Sort(PawnTierComparison);
 
                 int dispatched = 0;
+                bool apparelOnly = !force && CombatArmingActive;
                 for (int i = 0; i < PawnBuffer.Count; i++)
                 {
                     Pawn pawn = PawnBuffer[i];
-                    if (TryEquipPawn(pawn)) dispatched++;
+                    if (apparelOnly && !CanArmForCombat(pawn)) continue;
+                    if (TryEquipPawn(pawn, apparelOnly)) dispatched++;
                 }
 
                 if (dispatched > 0 && AEDebug.IsActive)
@@ -147,6 +151,7 @@ namespace AutoEverything.AutoEquip
             if (pawn == null || pawn.Dead || !pawn.Spawned || pawn.Map == null) return true;
             if (!PawnSuitabilityChecker.CanManageGear(pawn)) return true;
             if (!pawn.IsColonist) return true;
+            // 奴隶/囚犯本轮不纳入（D6）：其着装通常由玩家政策或囚犯管理单独负责
             if (pawn.IsPrisonerOfColony || pawn.IsSlaveOfColony) return true;
             if (DLCCompat.IsGhoul(pawn)) return true;
             if (pawn.Drafted || pawn.Downed || pawn.InMentalState) return true;
@@ -157,17 +162,105 @@ namespace AutoEverything.AutoEquip
             return false;
         }
 
-        private static bool TryEquipPawn(Pawn pawn)
+        // ===== 战斗/工作双档案（默认关闭）=====
+
+        private const int ProfileSwitchCooldownTicks = 2500;
+        private const int CombatSwapMinImprovementPct = 15;
+        private const int MaxCombatSwitchesPerRaid = 2;
+        private const float HostileSafeRadius = 15f;
+
+        private static bool raidActive;
+        private static int lastHostileTick = -99999;
+        private static readonly Dictionary<int, int> LastProfileSwitchTick = new Dictionary<int, int>();
+        private static readonly Dictionary<int, int> CombatSwitchCount = new Dictionary<int, int>();
+        private static readonly Dictionary<int, ApparelProfile> ActiveProfile =
+            new Dictionary<int, ApparelProfile>();
+
+        /// <summary>当前是否处于"袭击中、允许在征召前自动换战斗护甲"的窗口。</summary>
+        public static bool CombatArmingActive { get; private set; }
+
+        /// <summary>由 AutoExecutor 每 60 tick 汇报一次"地图上是否存在敌对单位"。</summary>
+        public static void NotifyRaidState(bool active, int tick)
+        {
+            if (active)
+            {
+                if (!raidActive) CombatSwitchCount.Clear();
+                lastHostileTick = tick;
+            }
+            raidActive = active;
+            CombatArmingActive = active && AESettings.equipCombatProfileEnabled;
+        }
+
+        /// <summary>
+        /// 该 Pawn 此刻是否可以安全地进入战斗档案：
+        /// 未被征召、附近没有敌人、本轮袭击换装预算未用完。
+        /// </summary>
+        private static bool CanArmForCombat(Pawn pawn)
+        {
+            if (!CombatArmingActive || pawn.Drafted) return false;
+            int count;
+            if (CombatSwitchCount.TryGetValue(pawn.thingIDNumber, out count)
+                && count >= MaxCombatSwitchesPerRaid) return false;
+            return !AnyHostileNear(pawn, HostileSafeRadius);
+        }
+
+        private static bool AnyHostileNear(Pawn pawn, float radius)
+        {
+            Map map = pawn.Map;
+            if (map == null || map.mapPawns == null) return true;
+            IReadOnlyList<Pawn> all = map.mapPawns.AllPawnsSpawned;
+            float radiusSquared = radius * radius;
+            for (int i = 0; i < all.Count; i++)
+            {
+                Pawn other = all[i];
+                if (other == null || other.Dead || other.Downed) continue;
+                if (!other.HostileTo(Faction.OfPlayer)) continue;
+                if (other.Position.DistanceToSquared(pawn.Position) <= radiusSquared) return true;
+            }
+            return false;
+        }
+
+        /// <summary>档案切换滞回：切换后 2500 tick 内不再改变档案，避免装备栏来回抖。</summary>
+        private static bool CanUseProfile(Pawn pawn, ApparelProfile profile, int tick)
+        {
+            if (!AESettings.equipCombatProfileEnabled) return true;
+            ApparelProfile stored;
+            if (!ActiveProfile.TryGetValue(pawn.thingIDNumber, out stored) || stored == profile) return true;
+            int last;
+            if (LastProfileSwitchTick.TryGetValue(pawn.thingIDNumber, out last)
+                && tick - last < ProfileSwitchCooldownTicks) return false;
+            return true;
+        }
+
+        private static void NotifyProfileUsed(Pawn pawn, ApparelProfile profile, int tick)
+        {
+            int id = pawn.thingIDNumber;
+            ApparelProfile stored;
+            if (ActiveProfile.TryGetValue(id, out stored) && stored != profile)
+                LastProfileSwitchTick[id] = tick;
+            ActiveProfile[id] = profile;
+
+            if (profile != ApparelProfile.Combat) return;
+            int count;
+            CombatSwitchCount.TryGetValue(id, out count);
+            CombatSwitchCount[id] = count + 1;
+        }
+
+        private static bool TryEquipPawn(Pawn pawn, bool apparelOnly)
         {
             if (pawn == null || pawn.Map == null) return false;
 
             RoleGroup role = RoleDetector.DetectRoleGroup(pawn);
             EquipRoleRule rule = AESettings.GetEquipRoleRule((int)role);
+            ApparelProfile profile = GetApparelProfile(pawn);
+
+            // 袭击换装窗口：只处理服装，不换武器（避免临战跑去捡枪）
+            if (apparelOnly) return TryWearApparel(pawn, role, ApparelProfile.Combat);
 
             // 1. 主武器
             if (TryEquipPrimaryWeapon(pawn, role, rule)) return true;
-            // 2. 服装
-            if (TryWearApparel(pawn, role)) return true;
+            // 2. 服装（护甲按整套评分）
+            if (TryWearApparel(pawn, role, profile)) return true;
             // 3. 远程副武器
             if (TryTakeSidearm(pawn, rule)) return true;
             // 4. 投掷物
@@ -253,13 +346,70 @@ namespace AutoEverything.AutoEquip
             return true;
         }
 
-        private static bool TryWearApparel(Pawn pawn, RoleGroup role)
+        /// <summary>
+        /// 服装档案：严寒/酷暑单独一套权重，其余按和平期工作档案。
+        /// 战斗档案由 B4 的袭击状态机覆写（默认关闭）。
+        /// </summary>
+        private static ApparelProfile GetApparelProfile(Pawn pawn)
+        {
+            if (AESettings.equipCombatProfileEnabled)
+            {
+                int tick = Find.TickManager.TicksGame;
+                if (CanArmForCombat(pawn) && CanUseProfile(pawn, ApparelProfile.Combat, tick))
+                    return ApparelProfile.Combat;
+
+                // 袭击结束后按滞回保持战斗档案，避免刚脱甲又来一波
+                ApparelProfile stored;
+                if (!CombatArmingActive
+                    && tick - lastHostileTick < ProfileSwitchCooldownTicks
+                    && ActiveProfile.TryGetValue(pawn.thingIDNumber, out stored)
+                    && stored == ApparelProfile.Combat)
+                    return ApparelProfile.Combat;
+            }
+
+            switch (ContextDetector.GetContext(pawn))
+            {
+                case GearContext.Cold:
+                    return ApparelProfile.Cold;
+                case GearContext.Hot:
+                    return ApparelProfile.Hot;
+                default:
+                    return ApparelProfile.Work;
+            }
+        }
+
+        /// <summary>
+        /// 裸体主义者默认不自动穿任何衣物（与意识形态 -Nudism 心情惩罚冲突最小处置）；
+        /// 开启"裸体主义者护甲例外"后，仅在寒冷/炎热档案（确有保暖或散热需求）时放行。
+        /// </summary>
+        private static bool IsBlockedByNudism(Pawn pawn, ApparelProfile profile)
+        {
+            TraitDef nudist = TraitDefOf.Nudist;
+            if (nudist == null || pawn.story == null || pawn.story.traits == null) return false;
+            if (!pawn.story.traits.HasTrait(nudist)) return false;
+            if (!AESettings.equipArmorNudistException) return true;
+            return profile != ApparelProfile.Cold && profile != ApparelProfile.Hot;
+        }
+
+        private static bool TryWearApparel(Pawn pawn, RoleGroup role, ApparelProfile profile)
         {
             if (pawn.apparel == null) return false;
+            if (!AESettings.autoEquipArmor) return false;
+            if (IsBlockedByNudism(pawn, profile)) return false;
+
+            int tick = Find.TickManager.TicksGame;
+            if (!CanUseProfile(pawn, profile, tick)) return false;
+
+            ApparelWeights weights = ApparelWeights.For(AESettings.equipArmorPreset, profile);
+            ApparelSetInput currentSet = ApparelScorer.BuildSet(pawn, null, null, profile);
+            float currentScore = ApparelScoreCore.Evaluate(currentSet, weights, role);
+
+            float durabilityFloor = AESettings.equipMinApparelDurabilityPct / 100f;
+            float maxDistance = AESettings.equipArmorMaxDistance;
 
             Apparel bestItem = null;
-            Apparel bestCurrent = null;
-            float bestDelta = 0f;
+            float bestScore = 0f;
+            string bestChange = null;
 
             for (int i = 0; i < ApparelCandidates.Count; i++)
             {
@@ -267,41 +417,73 @@ namespace AutoEverything.AutoEquip
                 if (candidate == null || candidate.Destroyed || !candidate.Spawned) continue;
                 if (candidate.Map != pawn.Map) continue;
                 if (candidate.IsForbidden(Faction.OfPlayer) || candidate.IsBurning()) continue;
+                if (candidate.Position.Fogged(candidate.Map)) continue;
+                Area allowedArea = pawn.playerSettings != null
+                    ? pawn.playerSettings.EffectiveAreaRestrictionInPawnCurrentMap
+                    : null;
+                if (allowedArea != null && !allowedArea[candidate.Position]) continue;
                 if (!IsReservable(pawn, candidate)) continue;
+
                 if (!ApparelSelector.IsAllowedByPolicy(pawn, candidate.def)) continue;
                 if (!ApparelSelector.HasPartsToWear(pawn, candidate.def)) continue;
-
-                ApparelLayerDef layer;
-                if (!ApparelSelector.TryGetFirstLayer(candidate.def, out layer)) continue;
-
-                Apparel current = ApparelSelector.FindWornInLayer(pawn, layer);
-                if (ApparelSelector.HasConflict(pawn, candidate.def, current)) continue;
+                if (!ApparelSelector.IsWearableNow(pawn, candidate)) continue;
                 if (WeaponClassifier.IsLockedToOtherPawn(candidate, pawn)) continue;
+                if (maxDistance > 0f && pawn.Position.DistanceTo(candidate.Position) > maxDistance) continue;
 
-                float candidateScore = ApparelSelector.Score(pawn, candidate, role);
-                if (candidateScore <= 0f) continue;
+                ApparelSelector.CollectConflicts(pawn, candidate.def, ConflictBuffer);
+                if (ConflictBuffer.Count > ApparelScorer.MaxConflictDrops) continue;
+                if (ApparelSelector.WouldBreakRequirement(pawn, ConflictBuffer)) continue;
 
-                float currentScore = current != null ? ApparelSelector.Score(pawn, current, role) : 0f;
-                if (!EquipPolicy.IsBetterApparel(candidateScore, currentScore, AESettings.equipMinImprovementPct))
+                ApparelSetInput candidateSet = ApparelScorer.BuildSet(pawn, candidate, ConflictBuffer, profile);
+                candidateSet.ConflictDropCount = ConflictBuffer.Count;
+
+                // 低于耐久下限的候选只在"从更差换到更好"时放行，避免穿破布，也避免紧急情况无衣可换。
+                if (candidateSet.Durability < durabilityFloor
+                    && candidateSet.Durability <= currentSet.Durability) continue;
+
+                float candidateScore = ApparelScoreCore.Evaluate(candidateSet, weights, role);
+                bool emergency = currentSet.Durability < durabilityFloor
+                    && candidateSet.Durability > currentSet.Durability;
+                int minImprovement = profile == ApparelProfile.Combat
+                    ? CombatSwapMinImprovementPct
+                    : AESettings.equipMinImprovementPct;
+                if (!emergency
+                    && !EquipPolicy.IsBetterApparel(candidateScore, currentScore, minImprovement))
                     continue;
 
-                float delta = candidateScore - currentScore;
-                if (bestItem == null || delta > bestDelta)
+                if (bestItem == null || candidateScore > bestScore)
                 {
                     bestItem = candidate;
-                    bestCurrent = current;
-                    bestDelta = delta;
+                    bestScore = candidateScore;
+                    if (detailCollecting || AEDebug.IsActive)
+                        bestChange = BuildApparelChange(ConflictBuffer, candidate, currentScore, candidateScore);
                 }
             }
 
             if (bestItem == null) return false;
-
-            string change = bestCurrent != null
-                ? "换装：" + DescribeThing(bestCurrent) + " → " + DescribeThing(bestItem)
-                : "装备服装：" + DescribeThing(bestItem);
             if (!TryDispatch(pawn, JobDefOf.Wear, bestItem)) return false;
-            RecordChange(pawn, change);
+            NotifyProfileUsed(pawn, profile, tick);
+            RecordChange(pawn, bestChange ?? ("装备服装：" + DescribeThing(bestItem)));
             return true;
+        }
+
+        private static string BuildApparelChange(List<Apparel> drops, Apparel candidate,
+            float currentScore, float candidateScore)
+        {
+            string from;
+            if (drops == null || drops.Count == 0)
+            {
+                from = "无";
+            }
+            else
+            {
+                from = DescribeThing(drops[0]);
+                for (int i = 1; i < drops.Count; i++)
+                    from += " + " + DescribeThing(drops[i]);
+            }
+
+            return "换装：" + from + " → " + DescribeThing(candidate)
+                + "（评分 " + currentScore.ToString("F0") + "→" + candidateScore.ToString("F0") + "）";
         }
 
         private static bool TryTakeSidearm(Pawn pawn, EquipRoleRule rule)

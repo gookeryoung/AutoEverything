@@ -1053,9 +1053,42 @@ namespace AutoEverything.UI
             EndSection(l);
 
             BeginSection(l, "AE_CFG_Section_EquipApparel".Translate());
+            DrawCheckbox(l, "AE_CFG_EquipArmor", ref AESettings.autoEquipArmor, "AE_TT_EquipArmor");
+            DrawCheckbox(l, "AE_CFG_EquipCombatProfile", ref AESettings.equipCombatProfileEnabled,
+                "AE_TT_EquipCombatProfile");
+            DrawCheckbox(l, "AE_CFG_EquipNudistException", ref AESettings.equipArmorNudistException,
+                "AE_TT_EquipNudistException");
+            DrawEquipArmorPresetSelector(l);
+            DrawIntSlider(l, "AE_CFG_EquipArmorDurability", ref AESettings.equipMinApparelDurabilityPct,
+                0, 90, "AE_TT_EquipArmorDurability");
+            DrawIntSlider(l, "AE_CFG_EquipArmorDistance", ref AESettings.equipArmorMaxDistance,
+                5, 80, "AE_TT_EquipArmorDistance");
             DrawRuleText(l, "AE_CFG_EquipApparelHint".Translate());
             DrawRuleText(l, "AE_CFG_EquipSidearmHint".Translate());
             EndSection(l);
+        }
+
+        private static void DrawEquipArmorPresetSelector(Listing_Standard l)
+        {
+            Rect rect = l.GetRect(28f);
+            string label = "AE_CFG_EquipArmorPreset".Translate() + ": "
+                + ("AE_EquipPreset_" + AESettings.equipArmorPreset).Translate();
+            if (Widgets.ButtonText(rect, label))
+            {
+                List<FloatMenuOption> options = new List<FloatMenuOption>();
+                for (int p = (int)ApparelPreset.Balanced; p <= (int)ApparelPreset.Light; p++)
+                {
+                    ApparelPreset local = (ApparelPreset)p;
+                    options.Add(new FloatMenuOption(("AE_EquipPreset_" + local).Translate(),
+                        () =>
+                        {
+                            AESettings.equipArmorPreset = local;
+                            settingsDirty = true;
+                        }));
+                }
+                Find.WindowStack.Add(new FloatMenu(options));
+            }
+            TooltipHandler.TipRegion(rect, "AE_TT_EquipArmorPreset".Translate());
         }
 
         private static void DrawEquipRoleHeader(Listing_Standard l)

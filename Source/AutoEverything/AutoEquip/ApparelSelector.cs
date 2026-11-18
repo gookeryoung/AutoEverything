@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
-using AutoEverything.RoleEvaluation;
+using AutoEverything.Core;
 using RimWorld;
 using Verse;
 
 namespace AutoEverything.AutoEquip
 {
     /// <summary>
-    /// 服装筛选与评分。
+    /// 服装筛选：政策、部位、分层冲突、服装要求保护、可穿性硬门槛。
     /// 硬约束：只在殖民者当前【管理→着装】政策允许的范围内挑选，绝不修改玩家政策。
     /// </summary>
     public static class ApparelSelector
@@ -38,98 +38,62 @@ namespace AutoEverything.AutoEquip
             }
         }
 
-        public static bool HasConflict(Pawn pawn, ThingDef def, Apparel ignore)
+        /// <summary>
+        /// 收集穿上 <paramref name="def"/> 后必须脱掉的已穿衣物（同层或跨层部位冲突）。
+        /// 原版 <c>Pawn_ApparelTracker.Wear</c> 会自动丢弃这些件，所以这里只用于评估代价与保护判断。
+        /// </summary>
+        public static void CollectConflicts(Pawn pawn, ThingDef def, List<Apparel> buffer)
         {
-            if (pawn == null || pawn.apparel == null || def == null) return true;
+            buffer.Clear();
+            if (pawn == null || def == null || pawn.apparel == null) return;
 
             List<Apparel> worn = pawn.apparel.WornApparel;
-            if (worn == null) return false;
+            if (worn == null) return;
             for (int i = 0; i < worn.Count; i++)
             {
                 Apparel other = worn[i];
-                if (other == null || other == ignore || other.def == def) continue;
+                if (other == null || other.def == null || other.def == def) continue;
                 if (!ApparelUtility.CanWearTogether(def, other.def, pawn.RaceProps.body))
-                    return true;
+                    buffer.Add(other);
             }
-            return false;
-        }
-
-        public static Apparel FindWornInLayer(Pawn pawn, ApparelLayerDef layer)
-        {
-            if (pawn == null || pawn.apparel == null || layer == null) return null;
-
-            List<Apparel> worn = pawn.apparel.WornApparel;
-            if (worn == null) return null;
-            for (int i = 0; i < worn.Count; i++)
-            {
-                Apparel apparel = worn[i];
-                if (apparel == null || apparel.def == null) continue;
-                if (HasLayer(apparel.def, layer)) return apparel;
-            }
-            return null;
-        }
-
-        public static bool TryGetFirstLayer(ThingDef def, out ApparelLayerDef layer)
-        {
-            layer = null;
-            if (def == null || def.apparel == null || def.apparel.layers == null || def.apparel.layers.Count == 0)
-                return false;
-            layer = def.apparel.layers[0];
-            return layer != null;
-        }
-
-        private static bool HasLayer(ThingDef def, ApparelLayerDef layer)
-        {
-            if (def == null || def.apparel == null || def.apparel.layers == null) return false;
-            for (int i = 0; i < def.apparel.layers.Count; i++)
-            {
-                if (def.apparel.layers[i] == layer) return true;
-            }
-            return false;
         }
 
         /// <summary>
-        /// 服装评分：护甲优先，其次移动惩罚、耐久、品质。
-        /// 前排更看重护甲，工人/贸易减轻重量惩罚。
+        /// 丢弃这些衣物是否会破坏当前生效的服装要求
+        /// （Royalty 头衔威望服装、Ideology 角色服装；两者已由 <c>ActiveRequirementsForReading</c> 合并）。
         /// </summary>
-        public static float Score(Pawn pawn, Apparel apparel, RoleGroup role)
+        public static bool WouldBreakRequirement(Pawn pawn, List<Apparel> drops)
         {
-            if (apparel == null || apparel.def == null) return 0f;
-            if (apparel.WornByCorpse) return -9999f;
+            if (pawn == null || drops == null || drops.Count == 0) return false;
+            if (pawn.apparel == null) return false;
 
-            try
+            List<ApparelRequirement> requirements = pawn.apparel.ActiveRequirementsForReading;
+            if (requirements == null || requirements.Count == 0) return false;
+
+            for (int i = 0; i < drops.Count; i++)
             {
-                float sharp = apparel.GetStatValue(StatDefOf.ArmorRating_Sharp);
-                float blunt = apparel.GetStatValue(StatDefOf.ArmorRating_Blunt);
-                float heat = apparel.GetStatValue(StatDefOf.ArmorRating_Heat);
-
-                float armor;
-                if (role == RoleGroup.Front)
-                    armor = sharp * 1.4f + blunt * 0.8f + heat * 0.4f;
-                else if (role == RoleGroup.Shooter)
-                    armor = sharp * 1.1f + blunt * 0.6f + heat * 0.3f;
-                else
-                    armor = sharp * 0.6f + blunt * 0.4f + heat * 0.2f;
-
-                float moveSpeed = apparel.GetStatValue(StatDefOf.MoveSpeed);
-                float durability = apparel.MaxHitPoints > 0
-                    ? apparel.HitPoints / (float)apparel.MaxHitPoints
-                    : 1f;
-
-                CompQuality quality = apparel.TryGetComp<CompQuality>();
-                int qualityRank = quality != null ? (int)quality.Quality : (int)QualityCategory.Normal;
-
-                float score = armor * 10f + moveSpeed * 20f + durability * 3f + qualityRank * 2f;
-                if (role == RoleGroup.Worker || role == RoleGroup.Trade)
-                    score -= Math.Max(0f, -moveSpeed) * 20f;
-                return score;
+                Apparel dropped = drops[i];
+                if (dropped == null || dropped.def == null) continue;
+                for (int r = 0; r < requirements.Count; r++)
+                {
+                    ApparelRequirement requirement = requirements[r];
+                    if (requirement == null) continue;
+                    if (requirement.ApparelMeetsRequirement(dropped.def, true)) return true;
+                }
             }
-            catch (Exception ex)
-            {
-                Log.ErrorOnce("[AutoEverything] 服装评分失败: " + ex.Message,
-                    (apparel.thingIDNumber ^ 0xA931));
-                return 0f;
-            }
+            return false;
+        }
+
+        /// <summary>候选衣物的硬门槛：可穿层、品质下限、非尸体污损、不替换锁定衣物。</summary>
+        public static bool IsWearableNow(Pawn pawn, Apparel candidate)
+        {
+            if (candidate == null || candidate.def == null || candidate.def.apparel == null) return false;
+            if (candidate.WornByCorpse) return false;
+            if (candidate.def.apparel.layers == null || candidate.def.apparel.layers.Count == 0) return false;
+            if (ApparelScorer.GetQualityRank(candidate) < (int)AESettings.equipMinQuality) return false;
+            if (pawn != null && pawn.apparel != null && pawn.apparel.WouldReplaceLockedApparel(candidate))
+                return false;
+            return true;
         }
     }
 }
