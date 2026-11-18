@@ -34,6 +34,7 @@
 - 高价值扫描范围改为互斥二选一："仅扫描非玩家阵营"勾选时只扫描敌对/中立/野生等非玩家单位，取消勾选后只扫描玩家阵营（殖民者/奴隶/囚犯）；切换该选项会立即重扫描刷新消息列表
 
 ### 修复
+- 修复工作自动配置在禁用工作类型（如幼年或缺少相关技能的“监管 Warden”）上设置优先级时报 “Tried to change priority on disabled worktype”：候选收集、紧急/辅助分配与末尾清零统一改用 `WorkTypeIsDisabled` 判断，禁用类型不再进入候选也不写入优先级
 - 拖动射手分组内的殖民者时实际移动的是前排：原版 `ColonistBar.Entry` 在构造时用 `group` 捕获 `reorderAction`/`extraDraggedItemOnGUI` 闭包，分组重编时只改 `entry.group` 字段不会更新闭包，拖拽换序仍按旧地图组 id 查找条目（旧 id 恰好命中前排）；现改为用构造函数重建 Entry，使字段 group 与拖拽作用域一致
 - 殖民者栏角色分组后无法右键拖动排序：拖拽事件处理原先挂在 `DrawGroupFrame` Postfix 上，而原版只在 `EventType.repaint` 时调用该方法，MouseDown/MouseDrag/MouseUp 根本不会进入，导致右键完全无响应；现改挂 `ColonistBarOnGUI` Postfix（所有事件类型均执行），绘制与命中判定共用同一套分组框/标签矩形算法
 - 人员评级规则表的乱开枪/坚韧格斗单元格显示 `AE_TierRule_*` 原始翻译键：这两列把键名直接传给了绘制函数而未调用 `Translate()`，现改为传入已翻译文本

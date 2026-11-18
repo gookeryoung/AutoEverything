@@ -24,7 +24,7 @@ namespace AutoEverything.AutoWork
                 for (int j = 0; j < candidatePawns.Count; j++)
                 {
                     Pawn pawn = candidatePawns[j];
-                    if (pawn.WorkTagIsDisabled(wt.workTags)) continue;
+                    if (IsWorkTypeDisabled(pawn, wt)) continue;
                     pawn.workSettings.SetPriority(wt, 1);
                 }
             }
@@ -56,7 +56,7 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 Pawn pawn = candidatePawns[i];
-                if (pawn.WorkTagIsDisabled(workType.workTags)) continue;
+                if (IsWorkTypeDisabled(pawn, workType)) continue;
                 workCandidates.Add(pawn);
             }
             if (workCandidates.Count == 0) return;
@@ -128,7 +128,7 @@ namespace AutoEverything.AutoWork
             for (int i = 0; i < candidatePawns.Count; i++)
             {
                 Pawn pawn = candidatePawns[i];
-                if (pawn.WorkTagIsDisabled(firstWork.workTags)) continue;
+                if (IsWorkTypeDisabled(pawn, firstWork)) continue;
                 // 狩猎类需远程武器：避免无远程武器者被分配
                 if (config.RequireRangedWeapon && pawn.equipment?.Primary?.def.IsRangedWeapon != true) continue;
                 workCandidates.Add(pawn);
@@ -235,6 +235,8 @@ namespace AutoEverything.AutoWork
                 // 对所有工作类型设置相同优先级（单工作循环 1 次，组分配循环 N 次共享排序结果）
                 for (int j = 0; j < workTypes.Length; j++)
                 {
+                    // 组内个别工作类型可能被单独禁用（如幼年/缺技能），跳过避免原版 SetPriority 报错
+                    if (IsWorkTypeDisabled(pawn, workTypes[j])) continue;
                     pawn.workSettings.SetPriority(workTypes[j], priority);
                 }
 
@@ -280,8 +282,9 @@ namespace AutoEverything.AutoWork
                 Pawn pawn = candidatePawns[i];
                 if (inWorkCandidates.Contains(pawn)) continue;
 
-                // WorkTagIsDisabled 或无远程武器者给0（不能做此工作）
-                if (pawn.WorkTagIsDisabled(firstWork.workTags))
+                // 禁用工作类型 / 无远程武器者给0（不能做此工作）
+                // WorkTagIsDisabled 只覆盖禁用标签，幼年与缺技能由 WorkTypeIsDisabled 覆盖
+                if (IsWorkTypeDisabled(pawn, firstWork))
                 {
                     for (int j = 0; j < workTypes.Length; j++)
                         pawn.workSettings.SetPriority(workTypes[j], 0);
@@ -318,8 +321,26 @@ namespace AutoEverything.AutoWork
                 }
 
                 for (int j = 0; j < workTypes.Length; j++)
+                {
+                    if (IsWorkTypeDisabled(pawn, workTypes[j])) continue;
                     pawn.workSettings.SetPriority(workTypes[j], priority);
+                }
             }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // 工作类型可用性判断
+        // ════════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// 工作类型对 Pawn 是否不可用：命中禁用工作标签，或工作类型本身被禁用
+        /// （幼年、缺相关技能、种族限制等）。
+        /// 原版 Pawn_WorkSettings.SetPriority 对这两种情况都会输出
+        /// "Tried to change priority on disabled worktype" 错误，因此所有 SetPriority 前统一走本判断。
+        /// </summary>
+        private static bool IsWorkTypeDisabled(Pawn pawn, WorkTypeDef workType)
+        {
+            return pawn.WorkTagIsDisabled(workType.workTags) || pawn.WorkTypeIsDisabled(workType);
         }
 
         // ════════════════════════════════════════════════════════════

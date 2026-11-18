@@ -269,6 +269,8 @@
 
 **双火/单火**：对应 Passion.Major / Passion.Minor，整个候选列表中（含超出保底）双火/单火分别给"双火"/"单火"列优先级。
 
+**禁用工作类型跳过**：`WorkTagIsDisabled` 或 `WorkTypeIsDisabled` 为真的工作类型（禁用工作标签、幼年、缺相关技能等）不进入候选、不设置优先级（保持 0），避免原版 `SetPriority` 输出 “Tried to change priority on disabled worktype” 错误。
+
 **无火(top N)**：保底人数内按三因子排序选取，无火者给此优先级（保底3，实现"保底2人即使无火也3"）。
 
 **无火(超出)**：超出保底人数的无火者给此优先级（0，实现"新增更适合者原保底者降至0"）。**例外**：① 相关技能 ≥12 者保底 priority=2，≥8 者保底 priority=3（`ApplySkillFloor`），高技能无火者仍参与工作；② 监管（Warden）无火者全员 priority=3（`WardenConfig`），含满载者。
