@@ -189,6 +189,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
   <AE_CFG_ResetEquipRules>Reset whitelist</AE_CFG_ResetEquipRules>
 
   <AE_CFG_EquipEnable>Enable auto equip</AE_CFG_EquipEnable>
+  <AE_CFG_EquipAllowLodgers>Equip refugees and other quest lodgers</AE_CFG_EquipAllowLodgers>
   <AE_CFG_EquipInterval>Check interval</AE_CFG_EquipInterval>
   <AE_CFG_EquipMelee>Melee</AE_CFG_EquipMelee>
   <AE_CFG_EquipRanged>Ranged</AE_CFG_EquipRanged>
@@ -214,6 +215,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
 
   <AE_TT_AutoEquip>When enabled, automatically finds primary weapons and apparel by role whitelist, and puts sidearms/grenades into inventory.
 Disabled by default; paused during combat; colonists in medical treatment, rituals or sleep are skipped; at most one equip job per colonist per cycle.</AE_TT_AutoEquip>
+  <AE_TT_EquipAllowLodgers>Refugees, deserters and other quest lodgers take their gear with them when they leave the colony, so they are not auto-equipped by default. When checked, they are treated like regular colonists. Gear they already wear is not reclaimed.</AE_TT_EquipAllowLodgers>
   <AE_TT_EquipInterval>Periodically scans available equipment on the map. Equipment spawning or despawning also marks a pending recalculation.</AE_TT_EquipInterval>
   <AE_TT_ResetEquipRules>Restore the default equipment whitelist for all five role groups.</AE_TT_ResetEquipRules>
   <AE_TT_EquipMelee>Allow this role to use melee weapons as primary.</AE_TT_EquipMelee>

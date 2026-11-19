@@ -1011,6 +1011,8 @@ namespace AutoEverything.UI
             DrawCheckbox(l, "AE_CFG_EquipEnable", ref AESettings.autoEquipEnabled, "AE_TT_AutoEquip");
             if (!prevEnabled && AESettings.autoEquipEnabled)
                 AutoExecutor.TriggerEquipNow();
+            DrawCheckbox(l, "AE_CFG_EquipAllowLodgers", ref AESettings.equipAllowQuestLodgers,
+                "AE_TT_EquipAllowLodgers");
             DrawSecondsSlider(l, "AE_CFG_EquipInterval", ref AESettings.equipIntervalTicks, 30, 300,
                 "AE_TT_EquipInterval");
             l.Gap(2f);

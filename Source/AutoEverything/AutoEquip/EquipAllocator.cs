@@ -151,6 +151,9 @@ namespace AutoEverything.AutoEquip
             if (pawn == null || pawn.Dead || !pawn.Spawned || pawn.Map == null) return true;
             if (!PawnSuitabilityChecker.CanManageGear(pawn)) return true;
             if (!pawn.IsColonist) return true;
+            // 难民/逃兵等任务临时成员离开时会带走装备，默认不为他们派发任何 Job
+            if (EquipPolicy.ShouldSkipQuestLodger(
+                QuestUtility.IsQuestLodger(pawn), AESettings.equipAllowQuestLodgers)) return true;
             // 奴隶/囚犯本轮不纳入（D6）：其着装通常由玩家政策或囚犯管理单独负责
             if (pawn.IsPrisonerOfColony || pawn.IsSlaveOfColony) return true;
             if (DLCCompat.IsGhoul(pawn)) return true;

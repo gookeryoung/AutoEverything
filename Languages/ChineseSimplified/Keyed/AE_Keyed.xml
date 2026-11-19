@@ -190,6 +190,7 @@
   <AE_CFG_ResetEquipRules>恢复默认白名单</AE_CFG_ResetEquipRules>
 
   <AE_CFG_EquipEnable>启用自动装备</AE_CFG_EquipEnable>
+  <AE_CFG_EquipAllowLodgers>允许为难民等临时成员装备</AE_CFG_EquipAllowLodgers>
   <AE_CFG_EquipInterval>装备检查周期</AE_CFG_EquipInterval>
   <AE_CFG_EquipMelee>近战</AE_CFG_EquipMelee>
   <AE_CFG_EquipRanged>远程</AE_CFG_EquipRanged>
@@ -215,6 +216,7 @@
 
   <AE_TT_AutoEquip>开启后按角色白名单自动寻找并装备主武器、服装，并把副武器与手雷放入背包。
 默认关闭；战斗中会暂停，医疗/仪式/睡眠中的殖民者跳过；每轮每个殖民者最多派发一个装备任务。</AE_TT_AutoEquip>
+  <AE_TT_EquipAllowLodgers>难民、逃兵等任务临时成员离开殖民地时会带走身上的装备，因此默认不为他们自动装备。勾选后与正式殖民者同样处理；已经被他们穿上的装备不会被主动收回。</AE_TT_EquipAllowLodgers>
   <AE_TT_EquipInterval>周期检查地图上的可用装备。装备生成或销毁时也会立即标记重算。</AE_TT_EquipInterval>
   <AE_TT_ResetEquipRules>把五类角色的装备白名单恢复为默认值。</AE_TT_ResetEquipRules>
   <AE_TT_EquipMelee>允许该角色把近战武器作为主武器。</AE_TT_EquipMelee>

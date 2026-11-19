@@ -80,5 +80,15 @@ namespace AutoEverything.AutoEquip
         {
             return ShouldSwap(currentScore, candidateScore, minImprovementPct);
         }
+
+        /// <summary>
+        /// 任务临时成员（难民/逃兵等 quest lodger）是否跳过自动装备。
+        /// 他们离开殖民地时会带走身上的装备，因此默认不允许；
+        /// 玩家显式开启后才与正式殖民者同样处理。
+        /// </summary>
+        public static bool ShouldSkipQuestLodger(bool isQuestLodger, bool allowQuestLodgers)
+        {
+            return isQuestLodger && !allowQuestLodgers;
+        }
     }
 }

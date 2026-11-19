@@ -14,6 +14,8 @@ namespace AutoEverything.Core
     {
         public static bool autoEquipEnabled = false;
         public static bool autoEquipArmor = true;
+        // 难民/逃兵等任务临时成员离开殖民地时会带走身上的装备，默认不为他们自动装备
+        public static bool equipAllowQuestLodgers = false;
         public static ApparelPreset equipArmorPreset = ApparelPreset.Balanced;
         public static int equipMinApparelDurabilityPct = 25;
         public static int equipArmorMaxDistance = 40;
@@ -31,6 +33,7 @@ namespace AutoEverything.Core
         {
             LookCompat(ref autoEquipEnabled, "ae_autoEquipEnabled", false);
             LookCompat(ref autoEquipArmor, "ae_autoEquipArmor", true);
+            LookCompat(ref equipAllowQuestLodgers, "ae_equipAllowQuestLodgers", false);
 
             Scribe_Values.Look(ref equipArmorPreset, "ae_equipArmorPreset", ApparelPreset.Balanced);
             Scribe_Values.Look(ref equipMinApparelDurabilityPct, "ae_equipMinApparelDurabilityPct", 25);

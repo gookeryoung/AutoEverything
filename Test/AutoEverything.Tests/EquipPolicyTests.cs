@@ -18,6 +18,7 @@ namespace AutoEverything.Tests
 
             failures += RunWeaponCompareTests(ref total);
             failures += RunSwapTests(ref total);
+            failures += RunQuestLodgerTests(ref total);
             failures += RunRuleTests(ref total);
             failures += RunWeaponTypeTests(ref total);
 
@@ -95,6 +96,23 @@ namespace AutoEverything.Tests
                 "服装提升 5% → 不换", ref failures, ref total);
 
             Console.WriteLine($"[EquipPolicyTests/Swap] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static int RunQuestLodgerTests(ref int total)
+        {
+            int failures = 0;
+
+            CheckBool(EquipPolicy.ShouldSkipQuestLodger(true, false), true,
+                "任务临时成员默认跳过自动装备", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSkipQuestLodger(true, true), false,
+                "显式允许后不再跳过", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSkipQuestLodger(false, false), false,
+                "正式殖民者不受临时成员开关影响", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSkipQuestLodger(false, true), false,
+                "正式殖民者在允许模式同样不跳过", ref failures, ref total);
+
+            Console.WriteLine($"[EquipPolicyTests/QuestLodger] {total - failures}/{total} passed");
             return failures;
         }
 
