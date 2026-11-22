@@ -7,16 +7,22 @@ namespace AutoEverything.Tests
     /// <summary>
     /// 自动装备纯逻辑测试。
     /// 不依赖 RimWorld 运行时：只验证比较器、换装阈值与白名单解析，
-    /// 保证排序规则（特化 &gt; 一般、特性价格、品质）可独立回归。
+    /// 保证排序规则（特化 &gt; 一般、特性价格、科技等级、战斗评分）可独立回归。
     /// </summary>
     public static class EquipPolicyTests
     {
+        // 与 RimWorld.TechLevel 枚举数值一致；测试项目不引用游戏程序集，故在本文件常量声明。
+        private const int TechNeolithic = 2;
+        private const int TechIndustrial = 4;
+        private const int TechSpacer = 5;
+
         public static int RunAll()
         {
             int failures = 0;
             int total = 0;
 
             failures += RunWeaponCompareTests(ref total);
+            failures += RunWeaponSwapTests(ref total);
             failures += RunSwapTests(ref total);
             failures += RunQuestLodgerTests(ref total);
             failures += RunRuleTests(ref total);
@@ -44,32 +50,88 @@ namespace AutoEverything.Tests
             WeaponScoreInput specialCombatHigh = Make(true, 10f, 200f, 2, "UniqueB");
             CheckCompare(specialCombatHigh, specialCombatLow, true, "特化同特性价：战斗分高者优先", ref failures, ref total);
 
-            // 普通武器：品质优先于战斗分
-            WeaponScoreInput normalGood = Make(false, 0f, 10f, 3, "GunA");
-            WeaponScoreInput normalLegendary = Make(false, 0f, 1f, 6, "GunA");
-            CheckCompare(normalLegendary, normalGood, true, "普通武器：品质高者优先", ref failures, ref total);
+            // 普通武器：科技等级优先，传奇新石器弓不能压过普通工业枪械
+            WeaponScoreInput legendaryBow = Make(false, 0f, 2f, 6, "Bow_Short", TechNeolithic);
+            WeaponScoreInput normalRifle = Make(false, 0f, 11f, 2, "Gun_AssaultRifle", TechIndustrial);
+            CheckCompare(normalRifle, legendaryBow, true,
+                "普通武器：科技等级优先（枪械压过传奇弓）", ref failures, ref total);
 
-            // 普通武器同品质：战斗分高者优先
-            WeaponScoreInput normalLow = Make(false, 0f, 10f, 2, "GunA");
-            WeaponScoreInput normalHigh = Make(false, 0f, 20f, 2, "GunA");
-            CheckCompare(normalHigh, normalLow, true, "普通武器同品质：战斗分高者优先", ref failures, ref total);
+            // 普通武器同科技：战斗评分高者优先，品质不再压过评分
+            WeaponScoreInput sameTechLegendary = Make(false, 0f, 1f, 6, "GunA", TechIndustrial);
+            WeaponScoreInput sameTechNormal = Make(false, 0f, 10f, 2, "GunB", TechIndustrial);
+            CheckCompare(sameTechNormal, sameTechLegendary, true,
+                "同科技：战斗评分优先于品质", ref failures, ref total);
+
+            // 同科技同战斗分：品质高者优先
+            WeaponScoreInput qualityLow = Make(false, 0f, 10f, 2, "GunA", TechIndustrial);
+            WeaponScoreInput qualityHigh = Make(false, 0f, 10f, 6, "GunA", TechIndustrial);
+            CheckCompare(qualityHigh, qualityLow, true,
+                "同科技同战斗分：品质高者优先", ref failures, ref total);
 
             // 完全同分：按 defName 稳定排序
-            WeaponScoreInput sameA = Make(false, 0f, 10f, 2, "GunA");
-            WeaponScoreInput sameB = Make(false, 0f, 10f, 2, "GunB");
+            WeaponScoreInput sameA = Make(false, 0f, 10f, 2, "GunA", TechIndustrial);
+            WeaponScoreInput sameB = Make(false, 0f, 10f, 2, "GunB", TechIndustrial);
             CheckCompare(sameA, sameB, true, "同分按 defName 稳定排序", ref failures, ref total);
 
-            // 可比分数：特化基数远高于一般
-            CheckBool(EquipPolicy.ComparableScore(special) > EquipPolicy.ComparableScore(general), true,
-                "可比分数：特化 > 一般", ref failures, ref total);
-
-            // 可比分数不含市价：战斗分与品质完全相同的武器分数必须相等
-            WeaponScoreInput valueA = Make(false, 0f, 10f, 2, "GunA");
-            WeaponScoreInput valueB = Make(false, 0f, 10f, 2, "GunB");
-            CheckBool(Math.Abs(EquipPolicy.ComparableScore(valueA) - EquipPolicy.ComparableScore(valueB)) < 0.0001f,
-                true, "可比分数与市价无关", ref failures, ref total);
-
             Console.WriteLine($"[EquipPolicyTests/Compare] {total - failures}/{total} passed");
+            return failures;
+        }
+
+        private static int RunWeaponSwapTests(ref int total)
+        {
+            int failures = 0;
+
+            WeaponScoreInput none = Make(false, 0f, 0f, 0, "", 0);
+
+            // 当前没有武器：任意有效候选都可换
+            CheckBool(EquipPolicy.ShouldSwapWeapon(none,
+                    Make(false, 0f, 5f, 2, "GunA", TechIndustrial), 10f), true,
+                "无武器：直接装备有效候选", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSwapWeapon(none,
+                    Make(false, 0f, 0f, 6, "GunA", TechIndustrial), 10f), false,
+                "无武器：零战斗分候选不装备", ref failures, ref total);
+
+            // 科技更高：即使战斗分只略高也换（匕首/弓让位给枪械）
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(false, 0f, 100f, 6, "Bow_Short", TechNeolithic),
+                    Make(false, 0f, 101f, 0, "Gun_Revolver", TechIndustrial), 10f), true,
+                "科技提升：直接换装", ref failures, ref total);
+
+            // 科技更低：战斗分再高也不降级
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(false, 0f, 100f, 0, "Gun_Revolver", TechIndustrial),
+                    Make(false, 0f, 999f, 6, "Bow_Great", TechNeolithic), 10f), false,
+                "科技下降：不换装", ref failures, ref total);
+
+            // 同科技：按战斗评分过阈值
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(false, 0f, 100f, 2, "GunA", TechIndustrial),
+                    Make(false, 0f, 120f, 2, "GunB", TechIndustrial), 10f), true,
+                "同科技提升 20% → 换装", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(false, 0f, 100f, 2, "GunA", TechIndustrial),
+                    Make(false, 0f, 105f, 2, "GunB", TechIndustrial), 10f), false,
+                "同科技提升 5% → 不换装", ref failures, ref total);
+
+            // 特化与一般互斥：特化优先，一般不能反向替换特化
+            WeaponScoreInput special = Make(true, 10f, 1f, 0, "UniqueA", TechSpacer);
+            WeaponScoreInput general = Make(false, 0f, 999f, 6, "GunA", TechIndustrial);
+            CheckBool(EquipPolicy.ShouldSwapWeapon(general, special, 10f), true,
+                "一般 → 特化：换装", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSwapWeapon(special, general, 10f), false,
+                "特化 → 一般：不换装", ref failures, ref total);
+
+            // 同为特化：特性价值高者直接换
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(true, 10f, 100f, 2, "UniqueA", TechSpacer),
+                    Make(true, 20f, 1f, 2, "UniqueB", TechSpacer), 10f), true,
+                "特化：特性价值更高 → 换装", ref failures, ref total);
+            CheckBool(EquipPolicy.ShouldSwapWeapon(
+                    Make(true, 20f, 1f, 2, "UniqueA", TechSpacer),
+                    Make(true, 10f, 999f, 2, "UniqueB", TechSpacer), 10f), false,
+                "特化：特性价值更低 → 不换装", ref failures, ref total);
+
+            Console.WriteLine($"[EquipPolicyTests/WeaponSwap] {total - failures}/{total} passed");
             return failures;
         }
 
@@ -222,13 +284,14 @@ namespace AutoEverything.Tests
         }
 
         private static WeaponScoreInput Make(bool isSpecial, float traitValue, float combat,
-            int quality, string defName)
+            int quality, string defName, int techRank = TechIndustrial)
         {
             WeaponScoreInput input = new WeaponScoreInput();
             input.IsSpecial = isSpecial;
             input.TraitValue = traitValue;
             input.CombatScore = combat;
             input.QualityRank = quality;
+            input.TechRank = techRank;
             input.DefName = defName;
             return input;
         }

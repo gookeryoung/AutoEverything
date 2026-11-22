@@ -18,9 +18,10 @@ namespace AutoEverything.AutoEquip
 
             input.DefName = weapon.def.defName;
             input.QualityRank = GetQualityRank(weapon);
+            input.TechRank = (int)weapon.def.techLevel;
 
             // 只统计战斗特性价值：纯装饰特性（镶金/镶玉）不构成特化优势；
-            // 装饰特性价值为 0 时降级为普通武器，与普通武器一起按品质+战斗评分比较
+            // 装饰特性价值为 0 时降级为普通武器，与普通武器一起按科技等级+战斗评分比较
             input.TraitValue = WeaponClassifier.GetCombatTraitValue(weapon);
             input.IsSpecial = input.TraitValue > 0f;
             input.CombatScore = ComputeCombatScore(weapon, role, kind);

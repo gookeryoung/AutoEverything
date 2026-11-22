@@ -200,7 +200,7 @@
   <AE_CFG_EquipMinImprovement>换装最小提升</AE_CFG_EquipMinImprovement>
   <AE_CFG_EquipMaxThrownKinds>投掷物种类上限</AE_CFG_EquipMaxThrownKinds>
   <AE_CFG_EquipRoleHint>白名单按殖民者栏角色分组生效：勾选近战/远程决定主武器类别，副武器数量为额外放入背包的远程武器数；投掷物勾选后才携带手雷/燃烧弹。</AE_CFG_EquipRoleHint>
-  <AE_CFG_EquipPriorityHint>特化武器（带战斗相关特性的独特/人格武器）优先于一般武器；同为特化时按战斗特性价格（marketValueOffset 总和）排序，同为一般时按品质再按战斗评分。镶金/镶玉等纯装饰特性不计入，只带装饰特性的武器按一般武器处理；市价不参与选择。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
+  <AE_CFG_EquipPriorityHint>特化武器（带战斗相关特性的独特/人格武器）优先于一般武器；同为特化时按战斗特性价格（marketValueOffset 总和）排序；同为一般时先比科技等级，同科技再比战斗评分，品质只作兜底，因此有枪械时不会再选新石器短弓/匕首。镶金/镶玉等纯装饰特性不计入，只带装饰特性的武器按一般武器处理；市价不参与选择。一般武器低于最低品质不会被选中。</AE_CFG_EquipPriorityHint>
   <AE_CFG_EquipApparelHint>护甲按"整套装备"评分：部位覆盖率 × 分层 × 锐/钝/热护甲，兼顾绝缘、移动/工作速度惩罚与耐久；同一部位多层会叠加减伤，也会加速磨损。服装只从殖民者当前【管理→着装】政策允许的范围内选择，不会修改玩家政策；不会替换满足意识形态角色或头衔要求的衣物。</AE_CFG_EquipApparelHint>
   <AE_CFG_EquipSidearmHint>副武器与手雷只放入背包，不占用主武器栏；原版不会自动切换或投掷，需要玩家手动操作。</AE_CFG_EquipSidearmHint>
   <AE_CFG_EquipArmor>自动穿戴护甲与服装</AE_CFG_EquipArmor>
@@ -235,11 +235,11 @@
 
   <AE_Quality_Awful>极差</AE_Quality_Awful>
   <AE_Quality_Poor>较差</AE_Quality_Poor>
-  <AE_Quality_Normal>普通</AE_Quality_Normal>
+  <AE_Quality_Normal>一般</AE_Quality_Normal>
   <AE_Quality_Good>良好</AE_Quality_Good>
-  <AE_Quality_Excellent>优秀</AE_Quality_Excellent>
-  <AE_Quality_Masterwork>大师</AE_Quality_Masterwork>
-  <AE_Quality_Legendary>传奇</AE_Quality_Legendary>
+  <AE_Quality_Excellent>极佳</AE_Quality_Excellent>
+  <AE_Quality_Masterwork>大师级</AE_Quality_Masterwork>
+  <AE_Quality_Legendary>传奇级</AE_Quality_Legendary>
   <AE_CFG_MasterDisabled>自动万物已关闭：所有自动模块不会执行（可在“通用调试”中开启）</AE_CFG_MasterDisabled>
 
   <AE_CFG_TierAMajorMin>A 档最少双火</AE_CFG_TierAMajorMin>

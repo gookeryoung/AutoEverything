@@ -161,8 +161,34 @@ namespace AutoEverything.AutoEquip
             if (pawn.DevelopmentalStage != DevelopmentalStage.Adult) return true;
             if (PawnJobGuard.ShouldSkipForMedical(pawn)) return true;
             if (pawn.CurJob != null && pawn.CurJob.playerForced) return true;
+            // 已有装备/穿戴/取物 Job 时不再派发：否则武器掉落触发的重算会反复打断同一个 Job，
+            // 表现为殖民者来回跑动、重复装备。
+            if (HasPendingGearJob(pawn)) return true;
             if (pawn.jobs != null && pawn.jobs.curDriver != null && pawn.jobs.curDriver.asleep) return true;
             return false;
+        }
+
+        private static bool HasPendingGearJob(Pawn pawn)
+        {
+            if (pawn == null || pawn.jobs == null) return false;
+            if (IsGearJob(pawn.jobs.curJob)) return true;
+
+            JobQueue queue = pawn.jobs.jobQueue;
+            if (queue == null) return false;
+            for (int i = 0; i < queue.Count; i++)
+            {
+                QueuedJob queued = queue[i];
+                if (queued != null && IsGearJob(queued.job)) return true;
+            }
+            return false;
+        }
+
+        private static bool IsGearJob(Job job)
+        {
+            if (job == null || job.def == null) return false;
+            return job.def == JobDefOf.Equip
+                || job.def == JobDefOf.Wear
+                || job.def == JobDefOf.TakeInventory;
         }
 
         // ===== 战斗/工作双档案（默认关闭）=====
@@ -333,13 +359,9 @@ namespace AutoEverything.AutoEquip
 
             if (best == null) return false;
 
-            if (hasCurrentScore)
-            {
-                float currentComparable = EquipPolicy.ComparableScore(currentScore);
-                float bestComparable = EquipPolicy.ComparableScore(bestScore);
-                if (!EquipPolicy.ShouldSwap(currentComparable, bestComparable, AESettings.equipMinImprovementPct))
-                    return false;
-            }
+            if (hasCurrentScore
+                && !EquipPolicy.ShouldSwapWeapon(currentScore, bestScore, AESettings.equipMinImprovementPct))
+                return false;
 
             string change = current != null
                 ? "换主武器：" + DescribeWeapon(current) + " → " + DescribeWeapon(best)
@@ -638,7 +660,9 @@ namespace AutoEverything.AutoEquip
 
             Area allowedArea = pawn.playerSettings?.EffectiveAreaRestrictionInPawnCurrentMap;
             if (allowedArea != null && !allowedArea[thing.Position]) return false;
-            return IsReservable(pawn, thing);
+            if (!IsReservable(pawn, thing)) return false;
+            // 不可达目标不要派发 Job：否则 Job 立刻失败，下一轮又重复尝试。
+            return pawn.CanReach(thing, PathEndMode.Touch, Danger.Deadly);
         }
 
         private static bool IsReservable(Pawn pawn, Thing thing)
