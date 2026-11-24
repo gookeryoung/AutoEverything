@@ -560,6 +560,22 @@ namespace AutoEverything.UI
             }
             EndSection(l);
 
+            // 评级范围：决定评级前缀应用到哪些人群（默认全开）
+            BeginSection(l, "AE_CFG_Section_TierScope".Translate());
+            bool[] scope = { AESettings.tierScopeColonists, AESettings.tierScopeVisitors,
+                AESettings.tierScopeSlavesPrisoners };
+            DrawCheckboxRow(l,
+                new[] { "AE_CFG_TierScope_Colonists", "AE_CFG_TierScope_Visitors",
+                    "AE_CFG_TierScope_SlavesPrisoners" },
+                scope,
+                new[] { "AE_TT_TierScope_Colonists", "AE_TT_TierScope_Visitors",
+                    "AE_TT_TierScope_SlavesPrisoners" });
+            AESettings.tierScopeColonists = scope[0];
+            AESettings.tierScopeVisitors = scope[1];
+            AESettings.tierScopeSlavesPrisoners = scope[2];
+            DrawRuleText(l, "AE_CFG_TierScope_Hint".Translate());
+            EndSection(l);
+
             // S/SS/SSS 规则表：按"档位 × 三大维度"展示并逐条开关，工作狂系列数值可在格内调整
             DrawTierRuleTable(l);
 

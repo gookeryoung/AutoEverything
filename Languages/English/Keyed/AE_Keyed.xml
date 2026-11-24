@@ -129,8 +129,8 @@ Does not modify any object name, pure frontend drawing, safe and reversible, no 
   <AE_MarkCat_Enemy>Enemy</AE_MarkCat_Enemy>
   <AE_MarkCat_Neutral>Neutral/Ally</AE_MarkCat_Neutral>
   <AE_MarkCat_WildHuman>Wild</AE_MarkCat_WildHuman>
-  <AE_TierTag_ApplyResult>Tier prefix applied to {0} colonists</AE_TierTag_ApplyResult>
-  <AE_TierTag_ClearResult>Restored original names for {0} colonists</AE_TierTag_ClearResult>
+  <AE_TierTag_ApplyResult>Tier prefix applied to {0} pawns</AE_TierTag_ApplyResult>
+  <AE_TierTag_ClearResult>Restored original names for {0} pawns</AE_TierTag_ClearResult>
 
   <!-- AutoCarry -->
   <AE_AutoCarry_Result>Dispatched carry jobs for {0} colonists</AE_AutoCarry_Result>
@@ -165,6 +165,7 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
 
   <AE_CFG_Section_PersonSwitch>Tier switches</AE_CFG_Section_PersonSwitch>
   <AE_CFG_Section_TierRules>Tier rules</AE_CFG_Section_TierRules>
+  <AE_CFG_Section_TierScope>Rating scope</AE_CFG_Section_TierScope>
   <AE_CFG_Section_WorkSwitch>Auto work switches</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>Work allocation rules</AE_CFG_Section_WorkRules>
   <AE_CFG_Section_RoleIconRules>Avatar icon rules</AE_CFG_Section_RoleIconRules>
@@ -181,6 +182,9 @@ When unchecked, only stops auto-execution, assigned policies remain.</AE_TT_Auto
 
   <AE_CFG_ApplyTierNow>Evaluate now</AE_CFG_ApplyTierNow>
   <AE_CFG_ClearTierNow>Clear tier names</AE_CFG_ClearTierNow>
+  <AE_CFG_TierScope_Colonists>Colonists (incl. ghouls)</AE_CFG_TierScope_Colonists>
+  <AE_CFG_TierScope_Visitors>Visitors</AE_CFG_TierScope_Visitors>
+  <AE_CFG_TierScope_SlavesPrisoners>Slaves &amp; prisoners</AE_CFG_TierScope_SlavesPrisoners>
   <AE_CFG_ApplyWorkNow>Reassign work now</AE_CFG_ApplyWorkNow>
   <AE_CFG_ScanMarkNow>Scan now</AE_CFG_ScanMarkNow>
   <AE_CFG_ApplyCarryNow>Carry now</AE_CFG_ApplyCarryNow>
@@ -308,6 +312,10 @@ Disabled by default; paused during combat; colonists in medical treatment, ritua
   <AE_TT_TierCol_ToughMelee>Tough: reduces incoming damage; combines with Melee passion and Nimble/Brawler to judge frontliner value.</AE_TT_TierCol_ToughMelee>
   <AE_TT_TierCol_Workaholic>Workaholic = Industriousness degree 2; Neurotic = Neurotic degree 2. S needs either trait + a professional major; SS needs both traits combined.</AE_TT_TierCol_Workaholic>
   <AE_TT_TierRuleWorkMajors>Professional-work double passions (Crafting/Construction/Artistic/Cooking/Plants/Mining) needed to upgrade the SSS combo.</AE_TT_TierRuleWorkMajors>
+  <AE_TT_TierScope_Colonists>Apply tier prefixes to colonists and player ghouls. Turning this off only stops future tagging; existing prefixes stay.</AE_TT_TierScope_Colonists>
+  <AE_TT_TierScope_Visitors>Apply tier prefixes to map visitors from other factions (Guest status). Turning this off only stops future tagging; existing prefixes stay.</AE_TT_TierScope_Visitors>
+  <AE_TT_TierScope_SlavesPrisoners>Apply tier prefixes to player slaves and prisoners. Turning this off only stops future tagging; existing prefixes stay.</AE_TT_TierScope_SlavesPrisoners>
+  <AE_CFG_TierScope_Hint>The scope only controls applying/refreshing tier prefixes. Turning a group off does not strip its existing prefixes; "Clear tier names" always clears everyone rated.</AE_CFG_TierScope_Hint>
   <AE_TT_SpecialTalentToS>Pawns with one of the special talents, or with the unnatural healing / transmute steel ability, are rated S directly.</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>Pawns with Beautiful (beauty level 2) and a double Social passion are rated S directly.</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>When the spouse reaches the selected tier, this pawn is rated at least that tier.</AE_TT_SpouseExemption>

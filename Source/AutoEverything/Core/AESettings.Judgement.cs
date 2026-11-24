@@ -60,6 +60,12 @@ namespace AutoEverything.Core
         public static bool spouseExemptionEnabled = true;
         public static CombatTier spouseExemptionTier = CombatTier.S;
 
+        // 评级范围（默认全部包含）：控制评级前缀应用到哪些人群
+        // 殖民者组含玩家食尸鬼；奴隶与囚犯共用一个开关；关闭只停止后续应用，不清除已有前缀
+        public static bool tierScopeColonists = true;
+        public static bool tierScopeVisitors = true;
+        public static bool tierScopeSlavesPrisoners = true;
+
         // ════════════════════════════════
         // 殖民者栏五类角色分组判定（前排/射手/工人/贸易/其他）
         // 纯白名单制：勾选且命中才归组，不做技能/兴趣兜底推断
@@ -268,6 +274,9 @@ namespace AutoEverything.Core
             LookCompat(ref tierBeautySocialToS, "tierBeautySocialToS", true);
             LookCompat(ref spouseExemptionEnabled, "spouseExemptionEnabled", true);
             Scribe_Values.Look(ref spouseExemptionTier, "ae_spouseExemptionTier", CombatTier.S);
+            LookCompat(ref tierScopeColonists, "tierScopeColonists", true);
+            LookCompat(ref tierScopeVisitors, "tierScopeVisitors", true);
+            LookCompat(ref tierScopeSlavesPrisoners, "tierScopeSlavesPrisoners", true);
 
             // 殖民者栏五类角色分组判定
             LookCompat(ref groupBrawlerTraitFront, "groupBrawlerTraitFront", true);

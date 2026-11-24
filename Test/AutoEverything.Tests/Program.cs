@@ -37,6 +37,7 @@ namespace AutoEverything.Tests
                 failures += EvaluateAutoTierCoreTests.RunAll();
                 failures += PawnMarkerTests.RunAll();
                 failures += TierTagHelperTests.RunAll();
+                failures += TierScopeTests.RunAll();
                 failures += RoleDetectorTests.RunAll();
                 failures += RoleOrderTests.RunAll();
                 failures += RoleGroupTests.RunAll();

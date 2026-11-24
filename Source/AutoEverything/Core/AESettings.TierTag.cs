@@ -31,9 +31,10 @@ namespace AutoEverything.Core
         private static readonly Dictionary<Pawn, int> sortRoleCache = new Dictionary<Pawn, int>();
 
         /// <summary>
-        /// 给所有玩家殖民者（含食尸鬼）的 Nick 加上评级前缀，格式 "S#王五"。
+        /// 给评级范围内的 Pawn 加上评级前缀，格式 "S#王五"。
+        /// 范围由【自动】→ 人员评级页配置：殖民者（含食尸鬼）/ 访问者 / 奴隶与囚犯，默认全开。
         /// 已加过前缀的会先剥离再重加，保证评级最新。
-        /// 跳过动物、机械族、奴隶、未成年。
+        /// 跳过动物、机械族、未成年。
         /// 注：食尸鬼也按相同规则评级，但不参与装备分配——玩家可一眼分辨其价值。
         /// 评级档位取 GetCombatTier：命中自定义评级时用自定义档，否则用系统档（含配偶豁免）。
         /// </summary>
@@ -41,7 +42,7 @@ namespace AutoEverything.Core
         {
             int touched = 0;
             bool dictModified = false;  // 字典是否被修改，用于决定是否同步存档载体
-            // 收集所有需要评级的 Pawn：殖民者 + 食尸鬼（统一走 PawnCollector，避免两处收集逻辑重复）
+            // 按范围配置收集 Pawn（统一走 PawnCollector，避免两处收集逻辑重复）
             List<Pawn> pawns = PawnCollector.AllManagedPawns();
 
             foreach (Pawn pawn in pawns)
@@ -94,14 +95,15 @@ namespace AutoEverything.Core
         }
 
         /// <summary>
-        /// 清除所有殖民者（含食尸鬼）Nick 上的评级前缀，恢复原名。
+        /// 清除所有曾被本 MOD 加过评级前缀的 Pawn Nick，恢复原名。
+        /// 使用 <see cref="PawnCollector.AllTaggablePawns"/> 忽略范围开关——
+        /// 玩家收窄评级范围后，仍能清理先前已加的前缀。
         /// 优先从 tierTagOriginals 取原名；若字典无（重启后），尝试从 Nick 解析剥离。
         /// </summary>
         public static int ClearTierTagsFromAllPawns()
         {
             int touched = 0;
-            // 收集殖民者 + 食尸鬼，与 Apply 保持一致（统一走 PawnCollector）
-            List<Pawn> pawns = PawnCollector.AllManagedPawns();
+            List<Pawn> pawns = PawnCollector.AllTaggablePawns();
 
             foreach (Pawn pawn in pawns)
             {

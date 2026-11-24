@@ -130,8 +130,8 @@
   <AE_MarkCat_Enemy>敌对</AE_MarkCat_Enemy>
   <AE_MarkCat_Neutral>中立/盟友</AE_MarkCat_Neutral>
   <AE_MarkCat_WildHuman>野生</AE_MarkCat_WildHuman>
-  <AE_TierTag_ApplyResult>已为 {0} 个殖民者名字加上评级前缀</AE_TierTag_ApplyResult>
-  <AE_TierTag_ClearResult>已恢复 {0} 个殖民者的原名</AE_TierTag_ClearResult>
+  <AE_TierTag_ApplyResult>已为 {0} 名人员名字加上评级前缀</AE_TierTag_ApplyResult>
+  <AE_TierTag_ClearResult>已恢复 {0} 名人员的原名</AE_TierTag_ClearResult>
 
   <!-- AutoCarry 自动携带 -->
   <AE_AutoCarry_Result>已为 {0} 个殖民者派发携带物品任务</AE_AutoCarry_Result>
@@ -166,6 +166,7 @@
 
   <AE_CFG_Section_PersonSwitch>评级开关</AE_CFG_Section_PersonSwitch>
   <AE_CFG_Section_TierRules>评级判定阈值</AE_CFG_Section_TierRules>
+  <AE_CFG_Section_TierScope>评级范围</AE_CFG_Section_TierScope>
   <AE_CFG_Section_WorkSwitch>工作自动开关</AE_CFG_Section_WorkSwitch>
   <AE_CFG_Section_WorkRules>工作分配判定</AE_CFG_Section_WorkRules>
   <AE_CFG_Section_RoleIconRules>头像标识规则</AE_CFG_Section_RoleIconRules>
@@ -182,6 +183,9 @@
 
   <AE_CFG_ApplyTierNow>立即评级</AE_CFG_ApplyTierNow>
   <AE_CFG_ClearTierNow>清除评级名称</AE_CFG_ClearTierNow>
+  <AE_CFG_TierScope_Colonists>殖民者（含食尸鬼）</AE_CFG_TierScope_Colonists>
+  <AE_CFG_TierScope_Visitors>访问者</AE_CFG_TierScope_Visitors>
+  <AE_CFG_TierScope_SlavesPrisoners>奴隶与囚犯</AE_CFG_TierScope_SlavesPrisoners>
   <AE_CFG_ApplyWorkNow>立即重配工作</AE_CFG_ApplyWorkNow>
   <AE_CFG_ScanMarkNow>立即扫描标记</AE_CFG_ScanMarkNow>
   <AE_CFG_ApplyCarryNow>立即执行携带</AE_CFG_ApplyCarryNow>
@@ -309,6 +313,10 @@
   <AE_TT_TierCol_ToughMelee>坚韧：减少受到的伤害；配合近战兴趣与敏捷/格斗者特质判定前排价值</AE_TT_TierCol_ToughMelee>
   <AE_TT_TierCol_Workaholic>工作狂＝Industriousness 2 级；严重神经质＝Neurotic 2 级。S 只需任一特质 + 专业双火，SS 要求两者组合</AE_TT_TierCol_Workaholic>
   <AE_TT_TierRuleWorkMajors>SSS 组合升档所需的专业工作双火数（手工/建造/艺术/烹饪/种植/采矿）</AE_TT_TierRuleWorkMajors>
+  <AE_TT_TierScope_Colonists>为殖民者（含玩家食尸鬼）应用评级前缀。关闭只停止后续评级，已加前缀保留</AE_TT_TierScope_Colonists>
+  <AE_TT_TierScope_Visitors>为地图上其他派系的访客（Guest 状态）应用评级前缀。关闭只停止后续评级，已加前缀保留</AE_TT_TierScope_Visitors>
+  <AE_TT_TierScope_SlavesPrisoners>为玩家的奴隶与囚犯应用评级前缀。关闭只停止后续评级，已加前缀保留</AE_TT_TierScope_SlavesPrisoners>
+  <AE_CFG_TierScope_Hint>范围只影响评级前缀的应用与刷新；关闭某组不会清除该组已有前缀，「清除评级名称」始终清理全部已评级人员。</AE_CFG_TierScope_Hint>
   <AE_TT_SpecialTalentToS>拥有博闻强识/开心果/极致体能/痴迷虚空/神秘学者/怪诞不经特质之一，或拥有异常医术/转化钢铁技能时，直接评为 S 档</AE_TT_SpecialTalentToS>
   <AE_TT_BeautySocialToS>沉鱼落雁（美貌 2 级）且社交双火时直接评为 S 档</AE_TT_BeautySocialToS>
   <AE_TT_SpouseExemption>配偶达到指定档位时，本人评级不低于该档位</AE_TT_SpouseExemption>
